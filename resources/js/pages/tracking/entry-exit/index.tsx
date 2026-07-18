@@ -1,5 +1,6 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import Heading from '@/components/heading';
+import { Pagination } from '@/components/ir4/pagination';
 import { Button } from '@/components/ui/button';
 
 type LogRow = {
@@ -166,6 +167,11 @@ export default function EntryExitIndex({
                             ))}
                         </tbody>
                     </table>
+                    <Pagination
+                        meta={logs.meta}
+                        pageUrl="/tracking/entry-exit"
+                        params={filters}
+                    />
                 </div>
 
                 <Link href="/tracking" className="text-sm underline">

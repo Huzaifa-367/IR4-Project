@@ -278,6 +278,11 @@ export default function DevicesIndex({
                     rowKey={(device) => device.id}
                     meta={devices.meta}
                     pageUrl="/settings/devices"
+                    queryParams={{
+                        q: q || undefined,
+                        device_type: deviceType === 'all' ? undefined : deviceType,
+                        status: status === 'all' ? undefined : status,
+                    }}
                     emptyTitle="No devices"
                     emptyDescription="Register a device on an asset to begin commissioning."
                 />

@@ -1,6 +1,24 @@
-import { Form, Head } from '@inertiajs/react';
-import Heading from '@/components/heading';
+import { Head } from '@inertiajs/react';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
+import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
+import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
+import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import type { PaginatedMeta } from '@/types/hardware';
 
 type DeviceRow = {
     id: number;
@@ -13,126 +31,233 @@ type DeviceRow = {
 };
 
 type Props = {
-    devices: {
-        data: DeviceRow[];
-        meta: { current_page: number; last_page: number; total: number };
-    };
+    devices: { data: DeviceRow[]; meta: PaginatedMeta };
     workers: Array<{ id: number; name: string }>;
 };
 
 export default function PortableDevicesIndex({ devices, workers }: Props) {
+    const [addOpen, setAddOpen] = useState(false);
+    const [addWorker, setAddWorker] = useState('');
+    const [revokeTarget, setRevokeTarget] = useState<DeviceRow | null>(null);
+    const [revokeReason, setRevokeReason] = useState('');
+
+    const columns: SettingsColumn<DeviceRow>[] = [
+        {
+            key: 'worker',
+            header: 'Worker',
+            cell: (device) =>
+                device.worker_name ?? `Worker #${device.worker_id}`,
+        },
+        {
+            key: 'type',
+            header: 'Type',
+            cell: (device) => device.device_type,
+        },
+        {
+            key: 'model',
+            header: 'Make / model',
+            cell: (device) => device.make_model ?? '—',
+        },
+        {
+            key: 'serial',
+            header: 'Serial',
+            cell: (device) => device.serial_number ?? '—',
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            cell: (device) => (
+                <StatusPill
+                    label={
+                        device.status === 'approved' ? 'Approved' : 'Revoked'
+                    }
+                    tone={device.status === 'approved' ? 'ok' : 'crit'}
+                />
+            ),
+        },
+        {
+            key: 'actions',
+            header: '',
+            className: 'w-28 text-right',
+            cell: (device) =>
+                device.status === 'approved' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                            setRevokeReason('');
+                            setRevokeTarget(device);
+                        }}
+                    >
+                        Revoke
+                    </Button>
+                ) : null,
+        },
+    ];
+
     return (
         <>
             <Head title="Portable devices" />
-            <div className="space-y-6 p-6">
-                <Heading
-                    title="Portable devices"
-                    description="Approved on-site devices register"
+            <SettingsPageShell
+                title="Portable Devices"
+                description="Approved on-site devices register (SA restriction of portable devices)."
+                actions={
+                    <Button
+                        type="button"
+                        onClick={() => {
+                            setAddWorker('');
+                            setAddOpen(true);
+                        }}
+                    >
+                        <Plus data-icon="inline-start" />
+                        Register device
+                    </Button>
+                }
+            >
+                <SettingsDataTable
+                    columns={columns}
+                    rows={devices.data}
+                    rowKey={(device) => device.id}
+                    meta={devices.meta}
+                    pageUrl="/tracking/portable-devices"
+                    emptyTitle="No portable devices"
+                    emptyDescription="Register a worker's phone, tablet, or camera to approve it on site."
                 />
+            </SettingsPageShell>
 
-                <Form
-                    action="/tracking/portable-devices"
-                    method="post"
-                    className="grid gap-2 rounded-lg border border-border p-4 md:grid-cols-3"
-                >
-                    {({ processing }) => (
-                        <>
-                            <select
-                                name="worker_id"
-                                required
-                                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            <CrudFormDialog
+                open={addOpen}
+                onOpenChange={setAddOpen}
+                title="Register device"
+                action="/tracking/portable-devices"
+                method="post"
+                submitLabel="Register"
+                disableSubmit={!addWorker}
+                transform={(data) => ({ ...data, worker_id: addWorker })}
+            >
+                {({ errors }) => (
+                    <>
+                        <div className="flex flex-col gap-2">
+                            <Label>Worker</Label>
+                            <Select
+                                value={addWorker}
+                                onValueChange={setAddWorker}
                             >
-                                <option value="">Worker</option>
-                                {workers.map((w) => (
-                                    <option key={w.id} value={w.id}>
-                                        {w.name}
-                                    </option>
-                                ))}
-                            </select>
-                            <input
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Choose a worker…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        {workers.map((w) => (
+                                            <SelectItem
+                                                key={w.id}
+                                                value={String(w.id)}
+                                            >
+                                                {w.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="device-type">Device type</Label>
+                            <Input
+                                id="device-type"
                                 name="device_type"
                                 required
-                                placeholder="Device type"
-                                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                                maxLength={150}
+                                placeholder="Phone, tablet, camera…"
                             />
-                            <input
+                            {errors.device_type ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.device_type}
+                                </p>
+                            ) : null}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="device-model">Make / model</Label>
+                            <Input
+                                id="device-model"
+                                name="make_model"
+                                maxLength={150}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="device-serial">Serial number</Label>
+                            <Input
+                                id="device-serial"
                                 name="serial_number"
-                                placeholder="Serial"
-                                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                                maxLength={150}
                             />
-                            <Button type="submit" disabled={processing}>
-                                Register
-                            </Button>
-                        </>
-                    )}
-                </Form>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="device-approval">
+                                Approval reference
+                            </Label>
+                            <Input
+                                id="device-approval"
+                                name="approval_reference"
+                                maxLength={150}
+                            />
+                        </div>
+                    </>
+                )}
+            </CrudFormDialog>
 
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50 text-left">
-                            <tr>
-                                <th className="px-3 py-2">Worker</th>
-                                <th className="px-3 py-2">Type</th>
-                                <th className="px-3 py-2">Serial</th>
-                                <th className="px-3 py-2">Status</th>
-                                <th className="px-3 py-2" />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {devices.data.map((device) => (
-                                <tr
-                                    key={device.id}
-                                    className="border-t border-border"
-                                >
-                                    <td className="px-3 py-2">
-                                        {device.worker_name}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {device.device_type}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {device.serial_number ?? '—'}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {device.status}
-                                    </td>
-                                    <td className="px-3 py-2 text-right">
-                                        {device.status === 'approved' && (
-                                            <Form
-                                                action={`/tracking/portable-devices/${device.id}/revoke`}
-                                                method="post"
-                                                className="inline-flex gap-1"
-                                            >
-                                                {({ processing }) => (
-                                                    <>
-                                                        <input
-                                                            name="revoke_reason"
-                                                            required
-                                                            minLength={10}
-                                                            placeholder="Reason ≥10"
-                                                            className="h-8 rounded-md border border-input px-2 text-xs"
-                                                        />
-                                                        <Button
-                                                            type="submit"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            disabled={
-                                                                processing
-                                                            }
-                                                        >
-                                                            Revoke
-                                                        </Button>
-                                                    </>
-                                                )}
-                                            </Form>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <ConfirmActionDialog
+                open={revokeTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setRevokeTarget(null);
+                    }
+                }}
+                title="Revoke device"
+                description={
+                    revokeTarget ? (
+                        <div className="flex flex-col gap-3">
+                            <p>
+                                Revoke {revokeTarget.device_type}
+                                {revokeTarget.worker_name
+                                    ? ` (${revokeTarget.worker_name})`
+                                    : ''}
+                                ?
+                            </p>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="revoke-reason">
+                                    Reason (min 10 characters)
+                                </Label>
+                                <Input
+                                    id="revoke-reason"
+                                    value={revokeReason}
+                                    onChange={(event) =>
+                                        setRevokeReason(event.target.value)
+                                    }
+                                    minLength={10}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        ''
+                    )
+                }
+                action={
+                    revokeTarget
+                        ? `/tracking/portable-devices/${revokeTarget.id}/revoke`
+                        : undefined
+                }
+                method="post"
+                data={{ revoke_reason: revokeReason }}
+                confirmLabel="Revoke"
+                destructive
+                disabled={revokeReason.trim().length < 10}
+            />
         </>
     );
 }
+
+PortableDevicesIndex.layout = {
+    breadcrumbs: [
+        { title: 'Portable Devices', href: '/tracking/portable-devices' },
+    ],
+};

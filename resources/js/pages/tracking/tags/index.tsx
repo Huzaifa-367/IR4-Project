@@ -1,6 +1,25 @@
-import { Form, Head, router } from '@inertiajs/react';
-import Heading from '@/components/heading';
+import { Head, router } from '@inertiajs/react';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
+import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
+import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
+import { StatusPill } from '@/components/ir4/status-pill';
+import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import type { PaginatedMeta } from '@/types/hardware';
 
 type TagRow = {
     id: number;
@@ -13,15 +32,20 @@ type TagRow = {
 };
 
 type Props = {
-    tags: {
-        data: TagRow[];
-        meta: { current_page: number; last_page: number; total: number };
-    };
+    tags: { data: TagRow[]; meta: PaginatedMeta };
     filters: { status: string; search: string };
     statuses: Array<{ value: string; label: string }>;
     workers: Array<{ id: number; name: string }>;
     spareCount: number;
     canManage: boolean;
+};
+
+const STATUS_TONE: Record<string, StatusPillTone> = {
+    in_stock: 'accent',
+    assigned: 'ok',
+    lost: 'crit',
+    damaged: 'warn',
+    retired: 'neutral',
 };
 
 export default function TagsIndex({
@@ -32,175 +56,264 @@ export default function TagsIndex({
     spareCount,
     canManage,
 }: Props) {
+    const [status, setStatus] = useState(filters.status || 'all');
+    const [search, setSearch] = useState(filters.search);
+    const [addOpen, setAddOpen] = useState(false);
+    const [assignTarget, setAssignTarget] = useState<TagRow | null>(null);
+    const [assignWorker, setAssignWorker] = useState('');
+    const [unassignTarget, setUnassignTarget] = useState<TagRow | null>(null);
+
+    const applyFilters = (): void => {
+        router.get(
+            '/tracking/tags',
+            {
+                status: status === 'all' ? undefined : status,
+                search: search || undefined,
+            },
+            { preserveState: true, replace: true },
+        );
+    };
+
+    const columns: SettingsColumn<TagRow>[] = [
+        {
+            key: 'uid',
+            header: 'UID',
+            cell: (tag) => (
+                <span className="font-mono text-xs">{tag.tag_uid}</span>
+            ),
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            cell: (tag) => (
+                <StatusPill
+                    label={tag.status_label}
+                    tone={STATUS_TONE[tag.status] ?? 'neutral'}
+                />
+            ),
+        },
+        {
+            key: 'worker',
+            header: 'Worker',
+            cell: (tag) => tag.worker_name ?? '—',
+        },
+        {
+            key: 'actions',
+            header: '',
+            className: 'w-40 text-right',
+            cell: (tag) =>
+                canManage && tag.status === 'in_stock' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                            setAssignWorker('');
+                            setAssignTarget(tag);
+                        }}
+                    >
+                        Assign
+                    </Button>
+                ) : canManage && tag.status === 'assigned' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setUnassignTarget(tag)}
+                    >
+                        Unassign
+                    </Button>
+                ) : null,
+        },
+    ];
+
     return (
         <>
             <Head title="RFID tags" />
-            <div className="space-y-6 p-6">
-                <Heading
-                    title="RFID tags"
-                    description={`${spareCount} in stock`}
-                />
-
-                {canManage && (
-                    <Form
-                        action="/tracking/tags"
-                        method="post"
-                        className="flex flex-wrap gap-2"
-                    >
-                        {({ processing }) => (
-                            <>
-                                <input
-                                    name="tag_uid"
-                                    placeholder="Tag UID"
-                                    required
-                                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                                />
-                                <Button type="submit" disabled={processing}>
-                                    Add tag
-                                </Button>
-                            </>
-                        )}
-                    </Form>
-                )}
-
-                <form
-                    className="flex flex-wrap gap-2"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        const form = new FormData(event.currentTarget);
-                        router.get(
-                            '/tracking/tags',
-                            {
-                                status: String(form.get('status') ?? ''),
-                                search: String(form.get('search') ?? ''),
-                            },
-                            { preserveState: true, replace: true },
-                        );
+            <SettingsPageShell
+                title="RFID Tags"
+                description={`${spareCount} in stock`}
+                actions={
+                    canManage ? (
+                        <Button type="button" onClick={() => setAddOpen(true)}>
+                            <Plus data-icon="inline-start" />
+                            Add tag
+                        </Button>
+                    ) : undefined
+                }
+                filters={
+                    <>
+                        <Input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Search UID…"
+                            className="w-full sm:w-56"
+                            aria-label="Search tags"
+                        />
+                        <Select value={status} onValueChange={setStatus}>
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value="all">
+                                        All statuses
+                                    </SelectItem>
+                                    {statuses.map((s) => (
+                                        <SelectItem
+                                            key={s.value}
+                                            value={s.value}
+                                        >
+                                            {s.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={applyFilters}
+                        >
+                            Apply
+                        </Button>
+                    </>
+                }
+            >
+                <SettingsDataTable
+                    columns={columns}
+                    rows={tags.data}
+                    rowKey={(tag) => tag.id}
+                    meta={tags.meta}
+                    pageUrl="/tracking/tags"
+                    queryParams={{
+                        status: status === 'all' ? undefined : status,
+                        search: search || undefined,
                     }}
-                >
-                    <select
-                        name="status"
-                        defaultValue={filters.status}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                        <option value="">All statuses</option>
-                        {statuses.map((s) => (
-                            <option key={s.value} value={s.value}>
-                                {s.label}
-                            </option>
-                        ))}
-                    </select>
-                    <input
-                        name="search"
-                        defaultValue={filters.search}
-                        placeholder="Search UID"
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    />
-                    <Button type="submit" variant="secondary">
-                        Filter
-                    </Button>
-                </form>
+                    emptyTitle="No tags"
+                    emptyDescription="Register the first RFID tag to build the spare pool."
+                />
+            </SettingsPageShell>
 
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50 text-left">
-                            <tr>
-                                <th className="px-3 py-2">UID</th>
-                                <th className="px-3 py-2">Status</th>
-                                <th className="px-3 py-2">Worker</th>
-                                <th className="px-3 py-2" />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {tags.data.map((tag) => (
-                                <tr
-                                    key={tag.id}
-                                    className="border-t border-border"
-                                >
-                                    <td className="px-3 py-2 font-mono text-xs">
-                                        {tag.tag_uid}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {tag.status_label}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {tag.worker_name ?? '—'}
-                                    </td>
-                                    <td className="px-3 py-2 text-right">
-                                        {canManage &&
-                                            tag.status === 'in_stock' && (
-                                                <Form
-                                                    action={`/tracking/tags/${tag.id}/assign`}
-                                                    method="post"
-                                                    className="inline-flex gap-1"
-                                                >
-                                                    {({ processing }) => (
-                                                        <>
-                                                            <select
-                                                                name="worker_id"
-                                                                required
-                                                                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-                                                            >
-                                                                <option value="">
-                                                                    Worker…
-                                                                </option>
-                                                                {workers.map(
-                                                                    (w) => (
-                                                                        <option
-                                                                            key={
-                                                                                w.id
-                                                                            }
-                                                                            value={
-                                                                                w.id
-                                                                            }
-                                                                        >
-                                                                            {
-                                                                                w.name
-                                                                            }
-                                                                        </option>
-                                                                    ),
-                                                                )}
-                                                            </select>
-                                                            <Button
-                                                                type="submit"
-                                                                size="sm"
-                                                                disabled={
-                                                                    processing
-                                                                }
-                                                            >
-                                                                Assign
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                </Form>
-                                            )}
-                                        {canManage &&
-                                            tag.status === 'assigned' && (
-                                                <Form
-                                                    action={`/tracking/tags/${tag.id}/unassign`}
-                                                    method="post"
-                                                >
-                                                    {({ processing }) => (
-                                                        <Button
-                                                            type="submit"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            disabled={
-                                                                processing
-                                                            }
-                                                        >
-                                                            Unassign
-                                                        </Button>
-                                                    )}
-                                                </Form>
-                                            )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <CrudFormDialog
+                open={addOpen}
+                onOpenChange={setAddOpen}
+                title="Add tag"
+                description="Registers a spare tag (status: in stock)."
+                action="/tracking/tags"
+                method="post"
+                submitLabel="Create tag"
+            >
+                {({ errors }) => (
+                    <>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="tag-uid">Tag UID</Label>
+                            <Input
+                                id="tag-uid"
+                                name="tag_uid"
+                                required
+                                maxLength={150}
+                            />
+                            {errors.tag_uid ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.tag_uid}
+                                </p>
+                            ) : null}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="tag-notes">Notes</Label>
+                            <Input
+                                id="tag-notes"
+                                name="notes"
+                                maxLength={5000}
+                            />
+                        </div>
+                    </>
+                )}
+            </CrudFormDialog>
+
+            <CrudFormDialog
+                open={assignTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setAssignTarget(null);
+                    }
+                }}
+                title="Assign tag"
+                description={
+                    assignTarget
+                        ? `Assign ${assignTarget.tag_uid} to a worker.`
+                        : undefined
+                }
+                action={
+                    assignTarget
+                        ? `/tracking/tags/${assignTarget.id}/assign`
+                        : ''
+                }
+                method="post"
+                submitLabel="Assign"
+                disableSubmit={!assignWorker}
+                transform={(data) => ({ ...data, worker_id: assignWorker })}
+            >
+                {() => (
+                    <div className="flex flex-col gap-2">
+                        <Label>Worker</Label>
+                        <Select
+                            value={assignWorker}
+                            onValueChange={setAssignWorker}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Choose a worker…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    {workers.map((w) => (
+                                        <SelectItem
+                                            key={w.id}
+                                            value={String(w.id)}
+                                        >
+                                            {w.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+            </CrudFormDialog>
+
+            <ConfirmActionDialog
+                open={unassignTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setUnassignTarget(null);
+                    }
+                }}
+                title="Unassign tag"
+                description={
+                    unassignTarget ? (
+                        <>
+                            Return <strong>{unassignTarget.tag_uid}</strong> to
+                            the spare pool
+                            {unassignTarget.worker_name
+                                ? ` (currently on ${unassignTarget.worker_name})`
+                                : ''}
+                            ?
+                        </>
+                    ) : (
+                        ''
+                    )
+                }
+                action={
+                    unassignTarget
+                        ? `/tracking/tags/${unassignTarget.id}/unassign`
+                        : undefined
+                }
+                method="post"
+                confirmLabel="Unassign"
+            />
         </>
     );
 }
+
+TagsIndex.layout = {
+    breadcrumbs: [{ title: 'RFID Tags', href: '/tracking/tags' }],
+};

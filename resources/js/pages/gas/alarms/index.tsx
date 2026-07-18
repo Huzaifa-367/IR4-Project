@@ -1,5 +1,6 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import Heading from '@/components/heading';
+import { Pagination } from '@/components/ir4/pagination';
 import { Button } from '@/components/ui/button';
 import { GasTypeLabels } from '@/types/enums';
 import type { GasAlarm } from '@/types/gas';
@@ -158,6 +159,11 @@ export default function GasAlarmsIndex({
                             )}
                         </tbody>
                     </table>
+                    <Pagination
+                        meta={alarms.meta}
+                        pageUrl="/gas/alarms"
+                        params={filters}
+                    />
                 </div>
             </div>
         </>

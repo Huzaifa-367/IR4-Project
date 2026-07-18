@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { toast } from 'sonner';
 import Heading from '@/components/heading';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
+import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import { ViolationTypeLabels } from '@/types/enums';
@@ -74,27 +75,30 @@ export default function LiveWall({
                     {cameras.map((camera) => (
                         <div
                             key={camera.id}
-                            className="overflow-hidden rounded-lg border border-border bg-card"
+                            className="overflow-hidden rounded-[var(--radius)] border border-border bg-surface"
                         >
                             <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 text-sm">
-                                <div className="truncate font-medium">
+                                <div className="truncate font-medium text-text">
                                     {camera.name}
                                 </div>
-                                <div className="flex shrink-0 items-center gap-2 text-xs">
+                                <div className="flex shrink-0 items-center gap-2">
                                     {camera.ai_enabled && (
-                                        <span className="text-primary">AI</span>
+                                        <StatusPill
+                                            label="AI"
+                                            tone="accent"
+                                            showDot={false}
+                                        />
                                     )}
-                                    <span
-                                        className={
+                                    <StatusPill
+                                        label={
                                             camera.is_online
-                                                ? 'text-emerald-600'
-                                                : 'text-muted-foreground'
+                                                ? 'Online'
+                                                : camera.status
                                         }
-                                    >
-                                        {camera.is_online
-                                            ? 'Online'
-                                            : camera.status}
-                                    </span>
+                                        tone={
+                                            camera.is_online ? 'ok' : 'neutral'
+                                        }
+                                    />
                                 </div>
                             </div>
                             <div className="aspect-video bg-black">
@@ -107,7 +111,7 @@ export default function LiveWall({
                                         allowFullScreen
                                     />
                                 ) : (
-                                    <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
+                                    <div className="flex size-full items-center justify-center text-xs text-text-faint">
                                         No browser stream configured
                                     </div>
                                 )}
@@ -115,7 +119,7 @@ export default function LiveWall({
                         </div>
                     ))}
                     {cameras.length === 0 && (
-                        <div className="col-span-full rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+                        <div className="col-span-full rounded-[var(--radius)] border border-dashed border-border p-8 text-center text-text-faint">
                             No cameras registered
                         </div>
                     )}

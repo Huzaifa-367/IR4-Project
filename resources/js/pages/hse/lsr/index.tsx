@@ -1,6 +1,7 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
+import { Pagination } from '@/components/ir4/pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -176,6 +177,11 @@ export default function LsrIndex({
                             )}
                         </tbody>
                     </table>
+                    <Pagination
+                        meta={violations.meta}
+                        pageUrl="/lsr-violations"
+                        params={filters}
+                    />
                 </div>
 
                 {closeId !== null && (

@@ -1,5 +1,6 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import Heading from '@/components/heading';
+import { Pagination } from '@/components/ir4/pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -169,6 +170,11 @@ export default function ReportsIndex({
                             )}
                         </tbody>
                     </table>
+                    <Pagination
+                        meta={reports.meta}
+                        pageUrl="/reports"
+                        params={filters}
+                    />
                 </div>
             </div>
         </>

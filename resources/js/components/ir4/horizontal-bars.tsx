@@ -9,6 +9,7 @@ export type HorizontalBarItem = {
 type Props = {
     items: HorizontalBarItem[];
     className?: string;
+    emptyLabel?: string;
 };
 
 const VIZ = [
@@ -21,13 +22,17 @@ const VIZ = [
     'var(--viz-5)',
 ];
 
-export function HorizontalBars({ items, className }: Props) {
+export function HorizontalBars({
+    items,
+    className,
+    emptyLabel = 'No data for this range',
+}: Props) {
     const max = Math.max(1, ...items.map((i) => i.value));
 
     if (items.length === 0) {
         return (
             <div className="py-8 text-center text-sm text-text-faint">
-                No open LSR this shift
+                {emptyLabel}
             </div>
         );
     }
@@ -47,11 +52,12 @@ export function HorizontalBars({ items, className }: Props) {
                             className="h-full rounded-pill"
                             style={{
                                 width: `${(item.value / max) * 100}%`,
-                                background: item.color ?? VIZ[index % VIZ.length],
+                                background:
+                                    item.color ?? VIZ[index % VIZ.length],
                             }}
                         />
                     </div>
-                    <span className="text-right font-mono text-xs tabular-nums text-text">
+                    <span className="text-right font-mono text-xs text-text tabular-nums">
                         {item.value}
                     </span>
                 </div>

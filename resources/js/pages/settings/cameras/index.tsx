@@ -240,6 +240,10 @@ export default function CamerasIndex({
                     rowKey={(camera) => camera.id}
                     meta={cameras.meta}
                     pageUrl="/settings/cameras"
+                    queryParams={{
+                        q: q || undefined,
+                        status: status === 'all' ? undefined : status,
+                    }}
                     emptyTitle="No cameras"
                     emptyDescription="Register a camera on an asset for the live wall."
                 />

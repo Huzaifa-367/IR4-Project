@@ -2,6 +2,7 @@ import { Form, Head, Link, router } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { useAlertStore } from '@/components/ir4/alert-provider';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
+import { Pagination } from '@/components/ir4/pagination';
 import { Button } from '@/components/ui/button';
 import type { Alert } from '@/types/alert';
 
@@ -244,11 +245,14 @@ export default function AlertsIndex({
                             )}
                         </tbody>
                     </table>
+                    <Pagination
+                        meta={alerts.meta}
+                        pageUrl="/alerts"
+                        params={filters}
+                    />
                 </div>
 
                 <p className="text-sm text-muted-foreground">
-                    Page {alerts.meta.current_page} of {alerts.meta.last_page} ·{' '}
-                    {alerts.meta.total} total ·{' '}
                     <Link href="/dashboard" className="underline">
                         Dashboard
                     </Link>

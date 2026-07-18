@@ -1,7 +1,10 @@
 import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
+import { GasChannelGauges } from '@/components/ir4/gas-channel-gauges';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
+import { Panel } from '@/components/ir4/panel';
+import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import { GasTypeLabels } from '@/types/enums';
@@ -14,42 +17,136 @@ type Props = {
     canAcknowledge: boolean;
 };
 
-function channelColor(
+type ChannelStatus = 'ok' | 'warn' | 'crit';
+
+function channelStatus(
     value: number | null,
     gasKey: string,
     thresholds: Record<string, GasThreshold>,
-): string {
+): ChannelStatus {
     if (value === null) {
-        return 'text-muted-foreground';
+        return 'ok';
     }
 
     const t = thresholds[gasKey];
 
     if (!t) {
-        return 'text-foreground';
+        return 'ok';
     }
 
     if (t.direction === 'below') {
         if (value <= t.alarm_level) {
-            return 'text-red-600';
+            return 'crit';
         }
 
         if (value <= t.warning_level) {
-            return 'text-amber-600';
+            return 'warn';
         }
 
-        return 'text-emerald-600';
+        return 'ok';
     }
 
     if (value >= t.alarm_level) {
-        return 'text-red-600';
+        return 'crit';
     }
 
     if (value >= t.warning_level) {
-        return 'text-amber-600';
+        return 'warn';
     }
 
-    return 'text-emerald-600';
+    return 'ok';
+}
+
+function worstOf(a: ChannelStatus, b: ChannelStatus): ChannelStatus {
+    if (a === 'crit' || b === 'crit') {
+        return 'crit';
+    }
+
+    if (a === 'warn' || b === 'warn') {
+        return 'warn';
+    }
+
+    return 'ok';
+}
+
+function panelGauges(
+    panel: GasLivePanel,
+    thresholds: Record<string, GasThreshold>,
+): Array<{
+    label: string;
+    source: string;
+    value: number;
+    unit: string;
+    warn: number | null;
+    alarm: number | null;
+    status: ChannelStatus;
+}> {
+    const gauges = [];
+
+    if (panel.lel_pct !== null) {
+        gauges.push({
+            label: 'LEL',
+            source: '',
+            value: panel.lel_pct,
+            unit: '%',
+            warn: thresholds.lel?.warning_level ?? null,
+            alarm: thresholds.lel?.alarm_level ?? null,
+            status: channelStatus(panel.lel_pct, 'lel', thresholds),
+        });
+    }
+
+    if (panel.h2s_ppm !== null) {
+        gauges.push({
+            label: 'H₂S',
+            source: '',
+            value: panel.h2s_ppm,
+            unit: 'ppm',
+            warn: thresholds.h2s?.warning_level ?? null,
+            alarm: thresholds.h2s?.alarm_level ?? null,
+            status: channelStatus(panel.h2s_ppm, 'h2s', thresholds),
+        });
+    }
+
+    if (panel.o2_pct !== null) {
+        gauges.push({
+            label: 'O₂',
+            source: '',
+            value: panel.o2_pct,
+            unit: '%vol',
+            warn: thresholds.o2_low?.warning_level ?? null,
+            alarm: thresholds.o2_low?.alarm_level ?? null,
+            status: worstOf(
+                channelStatus(panel.o2_pct, 'o2_low', thresholds),
+                channelStatus(panel.o2_pct, 'o2_high', thresholds),
+            ),
+        });
+    }
+
+    if (panel.co_ppm !== null) {
+        gauges.push({
+            label: 'CO',
+            source: '',
+            value: panel.co_ppm,
+            unit: 'ppm',
+            warn: thresholds.co?.warning_level ?? null,
+            alarm: thresholds.co?.alarm_level ?? null,
+            status: channelStatus(panel.co_ppm, 'co', thresholds),
+        });
+    }
+
+    if (panel.co2_ppm !== null) {
+        gauges.push({
+            label: 'CO₂',
+            source: '',
+            value: panel.co2_ppm,
+            unit: 'ppm',
+            warn: thresholds.co2?.warning_level ?? null,
+            alarm: thresholds.co2?.alarm_level ?? null,
+            status: channelStatus(panel.co2_ppm, 'co2', thresholds),
+        });
+    }
+
+    return gauges;
 }
 
 export default function GasDashboard({
@@ -87,8 +184,8 @@ export default function GasDashboard({
     return (
         <>
             <Head title="Gas & CO₂" />
-            <div className="space-y-6 p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex flex-col gap-5 p-4 md:p-6">
+                <div className="flex flex-wrap items-end justify-between gap-4">
                     <Heading
                         title="Gas & CO₂"
                         description={`${panels.length} detectors · ${openAlarmCount} open alarms`}
@@ -110,7 +207,7 @@ export default function GasDashboard({
                 </div>
 
                 {openAlarmCount > 0 && (
-                    <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+                    <div className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-[color:var(--crit)]/40 bg-[color:var(--crit-bg)] px-4 py-3 text-sm text-[color:var(--crit)]">
                         {openAlarmCount} open gas alarm
                         {openAlarmCount === 1 ? '' : 's'} — check device panels
                         below.
@@ -119,107 +216,27 @@ export default function GasDashboard({
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {panels.map((panel) => (
-                        <div
+                        <Panel
                             key={panel.device_id}
-                            className="space-y-3 rounded-lg border border-border p-4"
+                            title={panel.device_name}
+                            subtitle={
+                                panel.device_ref +
+                                (panel.asset_label
+                                    ? ` · ${panel.asset_label}`
+                                    : '')
+                            }
+                            action={
+                                <StatusPill
+                                    label={panel.is_stale ? 'Stale' : 'Live'}
+                                    tone={panel.is_stale ? 'warn' : 'ok'}
+                                />
+                            }
                         >
-                            <div className="flex items-start justify-between gap-2">
-                                <div>
-                                    <div className="font-medium">
-                                        {panel.device_name}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {panel.device_ref}
-                                        {panel.asset_label
-                                            ? ` · ${panel.asset_label}`
-                                            : ''}
-                                    </div>
-                                </div>
-                                {panel.is_stale ? (
-                                    <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700">
-                                        Stale
-                                    </span>
-                                ) : (
-                                    <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-700">
-                                        Live
-                                    </span>
-                                )}
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                <Gauge
-                                    label="LEL %"
-                                    value={panel.lel_pct}
-                                    className={channelColor(
-                                        panel.lel_pct,
-                                        'lel',
-                                        thresholds,
-                                    )}
-                                />
-                                <Gauge
-                                    label="H₂S ppm"
-                                    value={panel.h2s_ppm}
-                                    className={channelColor(
-                                        panel.h2s_ppm,
-                                        'h2s',
-                                        thresholds,
-                                    )}
-                                />
-                                <Gauge
-                                    label="O₂ %"
-                                    value={panel.o2_pct}
-                                    className={
-                                        panel.o2_pct !== null &&
-                                        (channelColor(
-                                            panel.o2_pct,
-                                            'o2_low',
-                                            thresholds,
-                                        ) === 'text-red-600' ||
-                                            channelColor(
-                                                panel.o2_pct,
-                                                'o2_high',
-                                                thresholds,
-                                            ) === 'text-red-600')
-                                            ? 'text-red-600'
-                                            : channelColor(
-                                                    panel.o2_pct,
-                                                    'o2_low',
-                                                    thresholds,
-                                                ) === 'text-amber-600' ||
-                                                channelColor(
-                                                    panel.o2_pct,
-                                                    'o2_high',
-                                                    thresholds,
-                                                ) === 'text-amber-600'
-                                              ? 'text-amber-600'
-                                              : channelColor(
-                                                    panel.o2_pct,
-                                                    'o2_low',
-                                                    thresholds,
-                                                )
-                                    }
-                                />
-                                <Gauge
-                                    label="CO ppm"
-                                    value={panel.co_ppm}
-                                    className={channelColor(
-                                        panel.co_ppm,
-                                        'co',
-                                        thresholds,
-                                    )}
-                                />
-                            </div>
-                            <div className="rounded border border-border/60 p-2">
-                                <div className="text-xs text-muted-foreground">
-                                    CO₂ ppm
-                                </div>
-                                <div
-                                    className={`text-2xl font-semibold tabular-nums ${channelColor(panel.co2_ppm, 'co2', thresholds)}`}
-                                >
-                                    {panel.co2_ppm ?? '—'}
-                                </div>
-                            </div>
+                            <GasChannelGauges
+                                gauges={panelGauges(panel, thresholds)}
+                            />
                             {panel.open_alarms.length > 0 && (
-                                <ul className="space-y-1 text-xs text-red-600">
+                                <ul className="mt-3 space-y-1 text-xs text-[color:var(--crit)]">
                                     {panel.open_alarms.map((a) => (
                                         <li key={`${a.gas_type}-${a.level}`}>
                                             {GasTypeLabels[
@@ -230,34 +247,15 @@ export default function GasDashboard({
                                     ))}
                                 </ul>
                             )}
-                        </div>
+                        </Panel>
                     ))}
                     {panels.length === 0 && (
-                        <div className="col-span-full rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+                        <div className="col-span-full rounded-[var(--radius)] border border-dashed border-border p-8 text-center text-text-faint">
                             No gas or CO₂ detectors registered
                         </div>
                     )}
                 </div>
             </div>
         </>
-    );
-}
-
-function Gauge({
-    label,
-    value,
-    className,
-}: {
-    label: string;
-    value: number | null;
-    className: string;
-}) {
-    return (
-        <div className="rounded border border-border/60 p-2">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className={`text-xl font-semibold tabular-nums ${className}`}>
-                {value ?? '—'}
-            </div>
-        </div>
     );
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Pagination } from '@/components/ir4/pagination';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import {
     Table,
@@ -9,12 +10,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import type { PaginatedMeta } from '@/types/hardware';
-import { Button } from '@/components/ui/button';
-import { router } from '@inertiajs/react';
 
 export type SettingsColumn<T> = {
     key: string;
-    header: string;
+    header: ReactNode;
     className?: string;
     cell: (row: T) => ReactNode;
 };
@@ -27,6 +26,8 @@ type Props<T> = {
     emptyDescription?: string;
     meta?: PaginatedMeta;
     pageUrl?: string;
+    /** Active filters/sort to preserve when paging (DOC-01 §5.5). */
+    queryParams?: Record<string, string | number | boolean | undefined>;
 };
 
 export function SettingsDataTable<T>({
@@ -37,6 +38,7 @@ export function SettingsDataTable<T>({
     emptyDescription = 'Nothing registered yet.',
     meta,
     pageUrl,
+    queryParams,
 }: Props<T>) {
     if (rows.length === 0) {
         return (
@@ -77,45 +79,12 @@ export function SettingsDataTable<T>({
                     ))}
                 </TableBody>
             </Table>
-            {meta && pageUrl && meta.last_page > 1 ? (
-                <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2 text-xs text-text-dim">
-                    <span>
-                        Page {meta.current_page} of {meta.last_page} ·{' '}
-                        {meta.total} total
-                    </span>
-                    <div className="flex gap-2">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={meta.current_page <= 1}
-                            onClick={() =>
-                                router.get(
-                                    pageUrl,
-                                    { page: meta.current_page - 1 },
-                                    { preserveState: true, preserveScroll: true },
-                                )
-                            }
-                        >
-                            Previous
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={meta.current_page >= meta.last_page}
-                            onClick={() =>
-                                router.get(
-                                    pageUrl,
-                                    { page: meta.current_page + 1 },
-                                    { preserveState: true, preserveScroll: true },
-                                )
-                            }
-                        >
-                            Next
-                        </Button>
-                    </div>
-                </div>
+            {meta && pageUrl ? (
+                <Pagination
+                    meta={meta}
+                    pageUrl={pageUrl}
+                    params={queryParams}
+                />
             ) : null}
         </div>
     );

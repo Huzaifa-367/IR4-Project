@@ -1,5 +1,6 @@
-import { Form, Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import Heading from '@/components/heading';
+import { Pagination } from '@/components/ir4/pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { HseIncident, HseOption } from '@/types/hse';
@@ -171,6 +172,11 @@ export default function IncidentsIndex({
                             )}
                         </tbody>
                     </table>
+                    <Pagination
+                        meta={incidents.meta}
+                        pageUrl="/incidents"
+                        params={filters}
+                    />
                 </div>
             </div>
         </>

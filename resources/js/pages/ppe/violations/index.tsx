@@ -1,6 +1,7 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
+import { Pagination } from '@/components/ir4/pagination';
 import { Button } from '@/components/ui/button';
 import { ViolationTypeLabels } from '@/types/enums';
 import type { PpeViolation } from '@/types/ppe';
@@ -298,6 +299,11 @@ export default function PpeViolationsIndex({
                             )}
                         </tbody>
                     </table>
+                    <Pagination
+                        meta={violations.meta}
+                        pageUrl="/ppe/violations"
+                        params={filters}
+                    />
                 </div>
             </div>
         </>

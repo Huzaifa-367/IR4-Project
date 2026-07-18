@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { useCallback, useEffect, useState } from 'react';
 import Heading from '@/components/heading';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
+import { StatCard } from '@/components/ir4/stat-card';
 import { ZoneMap } from '@/components/ir4/zone-map';
 import { Button } from '@/components/ui/button';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
@@ -119,49 +120,39 @@ export default function TrackingIndex({
                     </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-lg border border-border p-4">
-                        <div className="text-xs text-muted-foreground">
-                            Total on site
-                        </div>
-                        <div className="text-3xl font-semibold">
-                            {headcount.total_on_site}
-                        </div>
-                    </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <StatCard
+                        label="Total on site"
+                        value={headcount.total_on_site}
+                    />
                     {headcount.by_zone.map((zone) => (
-                        <div
+                        <StatCard
                             key={zone.zone_id}
-                            className="rounded-lg border border-border p-4"
-                        >
-                            <div className="text-xs text-muted-foreground">
-                                {zone.zone_name}
-                            </div>
-                            <div className="text-2xl font-semibold">
-                                {zone.count}
-                            </div>
-                        </div>
+                            label={zone.zone_name}
+                            value={zone.count}
+                        />
                     ))}
                 </div>
 
                 {canSeePositions ? (
                     <ZoneMap zones={zones} positions={positions} />
                 ) : (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-text-faint">
                         Headcount-only view — position map requires additional
                         permissions.
                     </p>
                 )}
 
-                <div className="flex flex-wrap gap-3 text-sm">
-                    <Link href="/tracking/tags" className="underline">
-                        Tags
-                    </Link>
-                    <Link href="/tracking/workers" className="underline">
-                        Workers
-                    </Link>
-                    <Link href="/tracking/entry-exit" className="underline">
-                        Entry / exit
-                    </Link>
+                <div className="flex flex-wrap gap-2">
+                    <Button asChild variant="outline" size="sm">
+                        <Link href="/tracking/tags">Tags</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm">
+                        <Link href="/tracking/workers">Workers</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm">
+                        <Link href="/tracking/entry-exit">Entry / exit</Link>
+                    </Button>
                 </div>
             </div>
         </>

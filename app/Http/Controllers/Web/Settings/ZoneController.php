@@ -65,9 +65,9 @@ final class ZoneController extends BaseController
 
     public function store(StoreZoneRequest $request, ZoneService $zones): RedirectResponse
     {
-        $zone = $zones->create($request->validated());
+        $zones->create($request->validated());
 
-        return redirect()->route('settings.zones.show', $zone);
+        return redirect()->route('settings.zones.index');
     }
 
     public function show(Request $request, Zone $zone): Response
@@ -114,7 +114,7 @@ final class ZoneController extends BaseController
     {
         $zones->update($zone, $request->validated());
 
-        return redirect()->route('settings.zones.show', $zone);
+        return redirect()->back(fallback: route('settings.zones.index'));
     }
 
     public function deactivate(Zone $zone, ZoneService $zones): RedirectResponse

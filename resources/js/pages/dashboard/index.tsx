@@ -8,6 +8,7 @@ import { HorizontalBars } from '@/components/ir4/horizontal-bars';
 import { LiveFeed } from '@/components/ir4/live-feed';
 import { MetricRow } from '@/components/ir4/metric-row';
 import { MiniProgress } from '@/components/ir4/mini-progress';
+import { Panel } from '@/components/ir4/panel';
 import { PpeHeatmap } from '@/components/ir4/ppe-heatmap';
 import { RangeToggle } from '@/components/ir4/range-toggle';
 import { StatCard } from '@/components/ir4/stat-card';
@@ -16,7 +17,6 @@ import { ZoneMap } from '@/components/ir4/zone-map';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
-import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type {
     DashboardPermissions,
@@ -44,42 +44,6 @@ function unwrapSummary(payload: unknown): DashboardSummary {
     }
 
     return payload as DashboardSummary;
-}
-
-function Panel({
-    title,
-    subtitle,
-    action,
-    children,
-    className = '',
-}: {
-    title: string;
-    subtitle?: string;
-    action?: React.ReactNode;
-    children: React.ReactNode;
-    className?: string;
-}) {
-    return (
-        <section
-            className={cn(
-                'rounded-[var(--radius)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] md:p-5',
-                className,
-            )}
-        >
-            <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <h2 className="text-sm font-semibold tracking-tight text-text">
-                        {title}
-                    </h2>
-                    {subtitle ? (
-                        <p className="mt-0.5 text-xs text-text-faint">{subtitle}</p>
-                    ) : null}
-                </div>
-                {action}
-            </div>
-            {children}
-        </section>
-    );
 }
 
 function formatClock(iso?: string): string {
@@ -211,7 +175,9 @@ export default function DashboardIndex({
             const payload = alert.payload ?? {};
             const metaParts = [
                 typeof payload.asset === 'string' ? payload.asset : null,
-                typeof payload.zone_name === 'string' ? payload.zone_name : null,
+                typeof payload.zone_name === 'string'
+                    ? payload.zone_name
+                    : null,
                 typeof payload.device_name === 'string'
                     ? payload.device_name
                     : null,
@@ -246,7 +212,9 @@ export default function DashboardIndex({
                         <p className="mt-1 text-sm text-text-dim">
                             Shift {summary.meta?.shift_label ?? '06:00–18:00'} ·
                             live as of{' '}
-                            <span className="font-mono tabular-nums">{clock}</span>
+                            <span className="font-mono tabular-nums">
+                                {clock}
+                            </span>
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -376,7 +344,7 @@ export default function DashboardIndex({
                                     </div>
                                     <div>
                                         <p className="eyebrow">In Red</p>
-                                        <p className="font-mono text-lg tabular-nums text-[color:var(--crit)]">
+                                        <p className="font-mono text-lg text-[color:var(--crit)] tabular-nums">
                                             {summary.map?.in_red ?? 0}
                                         </p>
                                     </div>
@@ -604,6 +572,7 @@ export default function DashboardIndex({
                                     label: row.label,
                                     value: row.total ?? row.open,
                                 }))}
+                                emptyLabel="No open LSR this shift"
                             />
                         </Panel>
                     ) : null}
@@ -654,10 +623,7 @@ export default function DashboardIndex({
                             <div className="flex justify-center">
                                 <RadialGauge
                                     value={summary.evacuation.accounted}
-                                    max={Math.max(
-                                        1,
-                                        summary.evacuation.total,
-                                    )}
+                                    max={Math.max(1, summary.evacuation.total)}
                                     label="Accounted"
                                     sublabel={
                                         summary.evacuation.total > 0

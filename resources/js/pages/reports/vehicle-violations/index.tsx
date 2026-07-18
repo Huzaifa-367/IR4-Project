@@ -1,5 +1,6 @@
 import { Form, Head, Link, useForm } from '@inertiajs/react';
 import Heading from '@/components/heading';
+import { Pagination } from '@/components/ir4/pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,7 @@ type Props = {
 
 export default function VehicleViolationsIndex({
     violations,
+    filters,
     violationTypes,
     cameras,
     canCreate,
@@ -205,6 +207,11 @@ export default function VehicleViolationsIndex({
                             ))}
                         </tbody>
                     </table>
+                    <Pagination
+                        meta={violations.meta}
+                        pageUrl="/reports/vehicle-violations"
+                        params={filters}
+                    />
                 </div>
             </div>
         </>

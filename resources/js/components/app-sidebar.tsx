@@ -17,6 +17,7 @@ import {
     Settings2,
     Shield,
     ShieldAlert,
+    Siren,
     UserCog,
     Users,
     Video,
@@ -24,7 +25,7 @@ import {
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { useAlertStore } from '@/components/ir4/alert-provider';
-import { StatusPill } from '@/components/ir4/status-pill';
+import { SystemStatusPanel } from '@/components/ir4/system-status-panel';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -44,7 +45,7 @@ export function AppSidebar() {
     const { can } = usePermissions();
     const { bellCount } = useAlertStore();
 
-    const general: NavItem[] = [
+    const overview: NavItem[] = [
         {
             title: 'Dashboard',
             href: dashboard(),
@@ -67,7 +68,7 @@ export function AppSidebar() {
         ...(can('view-live-cameras')
             ? [
                   {
-                      title: 'Live wall',
+                      title: 'Live View',
                       href: '/live',
                       icon: Video,
                   } satisfies NavItem,
@@ -93,7 +94,7 @@ export function AppSidebar() {
         ...(can('manage-zones')
             ? [
                   {
-                      title: 'Zones',
+                      title: 'Zones & Map',
                       href: '/settings/zones',
                       icon: MapPinned,
                   } satisfies NavItem,
@@ -104,9 +105,27 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
+        ...(can('trigger-evacuation') || can('manage-evacuation')
+            ? [
+                  {
+                      title: 'Evacuation',
+                      href: '/tracking/evacuation',
+                      icon: Siren,
+                  } satisfies NavItem,
+              ]
+            : []),
     ];
 
-    const gas: NavItem[] = [
+    const safety: NavItem[] = [
+        ...(can('view-ppe')
+            ? [
+                  {
+                      title: 'PPE',
+                      href: '/ppe/violations',
+                      icon: Shield,
+                  } satisfies NavItem,
+              ]
+            : []),
         ...(can('view-gas')
             ? [
                   {
@@ -116,18 +135,6 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('view-ppe')
-            ? [
-                  {
-                      title: 'PPE',
-                      href: '/ppe/violations',
-                      icon: ShieldAlert,
-                  } satisfies NavItem,
-              ]
-            : []),
-    ];
-
-    const hse: NavItem[] = [
         ...(can('view-incidents')
             ? [
                   {
@@ -160,6 +167,9 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
+    ];
+
+    const operations: NavItem[] = [
         ...(can('view-reports')
             ? [
                   {
@@ -169,9 +179,15 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-    ];
-
-    const settings: NavItem[] = [
+        ...(can('view-audit-log')
+            ? [
+                  {
+                      title: 'Audit Log',
+                      href: '/settings/audit-log',
+                      icon: ScrollText,
+                  } satisfies NavItem,
+              ]
+            : []),
         ...(can('manage-settings') ||
         can('configure-alerts') ||
         can('manage-gas-thresholds')
@@ -220,24 +236,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('view-audit-log')
-            ? [
-                  {
-                      title: 'Audit Log',
-                      href: '/settings/audit-log',
-                      icon: ScrollText,
-                  } satisfies NavItem,
-              ]
-            : []),
     ];
-
-    const healthTone = bellCount > 5 ? 'crit' : bellCount > 0 ? 'warn' : 'ok';
-    const healthLabel =
-        bellCount > 5
-            ? 'Elevated risk'
-            : bellCount > 0
-              ? 'Attention needed'
-              : 'Posture nominal';
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -254,17 +253,15 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent className="gap-1 py-2">
-                <NavMain items={general} label="Overview" />
+                <NavMain items={overview} label="Overview" />
                 <NavMain items={tracking} label="Tracking" />
-                <NavMain items={gas} label="Gas & PPE" />
-                <NavMain items={hse} label="HSE & Ops" />
-                <NavMain items={settings} label="Settings" />
+                <NavMain items={safety} label="Safety" />
+                <NavMain items={operations} label="Operations" />
             </SidebarContent>
 
             <SidebarFooter className="gap-3 border-t border-sidebar-border p-3">
-                <div className="hidden space-y-1.5 px-1 group-data-[collapsible=icon]:hidden">
-                    <p className="eyebrow">System posture</p>
-                    <StatusPill label={healthLabel} tone={healthTone} />
+                <div className="px-1 group-data-[collapsible=icon]:hidden">
+                    <SystemStatusPanel />
                 </div>
                 <NavUser />
             </SidebarFooter>

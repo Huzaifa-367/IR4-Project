@@ -1,6 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useMemo } from 'react';
 import Heading from '@/components/heading';
+import { BarChart } from '@/components/ir4/bar-chart';
+import { HorizontalBars } from '@/components/ir4/horizontal-bars';
+import { Panel } from '@/components/ir4/panel';
+import { StatCard } from '@/components/ir4/stat-card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ViolationTypeLabels } from '@/types/enums';
 import type { PpeSummary } from '@/types/ppe';
 
@@ -17,19 +23,56 @@ export default function PpeTrendsIndex({
     unreviewedCount,
     canExport,
 }: Props) {
-    const maxType = Math.max(1, ...Object.values(summary.by_type));
-    const maxHour = Math.max(1, ...summary.by_hour);
+    const byType = useMemo(
+        () =>
+            Object.entries(summary.by_type).map(([type, count]) => ({
+                label:
+                    ViolationTypeLabels[
+                        type as keyof typeof ViolationTypeLabels
+                    ] ?? type,
+                value: count,
+            })),
+        [summary.by_type],
+    );
+
+    const byHour = useMemo(
+        () =>
+            summary.by_hour.map((count, hour) => ({
+                label: `${hour}:00`,
+                value: count,
+            })),
+        [summary.by_hour],
+    );
+
+    const byCamera = useMemo(
+        () =>
+            summary.by_camera.map((row) => ({
+                label: row.camera_ref || `Camera #${row.camera_id}`,
+                value: row.count,
+            })),
+        [summary.by_camera],
+    );
+
+    function applyFilters(patch: Partial<Props['filters']>): void {
+        router.get(
+            '/ppe/trends',
+            { from: patch.from ?? filters.from, to: patch.to ?? filters.to },
+            { preserveState: true, replace: true },
+        );
+    }
 
     return (
         <>
             <Head title="PPE Trends" />
-            <div className="space-y-6 p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="PPE trends"
-                        description={`${summary.total} counted · ${unreviewedCount} unreviewed · FP rate ${(summary.false_positive_rate * 100).toFixed(1)}%`}
-                    />
-                    <div className="flex gap-2">
+            <div className="flex flex-col gap-5 p-4 md:p-6">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                        <Heading
+                            title="PPE Trends"
+                            description="Density heatmap, false-positive rate, and per-camera breakdown."
+                        />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                         <Button asChild variant="secondary" size="sm">
                             <Link href="/ppe/violations">Violations</Link>
                         </Button>
@@ -56,112 +99,67 @@ export default function PpeTrendsIndex({
                     </div>
                 </div>
 
-                <form
-                    className="flex flex-wrap gap-3"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        const form = new FormData(event.currentTarget);
-                        router.get(
-                            '/ppe/trends',
-                            {
-                                from: String(form.get('from') ?? ''),
-                                to: String(form.get('to') ?? ''),
-                            },
-                            { preserveState: true, replace: true },
-                        );
-                    }}
-                >
-                    <input
-                        type="date"
-                        name="from"
-                        defaultValue={filters.from}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    />
-                    <input
-                        type="date"
-                        name="to"
-                        defaultValue={filters.to}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    />
-                    <Button type="submit" size="sm">
-                        Apply
-                    </Button>
-                </form>
-
-                <p className="text-sm text-muted-foreground">
-                    Excluded false positives: {summary.excluded_false_positives}
-                </p>
-
-                <section className="space-y-3">
-                    <h2 className="text-sm font-medium">By type</h2>
-                    <div className="space-y-2">
-                        {Object.entries(summary.by_type).map(
-                            ([type, count]) => (
-                                <div
-                                    key={type}
-                                    className="flex items-center gap-3 text-sm"
-                                >
-                                    <div className="w-36 shrink-0">
-                                        {ViolationTypeLabels[
-                                            type as keyof typeof ViolationTypeLabels
-                                        ] ?? type}
-                                    </div>
-                                    <div className="h-3 flex-1 rounded bg-muted">
-                                        <div
-                                            className="h-3 rounded bg-primary"
-                                            style={{
-                                                width: `${(count / maxType) * 100}%`,
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="w-10 text-right tabular-nums">
-                                        {count}
-                                    </div>
-                                </div>
-                            ),
-                        )}
+                <div className="flex flex-wrap items-end gap-3">
+                    <div className="grid gap-1">
+                        <label
+                            className="text-xs text-text-faint"
+                            htmlFor="from"
+                        >
+                            From
+                        </label>
+                        <Input
+                            id="from"
+                            type="date"
+                            defaultValue={filters.from}
+                            onChange={(event) =>
+                                applyFilters({ from: event.target.value })
+                            }
+                        />
                     </div>
-                </section>
-
-                <section className="space-y-3">
-                    <h2 className="text-sm font-medium">By hour</h2>
-                    <div className="flex h-32 items-end gap-1">
-                        {summary.by_hour.map((count, hour) => (
-                            <div
-                                key={hour}
-                                className="flex-1 rounded-t bg-primary/80"
-                                style={{
-                                    height: `${(count / maxHour) * 100}%`,
-                                    minHeight: count > 0 ? 4 : 0,
-                                }}
-                                title={`${hour}:00 — ${count}`}
-                            />
-                        ))}
+                    <div className="grid gap-1">
+                        <label className="text-xs text-text-faint" htmlFor="to">
+                            To
+                        </label>
+                        <Input
+                            id="to"
+                            type="date"
+                            defaultValue={filters.to}
+                            onChange={(event) =>
+                                applyFilters({ to: event.target.value })
+                            }
+                        />
                     </div>
-                </section>
+                </div>
 
-                <section className="space-y-3">
-                    <h2 className="text-sm font-medium">By camera</h2>
-                    <ul className="space-y-1 text-sm">
-                        {summary.by_camera.map((row) => (
-                            <li
-                                key={row.camera_id}
-                                className="flex justify-between border-b border-border py-2"
-                            >
-                                <span>
-                                    {row.camera_ref ||
-                                        `Camera #${row.camera_id}`}
-                                </span>
-                                <span className="tabular-nums">
-                                    {row.count}
-                                </span>
-                            </li>
-                        ))}
-                        {summary.by_camera.length === 0 && (
-                            <li className="text-muted-foreground">No data</li>
-                        )}
-                    </ul>
-                </section>
+                <div className="grid gap-4 sm:grid-cols-3">
+                    <StatCard label="Total violations" value={summary.total} />
+                    <StatCard label="Unreviewed" value={unreviewedCount} />
+                    <StatCard
+                        label="False-positive rate"
+                        value={`${(summary.false_positive_rate * 100).toFixed(1)}%`}
+                    />
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-12">
+                    <Panel
+                        title="Violations by type"
+                        subtitle={`${summary.excluded_false_positives} false positives excluded`}
+                        className="xl:col-span-5"
+                    >
+                        <HorizontalBars items={byType} />
+                    </Panel>
+                    <Panel
+                        title="Violations by hour"
+                        subtitle="density across the day"
+                        className="xl:col-span-7"
+                    >
+                        <BarChart data={byHour} height={200} />
+                    </Panel>
+                </div>
+
+                <Panel title="Violations by camera" subtitle="this range">
+                    <HorizontalBars items={byCamera} />
+                </Panel>
             </div>
         </>
     );

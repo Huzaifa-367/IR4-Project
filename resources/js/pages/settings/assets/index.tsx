@@ -240,6 +240,11 @@ export default function AssetsIndex({
                     rowKey={(asset) => asset.id}
                     meta={assets.meta}
                     pageUrl="/settings/assets"
+                    queryParams={{
+                        q: q || undefined,
+                        asset_type: assetType === 'all' ? undefined : assetType,
+                        status: status === 'all' ? undefined : status,
+                    }}
                     emptyTitle="No assets"
                     emptyDescription="Register a pole, gate, or SCC unit to begin commissioning."
                 />

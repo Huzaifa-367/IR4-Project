@@ -1,25 +1,19 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
 import { CustodyBadge, OverdueBadge } from '@/components/ir4/equipment-badges';
 import { ReturnDialog } from '@/components/ir4/return-dialog';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
+import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
+import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { EquipmentCheckout } from '@/types/equipment';
+import type { PaginatedMeta } from '@/types/hardware';
 
 type Props = {
-    checkouts: {
-        data: EquipmentCheckout[];
-        meta: {
-            current_page: number;
-            last_page: number;
-            per_page: number;
-            total: number;
-        };
-    };
-    filters: {
-        open: boolean;
-        search: string;
-    };
+    checkouts: { data: EquipmentCheckout[]; meta: PaginatedMeta };
+    filters: { open: boolean; search: string };
     canManage: boolean;
 };
 
@@ -31,212 +25,175 @@ export default function EquipmentCheckoutsIndex({
     const [returnTarget, setReturnTarget] = useState<EquipmentCheckout | null>(
         null,
     );
+    const [search, setSearch] = useState(filters.search);
 
-    function setOpenFilter(open: boolean): void {
+    function applyFilters(patch: { open?: boolean; search?: string }): void {
         router.get(
             '/equipment/checkouts',
             {
-                open: open ? '1' : '0',
-                search: filters.search || undefined,
+                open: (patch.open ?? filters.open) ? '1' : '0',
+                search: (patch.search ?? search) || undefined,
             },
             { preserveState: true, replace: true },
         );
     }
 
+    const columns: SettingsColumn<EquipmentCheckout>[] = [
+        {
+            key: 'equipment',
+            header: 'Equipment',
+            cell: (row) =>
+                row.equipment ? (
+                    <Link
+                        href={`/equipment/${row.equipment.id}`}
+                        className="text-text hover:underline"
+                    >
+                        {row.equipment.equipment_code} · {row.equipment.name}
+                    </Link>
+                ) : (
+                    `#${row.equipment_id}`
+                ),
+        },
+        {
+            key: 'worker',
+            header: 'Worker',
+            cell: (row) => row.worker?.name ?? `Worker #${row.worker_id}`,
+        },
+        {
+            key: 'since',
+            header: 'Out since',
+            cell: (row) => new Date(row.checked_out_at).toLocaleString(),
+        },
+        {
+            key: 'reason',
+            header: 'Reason / zone',
+            cell: (row) =>
+                `${row.reason ?? '—'}${row.zone ? ` · ${row.zone.name}` : ''}`,
+        },
+        {
+            key: 'expected',
+            header: 'Expected back',
+            cell: (row) =>
+                row.expected_return_at
+                    ? new Date(row.expected_return_at).toLocaleString()
+                    : '—',
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            cell: (row) => {
+                const isOpen = row.returned_at === null;
+                const isOverdue = row.is_overdue_return === true;
+
+                return (
+                    <div className="flex flex-wrap gap-1">
+                        {isOpen ? (
+                            <CustodyBadge
+                                state={
+                                    isOverdue ? 'overdue_return' : 'checked_out'
+                                }
+                            />
+                        ) : (
+                            <StatusPill
+                                label={
+                                    row.returned_at
+                                        ? `Returned ${new Date(row.returned_at).toLocaleDateString()}`
+                                        : 'Returned'
+                                }
+                                tone="neutral"
+                                showDot={false}
+                            />
+                        )}
+                        <OverdueBadge isReturnOverdue={isOverdue} />
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'actions',
+            header: '',
+            className: 'w-24 text-right',
+            cell: (row) =>
+                canManage && row.returned_at === null ? (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setReturnTarget(row)}
+                    >
+                        Return
+                    </Button>
+                ) : null,
+        },
+    ];
+
     return (
         <>
             <Head title="Equipment checkouts" />
-            <div className="space-y-6 p-4 sm:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="Checkouts"
-                        description="Open custody and return history across all equipment."
-                    />
+            <SettingsPageShell
+                title="Checkouts"
+                description="Open custody and return history across all equipment."
+                actions={
                     <Button asChild variant="outline" size="sm">
                         <Link href="/equipment">Equipment list</Link>
                     </Button>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant={filters.open ? 'default' : 'outline'}
-                        onClick={() => setOpenFilter(true)}
-                    >
-                        Open
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant={!filters.open ? 'default' : 'outline'}
-                        onClick={() => setOpenFilter(false)}
-                    >
-                        History
-                    </Button>
-                </div>
-
-                <form
-                    className="flex flex-wrap items-end gap-3"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        const form = new FormData(event.currentTarget);
-                        router.get(
-                            '/equipment/checkouts',
-                            {
-                                open: filters.open ? '1' : '0',
-                                search: String(form.get('search') ?? ''),
-                            },
-                            { preserveState: true, replace: true },
-                        );
+                }
+                filters={
+                    <>
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={filters.open ? 'default' : 'outline'}
+                                onClick={() => applyFilters({ open: true })}
+                            >
+                                Open
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={!filters.open ? 'default' : 'outline'}
+                                onClick={() => applyFilters({ open: false })}
+                            >
+                                History
+                            </Button>
+                        </div>
+                        <Input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Worker, code, reason…"
+                            className="w-56"
+                            aria-label="Search checkouts"
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => applyFilters({})}
+                        >
+                            Search
+                        </Button>
+                    </>
+                }
+            >
+                <SettingsDataTable
+                    columns={columns}
+                    rows={checkouts.data}
+                    rowKey={(row) => row.id}
+                    meta={checkouts.meta}
+                    pageUrl="/equipment/checkouts"
+                    queryParams={{
+                        open: filters.open ? '1' : '0',
+                        search: search || undefined,
                     }}
-                >
-                    <input
-                        name="search"
-                        defaultValue={filters.search}
-                        placeholder="Worker, code, reason…"
-                        className="h-10 w-56 rounded-md border border-input bg-background px-3 text-sm"
-                    />
-                    <Button type="submit" variant="secondary" size="sm">
-                        Search
-                    </Button>
-                </form>
-
-                <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full min-w-[640px] text-sm">
-                        <thead className="bg-muted/50 text-left">
-                            <tr>
-                                <th className="px-3 py-2 font-medium">
-                                    Equipment
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Worker
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Out since
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Reason / zone
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Expected back
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Status
-                                </th>
-                                <th className="px-3 py-2 font-medium" />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {checkouts.data.map((row) => {
-                                const isOpen = row.returned_at === null;
-                                const isOverdue =
-                                    row.is_overdue_return === true;
-
-                                return (
-                                    <tr
-                                        key={row.id}
-                                        className="border-t border-border"
-                                    >
-                                        <td className="px-3 py-2">
-                                            {row.equipment ? (
-                                                <Link
-                                                    href={`/equipment/${row.equipment.id}`}
-                                                    className="underline-offset-2 hover:underline"
-                                                >
-                                                    {
-                                                        row.equipment
-                                                            .equipment_code
-                                                    }{' '}
-                                                    · {row.equipment.name}
-                                                </Link>
-                                            ) : (
-                                                `#${row.equipment_id}`
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            {row.worker?.name ??
-                                                `Worker #${row.worker_id}`}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            {new Date(
-                                                row.checked_out_at,
-                                            ).toLocaleString()}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            {row.reason ?? '—'}
-                                            {row.zone
-                                                ? ` · ${row.zone.name}`
-                                                : ''}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            {row.expected_return_at
-                                                ? new Date(
-                                                      row.expected_return_at,
-                                                  ).toLocaleString()
-                                                : '—'}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            <div className="flex flex-wrap gap-1">
-                                                {isOpen ? (
-                                                    <CustodyBadge
-                                                        state={
-                                                            isOverdue
-                                                                ? 'overdue_return'
-                                                                : 'checked_out'
-                                                        }
-                                                    />
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">
-                                                        Returned
-                                                        {row.returned_at
-                                                            ? ` ${new Date(row.returned_at).toLocaleString()}`
-                                                            : ''}
-                                                    </span>
-                                                )}
-                                                <OverdueBadge
-                                                    isReturnOverdue={isOverdue}
-                                                />
-                                            </div>
-                                        </td>
-                                        <td className="px-3 py-2 text-right">
-                                            {canManage && isOpen && (
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    onClick={() =>
-                                                        setReturnTarget(row)
-                                                    }
-                                                >
-                                                    Return
-                                                </Button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            {checkouts.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={7}
-                                        className="px-3 py-8 text-center text-muted-foreground"
-                                    >
-                                        {filters.open
-                                            ? 'No open checkouts.'
-                                            : 'No checkout history.'}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                <p className="text-sm text-muted-foreground">
-                    Page {checkouts.meta.current_page} of{' '}
-                    {checkouts.meta.last_page} · {checkouts.meta.total} total
-                </p>
-            </div>
+                    emptyTitle="No checkouts"
+                    emptyDescription={
+                        filters.open
+                            ? 'No open checkouts.'
+                            : 'No checkout history.'
+                    }
+                />
+            </SettingsPageShell>
 
             <ReturnDialog
                 open={returnTarget !== null}
@@ -255,3 +212,10 @@ export default function EquipmentCheckoutsIndex({
         </>
     );
 }
+
+EquipmentCheckoutsIndex.layout = {
+    breadcrumbs: [
+        { title: 'Equipment', href: '/equipment' },
+        { title: 'Checkouts', href: '/equipment/checkouts' },
+    ],
+};

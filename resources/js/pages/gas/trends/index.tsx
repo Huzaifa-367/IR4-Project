@@ -1,6 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 import Heading from '@/components/heading';
+import { AnalyticalChart } from '@/components/ir4/analytical-chart';
+import { MetricRow } from '@/components/ir4/metric-row';
+import { Panel } from '@/components/ir4/panel';
+import { RangeToggle } from '@/components/ir4/range-toggle';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { GasTrendSeries } from '@/types/gas';
 
 type Props = {
@@ -22,18 +28,56 @@ export default function GasTrends({
     devices,
     gasTypes,
 }: Props) {
-    const max = Math.max(
-        1,
-        ...series.points.map((p) => Math.max(p.max ?? 0, p.value ?? 0)),
+    const [gasType, setGasType] = useState(filters.gas_type);
+    const [deviceId, setDeviceId] = useState(filters.device_id);
+    const [range, setRange] = useState(filters.range || 'day');
+    const [from, setFrom] = useState(filters.from);
+    const [to, setTo] = useState(filters.to);
+
+    function applyFilters(patch: Partial<Props['filters']>): void {
+        router.get(
+            '/gas/trends',
+            {
+                gas_type: patch.gas_type ?? gasType,
+                device_id: patch.device_id ?? deviceId,
+                range: patch.range ?? range,
+                from: patch.from ?? from,
+                to: patch.to ?? to,
+            },
+            { preserveState: true, replace: true },
+        );
+    }
+
+    const chartData = useMemo(
+        () =>
+            series.points.map((point) => ({
+                label: new Date(point.at).toLocaleString([], {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                }),
+                avg: point.avg ?? point.value,
+                min: point.min,
+                max: point.max,
+            })),
+        [series.points],
     );
+
+    const values = series.points
+        .map((p) => p.avg ?? p.value)
+        .filter((v): v is number => v !== null);
+    const latest = values.at(-1);
+    const min = values.length > 0 ? Math.min(...values) : null;
+    const max = values.length > 0 ? Math.max(...values) : null;
 
     return (
         <>
             <Head title="Gas trends" />
-            <div className="space-y-6 p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex flex-col gap-5 p-4 md:p-6">
+                <div className="flex flex-wrap items-end justify-between gap-4">
                     <Heading
-                        title="Gas trends"
+                        title="Gas Trends"
                         description={`Source: ${series.source} · ${series.points.length} points`}
                     />
                     <Button asChild size="sm" variant="secondary">
@@ -41,27 +85,13 @@ export default function GasTrends({
                     </Button>
                 </div>
 
-                <form
-                    className="flex flex-wrap gap-3"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        const form = new FormData(event.currentTarget);
-                        router.get(
-                            '/gas/trends',
-                            {
-                                gas_type: String(form.get('gas_type') ?? ''),
-                                device_id: String(form.get('device_id') ?? ''),
-                                range: String(form.get('range') ?? 'day'),
-                                from: String(form.get('from') ?? ''),
-                                to: String(form.get('to') ?? ''),
-                            },
-                            { preserveState: true, replace: true },
-                        );
-                    }}
-                >
+                <div className="flex flex-wrap items-end gap-3">
                     <select
-                        name="gas_type"
-                        defaultValue={filters.gas_type}
+                        value={gasType}
+                        onChange={(event) => {
+                            setGasType(event.target.value);
+                            applyFilters({ gas_type: event.target.value });
+                        }}
                         className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                     >
                         {gasTypes.map((t) => (
@@ -71,63 +101,85 @@ export default function GasTrends({
                         ))}
                     </select>
                     <select
-                        name="device_id"
-                        defaultValue={filters.device_id}
+                        value={deviceId}
+                        onChange={(event) => {
+                            setDeviceId(event.target.value);
+                            applyFilters({ device_id: event.target.value });
+                        }}
                         className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                     >
                         <option value="">All devices</option>
                         {devices.map((d) => (
-                            <option key={d.id} value={d.id}>
+                            <option key={d.id} value={String(d.id)}>
                                 {d.name}
                             </option>
                         ))}
                     </select>
-                    <select
-                        name="range"
-                        defaultValue={filters.range}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                        <option value="shift">Shift (12h)</option>
-                        <option value="day">Day</option>
-                        <option value="week">Week</option>
-                        <option value="custom">Custom</option>
-                    </select>
-                    <input
-                        type="date"
-                        name="from"
-                        defaultValue={filters.from}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    <RangeToggle
+                        value={range}
+                        onChange={(value) => {
+                            setRange(value);
+                            applyFilters({ range: value });
+                        }}
+                        options={[
+                            { value: 'shift', label: 'Shift' },
+                            { value: 'day', label: 'Day' },
+                            { value: 'week', label: 'Week' },
+                            { value: 'custom', label: 'Custom' },
+                        ]}
+                        aria-label="Trend range"
                     />
-                    <input
-                        type="date"
-                        name="to"
-                        defaultValue={filters.to}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    />
-                    <Button type="submit" size="sm">
-                        Apply
-                    </Button>
-                </form>
-
-                <div className="flex h-48 items-end gap-0.5 rounded-lg border border-border p-3">
-                    {series.points.map((point, i) => (
-                        <div
-                            key={`${point.at}-${i}`}
-                            className="flex-1 rounded-t bg-primary/70"
-                            style={{
-                                height: `${((point.avg ?? point.value ?? 0) / max) * 100}%`,
-                                minHeight:
-                                    (point.avg ?? point.value ?? 0) > 0 ? 2 : 0,
-                            }}
-                            title={`${point.at}: ${point.avg ?? point.value}`}
-                        />
-                    ))}
-                    {series.points.length === 0 && (
-                        <div className="flex w-full items-center justify-center text-sm text-muted-foreground">
-                            No readings in range
-                        </div>
-                    )}
+                    {range === 'custom' ? (
+                        <>
+                            <Input
+                                type="date"
+                                value={from}
+                                onChange={(event) => {
+                                    setFrom(event.target.value);
+                                    applyFilters({ from: event.target.value });
+                                }}
+                            />
+                            <Input
+                                type="date"
+                                value={to}
+                                onChange={(event) => {
+                                    setTo(event.target.value);
+                                    applyFilters({ to: event.target.value });
+                                }}
+                            />
+                        </>
+                    ) : null}
                 </div>
+
+                <MetricRow
+                    items={[
+                        { label: 'Latest', value: latest?.toFixed(1) ?? '—' },
+                        { label: 'Min', value: min?.toFixed(1) ?? '—' },
+                        { label: 'Max', value: max?.toFixed(1) ?? '—' },
+                    ]}
+                />
+
+                <Panel
+                    title={
+                        gasTypes.find((t) => t.value === gasType)?.label ??
+                        'Reading'
+                    }
+                    subtitle="hover for exact values"
+                >
+                    <AnalyticalChart
+                        data={chartData}
+                        series={[
+                            {
+                                key: 'avg',
+                                label: 'Average',
+                                color: 'var(--viz-1)',
+                                type: 'area',
+                            },
+                        ]}
+                        height={280}
+                        emptyLabel="No readings in range"
+                    />
+                </Panel>
             </div>
         </>
     );

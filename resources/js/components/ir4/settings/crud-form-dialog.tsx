@@ -1,5 +1,5 @@
-import { Form } from '@inertiajs/react';
 import type { FormDataConvertible, Method } from '@inertiajs/core';
+import { Form } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +20,7 @@ type Props = {
     method?: Method;
     submitLabel?: string;
     disableSubmit?: boolean;
+    encType?: 'multipart/form-data';
     transform?: (
         data: Record<string, FormDataConvertible>,
     ) => Record<string, FormDataConvertible>;
@@ -38,6 +39,7 @@ export function CrudFormDialog({
     method = 'post',
     submitLabel = 'Save',
     disableSubmit = false,
+    encType,
     transform,
     children,
 }: Props) {
@@ -53,6 +55,7 @@ export function CrudFormDialog({
                 <Form
                     action={action}
                     method={method}
+                    encType={encType}
                     className="flex flex-col gap-4"
                     options={{ preserveScroll: true }}
                     transform={transform}
