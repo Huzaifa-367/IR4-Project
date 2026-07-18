@@ -1,0 +1,184 @@
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+@import 'tailwindcss';
+
+@import 'tw-animate-css';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+    --font-sans:
+        'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+    --font-mono:
+        'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'Liberation Mono', 'Courier New', monospace;
+
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --color-info: var(--info);
+    --color-danger: var(--danger);
+
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Operator light theme — Design.md / DOC-16 */
+:root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --surface-2: #e8eef3;
+    --text: #0f172a;
+    --text-dim: #64748b;
+    --ok: #34d399;
+    --warn: #f5a524;
+    --crit: #f0506e;
+    --background: #f4f6f8;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    --primary: #0284c8;
+    --primary-foreground: #ffffff;
+    --secondary: #1e3a5f;
+    --secondary-foreground: #f8fafc;
+    --muted: #e8eef3;
+    --muted-foreground: #64748b;
+    --accent: #e8eef3;
+    --accent-foreground: #0f172a;
+    --destructive: #f0506e;
+    --destructive-foreground: #ffffff;
+    --success: #34d399;
+    --warning: #f5a524;
+    --danger: #f0506e;
+    --info: #38bdf8;
+    --border: #d7e0ea;
+    --input: #d7e0ea;
+    --ring: #38bdf8;
+    --chart-1: #38bdf8;
+    --chart-2: #34d399;
+    --chart-3: #f5a524;
+    --chart-4: #f0506e;
+    --chart-5: #0284c8;
+    --radius: 0.875rem;
+    --sidebar: #ffffff;
+    --sidebar-foreground: #0f172a;
+    --sidebar-primary: #0284c8;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #e8eef3;
+    --sidebar-accent-foreground: #0f172a;
+    --sidebar-border: #d7e0ea;
+    --sidebar-ring: #38bdf8;
+}
+
+/* Control Room dark — DOC-16 (default for command centre / display) */
+.dark {
+    --bg: #0b0f14;
+    --surface: #131a22;
+    --surface-2: #1b2530;
+    --text: #e6edf3;
+    --text-dim: #8a97a6;
+    --ok: #34d399;
+    --warn: #f5a524;
+    --crit: #f0506e;
+    --background: #0b0f14;
+    --foreground: #e6edf3;
+    --card: #131a22;
+    --card-foreground: #e6edf3;
+    --popover: #1b2530;
+    --popover-foreground: #e6edf3;
+    --primary: #38bdf8;
+    --primary-foreground: #0b0f14;
+    --secondary: #1b2530;
+    --secondary-foreground: #e6edf3;
+    --muted: #1b2530;
+    --muted-foreground: #8a97a6;
+    --accent: #1b2530;
+    --accent-foreground: #e6edf3;
+    --destructive: #f0506e;
+    --destructive-foreground: #ffffff;
+    --success: #34d399;
+    --warning: #f5a524;
+    --danger: #f0506e;
+    --info: #38bdf8;
+    --border: #243040;
+    --input: #243040;
+    --ring: #38bdf8;
+    --chart-1: #38bdf8;
+    --chart-2: #34d399;
+    --chart-3: #f5a524;
+    --chart-4: #f0506e;
+    --chart-5: #8a97a6;
+    --radius: 0.875rem;
+    --sidebar: #131a22;
+    --sidebar-foreground: #e6edf3;
+    --sidebar-primary: #38bdf8;
+    --sidebar-primary-foreground: #0b0f14;
+    --sidebar-accent: #1b2530;
+    --sidebar-accent-foreground: #e6edf3;
+    --sidebar-border: #243040;
+    --sidebar-ring: #38bdf8;
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background font-sans text-foreground antialiased;
+    }
+}

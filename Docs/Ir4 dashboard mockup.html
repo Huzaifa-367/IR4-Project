@@ -1,0 +1,1945 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IR4 Safety Command Center — Analytics</title>
+    <style>
+        :root {
+            --bg: #0A0E14;
+            --surface: #121924;
+            --surface-2: #18212E;
+            --surface-3: #1F2A38;
+            --border: #263341;
+            --border-strong: #354558;
+            --text: #E8EEF5;
+            --text-dim: #93A1B2;
+            --text-faint: #5E6B7A;
+            --accent: #38BDF8;
+            --accent-dim: #38BDF833;
+            --accent-strong: #0EA5E9;
+            --ok: #34D399;
+            --ok-bg: #34D39918;
+            --warn: #F5A524;
+            --warn-bg: #F5A52418;
+            --crit: #F0506E;
+            --crit-bg: #F0506E18;
+            --viz-1: #38BDF8;
+            --viz-2: #A78BFA;
+            --viz-3: #34D399;
+            --viz-4: #F5A524;
+            --viz-5: #F472B6;
+            --viz-6: #22D3EE;
+            --shadow-card: 0 1px 2px #0006, 0 8px 24px #0003;
+            --shadow-pop: 0 8px 32px #0009;
+            --radius: 14px;
+            --radius-sm: 10px;
+            --radius-pill: 999px;
+            --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased
+        }
+
+        .tnum {
+            font-variant-numeric: tabular-nums
+        }
+
+        .mono {
+            font-family: var(--mono)
+        }
+
+        .eyebrow {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+            color: var(--text-dim)
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--surface-3);
+            border-radius: 10px;
+            border: 2px solid var(--bg)
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 100vh
+        }
+
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .brand .logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+            display: grid;
+            place-items: center;
+            box-shadow: 0 0 16px var(--accent-dim)
+        }
+
+        .brand .logo svg {
+            width: 18px;
+            height: 18px
+        }
+
+        .brand .name {
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: -.01em
+        }
+
+        .brand .sub {
+            font-size: 10px;
+            color: var(--text-faint);
+            letter-spacing: .08em;
+            text-transform: uppercase
+        }
+
+        .nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 12px
+        }
+
+        .nav .group {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            padding: 14px 10px 6px
+        }
+
+        .nav a {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 9px 11px;
+            border-radius: var(--radius-sm);
+            color: var(--text-dim);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13.5px;
+            position: relative;
+            margin-bottom: 1px
+        }
+
+        .nav a svg {
+            width: 17px;
+            height: 17px;
+            flex: none;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8
+        }
+
+        .nav a:hover {
+            background: var(--surface-2);
+            color: var(--text)
+        }
+
+        .nav a.active {
+            background: var(--accent-dim);
+            color: var(--accent)
+        }
+
+        .nav a.active::before {
+            content: "";
+            position: absolute;
+            left: -12px;
+            top: 8px;
+            bottom: 8px;
+            width: 3px;
+            border-radius: 0 3px 3px 0;
+            background: var(--accent)
+        }
+
+        .nav a .badge {
+            margin-left: auto;
+            font-size: 11px;
+            background: var(--crit);
+            color: #fff;
+            border-radius: var(--radius-pill);
+            padding: 1px 7px;
+            font-weight: 600
+        }
+
+        .sysfoot {
+            margin: 12px;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface-2)
+        }
+
+        .sysfoot .eyebrow {
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        .sysfoot .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--ok);
+            box-shadow: 0 0 8px var(--ok)
+        }
+
+        .sysfoot .val {
+            font-size: 20px;
+            font-weight: 700;
+            margin-top: 4px
+        }
+
+        .sysfoot .val small {
+            color: var(--ok);
+            font-size: 13px;
+            font-weight: 600
+        }
+
+        .sysfoot .meta {
+            font-size: 11px;
+            color: var(--text-faint);
+            margin-top: 2px
+        }
+
+        .main {
+            display: flex;
+            flex-direction: column;
+            min-width: 0
+        }
+
+        .topbar {
+            height: 64px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 0 24px;
+            position: sticky;
+            top: 0;
+            background: color-mix(in srgb, var(--bg) 88%, transparent);
+            backdrop-filter: blur(8px);
+            z-index: 20
+        }
+
+        .crumb {
+            font-size: 13px;
+            color: var(--text-dim)
+        }
+
+        .crumb b {
+            color: var(--text);
+            font-weight: 600
+        }
+
+        .search {
+            flex: 1;
+            max-width: 420px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+            color: var(--text-faint)
+        }
+
+        .search svg {
+            width: 15px;
+            height: 15px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8
+        }
+
+        .search .kbd {
+            margin-left: auto;
+            font-size: 11px;
+            background: var(--surface-3);
+            border-radius: 6px;
+            padding: 2px 6px;
+            color: var(--text-dim)
+        }
+
+        .spacer {
+            flex: 1
+        }
+
+        .pill-live {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--ok);
+            background: var(--ok-bg);
+            border: 1px solid #34D39944;
+            border-radius: var(--radius-pill);
+            padding: 5px 12px
+        }
+
+        .pill-live .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--ok);
+            animation: pulse 2s infinite
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .4
+            }
+        }
+
+        .icon-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius-sm);
+            display: grid;
+            place-items: center;
+            color: var(--text-dim);
+            position: relative;
+            cursor: pointer
+        }
+
+        .icon-btn:hover {
+            background: var(--surface-2);
+            color: var(--text)
+        }
+
+        .icon-btn svg {
+            width: 19px;
+            height: 19px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8
+        }
+
+        .icon-btn .count {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: var(--crit);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: var(--radius-pill);
+            min-width: 16px;
+            height: 16px;
+            display: grid;
+            place-items: center;
+            padding: 0 4px
+        }
+
+        .user {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: var(--radius-sm)
+        }
+
+        .user:hover {
+            background: var(--surface-2)
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff
+        }
+
+        .user .un {
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.1
+        }
+
+        .user .ur {
+            font-size: 11px;
+            color: var(--text-faint)
+        }
+
+        .content {
+            padding: 24px;
+            max-width: 1520px;
+            width: 100%;
+            margin: 0 auto
+        }
+
+        .page-head {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 16px;
+            flex-wrap: wrap
+        }
+
+        .page-head h1 {
+            font-size: 25px;
+            font-weight: 700;
+            letter-spacing: -.02em
+        }
+
+        .page-head .sub {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 3px
+        }
+
+        .head-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer
+        }
+
+        .btn:hover {
+            background: var(--surface-2)
+        }
+
+        .btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #04121b
+        }
+
+        .btn.primary:hover {
+            background: var(--accent-strong)
+        }
+
+        .btn svg {
+            width: 15px;
+            height: 15px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.9
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 18px
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-card);
+            padding: 20px;
+            min-width: 0;
+            opacity: 0;
+            transform: translateY(8px);
+            animation: rise .4s ease forwards
+        }
+
+        @keyframes rise {
+            to {
+                opacity: 1;
+                transform: none
+            }
+        }
+
+        .card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px
+        }
+
+        .card-head .chev {
+            color: var(--text-faint);
+            cursor: pointer
+        }
+
+        .card-head .chev:hover {
+            color: var(--accent)
+        }
+
+        .col-2 {
+            grid-column: span 2
+        }
+
+        .col-3 {
+            grid-column: span 3
+        }
+
+        .col-4 {
+            grid-column: span 4
+        }
+
+        .col-5 {
+            grid-column: span 5
+        }
+
+        .col-6 {
+            grid-column: span 6
+        }
+
+        .col-7 {
+            grid-column: span 7
+        }
+
+        .col-8 {
+            grid-column: span 8
+        }
+
+        .col-12 {
+            grid-column: span 12
+        }
+
+        .stat .top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between
+        }
+
+        .stat .value {
+            font-size: 42px;
+            font-weight: 700;
+            letter-spacing: -.02em;
+            line-height: 1;
+            margin: 12px 0 6px
+        }
+
+        .stat .value small {
+            font-size: 19px;
+            color: var(--text-dim);
+            font-weight: 600
+        }
+
+        .delta {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: var(--radius-pill);
+            padding: 3px 9px
+        }
+
+        .delta.up {
+            color: var(--ok);
+            background: var(--ok-bg)
+        }
+
+        .delta.down {
+            color: var(--crit);
+            background: var(--crit-bg)
+        }
+
+        .delta .base {
+            color: var(--text-faint);
+            font-weight: 500;
+            margin-left: 2px
+        }
+
+        .spark {
+            margin-top: 14px;
+            height: 40px;
+            width: 100%;
+            display: block
+        }
+
+        .stat .row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 10px;
+            flex-wrap: wrap
+        }
+
+        .chip {
+            font-size: 11.5px;
+            font-weight: 600;
+            border-radius: var(--radius-pill);
+            padding: 3px 9px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px
+        }
+
+        .chip .d {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%
+        }
+
+        .chip.crit {
+            color: var(--crit);
+            background: var(--crit-bg)
+        }
+
+        .chip.crit .d {
+            background: var(--crit)
+        }
+
+        .chip.warn {
+            color: var(--warn);
+            background: var(--warn-bg)
+        }
+
+        .chip.warn .d {
+            background: var(--warn)
+        }
+
+        .chip.ok {
+            color: var(--ok);
+            background: var(--ok-bg)
+        }
+
+        .chip.ok .d {
+            background: var(--ok)
+        }
+
+        .card.pulse {
+            animation: rise .4s ease forwards, critpulse 1.4s ease 1
+        }
+
+        @keyframes critpulse {
+
+            0%,
+            100% {
+                border-color: var(--border)
+            }
+
+            40% {
+                border-color: var(--crit);
+                box-shadow: 0 0 0 3px var(--crit-bg)
+            }
+        }
+
+        .sec-title {
+            font-size: 15px;
+            font-weight: 600
+        }
+
+        .sec-sub {
+            font-size: 12px;
+            color: var(--text-faint);
+            margin-top: 1px
+        }
+
+        .seg {
+            display: inline-flex;
+            background: var(--surface-2);
+            border-radius: var(--radius-pill);
+            padding: 3px
+        }
+
+        .seg button {
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 13px;
+            border-radius: var(--radius-pill);
+            cursor: pointer
+        }
+
+        .seg button.on {
+            background: var(--surface-3);
+            color: var(--text)
+        }
+
+        .map-wrap {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: radial-gradient(120% 120% at 30% 10%, #101a26, #0a1119);
+            border: 1px solid var(--border)
+        }
+
+        .map-legend {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            font-size: 11px;
+            color: var(--text-dim)
+        }
+
+        .map-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px
+        }
+
+        .map-legend i {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%
+        }
+
+        .map-stats {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 18px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 14px
+        }
+
+        .map-stats .k {
+            font-size: 10px;
+            color: var(--text-faint);
+            text-transform: uppercase;
+            letter-spacing: .06em
+        }
+
+        .map-stats .v {
+            font-size: 16px;
+            font-weight: 700
+        }
+
+        .feed {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-height: 360px;
+            overflow-y: auto;
+            margin: 0 -6px;
+            padding: 0 6px
+        }
+
+        .feed .item {
+            display: flex;
+            gap: 11px;
+            padding: 11px 10px;
+            border-radius: 10px;
+            border-left: 2px solid transparent
+        }
+
+        .feed .item:hover {
+            background: var(--surface-2)
+        }
+
+        .feed .item.crit {
+            border-left-color: var(--crit)
+        }
+
+        .feed .item.warn {
+            border-left-color: var(--warn)
+        }
+
+        .feed .item.info {
+            border-left-color: var(--accent)
+        }
+
+        .feed .sev {
+            flex: none;
+            margin-top: 1px
+        }
+
+        .feed .body {
+            flex: 1;
+            min-width: 0
+        }
+
+        .feed .line1 {
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            gap: 7px;
+            align-items: center
+        }
+
+        .feed .line1 .id {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text-faint)
+        }
+
+        .feed .line2 {
+            font-size: 11.5px;
+            color: var(--text-dim);
+            margin-top: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap
+        }
+
+        .feed .t {
+            font-size: 11px;
+            color: var(--text-faint);
+            white-space: nowrap;
+            font-family: var(--mono)
+        }
+
+        .pill {
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: var(--radius-pill);
+            padding: 2px 9px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap
+        }
+
+        .pill .d {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%
+        }
+
+        .pill.crit {
+            color: var(--crit);
+            background: var(--crit-bg)
+        }
+
+        .pill.crit .d {
+            background: var(--crit)
+        }
+
+        .pill.warn {
+            color: var(--warn);
+            background: var(--warn-bg)
+        }
+
+        .pill.warn .d {
+            background: var(--warn)
+        }
+
+        .pill.ok {
+            color: var(--ok);
+            background: var(--ok-bg)
+        }
+
+        .pill.ok .d {
+            background: var(--ok)
+        }
+
+        .pill.info {
+            color: var(--accent);
+            background: var(--accent-dim)
+        }
+
+        .pill.info .d {
+            background: var(--accent)
+        }
+
+        .pill.mut {
+            color: var(--text-dim);
+            background: var(--surface-3)
+        }
+
+        .pill.mut .d {
+            background: var(--text-dim)
+        }
+
+        .chart-wrap {
+            position: relative
+        }
+
+        .chart-tip {
+            position: absolute;
+            pointer-events: none;
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: 10px;
+            box-shadow: var(--shadow-pop);
+            padding: 9px 11px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity .12s;
+            z-index: 5;
+            min-width: 130px
+        }
+
+        .chart-tip .tt {
+            font-size: 11px;
+            color: var(--text-faint);
+            margin-bottom: 5px;
+            font-family: var(--mono)
+        }
+
+        .chart-tip .rowv {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            justify-content: space-between
+        }
+
+        .chart-tip .rowv .lab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-dim)
+        }
+
+        .chart-tip .rowv .lab i {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px
+        }
+
+        .chart-tip .rowv .num {
+            font-family: var(--mono);
+            font-weight: 600
+        }
+
+        .legend {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            margin-bottom: 6px;
+            flex-wrap: wrap
+        }
+
+        .legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-dim)
+        }
+
+        .legend i {
+            width: 9px;
+            height: 9px;
+            border-radius: 2px
+        }
+
+        .legend b {
+            color: var(--text);
+            font-family: var(--mono)
+        }
+
+        .mrow {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 16px
+        }
+
+        .mrow .m {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px
+        }
+
+        .mrow .m .k {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--text-faint)
+        }
+
+        .mrow .m .v {
+            font-size: 20px;
+            font-weight: 700;
+            margin-top: 3px
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse
+        }
+
+        thead th {
+            text-align: left;
+            font-size: 10.5px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            padding: 10px 12px;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border)
+        }
+
+        thead th:first-child {
+            border-radius: 10px 0 0 0
+        }
+
+        thead th:last-child {
+            border-radius: 0 10px 0 0;
+            text-align: right
+        }
+
+        tbody td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            vertical-align: middle
+        }
+
+        tbody tr:hover {
+            background: var(--surface-2)
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none
+        }
+
+        td.num {
+            text-align: right;
+            font-family: var(--mono)
+        }
+
+        .t-id {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--text-dim)
+        }
+
+        .owner {
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .owner .avatar {
+            width: 24px;
+            height: 24px;
+            font-size: 10px
+        }
+
+        .progress {
+            height: 6px;
+            border-radius: var(--radius-pill);
+            background: var(--surface-3);
+            overflow: hidden;
+            min-width: 80px
+        }
+
+        .progress i {
+            display: block;
+            height: 100%;
+            border-radius: var(--radius-pill)
+        }
+
+        .gauge-wrap {
+            display: flex;
+            align-items: center;
+            gap: 20px
+        }
+
+        .gauge {
+            position: relative;
+            width: 132px;
+            height: 132px;
+            flex: none
+        }
+
+        .gauge .cx {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            text-align: center
+        }
+
+        .gauge .cx .g-val {
+            font-size: 34px;
+            font-weight: 700;
+            line-height: 1
+        }
+
+        .gauge .cx .g-lab {
+            font-size: 10px;
+            color: var(--text-faint);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin-top: 2px
+        }
+
+        .gauge-sub {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1
+        }
+
+        .gauge-sub .gs {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px
+        }
+
+        .gauge-sub .gs .k {
+            color: var(--text-dim)
+        }
+
+        .gauge-sub .gs .b {
+            flex: 1;
+            margin: 0 12px;
+            height: 6px;
+            border-radius: var(--radius-pill);
+            background: var(--surface-3);
+            overflow: hidden
+        }
+
+        .gauge-sub .gs .b i {
+            display: block;
+            height: 100%;
+            border-radius: var(--radius-pill)
+        }
+
+        .gauge-sub .gs .v {
+            font-family: var(--mono);
+            font-weight: 600;
+            width: 34px;
+            text-align: right
+        }
+
+        /* gas panels */
+        .gaspanel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px
+        }
+
+        .gp {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 12px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px
+        }
+
+        .gp .gname {
+            width: 74px
+        }
+
+        .gp .gname .g {
+            font-size: 12px;
+            font-weight: 600
+        }
+
+        .gp .gname .s {
+            font-size: 10px;
+            color: var(--text-faint);
+            font-family: var(--mono)
+        }
+
+        .gp .gbar {
+            flex: 1;
+            height: 8px;
+            border-radius: var(--radius-pill);
+            background: var(--surface-3);
+            position: relative;
+            overflow: hidden
+        }
+
+        .gp .gbar i {
+            display: block;
+            height: 100%;
+            border-radius: var(--radius-pill)
+        }
+
+        .gp .gbar .warn-m {
+            position: absolute;
+            top: -2px;
+            bottom: -2px;
+            width: 2px;
+            background: var(--warn)
+        }
+
+        .gp .gbar .crit-m {
+            position: absolute;
+            top: -2px;
+            bottom: -2px;
+            width: 2px;
+            background: var(--crit)
+        }
+
+        .gp .gval {
+            width: 78px;
+            text-align: right
+        }
+
+        .gp .gval .v {
+            font-family: var(--mono);
+            font-weight: 700;
+            font-size: 15px
+        }
+
+        .gp .gval .u {
+            font-size: 10px;
+            color: var(--text-faint)
+        }
+
+        /* heatmap */
+        .heat {
+            display: grid;
+            grid-template-columns: auto repeat(24, 1fr);
+            gap: 3px;
+            font-size: 9px
+        }
+
+        .heat .hl {
+            color: var(--text-faint);
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            padding-right: 6px;
+            justify-content: flex-end
+        }
+
+        .heat .cell {
+            aspect-ratio: 1;
+            border-radius: 3px;
+            min-height: 14px
+        }
+
+        .heat .hx {
+            color: var(--text-faint);
+            text-align: center;
+            font-family: var(--mono)
+        }
+
+        /* funnel/bars horizontal */
+        .hbars {
+            display: flex;
+            flex-direction: column;
+            gap: 11px
+        }
+
+        .hbar {
+            display: grid;
+            grid-template-columns: 120px 1fr 42px;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px
+        }
+
+        .hbar .l {
+            color: var(--text-dim)
+        }
+
+        .hbar .track {
+            height: 22px;
+            background: var(--surface-3);
+            border-radius: 6px;
+            overflow: hidden
+        }
+
+        .hbar .track i {
+            display: block;
+            height: 100%;
+            border-radius: 6px
+        }
+
+        .hbar .n {
+            font-family: var(--mono);
+            font-weight: 600;
+            text-align: right
+        }
+
+        .footnote {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-faint)
+        }
+
+        @media (max-width:1150px) {
+
+            .col-3,
+            .col-2 {
+                grid-column: span 6
+            }
+
+            .col-8,
+            .col-4,
+            .col-5,
+            .col-6,
+            .col-7 {
+                grid-column: span 12
+            }
+        }
+
+        @media (max-width:720px) {
+            .app {
+                grid-template-columns: 1fr
+            }
+
+            .sidebar {
+                display: none
+            }
+
+            .col-3,
+            .col-2,
+            .col-4 {
+                grid-column: span 12
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo"><svg viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z" stroke="#04121b" stroke-width="2"
+                            stroke-linejoin="round" />
+                    </svg></div>
+                <div>
+                    <div class="name">IR4 Command</div>
+                    <div class="sub">Safety Center</div>
+                </div>
+            </div>
+            <nav class="nav">
+                <div class="group">Overview</div>
+                <a class="active" href="#"><svg viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                    </svg>Dashboard</a>
+                <a href="#"><svg viewBox="0 0 24 24">
+                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>Live View</a>
+                <div class="group">Tracking</div>
+                <a href="#"><svg viewBox="0 0 24 24">
+                        <circle cx="9" cy="7" r="3" />
+                        <path d="M3 21c0-3.5 2.7-6 6-6s6 2.5 6 6" />
+                    </svg>Workers</a>
+                <a href="#"><svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 3v18M3 12h18" />
+                    </svg>Zones &amp; Map</a>
+                <a href="#"><svg viewBox="0 0 24 24">
+                        <path d="M3 12h4l2 6 4-14 2 8h6" />
+                    </svg>Evacuation</a>
+                <div class="group">Safety</div>
+                <a href="#"><svg viewBox="0 0 24 24">
+                        <path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z" />
+                    </svg>PPE</a>
+                <a href="#"><svg viewBox="0 0 24 24">
+                        <path d="M12 2a5 5 0 015 5v3l2 4H5l2-4V7a5 5 0 015-5z" />
+                        <path d="M9 18a3 3 0 006 0" />
+                    </svg>Gas &amp; CO₂</a>
+                <a href="#"><svg viewBox="0 0 24 24">
+                        <path d="M9 11l3 3 8-8" />
+                        <path d="M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9" />
+                    </svg>Incidents &amp; LSR<span class="badge">5</span></a>
+                <a href="#"><svg viewBox="0 0 24 24">
+                        <rect x="4" y="4" width="16" height="16" rx="2" />
+                        <path d="M9 9h6v6H9z" />
+                    </svg>Equipment</a>
+                <div class="group">Operations</div>
+                <a href="#"><svg viewBox="0 0 24 24">
+                        <path d="M14 3v4a1 1 0 001 1h4" />
+                        <path d="M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z" />
+                    </svg>Reports</a>
+                <a href="#"><svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
+                    </svg>Audit Log</a>
+                <a href="#"><svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="3" />
+                        <path
+                            d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2V21a2 2 0 01-4 0v-.1A1.7 1.7 0 006 19.4l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00-1.2-2.9H2a2 2 0 010-4h.1A1.7 1.7 0 003.3 6l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H8a1.7 1.7 0 001-1.5V2a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V8a1.7 1.7 0 001.5 1H22a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z" />
+                    </svg>Settings</a>
+            </nav>
+            <div class="sysfoot">
+                <div class="eyebrow"><span class="dot"></span> System Status</div>
+                <div class="val">All Nominal <small>18/18</small></div>
+                <div class="meta">All devices reporting · backup ok</div>
+            </div>
+        </aside>
+
+        <div class="main">
+            <header class="topbar">
+                <div class="crumb">Command Center <b>/ Analytics</b></div>
+                <div class="search"><svg viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M21 21l-4-4" />
+                    </svg><span>Search workers, incidents, equipment…</span><span class="kbd">⌘K</span></div>
+                <div class="spacer"></div>
+                <div class="pill-live"><span class="dot"></span> LIVE</div>
+                <div class="icon-btn"><svg viewBox="0 0 24 24">
+                        <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.7 21a2 2 0 01-3.4 0" />
+                    </svg><span class="count">3</span></div>
+                <div class="user">
+                    <div class="avatar" style="background:linear-gradient(135deg,#38BDF8,#0EA5E9)">SB</div>
+                    <div>
+                        <div class="un">S. Bilal</div>
+                        <div class="ur">Safety Manager</div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content">
+                <div class="page-head">
+                    <div>
+                        <h1>Site Safety Analytics</h1>
+                        <div class="sub">Work Front A · shift 06:00–18:00 · live as of <span class="mono"
+                                id="clock">12:27:04</span></div>
+                    </div>
+                    <div class="head-actions">
+                        <button class="btn"><svg viewBox="0 0 24 24">
+                                <rect x="3" y="4" width="18" height="16" rx="2" />
+                                <path d="M3 9h18" />
+                            </svg> This shift</button>
+                        <button class="btn"><svg viewBox="0 0 24 24">
+                                <path d="M12 3v12M7 10l5 5 5-5" />
+                                <path d="M5 21h14" />
+                            </svg> Export</button>
+                        <button class="btn primary"><svg viewBox="0 0 24 24">
+                                <path d="M13 2L3 14h7v8l10-12h-7z" />
+                            </svg> Evacuate</button>
+                    </div>
+                </div>
+
+                <!-- STAT ROW -->
+                <div class="grid" style="margin-bottom:18px">
+                    <div class="card stat col-3" style="animation-delay:.02s">
+                        <div class="top"><span class="eyebrow">Total Manpower</span><span class="chev">›</span></div>
+                        <div class="value tnum"><span id="headcount">128</span></div><span class="delta up">▲ +12 <span
+                                class="base">vs shift start</span></span><svg class="spark" viewBox="0 0 260 40"
+                            preserveAspectRatio="none" id="spark1"></svg>
+                    </div>
+                    <div class="card stat col-3 pulse" style="animation-delay:.06s">
+                        <div class="top"><span class="eyebrow">Open Alerts</span><span class="chev">›</span></div>
+                        <div class="value tnum" style="color:var(--crit)">3<small style="color:var(--text-dim)">
+                                critical</small></div>
+                        <div class="row"><span class="chip crit"><span class="d"></span>3 Critical</span><span
+                                class="chip warn"><span class="d"></span>7 Warning</span></div><svg class="spark"
+                            viewBox="0 0 260 40" preserveAspectRatio="none" id="spark2"></svg>
+                    </div>
+                    <div class="card stat col-3" style="animation-delay:.1s">
+                        <div class="top"><span class="eyebrow">PPE Compliance</span><span class="chev">›</span></div>
+                        <div class="value tnum">96<small>%</small></div><span class="delta up">▲ +2.1% <span
+                                class="base">vs yesterday</span></span><svg class="spark" viewBox="0 0 260 40"
+                            preserveAspectRatio="none" id="spark3"></svg>
+                    </div>
+                    <div class="card stat col-3" style="animation-delay:.14s">
+                        <div class="top"><span class="eyebrow">System Health</span><span class="chev">›</span></div>
+                        <div class="value tnum">99.4<small>%</small></div><span class="delta up">▲ stable <span
+                                class="base">18/18 online</span></span><svg class="spark" viewBox="0 0 260 40"
+                            preserveAspectRatio="none" id="spark4"></svg>
+                    </div>
+                </div>
+
+                <!-- MAP + FEED -->
+                <div class="grid" style="margin-bottom:18px">
+                    <div class="card col-8" style="animation-delay:.18s">
+                        <div class="card-head">
+                            <div>
+                                <div class="sec-title">Live Zone Map</div>
+                                <div class="sec-sub">RFID zone-level presence · Work Front A</div>
+                            </div>
+                            <div class="seg"><button class="on">Map</button><button>Satellite</button></div>
+                        </div>
+                        <div class="map-wrap"><svg viewBox="0 0 800 400" style="width:100%;display:block"
+                                id="zonemap"></svg>
+                            <div class="map-stats">
+                                <div>
+                                    <div class="k">On Site</div>
+                                    <div class="v tnum">128</div>
+                                </div>
+                                <div>
+                                    <div class="k">Zones</div>
+                                    <div class="v tnum">6</div>
+                                </div>
+                                <div>
+                                    <div class="k">In Red</div>
+                                    <div class="v tnum" style="color:var(--crit)">1</div>
+                                </div>
+                            </div>
+                            <div class="map-legend"><span><i style="background:var(--accent)"></i>Work</span><span><i
+                                        style="background:var(--warn)"></i>Height</span><span><i
+                                        style="background:var(--crit)"></i>Restricted</span><span><i
+                                        style="background:var(--ok)"></i>Muster</span></div>
+                        </div>
+                    </div>
+                    <div class="card col-4" style="animation-delay:.22s">
+                        <div class="card-head">
+                            <div>
+                                <div class="sec-title">Alert Feed</div>
+                                <div class="sec-sub">Live · newest first</div>
+                            </div>
+                            <div class="seg" style="font-size:11px"><button class="on">All</button><button>Crit</button>
+                            </div>
+                        </div>
+                        <div class="feed" id="feed"></div>
+                    </div>
+                </div>
+
+                <!-- GAS TREND + LIVE PANELS -->
+                <div class="grid" style="margin-bottom:18px">
+                    <div class="card col-8" style="animation-delay:.26s">
+                        <div class="card-head">
+                            <div>
+                                <div class="sec-title">Gas Trend — H₂S (ppm)</div>
+                                <div class="sec-sub">warn 5.0 · alarm 10.0 (DOC-11 thresholds) · one excursion at 10:20
+                                </div>
+                            </div>
+                            <div class="seg" id="gasrange"><button data-r="shift" class="on">Shift</button><button
+                                    data-r="day">Day</button><button data-r="week">Week</button></div>
+                        </div>
+                        <div class="legend"><span><i style="background:var(--viz-1)"></i>Pole 2 <b
+                                    id="lgP2">4.2</b></span><span><i style="background:var(--viz-6)"></i>Pole 4 <b
+                                    id="lgP4">2.8</b></span><span><i
+                                    style="width:14px;height:0;border-top:2px dashed var(--warn);background:none"></i>Warn
+                                5.0</span><span><i
+                                    style="width:14px;height:0;border-top:2px dashed var(--crit);background:none"></i>Alarm
+                                10.0</span></div>
+                        <div class="chart-wrap" id="gaswrap"><svg viewBox="0 0 720 250" style="width:100%;display:block"
+                                id="gaschart"></svg>
+                            <div class="chart-tip" id="gastip"></div>
+                        </div>
+                    </div>
+                    <div class="card col-4" style="animation-delay:.3s">
+                        <div class="card-head">
+                            <div>
+                                <div class="sec-title">Live Gas Panels</div>
+                                <div class="sec-sub">4 detectors · vs thresholds</div>
+                            </div>
+                        </div>
+                        <div class="gaspanel" id="gaspanels"></div>
+                    </div>
+                </div>
+
+                <!-- SAFETY SCORE + PPE HEATMAP + LSR -->
+                <div class="grid" style="margin-bottom:18px">
+                    <div class="card col-4" style="animation-delay:.34s">
+                        <div class="card-head">
+                            <div>
+                                <div class="sec-title">Site Safety Score</div>
+                                <div class="sec-sub">composite · 28s ago</div>
+                            </div>
+                        </div>
+                        <div class="gauge-wrap">
+                            <div class="gauge"><svg viewBox="0 0 120 120"
+                                    style="width:132px;height:132px;transform:rotate(-90deg)">
+                                    <circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface-3)"
+                                        stroke-width="11" />
+                                    <circle id="gauge-arc" cx="60" cy="60" r="52" fill="none" stroke="var(--ok)"
+                                        stroke-width="11" stroke-linecap="round" stroke-dasharray="326.7"
+                                        stroke-dashoffset="326.7" />
+                                </svg>
+                                <div class="cx">
+                                    <div>
+                                        <div class="g-val tnum">94</div>
+                                        <div class="g-lab">of 100</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="gauge-sub">
+                                <div class="gs"><span class="k">PPE</span><span class="b"><i
+                                            style="width:96%;background:var(--ok)"></i></span><span class="v">96%</span>
+                                </div>
+                                <div class="gs"><span class="k">Zone</span><span class="b"><i
+                                            style="width:91%;background:var(--ok)"></i></span><span class="v">91%</span>
+                                </div>
+                                <div class="gs"><span class="k">Equip</span><span class="b"><i
+                                            style="width:88%;background:var(--warn)"></i></span><span
+                                        class="v">88%</span></div>
+                            </div>
+                        </div>
+                        <div class="mrow">
+                            <div class="m">
+                                <div class="k">PPE Today</div>
+                                <div class="v tnum">23</div>
+                            </div>
+                            <div class="m">
+                                <div class="k">Open LSR</div>
+                                <div class="v tnum">4</div>
+                            </div>
+                            <div class="m">
+                                <div class="k">Overdue Eq.</div>
+                                <div class="v tnum" style="color:var(--warn)">2</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card col-4" style="animation-delay:.38s">
+                        <div class="card-head">
+                            <div>
+                                <div class="sec-title">PPE Violations by Hour</div>
+                                <div class="sec-sub">density heatmap · this shift</div>
+                            </div>
+                        </div>
+                        <div id="ppeheat"></div>
+                    </div>
+                    <div class="card col-4" style="animation-delay:.42s">
+                        <div class="card-head">
+                            <div>
+                                <div class="sec-title">LSR by Category</div>
+                                <div class="sec-sub">this shift · 9 real categories</div>
+                            </div>
+                        </div>
+                        <div class="hbars" id="lsrbars"></div>
+                    </div>
+                </div>
+
+                <!-- HEADCOUNT AREA + ENTRY/EXIT + DONUT -->
+                <div class="grid" style="margin-bottom:18px">
+                    <div class="card col-5" style="animation-delay:.46s">
+                        <div class="card-head">
+                            <div>
+                                <div class="sec-title">Headcount &amp; Flow — this shift</div>
+                                <div class="sec-sub">gate entries/exits drive on-site count · peak 141</div>
+                            </div>
+                        </div>
+                        <div class="legend"><span><i style="background:var(--viz-3)"></i>On site</span><span><i
+                                    style="background:var(--ok)"></i>Entries</span><span><i
+                                    style="background:var(--crit)"></i>Exits</span></div>
+                        <div class="chart-wrap" id="hcwrap"><svg viewBox="0 0 560 230" style="width:100%;display:block"
+                                id="hcchart"></svg>
+                            <div class="chart-tip" id="hctip"></div>
+                        </div>
+                    </div>
+                    <div class="card col-4" style="animation-delay:.5s">
+                        <div class="card-head">
+                            <div>
+                                <div class="sec-title">Workers by Zone</div>
+                                <div class="sec-sub">live distribution · 128 on site</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:18px"><svg viewBox="0 0 120 120"
+                                style="width:130px;height:130px" id="donut"></svg>
+                            <div id="donut-legend" style="flex:1;display:flex;flex-direction:column;gap:9px"></div>
+                        </div>
+                    </div>
+                    <div class="card col-3" style="animation-delay:.54s">
+                        <div class="card-head">
+                            <div>
+                                <div class="sec-title">Evacuation Readiness</div>
+                                <div class="sec-sub">last drill accounting</div>
+                            </div>
+                        </div>
+                        <div style="display:grid;place-items:center;padding:6px 0"><svg viewBox="0 0 120 120"
+                                style="width:120px;height:120px" id="evac"></svg></div>
+                        <div class="mrow" style="grid-template-columns:1fr 1fr">
+                            <div class="m">
+                                <div class="k">Muster reader</div>
+                                <div class="v tnum" style="color:var(--ok)">71</div>
+                            </div>
+                            <div class="m">
+                                <div class="k">Gate exit</div>
+                                <div class="v tnum">5</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INCIDENT TABLE -->
+                <div class="card col-12" style="animation-delay:.58s">
+                    <div class="card-head">
+                        <div>
+                            <div class="sec-title">Open Incidents &amp; LSR</div>
+                            <div class="sec-sub">5 open · 2 critical · mandatory action-taken to close</div>
+                        </div><button class="btn">View all ›</button>
+                    </div>
+                    <div style="overflow-x:auto">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Record</th>
+                                    <th>Type</th>
+                                    <th>Severity</th>
+                                    <th>Zone</th>
+                                    <th>Owner</th>
+                                    <th>Status</th>
+                                    <th>Action progress</th>
+                                    <th>Age</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inctable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="footnote">Every chart on this page is driven by one internally-consistent simulated dataset
+                    modeled on the IR4 schema &amp; DOC-11 thresholds — gas readings, entry/exit-driven headcount, real
+                    LSR categories, PPE types. Rendered from the UI &amp; Layout Styling Guide.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+        const rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+        /* ============================================================
+           ONE SIMULATED DATA MODEL (modeled on the real schema/rules)
+           ============================================================ */
+        const SHIFT_HRS = 12, PPS = 6; // 6 points/hour = every 10 min → 72 points across the shift
+        const N = SHIFT_HRS * PPS;
+        const tLabel = i => { const m = 6 * 60 + i * 10; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+
+        // --- gas: real H2S thresholds warn 5 / alarm 10 ppm; two detectors, one excursion ~10:20 ---
+        function h2sSeries(base, excursionAt, peak) {
+            const out = []; let v = base;
+            for (let i = 0; i < N; i++) {
+                v += rnd(-0.4, 0.4); v = clamp(v, 1.2, base + 1.5);
+                let val = v;
+                if (excursionAt != null) { const d = i - excursionAt; if (d >= 0 && d < 6) { val = v + peak * Math.exp(-Math.pow(d - 1.5, 2) / 2.5); } }
+                out.push(+val.toFixed(1));
+            } return out;
+        }
+        const excIdx = (10 - 6) * PPS + 2; // 10:20
+        const GAS = { p2: h2sSeries(3.4, excIdx, 8.6), p4: h2sSeries(2.4, null, 0) };
+
+        // --- entry/exit → headcount (real gate logic: entries add, exits subtract) ---
+        const HC = (() => {
+            let on = 96; const arr = [], entries = [], exits = [];
+            for (let i = 0; i < N; i++) {
+                const hr = 6 + i / PPS;
+                // morning ramp, lunch dip ~12, afternoon
+                let inRate = hr < 8 ? rnd(2, 5) : hr < 11 ? rnd(0.5, 2) : (hr >= 12 && hr < 13) ? rnd(0, 1) : rnd(0.5, 1.6);
+                let outRate = hr < 8 ? rnd(0, 0.6) : (hr >= 12 && hr < 13) ? rnd(2, 4) : hr > 16 ? rnd(1.5, 3) : rnd(0.4, 1.4);
+                const e = Math.round(inRate), x = Math.round(outRate);
+                on = clamp(on + e - x, 60, 141); entries.push(e); exits.push(x); arr.push(on);
+            }
+            return { on: arr, entries, exits };
+        })();
+
+        // --- workers by zone (sums to current headcount) ---
+        const ZONES = [
+            { name: 'Work Front A', n: 46, c: '--viz-1', type: 'work', x: 150, y: 130, r: 76 },
+            { name: 'Laydown', n: 33, c: '--viz-6', type: 'work', x: 250, y: 290, r: 64 },
+            { name: 'Gate', n: 30, c: '--viz-3', type: 'gate', x: 680, y: 320, r: 40 },
+            { name: 'Height Work', n: 18, c: '--viz-4', type: 'height', x: 400, y: 110, r: 58 },
+            { name: 'Restricted Substation', n: 1, c: '--crit', type: 'red', x: 620, y: 150, r: 62 },
+            { name: 'Muster Point', n: 0, c: '--ok', type: 'muster', x: 520, y: 300, r: 56 },
+        ];
+
+        // --- PPE violations by type & hour (real types) ---
+        const PPE_TYPES = [['Helmet', '--viz-1'], ['Vest', '--viz-6'], ['Harness', '--crit'], ['Mask', '--viz-2']];
+        const PPE_HEAT = PPE_TYPES.map(() => Array.from({ length: SHIFT_HRS }, () => Math.max(0, Math.round(rnd(-1, 3)))));
+        PPE_HEAT[2][4] = 4; // harness spike mid-morning
+
+        // --- LSR by real category (DOC-14) ---
+        const LSR = [
+            ['Missing PPE', 6, '--viz-1'], ['Unauthorized zone', 3, '--viz-6'], ['Red-zone intrusion', 2, '--crit'],
+            ['Height / no harness', 2, '--warn'], ['Occupancy exceeded', 1, '--viz-2'], ['Working w/o permit', 1, '--viz-4'],
+            ['Hot work / no watch', 1, '--viz-5'],
+        ];
+
+        /* ============================================================
+           RENDERERS
+           ============================================================ */
+        function sparkline(id, pts, color) {
+            const w = 260, h = 40, max = Math.max(...pts), min = Math.min(...pts), pad = 4;
+            const X = i => i / (pts.length - 1) * w, Y = v => h - pad - ((v - min) / ((max - min) || 1)) * (h - pad * 2);
+            const d = pts.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
+            $('#' + id).innerHTML = `<defs><linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".35"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs><path d="${d} L ${w} ${h} L 0 ${h} Z" fill="url(#${id}g)"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+        }
+        sparkline('spark1', HC.on.filter((_, i) => i % 3 === 0), '#34D399');
+        sparkline('spark2', [1, 0, 2, 1, 3, 2, 4, 3, 3, 2, 3], '#F0506E');
+        sparkline('spark3', [92, 93, 91, 94, 95, 94, 96, 95, 96, 96], '#38BDF8');
+        sparkline('spark4', [99, 100, 99, 100, 99, 99, 100, 99], '#38BDF8');
+
+        // safety gauge
+        setTimeout(() => { $('#gauge-arc').style.transition = 'stroke-dashoffset 1.1s ease'; $('#gauge-arc').style.strokeDashoffset = 326.7 * (1 - .94); }, 250);
+
+        // zone map
+        (function () {
+            let g = '<defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#1b2634" stroke-width="1"/></pattern></defs><rect width="800" height="400" fill="url(#grid)"/>';
+            ZONES.forEach(z => {
+                const col = `var(${z.c})`; g += `<circle cx="${z.x}" cy="${z.y}" r="${z.r}" fill="${col}" fill-opacity=".08" stroke="${col}" stroke-opacity=".5" stroke-width="1.5"/>`;
+                for (let i = 0; i < z.n; i++) { const a = Math.random() * 6.28, rr = Math.sqrt(Math.random()) * (z.r - 12), dx = z.x + Math.cos(a) * rr, dy = z.y + Math.sin(a) * rr; g += `<circle cx="${dx.toFixed(0)}" cy="${dy.toFixed(0)}" r="3" fill="${z.type === 'red' ? 'var(--crit)' : '#cfe7f5'}" opacity=".9"/>`; }
+                g += `<text x="${z.x}" y="${z.y - z.r - 6}" fill="var(--text-dim)" font-size="11" text-anchor="middle">${z.name} · ${z.n}</text>`;
+            });
+            $('#zonemap').innerHTML = g;
+        })();
+
+        // gas trend chart (shift/day/week from the same base)
+        const gasViews = {
+            shift: { labels: Array.from({ length: N }, (_, i) => tLabel(i)), a: GAS.p2, b: GAS.p4 },
+            day: { labels: Array.from({ length: 24 }, (_, i) => `${i}:00`), a: h2sSeries(3, 15, 7.4), b: h2sSeries(2.2, null, 0).slice(0, 24) },
+            week: { labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], a: [4.1, 3.8, 6.2, 4.5, 8.9, 3.9, 4.2], b: [2.4, 2.1, 3.0, 2.6, 3.3, 2.2, 2.8] }
+        };
+        let gasCur = 'shift';
+        function drawGas() {
+            const d = gasViews[gasCur], svg = $('#gaschart'), W = 720, H = 250, pl = 34, pr = 14, pt = 12, pb = 26, iw = W - pl - pr, ih = H - pt - pb, max = 12;
+            const X = i => pl + i / (d.a.length - 1) * iw, Y = v => pt + ih - (v / max) * ih;
+            const line = a => a.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
+            let g = `<defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--viz-1)" stop-opacity=".26"/><stop offset="1" stop-color="var(--viz-1)" stop-opacity="0"/></linearGradient></defs>`;
+            for (let v = 0; v <= 12; v += 3)g += `<line x1="${pl}" y1="${Y(v)}" x2="${W - pr}" y2="${Y(v)}" stroke="var(--border)" stroke-dasharray="3 4"/><text x="${pl - 8}" y="${Y(v) + 3}" fill="var(--text-faint)" font-size="10" text-anchor="end" font-family="var(--mono)">${v}</text>`;
+            g += `<line x1="${pl}" y1="${Y(5)}" x2="${W - pr}" y2="${Y(5)}" stroke="var(--warn)" stroke-dasharray="5 4" stroke-width="1.5" opacity=".85"/><line x1="${pl}" y1="${Y(10)}" x2="${W - pr}" y2="${Y(10)}" stroke="var(--crit)" stroke-dasharray="5 4" stroke-width="1.5" opacity=".85"/>`;
+            g += `<path d="${line(d.a)} L ${X(d.a.length - 1)} ${pt + ih} L ${pl} ${pt + ih} Z" fill="url(#ga)"/><path d="${line(d.a)}" fill="none" stroke="var(--viz-1)" stroke-width="2.2" stroke-linejoin="round"/><path d="${line(d.b)}" fill="none" stroke="var(--viz-6)" stroke-width="2" stroke-linejoin="round" opacity=".85"/>`;
+            d.labels.forEach((l, i) => { if (i % Math.ceil(d.labels.length / 6) === 0) g += `<text x="${X(i)}" y="${H - 8}" fill="var(--text-faint)" font-size="10" text-anchor="middle" font-family="var(--mono)">${l}</text>`; });
+            g += `<line id="cr" x1="0" y1="${pt}" x2="0" y2="${pt + ih}" stroke="var(--accent)" stroke-width="1" opacity="0"/><circle id="pa" r="4" fill="var(--viz-1)" stroke="var(--bg)" stroke-width="2" opacity="0"/><circle id="pb" r="4" fill="var(--viz-6)" stroke="var(--bg)" stroke-width="2" opacity="0"/>`;
+            svg.innerHTML = g; svg._d = d; svg._X = X; svg._Y = Y; svg._g = { pl, iw, W };
+            $('#lgP2').textContent = d.a[d.a.length - 1].toFixed(1); $('#lgP4').textContent = d.b[d.b.length - 1].toFixed(1);
+        }
+        drawGas();
+        $('#gasrange').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $$('#gasrange button').forEach(x => x.classList.remove('on')); b.classList.add('on'); gasCur = b.dataset.r; drawGas(); });
+        (function () {
+            const svg = $('#gaschart'), wrap = $('#gaswrap'), tip = $('#gastip');
+            wrap.addEventListener('mousemove', ev => {
+                const r = svg.getBoundingClientRect(), d = svg._d, { pl, iw, W } = svg._g, sx = (ev.clientX - r.left) / r.width * W; let i = clamp(Math.round((sx - pl) / iw * (d.a.length - 1)), 0, d.a.length - 1); const px = svg._X(i);
+                const cr = $('#cr', svg), pa = $('#pa', svg), pb = $('#pb', svg); cr.setAttribute('x1', px); cr.setAttribute('x2', px); cr.setAttribute('opacity', '.6'); pa.setAttribute('cx', px); pa.setAttribute('cy', svg._Y(d.a[i])); pa.setAttribute('opacity', '1'); pb.setAttribute('cx', px); pb.setAttribute('cy', svg._Y(d.b[i])); pb.setAttribute('opacity', '1');
+                tip.style.opacity = '1'; tip.style.left = clamp(px / W * r.width + 12, 0, r.width - 150) + 'px'; tip.style.top = '8px';
+                const cc = d.a[i] >= 10 ? ' style="color:var(--crit)"' : d.a[i] >= 5 ? ' style="color:var(--warn)"' : '';
+                tip.innerHTML = `<div class="tt">${d.labels[i]}</div><div class="rowv"><span class="lab"><i style="background:var(--viz-1)"></i>Pole 2</span><span class="num"${cc}>${d.a[i].toFixed(1)} ppm</span></div><div class="rowv"><span class="lab"><i style="background:var(--viz-6)"></i>Pole 4</span><span class="num">${d.b[i].toFixed(1)} ppm</span></div>`;
+            });
+            wrap.addEventListener('mouseleave', () => { tip.style.opacity = '0';['#cr', '#pa', '#pb'].forEach(s => $(s, svg).setAttribute('opacity', '0')); });
+        })();
+
+        // live gas panels (all real gas types vs thresholds)
+        (function () {
+            const panels = [
+                ['H₂S', 'Pole 2', 4.2, 5, 10, 'ppm'], ['LEL', 'Pole 2', 6, 10, 20, '%'], ['O₂', 'Pole 2', 20.8, 19.5, 23, '%vol'], ['CO', 'Pole 4', 12, 25, 50, 'ppm']];
+            $('#gaspanels').innerHTML = panels.map(p => {
+                const [name, src, val, warn, crit, unit] = p;
+                const pct = clamp(val / crit * 100, 3, 100), wp = warn / crit * 100, cp = 98;
+                const col = val >= crit ? 'var(--crit)' : val >= warn ? 'var(--warn)' : 'var(--ok)';
+                return `<div class="gp"><div class="gname"><div class="g">${name}</div><div class="s">${src}</div></div>
+      <div class="gbar"><i style="width:${pct}%;background:${col}"></i><div class="warn-m" style="left:${wp}%"></div><div class="crit-m" style="left:${cp}%"></div></div>
+      <div class="gval"><span class="v" style="color:${col}">${val}</span> <span class="u">${unit}</span></div></div>`;
+            }).join('');
+        })();
+
+        // PPE heatmap by type × hour
+        (function () {
+            const hrs = Array.from({ length: SHIFT_HRS }, (_, i) => 6 + i);
+            let g = `<div class="heat"><div></div>` + hrs.map(h => `<div class="hx">${h}</div>`).join('');
+            PPE_TYPES.forEach((t, ti) => { g += `<div class="hl">${t[0]}</div>` + PPE_HEAT[ti].map(v => { const op = v === 0 ? .06 : clamp(.18 + v * .26, 0, 1); return `<div class="cell" style="background:color-mix(in srgb, var(${t[1]}) ${op * 100}%, var(--surface-3))" title="${v}"></div>`; }).join(''); });
+            g += `</div>`; $('#ppeheat').innerHTML = g;
+        })();
+
+        // LSR horizontal bars
+        (function () { const max = Math.max(...LSR.map(l => l[1])); $('#lsrbars').innerHTML = LSR.map(l => `<div class="hbar"><span class="l">${l[0]}</span><div class="track"><i style="width:${l[1] / max * 100}%;background:var(${l[2]})"></i></div><span class="n">${l[1]}</span></div>`).join(''); })();
+
+        // headcount area + entry/exit micro-bars with hover
+        function drawHC() {
+            const svg = $('#hcchart'), W = 560, H = 230, pl = 34, pr = 12, pt = 12, pb = 26, iw = W - pl - pr, ih = H - pt - pb, max = 150;
+            const X = i => pl + i / (HC.on.length - 1) * iw, Y = v => pt + ih - (v / max) * ih;
+            const line = HC.on.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
+            let g = `<defs><linearGradient id="hcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--viz-3)" stop-opacity=".28"/><stop offset="1" stop-color="var(--viz-3)" stop-opacity="0"/></linearGradient></defs>`;
+            for (let v = 0; v <= 150; v += 50)g += `<line x1="${pl}" y1="${Y(v)}" x2="${W - pr}" y2="${Y(v)}" stroke="var(--border)" stroke-dasharray="3 4"/><text x="${pl - 8}" y="${Y(v) + 3}" fill="var(--text-faint)" font-size="10" text-anchor="end" font-family="var(--mono)">${v}</text>`;
+            // entry/exit micro bars at base
+            HC.entries.forEach((e, i) => { const x = X(i); g += `<rect x="${x - 1.2}" y="${Y(0) - e * 2}" width="2.4" height="${e * 2}" fill="var(--ok)" opacity=".5"/>`; const xx = HC.exits[i]; g += `<rect x="${x - 1.2}" y="${Y(0)}" width="2.4" height="${xx * 2}" fill="var(--crit)" opacity=".45"/>`; });
+            g += `<path d="${line} L ${X(HC.on.length - 1)} ${pt + ih} L ${pl} ${pt + ih} Z" fill="url(#hcg)"/><path d="${line}" fill="none" stroke="var(--viz-3)" stroke-width="2.4" stroke-linejoin="round"/>`;
+            [0, 18, 36, 54, 71].forEach(i => g += `<text x="${X(i)}" y="${H - 8}" fill="var(--text-faint)" font-size="10" text-anchor="middle" font-family="var(--mono)">${tLabel(i)}</text>`);
+            g += `<line id="hcr" x1="0" y1="${pt}" x2="0" y2="${pt + ih}" stroke="var(--accent)" stroke-width="1" opacity="0"/><circle id="hcp" r="4" fill="var(--viz-3)" stroke="var(--bg)" stroke-width="2" opacity="0"/>`;
+            svg.innerHTML = g; svg._X = X; svg._Y = Y; svg._g = { pl, iw, W };
+        }
+        drawHC();
+        (function () {
+            const svg = $('#hcchart'), wrap = $('#hcwrap'), tip = $('#hctip');
+            wrap.addEventListener('mousemove', ev => {
+                const r = svg.getBoundingClientRect(), { pl, iw, W } = svg._g, sx = (ev.clientX - r.left) / r.width * W; let i = clamp(Math.round((sx - pl) / iw * (HC.on.length - 1)), 0, HC.on.length - 1); const px = svg._X(i);
+                $('#hcr', svg).setAttribute('x1', px); $('#hcr', svg).setAttribute('x2', px); $('#hcr', svg).setAttribute('opacity', '.6'); $('#hcp', svg).setAttribute('cx', px); $('#hcp', svg).setAttribute('cy', svg._Y(HC.on[i])); $('#hcp', svg).setAttribute('opacity', '1');
+                tip.style.opacity = '1'; tip.style.left = clamp(px / W * r.width + 12, 0, r.width - 150) + 'px'; tip.style.top = '8px';
+                tip.innerHTML = `<div class="tt">${tLabel(i)}</div><div class="rowv"><span class="lab"><i style="background:var(--viz-3)"></i>On site</span><span class="num">${HC.on[i]}</span></div><div class="rowv"><span class="lab"><i style="background:var(--ok)"></i>Entries</span><span class="num">+${HC.entries[i]}</span></div><div class="rowv"><span class="lab"><i style="background:var(--crit)"></i>Exits</span><span class="num">−${HC.exits[i]}</span></div>`;
+            });
+            wrap.addEventListener('mouseleave', () => { tip.style.opacity = '0'; $('#hcr', svg).setAttribute('opacity', '0'); $('#hcp', svg).setAttribute('opacity', '0'); });
+        })();
+
+        // donut by zone
+        (function () {
+            const data = ZONES.filter(z => z.n > 0).map(z => [z.name, z.n, z.c]); const tot = data.reduce((s, d) => s + d[1], 0), C = 2 * Math.PI * 42; let off = 0, g = `<circle cx="60" cy="60" r="42" fill="none" stroke="var(--surface-3)" stroke-width="15"/>`;
+            data.forEach(d => { const len = d[1] / tot * C; g += `<circle cx="60" cy="60" r="42" fill="none" stroke="var(${d[2]})" stroke-width="15" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`; off += len; });
+            g += `<text x="60" y="56" fill="var(--text)" font-size="22" font-weight="700" text-anchor="middle">128</text><text x="60" y="72" fill="var(--text-faint)" font-size="9" text-anchor="middle" letter-spacing="1">ON SITE</text>`; $('#donut').innerHTML = g;
+            $('#donut-legend').innerHTML = data.map(d => `<div style="display:flex;align-items:center;gap:8px;font-size:12px"><i style="width:9px;height:9px;border-radius:2px;background:var(${d[2]})"></i><span style="color:var(--text-dim);flex:1">${d[0]}</span><b class="mono">${d[1]}</b></div>`).join('');
+        })();
+
+        // evacuation readiness ring (accounted / total)
+        (function () {
+            const acc = 76, tot = 78, C = 2 * Math.PI * 48, pct = acc / tot;
+            $('#evac').innerHTML = `<circle cx="60" cy="60" r="48" fill="none" stroke="var(--surface-3)" stroke-width="10"/><circle cx="60" cy="60" r="48" fill="none" stroke="var(--ok)" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C * pct} ${C}" transform="rotate(-90 60 60)"/><text x="60" y="55" fill="var(--text)" font-size="20" font-weight="700" text-anchor="middle">${acc}/${tot}</text><text x="60" y="72" fill="var(--text-faint)" font-size="9" text-anchor="middle" letter-spacing="1">ACCOUNTED</text>`;
+        })();
+
+        // incident table
+        const inc = [['INC-2026-041', 'Near miss', 'crit', 'Critical', 'Substation', ['MO', '#F0506E'], 'info', 'Investigating', 62, '1h 12m'], ['LSR-2026-088', 'Red-zone entry', 'crit', 'Critical', 'Substation', ['SB', '#38BDF8'], 'info', 'Open', 20, '0h 34m'], ['INC-2026-040', 'Property damage', 'warn', 'Medium', 'Laydown', ['LC', '#A78BFA'], 'ok', 'Classified', 100, '3h 04m'], ['LSR-2026-087', 'Missing harness', 'warn', 'Medium', 'Height Work', ['PA', '#34D399'], 'info', 'Open', 41, '0h 48m'], ['LSR-2026-086', 'Hot work / no watch', 'warn', 'Medium', 'Work Front A', ['SR', '#F5A524'], 'mut', 'Queued', 12, '5h 22m']];
+        const barc = p => p >= 100 ? 'var(--ok)' : p >= 50 ? 'var(--accent)' : 'var(--warn)';
+        $('#inctable').innerHTML = inc.map(r => `<tr><td><span class="t-id">${r[0]}</span></td><td>${r[1]}</td><td><span class="pill ${r[2]}"><span class="d"></span>${r[3]}</span></td><td style="color:var(--text-dim)">${r[4]}</td><td><div class="owner"><span class="avatar" style="background:${r[5][1]}">${r[5][0]}</span><span style="color:var(--text-dim);font-size:12px">${r[5][0]}</span></div></td><td><span class="pill ${r[6]}"><span class="d"></span>${r[7]}</span></td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress"><i style="width:${r[8]}%;background:${barc(r[8])}"></i></div><span class="mono" style="font-size:11px;color:var(--text-dim)">${r[8]}%</span></div></td><td class="num" style="color:var(--text-dim)">${r[9]}</td></tr>`).join('');
+
+        // alert feed (derived from the same data: the gas excursion + zone events)
+        const alerts = [['crit', 'Gas alarm — H₂S ' + Math.max(...GAS.p2).toFixed(1) + ' ppm', 'A-2291', 'Pole 2 · ' + tLabel(excIdx + 1), '12s'], ['crit', 'Restricted zone intrusion', 'A-2290', 'Substation · Worker #204', '1m'], ['warn', 'PPE — missing harness', 'A-2289', 'Cam pole3 · Height Work', '3m'], ['crit', 'Fall detected', 'A-2288', 'Cam pole1 · Laydown', '4m'], ['warn', 'Zone occupancy exceeded', 'A-2287', 'Work Front A · 46/40', '7m'], ['info', 'Device offline', 'A-2286', 'Pole 4 gas gateway', '11m'], ['warn', 'Unauthorized zone access', 'A-2285', 'Substation · Worker #118', '14m']];
+        $('#feed').innerHTML = alerts.map(a => `<div class="item ${a[0]}"><span class="sev"><span class="pill ${a[0]}"><span class="d"></span>${a[0] === 'crit' ? 'Critical' : a[0] === 'warn' ? 'Warning' : 'Info'}</span></span><div class="body"><div class="line1">${a[1]} <span class="id">${a[2]}</span></div><div class="line2">${a[3]}</div></div><span class="t">${a[4]}</span></div>`).join('');
+
+        // live headcount tween off the real series tail + clock
+        let hc = HC.on[HC.on.length - 1];
+        setInterval(() => { hc = clamp(hc + Math.round(rnd(-2, 2)), 120, 141); $('#headcount').textContent = hc; }, 3200);
+        setInterval(() => $('#clock').textContent = new Date().toLocaleTimeString('en-GB'), 1000);
+    </script>
+</body>
+
+</html>

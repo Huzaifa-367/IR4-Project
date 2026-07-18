@@ -1,0 +1,111 @@
+---
+description: IR4 Platform engineering conventions distilled from Docs
+alwaysApply: true
+---
+
+# IR4 Platform — Engineering Conventions
+
+> Authoritative source: `Docs/Doc 01` through `Doc 21`. This file distills the written docs into working rules. If code and the Docs folder disagree, the Docs folder wins — fix this file, don't silently override it.
+>
+> Repeatable procedures live as skills in `.claude/skills/` (mirrored under `.cursor/skills/` for Cursor). Use those instead of re-deriving steps.
+
+## 0. Doc map (what owns what)
+
+| Doc | Owns |
+|---|---|
+| 01 | Stack, layout, three surfaces, enums, envelope, validation, three-path origin, files, settings |
+| 02 | Fortify auth, idle timeout, display keep-alive, `auth.device` contract entry |
+| 03 | RBAC catalogue, Super Admin, four enforcement layers, Field Staff = public QR only |
+| 04 | Workers registry, `view-worker-identity` stripping, Worker≠User |
+| 05 | Assets/cameras/devices, tokens, heartbeats, fully dynamic hardware |
+| 06 | Zones, time-aware reader bindings, repositioning, access lists |
+| 07 | Unified `AlertService`, dedupe, suggested_action (never auto-creates domain rows) |
+| 08 | `/api/ingest/*` contract, five ingest endpoints, Reverb channels |
+| 09 | RFID tracking, entry/exit, evacuation, tags, portable devices |
+| 10 | PPE + fall ingest, false-positive review, anonymous violations |
+| 11 | Gas/CO₂ readings, thresholds, hysteresis, backfill-creates-no-alarms |
+| 12 | Environmental telemetry (display + rollups; no alarms in v1) |
+| 13 | Equipment registry, permanent `qr_token`, custody, ZPL print, public `/e/{token}` |
+| 14 | HSE incidents + LSR — **always user-created**; alert prefill only; mandatory action-taken |
+| 15 | Weekly report: frozen 10-item snapshot, vehicle violations, publish-lock, supersede-don't-edit |
+| 16 | Dashboard aggregate `/api/dashboard/summary`, Control Room design language, `/display` kiosk, nav |
+| 17 | Append-only `audit_logs`, `Auditable` trait, masking, read-only `data_access`, audit viewer |
+| 18 | Settings registry, `SettingsService`, config-vs-`.env` boundary, general editor |
+| 19 | Rollups, allow-listed pruning, encrypted backups, `ir4:export-all` / `ir4:secure-wipe` |
+| 20 | On-prem deploy/ops runbook: Dell R360, Supervisor, Nginx LAN fences, DB grants, ZT411, commissioning checklist |
+| 21 | Testing strategy: endpoint matrix, invariant guards, scenario catalogue, CI gates (Pint/PHPStan/TS/enum-sync/on-prem grep) |
+
+`[CONFIRM AT DESIGN]` items in docs: **implement the documented default** until the client confirms otherwise. Do not invent a third option.
+
+## 1. What this project is
+
+IR4 is a **standalone, on-premise safety command-centre platform**: one installation, one deployment, no multi-tenancy, no `site_id`/location column anywhere. Field hardware streams data over a token-authenticated REST API; operators work in a real-time Inertia web UI plus a kiosk display. **Nothing calls the public internet** — no CDN scripts/fonts, no analytics, no cloud SDKs. CI greps shipped code for external hosts and fails the build if found.
+
+## 2. Stack
+
+PHP 8.4+, Laravel 13.9+, Laravel React Starter Kit (React 19 + TypeScript + Inertia 3 + Tailwind 4 + shadcn/ui + Vite), Fortify, Reverb (self-hosted), Redis, MySQL 8+/PostgreSQL 15+, `spatie/laravel-permission`, `barryvdh/laravel-dompdf`, `endroid/qr-code`, Larastan + Pest + Pint.
+
+## 3. Three entry surfaces — never blur them
+
+| Surface | Who | Transport | Routes | Auth |
+|---|---|---|---|---|
+| **A. Operator UI** | logged-in staff | Inertia (+ session JSON helpers e.g. `/api/dashboard/summary`, `/api/equipment/by-token/…`) | `routes/web.php` | Fortify session + RBAC |
+| **B. Device API** | field hardware | REST JSON (`/api/ingest/*`, heartbeats) | `routes/api.php` | `auth.device` |
+| **C. Public page** | LAN QR scanners | read-only page | `routes/web.php` public group | none, rate-limited |
+
+- Operator CRUD uses Inertia forms — not fetch/axios.
+- Live screens: Inertia snapshot → Reverb → LIVE/RECONNECTING → poll fallback.
+- Authenticated scan/summary JSON helpers are surface A, not device API.
+
+## 4. Global data conventions
+
+- Soft deletes on compliance/evidence/log tables. **Exception:** `audit_logs` is append-only (no `deleted_at`, never pruned; only the privileged DOC-19 wipe may remove them).
+- `created_by` on human-writable tables; machine/system rows leave it null. Actor columns (`generated_by`, `published_by`, `logged_by`, …) follow the same nullable-FK pattern.
+- No `site_id`/tenant column ever.
+- Timestamps UTC. Enums: PHP backed → `php artisan ir4:export-enums` → never hand-edit `enums.ts`.
+- Controllers stay thin: FormRequest → policy → service → Inertia/`JsonResource`/`ApiResponse`.
+
+## 5. Three-path data origin
+
+| Path | Writer | `created_by` |
+|---|---|---|
+| ① Device | `/api/ingest/*` | NULL |
+| ② System | jobs/services/scheduler | NULL |
+| ③ User | Inertia + FormRequest | user id |
+
+Machine truth is immutable. Human judgment is always path ③. Alerts are path ② only. Incidents/LSR/vehicle violations are path ③ only (alerts may prefill, never insert).
+
+## 6. Module invariants (written docs)
+
+- **Equipment (DOC-13):** `qr_token` set once at create; never regenerate. Public `/e/{token}` ≠ authed by-token lookup.
+- **HSE/LSR (DOC-14):** no service auto-insert; mandatory action fields; PPE-linked LSR keeps `worker_id` null.
+- **Weekly reports (DOC-15):** freeze `data` at generation; published reports immutable; amend via superseding report; declare sensor outages (>20%).
+- **Dashboard (DOC-16):** permission-filtered aggregate; dark-first Control Room tokens; `/display` stays authenticated.
+- **Audit (DOC-17):** append-only; mask secrets; config/security models via `Auditable`; read-only roles get allow-listed `data_access`; no user create/update/delete of audit rows.
+- **Settings (DOC-18):** whitelist only via `SettingsRegistry`; per-key permissions; sensitive keys need confirm; printer/backup paths stay `.env`.
+- **Retention (DOC-19):** prune allow-list only; compliance never pruned; encrypted separate-volume backups; wipe requires verified export + confirm phrase.
+
+## 7. RBAC — never check role names
+
+Four layers for every capability: route middleware → policy/FormRequest → resource field-stripping → frontend UX guard. Check permissions, never role names. Super Admin holds the full catalogue explicitly — no `Gate::before`.
+
+## 8. Identity stripping (DOC-04)
+
+Without `view-worker-identity`, strip at every serialization boundary (JsonResource, Inertia props, Reverb, exports, public pages, reports).
+
+## 9. Skills available
+
+| Skill | Use when |
+|---|---|
+| `scaffold-domain-module` | New domain entity end-to-end |
+| `sync-enum` | New/changed PHP enum + TS mirror |
+| `add-permission` | New capability through all four RBAC layers |
+| `add-ingest-event-type` | New `/api/ingest/*` payload |
+| `add-public-page` | Unauthenticated LAN read surface |
+| `raise-alert` | `AlertService` raise/dedupe (no auto-create) |
+| `prefill-from-alert` | Incident/LSR create-from-alert UX |
+| `strip-worker-identity` | Payloads embedding worker identity |
+| `add-csv-import` | Commissioning CSV import |
+| `wire-reverb-live-screen` | Live Inertia + Reverb + poll fallback |
+| `add-settings-key` | Runtime setting vs `.env` |
+| `domain-state-machine` | Validated status transitions |

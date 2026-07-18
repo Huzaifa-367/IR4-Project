@@ -1,0 +1,15 @@
+/var/www/ir4/storage/logs/*.log
+/var/log/ir4/*.log
+/var/log/ir4/*.err.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 0640 www-data www-data
+    sharedscripts
+    postrotate
+        systemctl reload php8.4-fpm >/dev/null 2>&1 || true
+    endscript
+}
