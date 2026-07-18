@@ -76,6 +76,8 @@ Route::middleware($authStack)->group(function () {
 
         Route::get('settings/cameras', [CameraController::class, 'index'])->name('settings.cameras.index');
         Route::post('settings/cameras', [CameraController::class, 'store'])->name('settings.cameras.store');
+        Route::put('settings/cameras/{camera}', [CameraController::class, 'update'])->name('settings.cameras.update');
+        Route::patch('settings/cameras/{camera}/status', [CameraController::class, 'setStatus'])->name('settings.cameras.status');
         Route::patch('settings/cameras/{camera}/ai', [CameraController::class, 'toggleAi'])->name('settings.cameras.toggle-ai');
 
         Route::get('settings/devices', [DeviceController::class, 'index'])->name('settings.devices.index');

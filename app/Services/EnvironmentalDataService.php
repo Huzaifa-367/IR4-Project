@@ -304,6 +304,136 @@ final class EnvironmentalDataService
         ];
     }
 
+    /**
+     * Control-room snapshot: all sensors, all core (+ extra) metrics for the window.
+     *
+     * @return array<string, mixed>
+     */
+    public function dashboardSnapshot(
+        \DateTimeInterface $from,
+        \DateTimeInterface $to,
+    ): array {
+        $sensors = $this->latest();
+        $coreMetrics = [
+            ['key' => 'temperature_c', 'label' => 'Temperature', 'unit' => '°C'],
+            ['key' => 'humidity_pct', 'label' => 'Humidity', 'unit' => '%'],
+            ['key' => 'wind_speed_ms', 'label' => 'Wind speed', 'unit' => 'm/s'],
+        ];
+        $extraKeys = collect($sensors)
+            ->flatMap(fn (array $sensor): array => array_keys($sensor['extra']))
+            ->unique()
+            ->values();
+        $metricDefs = collect($coreMetrics)->concat(
+            $extraKeys->map(fn (int|string $key): array => [
+                'key' => (string) $key,
+                'label' => str((string) $key)->replace(['_', '-'], ' ')->title()->toString(),
+                'unit' => '',
+            ]),
+        );
+        $trendSeries = $metricDefs->map(function (array $metric) use ($from, $to): array {
+            $trend = $this->trends($metric['key'], null, $from, $to);
+            $points = $this->aggregateTrendPoints($trend['points']);
+
+            return [
+                'key' => $metric['key'],
+                'label' => $metric['label'],
+                'unit' => $metric['unit'],
+                'source' => $trend['source'],
+                'points' => $points,
+            ];
+        })->all();
+        $metrics = collect($coreMetrics)->map(function (array $metric) use ($trendSeries, $sensors): array {
+            $series = collect($trendSeries)->firstWhere('key', $metric['key']);
+            $values = collect($series['points'] ?? [])
+                ->pluck('avg')
+                ->filter(fn (mixed $value): bool => is_numeric($value))
+                ->map(fn (mixed $value): float => (float) $value);
+            $current = collect($sensors)
+                ->pluck($metric['key'])
+                ->filter(fn (mixed $value): bool => is_numeric($value))
+                ->map(fn (mixed $value): float => (float) $value);
+
+            return [
+                ...$metric,
+                'current' => $current->isNotEmpty() ? round($current->avg(), 2) : null,
+                'min' => $values->isNotEmpty() ? round($values->min(), 2) : null,
+                'avg' => $values->isNotEmpty() ? round($values->avg(), 2) : null,
+                'max' => $values->isNotEmpty() ? round($values->max(), 2) : null,
+                'sparkline' => $values->take(-20)->values()->all(),
+            ];
+        })->all();
+        $extraMetrics = collect($sensors)
+            ->flatMap(fn (array $sensor): array => collect($sensor['extra'])
+                ->map(fn (float|int $value, string $key): array => [
+                    'key' => $key,
+                    'value' => (float) $value,
+                    'device_id' => $sensor['device_id'],
+                ])
+                ->values()
+                ->all())
+            ->groupBy('key')
+            ->map(function ($rows, string $key): array {
+                $values = $rows->pluck('value');
+
+                return [
+                    'key' => $key,
+                    'label' => str($key)->replace(['_', '-'], ' ')->title()->toString(),
+                    'current' => round($values->avg(), 2),
+                    'sensor_count' => $rows->pluck('device_id')->unique()->count(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return [
+            'as_of' => now()->toIso8601String(),
+            'sensors' => $sensors,
+            'sensor_health' => [
+                'total' => count($sensors),
+                'current' => collect($sensors)->where('is_stale', false)->count(),
+                'stale' => collect($sensors)->where('is_stale', true)->count(),
+            ],
+            'metrics' => $metrics,
+            'extra_metrics' => $extraMetrics,
+            'trend' => [
+                'series' => $trendSeries,
+                'source' => collect($trendSeries)->contains(
+                    fn (array $series): bool => $series['source'] === 'rollup',
+                ) ? 'rollup' : 'raw',
+            ],
+        ];
+    }
+
+    /**
+     * Collapse multi-device samples at the same timestamp into site-wide stats.
+     *
+     * @param  list<array<string, mixed>>  $points
+     * @return list<array<string, mixed>>
+     */
+    private function aggregateTrendPoints(array $points): array
+    {
+        return collect($points)
+            ->groupBy('at')
+            ->map(function ($group, string $at): array {
+                $avgs = $group->pluck('avg')->filter(fn (mixed $value): bool => is_numeric($value));
+                $mins = $group->pluck('min')->filter(fn (mixed $value): bool => is_numeric($value));
+                $maxes = $group->pluck('max')->filter(fn (mixed $value): bool => is_numeric($value));
+                $avg = $avgs->isNotEmpty() ? round((float) $avgs->avg(), 2) : null;
+
+                return [
+                    'at' => $at,
+                    'value' => $avg,
+                    'min' => $mins->isNotEmpty() ? round((float) $mins->min(), 2) : null,
+                    'avg' => $avg,
+                    'max' => $maxes->isNotEmpty() ? round((float) $maxes->max(), 2) : null,
+                    'device_id' => null,
+                ];
+            })
+            ->sortKeys()
+            ->values()
+            ->all();
+    }
+
     private function isUniqueViolation(QueryException $exception): bool
     {
         $sqlState = $exception->errorInfo[0] ?? '';

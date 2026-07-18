@@ -91,6 +91,13 @@ final class HardwareRegistryService
         return $camera;
     }
 
+    public function setCameraStatus(Camera $camera, HardwareStatus $status): Camera
+    {
+        $camera->forceFill(['status' => $status])->save();
+
+        return $camera->fresh() ?? $camera;
+    }
+
     /**
      * @param  array<string, mixed>  $data
      */

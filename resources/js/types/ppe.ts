@@ -22,7 +22,7 @@ export type LiveCamera = {
     id: number;
     name: string;
     reference: string;
-    stream_url: string;
+    playback_url: string | null;
     ai_enabled: boolean;
     status: string;
     is_online: boolean;

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ReturnStatus;
 use App\Models\Concerns\HasCreatedBy;
 use Database\Factories\EquipmentCheckoutFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,6 +26,7 @@ final class EquipmentCheckout extends Model
             'checked_out_at' => 'datetime',
             'expected_return_at' => 'datetime',
             'returned_at' => 'datetime',
+            'return_status' => ReturnStatus::class,
         ];
     }
 

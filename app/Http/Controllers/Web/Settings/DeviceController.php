@@ -42,6 +42,7 @@ final class DeviceController extends BaseController
                     'id' => $device->id,
                     'name' => $device->name,
                     'reference' => $device->reference,
+                    'serial_number' => $device->serial_number,
                     'device_type' => $device->device_type->value,
                     'device_type_label' => $device->device_type->label(),
                     'status' => $device->status->value,
@@ -68,6 +69,11 @@ final class DeviceController extends BaseController
                 'label' => $s->label(),
             ]),
             'plainToken' => $request->session()->pull('plain_device_token'),
+            'filters' => [
+                'q' => $request->string('q')->toString(),
+                'device_type' => $request->string('device_type')->toString(),
+                'status' => $request->string('status')->toString(),
+            ],
         ]);
     }
 

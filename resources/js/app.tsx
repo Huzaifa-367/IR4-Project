@@ -30,7 +30,9 @@ createInertiaApp({
                 name.startsWith('settings/devices') ||
                 name.startsWith('settings/zones') ||
                 name.startsWith('settings/repositioning') ||
-                name.startsWith('settings/readers'):
+                name.startsWith('settings/readers') ||
+                name.startsWith('settings/general') ||
+                name.startsWith('settings/audit-log'):
                 return AppLayout;
             case name.startsWith('settings/'):
                 return [AppLayout, SettingsLayout];
@@ -42,9 +44,7 @@ createInertiaApp({
     // Providers that do not need usePage() belong here. Toaster uses usePage via
     // useFlashToast, so it must render inside a layout (inside PageContext).
     withApp(app) {
-        return (
-            <TooltipProvider delayDuration={0}>{app}</TooltipProvider>
-        );
+        return <TooltipProvider delayDuration={0}>{app}</TooltipProvider>;
     },
     progress: {
         color: '#0B6E4F',

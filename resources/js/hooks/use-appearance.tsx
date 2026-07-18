@@ -49,6 +49,10 @@ const applyTheme = (appearance: Appearance): void => {
     const isDark = isDarkMode(appearance);
 
     document.documentElement.classList.toggle('dark', isDark);
+    document.documentElement.setAttribute(
+        'data-theme',
+        isDark ? 'dark' : 'light',
+    );
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
 };
 
@@ -75,9 +79,10 @@ export function initializeTheme(): void {
         return;
     }
 
+    // Control Room default is dark (UI styling guide §1).
     if (!localStorage.getItem('appearance')) {
-        localStorage.setItem('appearance', 'system');
-        setCookie('appearance', 'system');
+        localStorage.setItem('appearance', 'dark');
+        setCookie('appearance', 'dark');
     }
 
     currentAppearance = getStoredAppearance();

@@ -23,6 +23,7 @@ use App\Models\EvacuationReport;
 use App\Models\EvacuationReportEntry;
 use App\Models\RfidTag;
 use App\Models\TagReading;
+use App\Models\User;
 use App\Models\Worker;
 use App\Models\WorkerPosition;
 use App\Models\Zone;
@@ -628,7 +629,7 @@ final class TrackingService
         Direction $direction,
         \DateTimeInterface|string $occurredAt,
         string $note,
-        \App\Models\User $by,
+        User $by,
     ): EntryExitLog {
         $occurred = Carbon::parse($occurredAt);
 
@@ -656,6 +657,92 @@ final class TrackingService
         $this->flushBroadcasts();
 
         return $log;
+    }
+
+    /**
+     * Reconstruct on-site headcount and gate flow across a window (DOC-09 gate logic).
+     *
+     * @return array{
+     *     shift_start_count: int,
+     *     peak: int,
+     *     points: list<array{at: string, label: string, on_site: int, entries: int, exits: int}>,
+     *     sparkline: list<int>
+     * }
+     */
+    public function headcountFlow(\DateTimeInterface $from, \DateTimeInterface $to, int $bucketMinutes = 10): array
+    {
+        $from = Carbon::instance($from);
+        $to = Carbon::instance($to);
+        $bucketMinutes = max(5, min(60, $bucketMinutes));
+
+        $baselineLogs = EntryExitLog::query()
+            ->where('occurred_at', '<', $from)
+            ->orderByDesc('occurred_at')
+            ->get(['worker_id', 'direction', 'occurred_at'])
+            ->unique('worker_id');
+
+        $onSite = $baselineLogs
+            ->filter(fn (EntryExitLog $log): bool => $log->direction === Direction::In)
+            ->count();
+        $shiftStartCount = $onSite;
+
+        $logs = EntryExitLog::query()
+            ->whereBetween('occurred_at', [$from, $to])
+            ->orderBy('occurred_at')
+            ->get(['direction', 'occurred_at']);
+
+        $points = [];
+        $peak = $onSite;
+        $cursor = $from->copy();
+        $logIndex = 0;
+        $logCount = $logs->count();
+
+        while ($cursor->lt($to)) {
+            $bucketEnd = $cursor->copy()->addMinutes($bucketMinutes);
+            $entries = 0;
+            $exits = 0;
+
+            while ($logIndex < $logCount) {
+                $log = $logs[$logIndex];
+                if ($log->occurred_at->gte($bucketEnd)) {
+                    break;
+                }
+                if ($log->occurred_at->gte($cursor)) {
+                    if ($log->direction === Direction::In) {
+                        $entries++;
+                    } else {
+                        $exits++;
+                    }
+                }
+                $logIndex++;
+            }
+
+            $onSite = max(0, $onSite + $entries - $exits);
+            $peak = max($peak, $onSite);
+            $points[] = [
+                'at' => $cursor->toIso8601String(),
+                'label' => $cursor->format('H:i'),
+                'on_site' => $onSite,
+                'entries' => $entries,
+                'exits' => $exits,
+            ];
+            $cursor = $bucketEnd;
+        }
+
+        $sparkline = [];
+        $step = max(1, (int) floor(count($points) / 12));
+        foreach ($points as $i => $point) {
+            if ($i % $step === 0) {
+                $sparkline[] = $point['on_site'];
+            }
+        }
+
+        return [
+            'shift_start_count' => $shiftStartCount,
+            'peak' => $peak,
+            'points' => $points,
+            'sparkline' => $sparkline !== [] ? $sparkline : [$shiftStartCount],
+        ];
     }
 
     private function nearestCameraForTag(int $tagId): ?Camera

@@ -63,14 +63,19 @@ final class AssetController extends BaseController
                 'value' => $s->value,
                 'label' => $s->label(),
             ]),
+            'filters' => [
+                'q' => $request->string('q')->toString(),
+                'asset_type' => $request->string('asset_type')->toString(),
+                'status' => $request->string('status')->toString(),
+            ],
         ]);
     }
 
     public function store(StoreAssetRequest $request, HardwareRegistryService $hardware): RedirectResponse
     {
-        $asset = $hardware->createAsset($request->validated());
+        $hardware->createAsset($request->validated());
 
-        return redirect()->route('settings.assets.show', $asset);
+        return redirect()->route('settings.assets.index');
     }
 
     public function show(Asset $asset): Response
@@ -123,7 +128,7 @@ final class AssetController extends BaseController
     {
         $hardware->updateAsset($asset, $request->validated());
 
-        return redirect()->route('settings.assets.show', $asset);
+        return redirect()->back(fallback: route('settings.assets.index'));
     }
 
     public function destroy(Asset $asset, HardwareRegistryService $hardware): RedirectResponse

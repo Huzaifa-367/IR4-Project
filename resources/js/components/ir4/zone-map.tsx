@@ -14,10 +14,10 @@ export function ZoneMap({ zones, positions, occupancy = [] }: Props) {
     );
 
     return (
-        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-lg border border-border bg-muted/30">
+        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[var(--radius)] border border-border bg-surface-2">
             <svg
                 viewBox="0 0 100 100"
-                className="absolute inset-0 h-full w-full"
+                className="absolute inset-0 h-full w-full text-text-dim"
             >
                 {zones.map((zone) => {
                     const x = Number(zone.map_x ?? 50);
@@ -31,9 +31,9 @@ export function ZoneMap({ zones, positions, occupancy = [] }: Props) {
                                 cx={x}
                                 cy={y}
                                 r={r}
-                                fill={zone.color ?? '#94a3b8'}
-                                fillOpacity={0.25}
-                                stroke={zone.color ?? '#64748b'}
+                                fill={zone.color ?? 'var(--accent)'}
+                                fillOpacity={0.22}
+                                stroke={zone.color ?? 'var(--accent)'}
                                 strokeWidth={0.4}
                             />
                             <text
@@ -41,7 +41,7 @@ export function ZoneMap({ zones, positions, occupancy = [] }: Props) {
                                 y={Math.max(4, y - r - 1)}
                                 textAnchor="middle"
                                 fontSize={2.5}
-                                fill="currentColor"
+                                fill="var(--text-dim)"
                             >
                                 {zone.name}
                                 {count !== undefined ? ` (${count})` : ''}
@@ -61,7 +61,7 @@ export function ZoneMap({ zones, positions, occupancy = [] }: Props) {
                             cx={x}
                             cy={y}
                             r={1.2}
-                            fill="#38BDF8"
+                            fill="var(--accent)"
                         >
                             <title>{pos.worker_label}</title>
                         </circle>
@@ -69,7 +69,7 @@ export function ZoneMap({ zones, positions, occupancy = [] }: Props) {
                 })}
             </svg>
             {zones.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+                <div className="absolute inset-0 flex items-center justify-center text-sm text-text-faint">
                     No zones with map placement yet.
                 </div>
             )}

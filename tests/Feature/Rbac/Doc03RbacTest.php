@@ -109,6 +109,53 @@ it('gates roles settings behind manage-roles', function () {
         ->assertOk();
 });
 
+it('creates updates and deletes a custom role', function () {
+    $admin = User::factory()->withRole('Super Admin')->create();
+
+    $this->actingAs($admin)
+        ->post(route('settings.roles.store'), [
+            'name' => 'Night Ops',
+            'description' => 'Overnight watch',
+            'is_read_only' => false,
+            'permissions' => ['view-dashboard', 'acknowledge-alerts'],
+        ])
+        ->assertRedirect(route('settings.roles.index'));
+
+    $role = Role::query()->where('name', 'Night Ops')->firstOrFail();
+
+    $this->actingAs($admin)
+        ->from(route('settings.roles.index'))
+        ->put(route('settings.roles.update', $role), [
+            'name' => 'Night Operations',
+            'description' => 'Updated',
+            'is_read_only' => false,
+            'permissions' => ['view-dashboard'],
+        ])
+        ->assertRedirect(route('settings.roles.index'));
+
+    expect($role->fresh()->name)->toBe('Night Operations')
+        ->and($role->fresh()->permissions->pluck('name')->all())->toBe(['view-dashboard']);
+
+    $this->actingAs($admin)
+        ->delete(route('settings.roles.destroy', $role))
+        ->assertRedirect(route('settings.roles.index'));
+
+    expect(Role::query()->whereKey($role->id)->exists())->toBeFalse();
+});
+
+it('deactivates a user through the update endpoint', function () {
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $operator = User::factory()->withRole('SCC Operator')->create();
+
+    $this->actingAs($admin)
+        ->put(route('settings.users.update', $operator), [
+            'is_active' => false,
+        ])
+        ->assertRedirect(route('settings.users.index'));
+
+    expect($operator->fresh()->is_active)->toBeFalse();
+});
+
 it('creates the first Super Admin via ir4:install', function () {
     User::query()->delete();
 

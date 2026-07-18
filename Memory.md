@@ -33,6 +33,14 @@
 ### Docs
 - [x] Full set `Docs/Doc 01`–`Doc 21` on disk (including DOC-20 deploy runbook + DOC-21 testing strategy)
 
+### Control Room UI
+- [x] Design tokens + local Inter / Inter Tight / JetBrains Mono in `resources/css/app.css`
+- [x] Shared `resources/js/components/ir4/*` primitives (StatCard, LiveFeed, AnalyticalChart, gauges/bars, …)
+- [x] Operator sidebar/topbar Control Room chrome (grouped nav, LIVE pill, alert bell)
+- [x] `/dashboard` rebuilt to mockup archetype on `DashboardService::summary` + Reverb/poll
+- [x] `/environment` rebuilt as a Control Room telemetry surface with KPI cards, multi-metric trends (temp/humidity/wind + extras), duration-only range toggle, range statistics, dynamic air-quality metrics, and live sensor fleet health
+- [x] `/live` renders browser-safe MediaMTX feeds; raw RTSP URLs and credentials remain server-side
+
 ### Demo data
 - [x] Non-production `DemoSeeder` — ~4 months of site scenario data
 
@@ -40,7 +48,7 @@
 
 ## In progress
 
-_None — ready to start Phase 10 (DOC-20) or Phase 11 (DOC-21) when directed._
+_None — Control Room UI pass landed; module pages inherit tokens/components next as needed._
 
 ---
 
@@ -55,6 +63,8 @@ _None — ready to start Phase 10 (DOC-20) or Phase 11 (DOC-21) when directed._
 - `dashboard.cache_seconds` is canonical (replaces `dashboard.cache_ttl_seconds`)
 - `DemoSeeder` is local/staging only; skips if `Main Gate` zone already exists; never runs in production
 - Docs 01–21 are the complete authoritative specification set
+- **Frontend chrome + `/dashboard` layout:** `Docs/Ir4 ui styling guide.md` + `Docs/Ir4 dashboard mockup.html` are authoritative (dark-first Control Room tokens, Inter / Inter Tight / JetBrains Mono via `@fontsource`, shared `components/ir4/*`). Module pages inherit; full `/display` kiosk polish is a follow-up.
+- Dashboard summary includes mockup analytics: headcount flow/sparklines, PPE compliance + heatmap, multi-series H₂S trend (`gas_range`), safety score, evacuation readiness, open incidents/LSR table. Default shift window **06:00–18:00** `[CONFIRM AT DESIGN]`.
 
 ---
 
@@ -88,6 +98,10 @@ _None — ready to start Phase 10 (DOC-20) or Phase 11 (DOC-21) when directed._
 | Demo seeder | `database/seeders/DemoSeeder.php` |
 | Deploy runbook | `Docs/Doc 20 deployment runbook.md` |
 | Testing strategy | `Docs/Doc 21 testing strategy.md` |
+| UI styling guide | `Docs/Ir4 ui styling guide.md` |
+| Dashboard mockup | `Docs/Ir4 dashboard mockup.html` |
+| IR4 UI primitives | `resources/js/components/ir4/` |
+| Operator shell | `resources/js/components/app-sidebar.tsx`, `app-sidebar-header.tsx` |
 
 ---
 

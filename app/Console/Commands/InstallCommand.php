@@ -27,12 +27,24 @@ final class InstallCommand extends Command
         $this->callSilent('db:seed', ['--class' => SettingsSeeder::class, '--force' => true]);
         $this->callSilent('db:seed', ['--class' => RolePermissionSeeder::class, '--force' => true]);
         $this->callSilent('db:seed', ['--class' => GasThresholdSeeder::class, '--force' => true]);
+
+        // Create the first Super Admin before DemoSeeder so demo data reuses it
+        // instead of inventing a different admin and skipping CLI options.
+        if (! $this->ensureSuperAdmin()) {
+            return self::FAILURE;
+        }
+
         $this->callSilent('db:seed', ['--class' => DemoSeeder::class, '--force' => true]);
 
+        return self::SUCCESS;
+    }
+
+    private function ensureSuperAdmin(): bool
+    {
         if (User::query()->role('Super Admin')->exists()) {
             $this->warn('A Super Admin user already exists. Skipping user creation.');
 
-            return self::SUCCESS;
+            return true;
         }
 
         $name = $this->option('name') ?: $this->ask('Super Admin name', 'Super Admin');
@@ -53,7 +65,7 @@ final class InstallCommand extends Command
                 $this->error($error);
             }
 
-            return self::FAILURE;
+            return false;
         }
 
         $user = User::query()->create([
@@ -74,6 +86,6 @@ final class InstallCommand extends Command
         $this->info("Installed. Super Admin: {$email}");
         $this->warn('User must change password on first login.');
 
-        return self::SUCCESS;
+        return true;
     }
 }

@@ -11,14 +11,54 @@ export type EnvironmentSensor = {
     extra: Record<string, number>;
 };
 
+export type EnvironmentTrendPoint = {
+    at: string;
+    value: number | null;
+    min: number | null;
+    avg: number | null;
+    max: number | null;
+    device_id: number | null;
+};
+
 export type EnvironmentTrendSeries = {
-    points: Array<{
-        at: string;
-        value: number | null;
+    points: EnvironmentTrendPoint[];
+    source: 'raw' | 'rollup';
+};
+
+export type EnvironmentMetricTrend = {
+    key: string;
+    label: string;
+    unit: string;
+    source: 'raw' | 'rollup';
+    points: EnvironmentTrendPoint[];
+};
+
+export type EnvironmentDashboardSnapshot = {
+    as_of: string;
+    sensors: EnvironmentSensor[];
+    sensor_health: {
+        total: number;
+        current: number;
+        stale: number;
+    };
+    metrics: Array<{
+        key: 'temperature_c' | 'humidity_pct' | 'wind_speed_ms';
+        label: string;
+        unit: string;
+        current: number | null;
         min: number | null;
         avg: number | null;
         max: number | null;
-        device_id: number;
+        sparkline: number[];
     }>;
-    source: 'raw' | 'rollup';
+    extra_metrics: Array<{
+        key: string;
+        label: string;
+        current: number;
+        sensor_count: number;
+    }>;
+    trend: {
+        source: 'raw' | 'rollup';
+        series: EnvironmentMetricTrend[];
+    };
 };

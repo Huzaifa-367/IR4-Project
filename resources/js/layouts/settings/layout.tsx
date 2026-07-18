@@ -4,9 +4,8 @@ import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/hooks/use-current-url';
-import { usePermissions } from '@/hooks/use-permissions';
 import { cn, toUrl } from '@/lib/utils';
-import { edit as editAppearance } from '@/routes/appearance';
+// import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
@@ -22,48 +21,15 @@ const sidebarNavItems: NavItem[] = [
         href: editSecurity(),
         icon: null,
     },
-    {
-        title: 'Appearance',
-        href: editAppearance(),
-        icon: null,
-    },
+    // {
+    //     title: 'Appearance',
+    //     href: editAppearance(),
+    //     icon: null,
+    // },
 ];
 
 export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
-    const { can } = usePermissions();
-
-    const items: NavItem[] = [
-        ...sidebarNavItems,
-        ...(can('manage-settings') ||
-        can('configure-alerts') ||
-        can('manage-gas-thresholds')
-            ? [{ title: 'General', href: '/settings/general', icon: null }]
-            : []),
-        ...(can('manage-roles')
-            ? [{ title: 'Roles', href: '/settings/roles', icon: null }]
-            : []),
-        ...(can('manage-users')
-            ? [{ title: 'Users', href: '/settings/users', icon: null }]
-            : []),
-        ...(can('manage-devices')
-            ? [
-                  { title: 'Assets', href: '/settings/assets', icon: null },
-                  { title: 'Devices', href: '/settings/devices', icon: null },
-                  { title: 'Cameras', href: '/settings/cameras', icon: null },
-              ]
-            : []),
-        ...(can('manage-zones')
-            ? [
-                  { title: 'Zones', href: '/settings/zones', icon: null },
-                  {
-                      title: 'Repositioning',
-                      href: '/settings/repositioning',
-                      icon: null,
-                  },
-              ]
-            : []),
-    ];
 
     return (
         <div className="px-4 py-6">
@@ -78,7 +44,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                         className="flex flex-col space-y-1 space-x-0"
                         aria-label="Settings"
                     >
-                        {items.map((item, index) => (
+                        {sidebarNavItems.map((item, index) => (
                             <Button
                                 key={`${toUrl(item.href)}-${index}`}
                                 size="sm"

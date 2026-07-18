@@ -18,10 +18,13 @@ export function SettingGroup({
     footer,
 }: Props) {
     return (
-        <section className="space-y-4 rounded-xl border border-border bg-card p-4">
-            <h2 className="text-base font-semibold tracking-tight">
-                {group.label}
-            </h2>
+        <section className="flex flex-col gap-4 rounded-[var(--radius-sm)] border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
+            <div>
+                <p className="eyebrow">{group.key}</p>
+                <h2 className="font-display text-base font-semibold tracking-tight text-text">
+                    {group.label}
+                </h2>
+            </div>
             <div className="grid gap-5">
                 {group.settings.map((setting) => (
                     <SettingField

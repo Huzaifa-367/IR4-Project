@@ -250,7 +250,7 @@ final class EquipmentCheckoutService
             'returned_to' => $checkout->returned_to,
             'condition_out' => $checkout->condition_out,
             'condition_in' => $checkout->condition_in,
-            'return_status' => $checkout->return_status,
+            'return_status' => $checkout->return_status?->value,
             'return_reason' => $checkout->return_reason,
             'notes' => $checkout->notes,
             'checkout_state' => $this->state($checkout->isOpen() ? $checkout : null)->value,

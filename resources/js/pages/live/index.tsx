@@ -1,16 +1,14 @@
 import { Head, Link } from '@inertiajs/react';
-import { useState } from 'react';
 import { toast } from 'sonner';
 import Heading from '@/components/heading';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { Button } from '@/components/ui/button';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import { ViolationTypeLabels } from '@/types/enums';
-import type { LiveCamera, PpeViolation } from '@/types/ppe';
+import type { LiveCamera } from '@/types/ppe';
 
 type Props = {
     cameras: LiveCamera[];
-    recentViolations: PpeViolation[];
     displayMode?: boolean;
     canViewPpe: boolean;
 };
@@ -25,12 +23,9 @@ type ToastPayload = {
 
 export default function LiveWall({
     cameras,
-    recentViolations: initial,
     displayMode = false,
     canViewPpe,
 }: Props) {
-    const [recent, setRecent] = useState<PpeViolation[]>(initial);
-
     const { status } = useReverbChannel({
         channel: 'ppe',
         events: ['.PpeViolationDetected'],
@@ -39,37 +34,6 @@ export default function LiveWall({
             toast.warning(
                 `${ViolationTypeLabels[event.violation_type as keyof typeof ViolationTypeLabels] ?? event.violation_type} @ ${event.camera_ref}`,
             );
-            setRecent((prev) => {
-                const next: PpeViolation = {
-                    id: event.id,
-                    camera_id: 0,
-                    camera_ref: event.camera_ref,
-                    camera_name: null,
-                    violation_type: event.violation_type,
-                    detected_at: event.detected_at,
-                    worker_count: 1,
-                    confidence: null,
-                    location_label: null,
-                    alert_id: null,
-                    review_status: 'unreviewed',
-                    reviewed_by: null,
-                    reviewed_by_name: null,
-                    reviewed_at: null,
-                    review_note: null,
-                    is_backfill: false,
-                    snapshot_url: event.snapshot_url,
-                };
-
-                return [next, ...prev.filter((v) => v.id !== event.id)].slice(
-                    0,
-                    20,
-                );
-            });
-        },
-        snapshotUrl: '/api/live/violations',
-        onSnapshot: (data) => {
-            const json = data as { data: { violations: PpeViolation[] } };
-            setRecent(json.data.violations);
         },
         pollIntervalMs: 30_000,
     });
@@ -133,13 +97,19 @@ export default function LiveWall({
                                     </span>
                                 </div>
                             </div>
-                            <div className="flex aspect-video items-center justify-center bg-muted/40 text-xs text-muted-foreground">
-                                {camera.stream_url ? (
-                                    <span className="truncate px-3">
-                                        {camera.stream_url}
-                                    </span>
+                            <div className="aspect-video bg-black">
+                                {camera.playback_url ? (
+                                    <iframe
+                                        src={camera.playback_url}
+                                        title={`${camera.name} live feed`}
+                                        className="size-full border-0"
+                                        allow="autoplay; fullscreen; picture-in-picture"
+                                        allowFullScreen
+                                    />
                                 ) : (
-                                    <span>No stream</span>
+                                    <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
+                                        No browser stream configured
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -150,39 +120,6 @@ export default function LiveWall({
                         </div>
                     )}
                 </div>
-
-                <section className="space-y-2">
-                    <h2 className="text-sm font-medium">Recent unreviewed</h2>
-                    <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        {recent.map((row) => (
-                            <li
-                                key={row.id}
-                                className="flex gap-3 rounded-lg border border-border p-2 text-sm"
-                            >
-                                <img
-                                    src={row.snapshot_url}
-                                    alt=""
-                                    className="h-14 w-20 rounded object-cover"
-                                />
-                                <div className="min-w-0">
-                                    <div className="truncate font-medium">
-                                        {ViolationTypeLabels[
-                                            row.violation_type as keyof typeof ViolationTypeLabels
-                                        ] ?? row.violation_type}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {row.camera_ref}
-                                    </div>
-                                </div>
-                            </li>
-                        ))}
-                        {recent.length === 0 && (
-                            <li className="text-sm text-muted-foreground">
-                                No recent violations
-                            </li>
-                        )}
-                    </ul>
-                </section>
             </div>
         </>
     );

@@ -1,10 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
-import Heading from '@/components/heading';
+import { useEffect, useMemo, useState } from 'react';
 import { SensitiveSettingConfirm } from '@/components/ir4/settings/sensitive-setting-confirm';
 import { SettingGroup } from '@/components/ir4/settings/setting-group';
+import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { Button } from '@/components/ui/button';
-import type { SettingGroup as SettingGroupType, SettingSchema } from '@/types/settings';
+import type {
+    SettingGroup as SettingGroupType,
+    SettingSchema,
+} from '@/types/settings';
 
 type Props = {
     groups: SettingGroupType[];
@@ -20,13 +23,11 @@ export default function GeneralSettingsPage({
 
     const initialValues = useMemo(() => {
         const values: Record<string, string | number | boolean | null> = {};
-
         for (const group of groups) {
             for (const setting of group.settings) {
                 values[setting.key] = setting.value;
             }
         }
-
         return values;
     }, [groups]);
 
@@ -38,57 +39,56 @@ export default function GeneralSettingsPage({
     } | null>(null);
     const [processing, setProcessing] = useState(false);
 
+    useEffect(() => {
+        setValues(initialValues);
+        setConfirmedKeys([]);
+    }, [initialValues]);
+
     const settingIndex = useMemo(() => {
         const map = new Map<string, SettingSchema>();
-
         for (const group of groups) {
             for (const setting of group.settings) {
                 map.set(setting.key, setting);
             }
         }
-
         return map;
     }, [groups]);
 
     const dirtyKeys = Object.keys(values).filter((key) => {
         const setting = settingIndex.get(key);
-
         if (!setting || !setting.editable) {
             return false;
         }
-
         return values[key] !== setting.value;
     });
 
     const handleChange = (key: string, value: string | number | boolean) => {
         const setting = settingIndex.get(key);
-
         if (!setting || !setting.editable) {
             return;
         }
-
         if (setting.requires_confirm && value !== setting.value) {
             setPendingConfirm({ setting, value });
-
             return;
         }
-
         setValues((current) => ({ ...current, [key]: value }));
         setConfirmedKeys((current) => current.filter((item) => item !== key));
     };
 
-    const submit = () => {
+    const discard = (): void => {
+        setValues(initialValues);
+        setConfirmedKeys([]);
+    };
+
+    const submit = (): void => {
         if (dirtyKeys.length === 0) {
             return;
         }
-
         const payloadSettings: Record<string, string | number | boolean | null> =
             {};
-
         for (const key of dirtyKeys) {
             payloadSettings[key] = values[key];
         }
-
         setProcessing(true);
         router.put(
             '/settings/general',
@@ -108,28 +108,11 @@ export default function GeneralSettingsPage({
     return (
         <>
             <Head title="General settings" />
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="General settings"
-                    description="Runtime tunables. Deploy-fixed values (DB, Reverb, printer IP) stay in .env."
-                />
-
-                <div className="flex flex-wrap items-center gap-3">
-                    <Button
-                        type="button"
-                        onClick={submit}
-                        disabled={processing || dirtyKeys.length === 0}
-                    >
-                        Save changes
-                    </Button>
-                    <p className="text-muted-foreground text-xs">
-                        {dirtyKeys.length} unsaved change
-                        {dirtyKeys.length === 1 ? '' : 's'}
-                    </p>
-                </div>
-
-                <div className="space-y-4">
+            <SettingsPageShell
+                title="General settings"
+                description="Runtime tunables. Deploy-fixed values (DB, Reverb, printer IP) stay in .env."
+            >
+                <div className="grid gap-4 xl:grid-cols-2">
                     {groups.map((group) => (
                         <SettingGroup
                             key={group.key}
@@ -139,11 +122,11 @@ export default function GeneralSettingsPage({
                             onChange={handleChange}
                             footer={
                                 group.key === 'gas' ? (
-                                    <p className="text-muted-foreground border-t border-border pt-3 text-sm">
+                                    <p className="border-t border-border pt-3 text-sm text-text-dim">
                                         Gas alarm thresholds are managed in the{' '}
                                         <Link
                                             href={gasThresholdsUrl}
-                                            className="text-primary underline"
+                                            className="text-[color:var(--accent)] underline"
                                         >
                                             gas thresholds editor
                                         </Link>
@@ -154,7 +137,31 @@ export default function GeneralSettingsPage({
                         />
                     ))}
                 </div>
-            </div>
+
+                <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-border bg-surface/95 px-4 py-3 shadow-[var(--shadow-pop)] backdrop-blur">
+                    <p className="text-sm text-text-dim">
+                        {dirtyKeys.length} unsaved change
+                        {dirtyKeys.length === 1 ? '' : 's'}
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={discard}
+                            disabled={processing || dirtyKeys.length === 0}
+                        >
+                            Discard
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={submit}
+                            disabled={processing || dirtyKeys.length === 0}
+                        >
+                            Save changes
+                        </Button>
+                    </div>
+                </div>
+            </SettingsPageShell>
 
             <SensitiveSettingConfirm
                 open={pendingConfirm !== null}
@@ -165,7 +172,6 @@ export default function GeneralSettingsPage({
                     if (pendingConfirm === null) {
                         return;
                     }
-
                     setValues((current) => ({
                         ...current,
                         [pendingConfirm.setting.key]: pendingConfirm.value,

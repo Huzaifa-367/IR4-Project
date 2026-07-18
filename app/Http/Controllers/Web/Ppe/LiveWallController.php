@@ -16,11 +16,12 @@ use Inertia\Response as InertiaResponse;
 
 final class LiveWallController extends BaseController
 {
-    public function __invoke(Request $request, PpeViolationService $ppe): InertiaResponse
+    public function __invoke(Request $request): InertiaResponse
     {
         abort_unless($request->user()?->can('view-live-cameras'), 403);
 
         $display = $request->boolean('display');
+        $playbackUrlTemplate = config('camera_stream.browser_url_template');
 
         $cameras = Camera::query()
             ->with('asset')
@@ -30,7 +31,9 @@ final class LiveWallController extends BaseController
                 'id' => $camera->id,
                 'name' => $camera->name,
                 'reference' => $camera->reference,
-                'stream_url' => $camera->stream_url,
+                'playback_url' => is_string($playbackUrlTemplate) && $playbackUrlTemplate !== ''
+                    ? str_replace('{reference}', rawurlencode($camera->reference), $playbackUrlTemplate)
+                    : null,
                 'ai_enabled' => $camera->ai_enabled,
                 'status' => $camera->status->value,
                 'is_online' => $camera->status === HardwareStatus::Online
@@ -39,19 +42,8 @@ final class LiveWallController extends BaseController
                 'location_label' => $camera->asset?->current_location_label,
             ]);
 
-        $recent = PpeViolation::query()
-            ->with('camera')
-            ->where('review_status', ReviewStatus::Unreviewed)
-            ->where('is_backfill', false)
-            ->orderByDesc('detected_at')
-            ->limit(20)
-            ->get()
-            ->map(fn (PpeViolation $v) => $ppe->toArray($v))
-            ->values();
-
         return Inertia::render($display ? 'display/live' : 'live/index', [
             'cameras' => $cameras,
-            'recentViolations' => $recent,
             'displayMode' => $display,
             'canViewPpe' => $request->user()?->can('view-ppe') ?? false,
         ]);

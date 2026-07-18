@@ -228,6 +228,25 @@ it('gates view review export and live permissions', function () {
         ->assertForbidden();
 });
 
+it('serves browser playback urls without exposing rtsp credentials', function () {
+    config()->set(
+        'camera_stream.browser_url_template',
+        'http://127.0.0.1:8888/{reference}',
+    );
+    $operator = User::factory()->withRole('SCC Operator')->create();
+    Camera::factory()->create([
+        'reference' => 'cam-test-01',
+        'stream_url' => 'rtsp://operator:secret@10.0.0.5/stream1',
+    ]);
+
+    $this->actingAs($operator)
+        ->get(route('live.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('cameras.0.playback_url', 'http://127.0.0.1:8888/cam-test-01')
+            ->missing('cameras.0.stream_url'));
+});
+
 it('exports csv excluding false positives', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
     PpeViolation::factory()->create(['detected_at' => now()]);

@@ -1,0 +1,11 @@
+# Development-only internet source. Production paths must point to LAN cameras.
+hls: true
+hlsAddress: :8888
+webrtc: true
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8189
+
+paths:
+  test:
+    source: rtsp://9627b0bf2a7b.entrypoint.cloud.wowza.com:1935/app-p5260J38/66abe4b9_stream1
+    sourceOnDemand: true

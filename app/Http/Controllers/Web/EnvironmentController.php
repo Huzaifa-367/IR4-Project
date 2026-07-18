@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers\Web;
 
-use App\Enums\DeviceType;
-use App\Models\Device;
 use App\Services\EnvironmentalDataService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -49,32 +47,14 @@ final class EnvironmentController extends BaseController
         if ($request->wantsJson() || $request->boolean('json')) {
             return ApiResponse::ok($series);
         }
-        $sensors = $environment->latest();
-        $extraParameters = collect($sensors)
-            ->flatMap(fn (array $sensor): array => array_keys($sensor['extra']))
-            ->unique()
-            ->values();
 
         return Inertia::render('environment/index', [
-            'series' => $series,
+            'snapshot' => $environment->dashboardSnapshot($from, $to),
             'filters' => [
-                'parameter' => $parameter,
-                'device_id' => $deviceId !== null ? (string) $deviceId : '',
                 'range' => $range,
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
             ],
-            'devices' => Device::query()
-                ->where('device_type', DeviceType::EnvironmentalSensor)
-                ->orderBy('name')
-                ->get(['id', 'name', 'reference']),
-            'parameters' => collect([
-                ['value' => 'temperature_c', 'label' => 'Temperature (°C)'],
-                ['value' => 'humidity_pct', 'label' => 'Humidity (%)'],
-                ['value' => 'wind_speed_ms', 'label' => 'Wind speed (m/s)'],
-            ])->concat($extraParameters->map(
-                fn (int|string $key): array => ['value' => (string) $key, 'label' => (string) $key],
-            )),
         ]);
     }
 }

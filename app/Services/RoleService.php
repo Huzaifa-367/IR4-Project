@@ -89,6 +89,28 @@ final class RoleService
         });
     }
 
+    /**
+     * @param  array{name: string, description?: string|null, is_read_only?: bool, permissions?: list<string>}  $data
+     */
+    public function update(Role $role, array $data): Role
+    {
+        if ($role->is_system) {
+            throw new HttpException(403, 'The Super Admin role cannot be edited.');
+        }
+
+        return DB::transaction(function () use ($role, $data): Role {
+            $role->forceFill([
+                'name' => $data['name'],
+                'description' => $data['description'] ?? null,
+                'is_read_only' => (bool) ($data['is_read_only'] ?? false),
+            ])->save();
+
+            $this->syncPermissions($role, $data['permissions'] ?? []);
+
+            return $role->fresh() ?? $role;
+        });
+    }
+
     public function delete(Role $role): void
     {
         if ($role->is_system) {

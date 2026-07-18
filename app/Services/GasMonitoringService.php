@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Enums\AuditEvent;
 use App\Enums\AlertType;
+use App\Enums\AuditEvent;
 use App\Enums\DeviceType;
 use App\Enums\GasAlarmLevel;
 use App\Enums\GasType;
@@ -119,8 +119,10 @@ final class GasMonitoringService
     /**
      * @return array{points: list<array<string, mixed>>, source: string}
      */
-    public function trends(?int $deviceId, GasType $gasType, Carbon $from, Carbon $to): array
+    public function trends(?int $deviceId, GasType $gasType, \DateTimeInterface $from, \DateTimeInterface $to): array
     {
+        $from = Carbon::instance($from);
+        $to = Carbon::instance($to);
         $hours = $from->diffInHours($to);
         $column = $gasType->readingColumn();
 

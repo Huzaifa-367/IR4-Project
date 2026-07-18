@@ -1,8 +1,11 @@
-@import '@fontsource/ibm-plex-sans/400.css';
-@import '@fontsource/ibm-plex-sans/500.css';
-@import '@fontsource/ibm-plex-sans/600.css';
-@import '@fontsource/ibm-plex-mono/400.css';
-@import '@fontsource/ibm-plex-mono/600.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/inter-tight/600.css';
+@import '@fontsource/inter-tight/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/600.css';
 
 @import 'tailwindcss';
 
@@ -15,56 +18,68 @@
 
 @theme {
     --font-sans:
-        'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif,
-        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-        'Noto Color Emoji';
+        'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display:
+        'Inter Tight', 'Inter', ui-sans-serif, system-ui, sans-serif;
     --font-mono:
-        'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         'Liberation Mono', 'Courier New', monospace;
 
     --radius-lg: var(--radius);
-    --radius-md: calc(var(--radius) - 2px);
-    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: var(--radius-sm);
+    --radius-sm: 8px;
+    --radius-pill: 999px;
+
+    --color-bg: var(--bg);
+    --color-bg-grid: var(--bg-grid);
+    --color-surface: var(--surface);
+    --color-surface-2: var(--surface-2);
+    --color-surface-3: var(--surface-3);
+    --color-text: var(--text);
+    --color-text-dim: var(--text-dim);
+    --color-text-faint: var(--text-faint);
+    --color-ok: var(--ok);
+    --color-ok-bg: var(--ok-bg);
+    --color-warn: var(--warn);
+    --color-warn-bg: var(--warn-bg);
+    --color-crit: var(--crit);
+    --color-crit-bg: var(--crit-bg);
+    --color-viz-1: var(--viz-1);
+    --color-viz-2: var(--viz-2);
+    --color-viz-3: var(--viz-3);
+    --color-viz-4: var(--viz-4);
+    --color-viz-5: var(--viz-5);
+    --color-viz-6: var(--viz-6);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
-
     --color-card: var(--card);
     --color-card-foreground: var(--card-foreground);
-
     --color-popover: var(--popover);
     --color-popover-foreground: var(--popover-foreground);
-
     --color-primary: var(--primary);
     --color-primary-foreground: var(--primary-foreground);
-
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
-
     --color-muted: var(--muted);
     --color-muted-foreground: var(--muted-foreground);
-
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
-
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
-
     --color-success: var(--success);
     --color-warning: var(--warning);
     --color-info: var(--info);
     --color-danger: var(--danger);
-
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
-
     --color-chart-1: var(--chart-1);
     --color-chart-2: var(--chart-2);
     --color-chart-3: var(--chart-3);
     --color-chart-4: var(--chart-4);
     --color-chart-5: var(--chart-5);
-
     --color-sidebar: var(--sidebar);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar-primary: var(--sidebar-primary);
@@ -75,102 +90,161 @@
     --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* Operator light theme — Design.md / DOC-16 */
-:root {
-    --bg: #f4f6f8;
+/*
+ | Light theme (office / daytime). Semantic hues match dark.
+ | Activated when <html> is not .dark (and data-theme="light").
+ */
+:root,
+[data-theme='light'] {
+    --bg: #f6f8fb;
+    --bg-grid: #eef2f7;
     --surface: #ffffff;
-    --surface-2: #e8eef3;
-    --text: #0f172a;
-    --text-dim: #64748b;
-    --ok: #34d399;
-    --warn: #f5a524;
-    --crit: #f0506e;
-    --background: #f4f6f8;
-    --foreground: #0f172a;
-    --card: #ffffff;
-    --card-foreground: #0f172a;
-    --popover: #ffffff;
-    --popover-foreground: #0f172a;
-    --primary: #0284c8;
-    --primary-foreground: #ffffff;
-    --secondary: #1e3a5f;
-    --secondary-foreground: #f8fafc;
-    --muted: #e8eef3;
-    --muted-foreground: #64748b;
-    --accent: #e8eef3;
-    --accent-foreground: #0f172a;
-    --destructive: #f0506e;
-    --destructive-foreground: #ffffff;
-    --success: #34d399;
-    --warning: #f5a524;
-    --danger: #f0506e;
-    --info: #38bdf8;
+    --surface-2: #f1f4f8;
+    --surface-3: #e8eef5;
     --border: #d7e0ea;
-    --input: #d7e0ea;
-    --ring: #38bdf8;
-    --chart-1: #38bdf8;
-    --chart-2: #34d399;
-    --chart-3: #f5a524;
-    --chart-4: #f0506e;
-    --chart-5: #0284c8;
-    --radius: 0.875rem;
-    --sidebar: #ffffff;
-    --sidebar-foreground: #0f172a;
-    --sidebar-primary: #0284c8;
+    --border-strong: #b8c4d2;
+    --text: #0f1722;
+    --text-dim: #5b6b7c;
+    --text-faint: #8a97a6;
+    --accent: #38bdf8;
+    --accent-dim: #38bdf833;
+    --accent-strong: #0ea5e9;
+    --ok: #34d399;
+    --ok-bg: #34d39918;
+    --warn: #f5a524;
+    --warn-bg: #f5a52418;
+    --crit: #f0506e;
+    --crit-bg: #f0506e18;
+    --info: #8b93a7;
+    --viz-1: #38bdf8;
+    --viz-2: #a78bfa;
+    --viz-3: #34d399;
+    --viz-4: #f5a524;
+    --viz-5: #f472b6;
+    --viz-6: #22d3ee;
+    --shadow-card: 0 1px 2px #0f172214, 0 8px 24px #0f17220a;
+    --shadow-pop: 0 8px 32px #0f172229;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --radius-pill: 999px;
+    --s-1: 4px;
+    --s-2: 8px;
+    --s-3: 12px;
+    --s-4: 16px;
+    --s-5: 20px;
+    --s-6: 24px;
+    --s-8: 32px;
+    --s-10: 40px;
+    --s-12: 48px;
+
+    /* shadcn aliases */
+    --background: var(--bg);
+    --foreground: var(--text);
+    --card: var(--surface);
+    --card-foreground: var(--text);
+    --popover: var(--surface);
+    --popover-foreground: var(--text);
+    --primary: var(--accent-strong);
+    --primary-foreground: #ffffff;
+    --secondary: var(--surface-2);
+    --secondary-foreground: var(--text);
+    --muted: var(--surface-2);
+    --muted-foreground: var(--text-dim);
+    /* brand --accent stays as cyan; shadcn accent utilities resolve via @theme */
+    --accent-foreground: #0a0e14;
+    --destructive: var(--crit);
+    --destructive-foreground: #ffffff;
+    --success: var(--ok);
+    --warning: var(--warn);
+    --danger: var(--crit);
+    --input: var(--border);
+    --ring: var(--accent);
+    --chart-1: var(--viz-1);
+    --chart-2: var(--viz-3);
+    --chart-3: var(--viz-4);
+    --chart-4: var(--viz-5);
+    --chart-5: var(--viz-2);
+    --sidebar: var(--surface);
+    --sidebar-foreground: var(--text);
+    --sidebar-primary: var(--accent-strong);
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #e8eef3;
-    --sidebar-accent-foreground: #0f172a;
-    --sidebar-border: #d7e0ea;
-    --sidebar-ring: #38bdf8;
+    --sidebar-accent: var(--surface-2);
+    --sidebar-accent-foreground: var(--text);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--accent);
 }
 
-/* Control Room dark — DOC-16 (default for command centre / display) */
-.dark {
-    --bg: #0b0f14;
-    --surface: #131a22;
-    --surface-2: #1b2530;
-    --text: #e6edf3;
-    --text-dim: #8a97a6;
+/*
+ | Control Room dark (default for command centre / display).
+ | Guide: Docs/Ir4 ui styling guide.md §1.1
+ */
+.dark,
+[data-theme='dark'] {
+    --bg: #0a0e14;
+    --bg-grid: #0d1219;
+    --surface: #121924;
+    --surface-2: #18212e;
+    --surface-3: #1f2a38;
+    --border: #263341;
+    --border-strong: #35455870;
+    --text: #e8eef5;
+    --text-dim: #93a1b2;
+    --text-faint: #5e6b7a;
+    --accent: #38bdf8;
+    --accent-dim: #38bdf833;
+    --accent-strong: #0ea5e9;
     --ok: #34d399;
+    --ok-bg: #34d39918;
     --warn: #f5a524;
+    --warn-bg: #f5a52418;
     --crit: #f0506e;
-    --background: #0b0f14;
-    --foreground: #e6edf3;
-    --card: #131a22;
-    --card-foreground: #e6edf3;
-    --popover: #1b2530;
-    --popover-foreground: #e6edf3;
-    --primary: #38bdf8;
-    --primary-foreground: #0b0f14;
-    --secondary: #1b2530;
-    --secondary-foreground: #e6edf3;
-    --muted: #1b2530;
-    --muted-foreground: #8a97a6;
-    --accent: #1b2530;
-    --accent-foreground: #e6edf3;
-    --destructive: #f0506e;
+    --crit-bg: #f0506e18;
+    --info: #8b93a7;
+    --viz-1: #38bdf8;
+    --viz-2: #a78bfa;
+    --viz-3: #34d399;
+    --viz-4: #f5a524;
+    --viz-5: #f472b6;
+    --viz-6: #22d3ee;
+    --shadow-card: 0 1px 2px #0006, 0 8px 24px #0003;
+    --shadow-pop: 0 8px 32px #0009;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --radius-pill: 999px;
+
+    --background: var(--bg);
+    --foreground: var(--text);
+    --card: var(--surface);
+    --card-foreground: var(--text);
+    --popover: var(--surface-2);
+    --popover-foreground: var(--text);
+    --primary: var(--accent);
+    --primary-foreground: #0a0e14;
+    --secondary: var(--surface-2);
+    --secondary-foreground: var(--text);
+    --muted: var(--surface-2);
+    --muted-foreground: var(--text-dim);
+    --accent-foreground: #0a0e14;
+    --destructive: var(--crit);
     --destructive-foreground: #ffffff;
-    --success: #34d399;
-    --warning: #f5a524;
-    --danger: #f0506e;
-    --info: #38bdf8;
-    --border: #243040;
-    --input: #243040;
-    --ring: #38bdf8;
-    --chart-1: #38bdf8;
-    --chart-2: #34d399;
-    --chart-3: #f5a524;
-    --chart-4: #f0506e;
-    --chart-5: #8a97a6;
-    --radius: 0.875rem;
-    --sidebar: #131a22;
-    --sidebar-foreground: #e6edf3;
-    --sidebar-primary: #38bdf8;
-    --sidebar-primary-foreground: #0b0f14;
-    --sidebar-accent: #1b2530;
-    --sidebar-accent-foreground: #e6edf3;
-    --sidebar-border: #243040;
-    --sidebar-ring: #38bdf8;
+    --success: var(--ok);
+    --warning: var(--warn);
+    --danger: var(--crit);
+    --input: var(--border);
+    --ring: var(--accent);
+    --chart-1: var(--viz-1);
+    --chart-2: var(--viz-3);
+    --chart-3: var(--viz-4);
+    --chart-4: var(--viz-5);
+    --chart-5: var(--viz-2);
+    --sidebar: var(--surface);
+    --sidebar-foreground: var(--text);
+    --sidebar-primary: var(--accent);
+    --sidebar-primary-foreground: #0a0e14;
+    --sidebar-accent: var(--accent-dim);
+    --sidebar-accent-foreground: var(--accent);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--accent);
 }
 
 @layer base {
@@ -180,5 +254,58 @@
 
     body {
         @apply bg-background font-sans text-foreground antialiased;
+        font-variant-numeric: tabular-nums;
     }
+
+    .font-display {
+        font-family: var(--font-display);
+    }
+
+    .eyebrow {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+}
+
+@keyframes ir4-crit-pulse {
+    0%,
+    100% {
+        border-color: var(--border);
+        box-shadow: var(--shadow-card);
+    }
+    40% {
+        border-color: var(--crit);
+        box-shadow: 0 0 0 1px var(--crit), var(--shadow-card);
+    }
+}
+
+@keyframes ir4-live-dot {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.35;
+    }
+}
+
+.animate-crit-pulse {
+    animation: ir4-crit-pulse 600ms ease-out 1;
+}
+
+.animate-live-dot {
+    animation: ir4-live-dot 2s ease-in-out infinite;
 }

@@ -150,4 +150,75 @@ final class EvacuationService
 
         return $pdf->download("evacuation-{$report->id}.pdf");
     }
+
+    /**
+     * Last open or closed drill accounting for dashboard readiness ring.
+     *
+     * @return array{
+     *     report_id: int|null,
+     *     status: string|null,
+     *     total: int,
+     *     accounted: int,
+     *     muster_reader: int,
+     *     gate_exit: int,
+     *     manual: int,
+     *     accounted_pct: float,
+     *     triggered_at: string|null
+     * }
+     */
+    public function readinessSnapshot(): array
+    {
+        $report = EvacuationReport::query()
+            ->where('status', EvacuationStatus::Open)
+            ->orderByDesc('triggered_at')
+            ->first()
+            ?? EvacuationReport::query()
+                ->where('status', EvacuationStatus::Closed)
+                ->orderByDesc('closed_at')
+                ->first();
+
+        if ($report === null) {
+            return [
+                'report_id' => null,
+                'status' => null,
+                'total' => 0,
+                'accounted' => 0,
+                'muster_reader' => 0,
+                'gate_exit' => 0,
+                'manual' => 0,
+                'accounted_pct' => 0.0,
+                'triggered_at' => null,
+            ];
+        }
+
+        $entries = EvacuationReportEntry::query()
+            ->where('evacuation_report_id', $report->id)
+            ->get(['muster_status', 'accounted_source']);
+
+        $total = $entries->count();
+        $accounted = $entries
+            ->filter(fn (EvacuationReportEntry $e): bool => $e->muster_status === MusterStatus::Accounted)
+            ->count();
+        $musterReader = $entries
+            ->filter(fn (EvacuationReportEntry $e): bool => $e->accounted_source === AccountedSource::MusterReader)
+            ->count();
+        $gateExit = $entries
+            ->filter(fn (EvacuationReportEntry $e): bool => $e->accounted_source === AccountedSource::GateExit)
+            ->count();
+        $manual = $entries
+            ->filter(fn (EvacuationReportEntry $e): bool => $e->accounted_source === AccountedSource::Manual)
+            ->count();
+
+        return [
+            'report_id' => $report->id,
+            'status' => $report->status->value,
+            'total' => $total,
+            'accounted' => $accounted,
+            'muster_reader' => $musterReader,
+            'gate_exit' => $gateExit,
+            'manual' => $manual,
+            'accounted_pct' => $total > 0 ? round(($accounted / $total) * 100, 1) : 0.0,
+            'triggered_at' => optional($report->triggered_at)?->toIso8601String(),
+        ];
+    }
 }

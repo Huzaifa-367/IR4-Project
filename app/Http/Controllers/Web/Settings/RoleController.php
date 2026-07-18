@@ -51,16 +51,7 @@ final class RoleController extends BaseController
     public function update(UpdateRoleRequest $request, Role $role, RoleService $roles): RedirectResponse
     {
         $this->authorize('update', $role);
-
-        $data = $request->validated();
-
-        $role->forceFill([
-            'name' => $data['name'],
-            'description' => $data['description'] ?? null,
-            'is_read_only' => (bool) ($data['is_read_only'] ?? false),
-        ])->save();
-
-        $roles->syncPermissions($role, $data['permissions'] ?? []);
+        $roles->update($role, $request->validated());
 
         return redirect()->route('settings.roles.index');
     }

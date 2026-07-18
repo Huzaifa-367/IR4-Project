@@ -119,3 +119,50 @@ it('forbids hardware settings without manage-devices', function () {
         ->get(route('settings.devices.index'))
         ->assertForbidden();
 });
+
+it('updates and retires a camera without hard delete', function () {
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $camera = Camera::factory()->create([
+        'name' => 'North Cam',
+        'stream_url' => 'rtsp://10.0.0.9/stream1',
+    ]);
+
+    $this->actingAs($admin)
+        ->put(route('settings.cameras.update', $camera), [
+            'name' => 'North Cam Updated',
+            'stream_url' => 'rtsp://10.0.0.9/stream2',
+            'camera_type' => $camera->camera_type->value,
+            'reference' => $camera->reference,
+            'asset_id' => $camera->asset_id,
+        ])
+        ->assertRedirect(route('settings.cameras.index'));
+
+    expect($camera->fresh()->name)->toBe('North Cam Updated')
+        ->and($camera->fresh()->stream_url)->toBe('rtsp://10.0.0.9/stream2');
+
+    $this->actingAs($admin)
+        ->patch(route('settings.cameras.status', $camera), [
+            'status' => 'retired',
+        ])
+        ->assertRedirect();
+
+    expect($camera->fresh()->status)->toBe(HardwareStatus::Retired)
+        ->and(Camera::query()->whereKey($camera->id)->exists())->toBeTrue();
+});
+
+it('retires a device and invalidates its token', function () {
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $device = Device::factory()->create([
+        'api_token_hash' => hash('sha256', 'dev_oldtoken'),
+        'status' => HardwareStatus::Online,
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('settings.devices.status', $device), [
+            'status' => 'retired',
+        ])
+        ->assertRedirect();
+
+    expect($device->fresh()->status)->toBe(HardwareStatus::Retired)
+        ->and($device->fresh()->api_token_hash)->toBeNull();
+});

@@ -39,6 +39,7 @@ final class UserController extends BaseController
         return Inertia::render('settings/users/index', [
             'users' => $users,
             'roles' => $roles,
+            'temporaryPassword' => session()->pull('temporary_password'),
         ]);
     }
 
@@ -48,8 +49,11 @@ final class UserController extends BaseController
 
         return redirect()
             ->route('settings.users.index')
-            ->with('flash', [
-                'temporary_password' => $result['temporary_password'],
+            ->with('temporary_password', [
+                'user_id' => $result['user']->id,
+                'user_name' => $result['user']->name,
+                'email' => $result['user']->email,
+                'password' => $result['temporary_password'],
             ]);
     }
 
