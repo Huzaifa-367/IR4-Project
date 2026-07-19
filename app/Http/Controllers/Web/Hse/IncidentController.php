@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Hse;
 
 use App\Enums\IncidentSeverity;
+use App\Enums\IncidentSource;
 use App\Enums\IncidentStatus;
 use App\Enums\IncidentType;
 use App\Http\Controllers\Web\BaseController;
@@ -76,6 +77,18 @@ final class IncidentController extends BaseController
                 'direction' => $request->string('direction')->toString() ?: 'desc',
             ],
             'statusOptions' => collect(IncidentStatus::cases())->map(fn ($c) => [
+                'value' => $c->value,
+                'label' => $c->label(),
+            ]),
+            'sourceOptions' => collect(IncidentSource::cases())->map(fn ($c) => [
+                'value' => $c->value,
+                'label' => $c->label(),
+            ]),
+            'typeOptions' => collect(IncidentType::cases())->map(fn ($c) => [
+                'value' => $c->value,
+                'label' => $c->label(),
+            ]),
+            'severityOptions' => collect(IncidentSeverity::cases())->map(fn ($c) => [
                 'value' => $c->value,
                 'label' => $c->label(),
             ]),

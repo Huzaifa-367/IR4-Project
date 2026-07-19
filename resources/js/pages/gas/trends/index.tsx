@@ -7,7 +7,17 @@ import { Panel } from '@/components/ir4/panel';
 import { RangeToggle } from '@/components/ir4/range-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import type { GasTrendSeries } from '@/types/gas';
+
+const ALL_DEVICES = 'all';
 
 type Props = {
     series: GasTrendSeries;
@@ -29,7 +39,7 @@ export default function GasTrends({
     gasTypes,
 }: Props) {
     const [gasType, setGasType] = useState(filters.gas_type);
-    const [deviceId, setDeviceId] = useState(filters.device_id);
+    const [deviceId, setDeviceId] = useState(filters.device_id || ALL_DEVICES);
     const [range, setRange] = useState(filters.range || 'day');
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
@@ -39,7 +49,10 @@ export default function GasTrends({
             '/gas/trends',
             {
                 gas_type: patch.gas_type ?? gasType,
-                device_id: patch.device_id ?? deviceId,
+                device_id:
+                    (patch.device_id ?? deviceId) === ALL_DEVICES
+                        ? undefined
+                        : (patch.device_id ?? deviceId),
                 range: patch.range ?? range,
                 from: patch.from ?? from,
                 to: patch.to ?? to,
@@ -74,7 +87,7 @@ export default function GasTrends({
     return (
         <>
             <Head title="Gas trends" />
-            <div className="flex flex-col gap-5 p-4 md:p-6">
+            <div className="flex flex-col gap-4 p-4 md:p-5">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <Heading
                         title="Gas Trends"
@@ -86,35 +99,49 @@ export default function GasTrends({
                 </div>
 
                 <div className="flex flex-wrap items-end gap-3">
-                    <select
+                    <Select
                         value={gasType}
-                        onChange={(event) => {
-                            setGasType(event.target.value);
-                            applyFilters({ gas_type: event.target.value });
+                        onValueChange={(value) => {
+                            setGasType(value);
+                            applyFilters({ gas_type: value });
                         }}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                     >
-                        {gasTypes.map((t) => (
-                            <option key={t.value} value={t.value}>
-                                {t.label}
-                            </option>
-                        ))}
-                    </select>
-                    <select
+                        <SelectTrigger className="w-40">
+                            <SelectValue placeholder="Gas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                {gasTypes.map((t) => (
+                                    <SelectItem key={t.value} value={t.value}>
+                                        {t.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                    <Select
                         value={deviceId}
-                        onChange={(event) => {
-                            setDeviceId(event.target.value);
-                            applyFilters({ device_id: event.target.value });
+                        onValueChange={(value) => {
+                            setDeviceId(value);
+                            applyFilters({ device_id: value });
                         }}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                     >
-                        <option value="">All devices</option>
-                        {devices.map((d) => (
-                            <option key={d.id} value={String(d.id)}>
-                                {d.name}
-                            </option>
-                        ))}
-                    </select>
+                        <SelectTrigger className="w-44">
+                            <SelectValue placeholder="Device" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectItem value={ALL_DEVICES}>
+                                    All devices
+                                </SelectItem>
+                                {devices.map((d) => (
+                                    <SelectItem key={d.id} value={String(d.id)}>
+                                        {d.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
                     <RangeToggle
                         value={range}
                         onChange={(value) => {

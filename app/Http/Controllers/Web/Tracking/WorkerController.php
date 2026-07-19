@@ -9,6 +9,12 @@ use App\Http\Requests\Tracking\StoreWorkerRequest;
 use App\Http\Requests\Tracking\UpdateWorkerRequest;
 use App\Http\Resources\WorkerResource;
 use App\Jobs\ImportWorkersJob;
+use App\Models\EntryExitLog;
+use App\Models\HseIncident;
+use App\Models\IncidentPersonnel;
+use App\Models\LsrViolation;
+use App\Models\PortableDevice;
+use App\Models\RfidTag;
 use App\Models\Worker;
 use App\Models\WorkerImport;
 use App\Services\WorkerService;
@@ -115,9 +121,94 @@ final class WorkerController extends BaseController
     {
         $this->authorize('view', $worker);
 
+        $user = $request->user();
+        $canSeeEntryExit = $user?->can('view-entry-exit') ?? false;
+        $canSeePortableDevices = $user?->can('manage-portable-devices') ?? false;
+        $canSeeIncidents = $user?->can('view-incidents') ?? false;
+        $canSeeLsr = $user?->can('view-lsr') ?? false;
+
         return Inertia::render('tracking/workers/show', [
             'worker' => (new WorkerResource($worker))->resolve($request),
-            'canManage' => $request->user()?->can('manage-workers') ?? false,
+            'canManage' => $user?->can('manage-workers') ?? false,
+            'canSeeEntryExit' => $canSeeEntryExit,
+            'canSeePortableDevices' => $canSeePortableDevices,
+            'canSeeIncidents' => $canSeeIncidents,
+            'canSeeLsr' => $canSeeLsr,
+            'tagHistory' => RfidTag::query()
+                ->where('worker_id', $worker->id)
+                ->orderByDesc('assigned_at')
+                ->limit(10)
+                ->get(['id', 'tag_uid', 'status', 'assigned_at'])
+                ->map(fn (RfidTag $tag): array => [
+                    'id' => $tag->id,
+                    'tag_uid' => $tag->tag_uid,
+                    'status' => $tag->status->value,
+                    'status_label' => $tag->status->label(),
+                    'assigned_at' => $tag->assigned_at?->toIso8601String(),
+                ]),
+            'entryExitLogs' => $canSeeEntryExit
+                ? EntryExitLog::query()
+                    ->where('worker_id', $worker->id)
+                    ->with('gateZone:id,name')
+                    ->orderByDesc('occurred_at')
+                    ->limit(10)
+                    ->get()
+                    ->map(fn (EntryExitLog $log): array => [
+                        'id' => $log->id,
+                        'direction' => $log->direction->value,
+                        'occurred_at' => $log->occurred_at?->toIso8601String(),
+                        'source' => $log->source->value,
+                        'gate_zone_name' => $log->gateZone?->name,
+                        'correction_note' => $log->correction_note,
+                    ])
+                : [],
+            'portableDevices' => $canSeePortableDevices
+                ? PortableDevice::query()
+                    ->where('worker_id', $worker->id)
+                    ->orderByDesc('created_at')
+                    ->get()
+                    ->map(fn (PortableDevice $device): array => [
+                        'id' => $device->id,
+                        'device_type' => $device->device_type,
+                        'make_model' => $device->make_model,
+                        'serial_number' => $device->serial_number,
+                        'status' => $device->status->value,
+                        'approved_at' => $device->approved_at?->toIso8601String(),
+                        'revoked_at' => $device->revoked_at?->toIso8601String(),
+                        'revoke_reason' => $device->revoke_reason,
+                    ])
+                : [],
+            'incidents' => $canSeeIncidents
+                ? $worker->incidentPersonnel()
+                    ->whereHas('incident')
+                    ->with('incident:id,incident_number,status')
+                    ->latest('id')
+                    ->limit(10)
+                    ->get()
+                    ->map(function (IncidentPersonnel $row): array {
+                        /** @var HseIncident $incident */
+                        $incident = $row->incident;
+
+                        return [
+                            'id' => $incident->id,
+                            'incident_number' => $incident->incident_number,
+                            'status_label' => $incident->status->label(),
+                            'involvement_label' => $row->involvement->label(),
+                        ];
+                    })
+                : [],
+            'lsrViolations' => $canSeeLsr
+                ? $worker->lsrViolations()
+                    ->orderByDesc('occurred_at')
+                    ->limit(10)
+                    ->get(['id', 'category', 'status', 'occurred_at'])
+                    ->map(fn (LsrViolation $lsr): array => [
+                        'id' => $lsr->id,
+                        'category_label' => $lsr->category->label(),
+                        'status_label' => $lsr->status->label(),
+                        'occurred_at' => $lsr->occurred_at?->toIso8601String(),
+                    ])
+                : [],
         ]);
     }
 

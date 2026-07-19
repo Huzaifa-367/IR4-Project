@@ -1,5 +1,9 @@
-import { Form, Head, Link } from '@inertiajs/react';
-import Heading from '@/components/heading';
+import { Head, Link } from '@inertiajs/react';
+import { Siren } from 'lucide-react';
+import { useState } from 'react';
+import { Panel } from '@/components/ir4/panel';
+import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
+import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 
 type Entry = {
@@ -31,66 +35,107 @@ export default function EvacuationIndex({
     openReport,
     history,
     canTrigger,
-    canManage,
 }: Props) {
+    const [confirmOpen, setConfirmOpen] = useState(false);
+
     return (
         <>
             <Head title="Evacuation" />
-            <div className="space-y-6 p-6">
-                <Heading
-                    title="Evacuation"
-                    description="Emergency roster and muster accounting"
-                />
-
-                {canTrigger && !openReport && (
-                    <Form action="/tracking/evacuation" method="post">
-                        {({ processing }) => (
-                            <Button
-                                type="submit"
-                                variant="destructive"
-                                disabled={processing}
-                            >
-                                Trigger evacuation
-                            </Button>
-                        )}
-                    </Form>
-                )}
+            <div className="flex flex-col gap-4 p-4 md:p-5">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                        <p className="eyebrow">Emergency roster</p>
+                        <h1 className="font-display text-xl font-semibold tracking-tight text-text md:text-2xl">
+                            Evacuation
+                        </h1>
+                        <p className="mt-1 text-sm text-text-dim">
+                            Muster accounting for the whole site
+                        </p>
+                    </div>
+                    {canTrigger && !openReport && (
+                        <Button
+                            type="button"
+                            className="bg-[color:var(--crit)] text-white hover:bg-[color:var(--crit)]/90"
+                            onClick={() => setConfirmOpen(true)}
+                        >
+                            <Siren className="size-4" />
+                            Trigger evacuation
+                        </Button>
+                    )}
+                </div>
 
                 {openReport && (
-                    <div className="rounded-lg border border-red-600/40 bg-red-50 p-4">
-                        <p className="font-medium">
-                            Open report #{openReport.id}: {openReport.accounted}
-                            /{openReport.total} accounted
-                        </p>
-                        <Button asChild className="mt-2" size="sm">
+                    <Panel
+                        title={`Open report #${openReport.id}`}
+                        subtitle={`${openReport.accounted}/${openReport.total} accounted`}
+                        className="border-[color:var(--crit)]/40"
+                        action={<StatusPill label="Open" tone="crit" />}
+                    >
+                        <Button asChild size="sm">
                             <Link
                                 href={`/tracking/evacuation/${openReport.id}`}
                             >
                                 Open board
                             </Link>
                         </Button>
-                    </div>
+                    </Panel>
                 )}
 
-                <div>
-                    <h2 className="mb-2 text-sm font-medium">Recent reports</h2>
-                    <ul className="space-y-1 text-sm">
+                <Panel title="Recent reports">
+                    <ul className="flex flex-col gap-2 text-sm">
                         {history.map((report) => (
-                            <li key={report.id}>
+                            <li
+                                key={report.id}
+                                className="flex items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
+                            >
                                 <Link
                                     href={`/tracking/evacuation/${report.id}`}
-                                    className="underline"
+                                    className="text-[color:var(--accent)] hover:underline"
                                 >
-                                    #{report.id} · {report.status} ·{' '}
-                                    {report.triggered_at}
+                                    Evacuation #{report.id}
                                 </Link>
+                                <span className="flex items-center gap-2 text-xs text-text-faint">
+                                    {new Date(
+                                        report.triggered_at,
+                                    ).toLocaleString()}
+                                    <StatusPill
+                                        label={
+                                            report.status === 'closed'
+                                                ? 'Closed'
+                                                : 'Open'
+                                        }
+                                        tone={
+                                            report.status === 'closed'
+                                                ? 'neutral'
+                                                : 'crit'
+                                        }
+                                    />
+                                </span>
                             </li>
                         ))}
+                        {history.length === 0 && (
+                            <li className="text-text-faint">
+                                No evacuation reports yet.
+                            </li>
+                        )}
                     </ul>
-                </div>
-
-                {canManage && null}
+                </Panel>
             </div>
+
+            <ConfirmActionDialog
+                open={confirmOpen}
+                onOpenChange={setConfirmOpen}
+                title="Trigger site evacuation"
+                description="This freezes every on-site worker into a live muster report and hard-navigates every operator screen to the evacuation board. This cannot be undone."
+                action="/tracking/evacuation"
+                method="post"
+                confirmLabel="Trigger evacuation"
+                destructive
+            />
         </>
     );
 }
+
+EvacuationIndex.layout = {
+    breadcrumbs: [{ title: 'Evacuation', href: '/tracking/evacuation' }],
+};

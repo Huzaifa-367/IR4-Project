@@ -24,6 +24,9 @@ final class ZoneService
             'map_x' => $data['map_x'] ?? null,
             'map_y' => $data['map_y'] ?? null,
             'map_radius' => $data['map_radius'] ?? null,
+            'latitude' => $data['latitude'] ?? null,
+            'longitude' => $data['longitude'] ?? null,
+            'radius_meters' => $data['radius_meters'] ?? null,
             'color' => $data['color'] ?? null,
             'is_active' => true,
         ]);
@@ -103,7 +106,7 @@ final class ZoneService
     }
 
     /**
-     * @param  array{map_x?: mixed, map_y?: mixed, map_radius?: mixed, color?: mixed}  $data
+     * @param  array{map_x?: mixed, map_y?: mixed, map_radius?: mixed, latitude?: mixed, longitude?: mixed, radius_meters?: mixed, color?: mixed}  $data
      */
     public function setMapPosition(Zone $zone, array $data): Zone
     {
@@ -111,6 +114,9 @@ final class ZoneService
             'map_x' => $data['map_x'] ?? $zone->map_x,
             'map_y' => $data['map_y'] ?? $zone->map_y,
             'map_radius' => $data['map_radius'] ?? $zone->map_radius,
+            'latitude' => $data['latitude'] ?? $zone->latitude,
+            'longitude' => $data['longitude'] ?? $zone->longitude,
+            'radius_meters' => $data['radius_meters'] ?? $zone->radius_meters,
             'color' => $data['color'] ?? $zone->color,
         ])->save();
 

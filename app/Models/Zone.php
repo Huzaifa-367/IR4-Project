@@ -22,6 +22,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $map_x
  * @property string|null $map_y
  * @property string|null $map_radius
+ * @property string|null $latitude
+ * @property string|null $longitude
+ * @property string|null $radius_meters
  * @property string|null $color
  * @property bool $is_active
  * @property int|null $created_by
@@ -48,6 +51,9 @@ final class Zone extends Model
             'map_x' => 'decimal:2',
             'map_y' => 'decimal:2',
             'map_radius' => 'decimal:2',
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
+            'radius_meters' => 'decimal:2',
         ];
     }
 

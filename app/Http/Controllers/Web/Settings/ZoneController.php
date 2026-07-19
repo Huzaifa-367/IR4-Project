@@ -8,6 +8,7 @@ use App\Http\Requests\Settings\StoreZoneRequest;
 use App\Http\Requests\Settings\UpdateZoneAccessListRequest;
 use App\Http\Requests\Settings\UpdateZoneRequest;
 use App\Http\Resources\WorkerResource;
+use App\Models\Worker;
 use App\Models\Zone;
 use App\Services\ZoneService;
 use Illuminate\Http\RedirectResponse;
@@ -47,6 +48,10 @@ final class ZoneController extends BaseController
                     'requires_authorization' => $zone->requires_authorization,
                     'occupancy_limit' => $zone->occupancy_limit,
                     'is_active' => $zone->is_active,
+                    'latitude' => $zone->latitude,
+                    'longitude' => $zone->longitude,
+                    'radius_meters' => $zone->radius_meters,
+                    'color' => $zone->color,
                     'current_readers' => $zone->current_bindings_count,
                     'access_list_count' => $zone->access_list_count,
                 ]),
@@ -91,6 +96,9 @@ final class ZoneController extends BaseController
                 'map_x' => $zone->map_x,
                 'map_y' => $zone->map_y,
                 'map_radius' => $zone->map_radius,
+                'latitude' => $zone->latitude,
+                'longitude' => $zone->longitude,
+                'radius_meters' => $zone->radius_meters,
                 'color' => $zone->color,
                 'current_readers' => $zone->currentBindings->map(fn ($b) => [
                     'binding_id' => $b->id,
@@ -107,6 +115,14 @@ final class ZoneController extends BaseController
                 'value' => $t->value,
                 'label' => $t->label(),
             ]),
+            'workers' => Worker::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (Worker $worker): array => [
+                    'id' => $worker->id,
+                    'name' => $worker->name,
+                ]),
         ]);
     }
 
@@ -153,6 +169,9 @@ final class ZoneController extends BaseController
             'map_x' => ['nullable', 'numeric'],
             'map_y' => ['nullable', 'numeric'],
             'map_radius' => ['nullable', 'numeric', 'min:0'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'radius_meters' => ['nullable', 'numeric', 'min:0'],
             'color' => ['nullable', 'string', 'max:32'],
         ]);
 

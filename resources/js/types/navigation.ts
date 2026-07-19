@@ -11,4 +11,6 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    /** Sub-routes rendered as a collapsible submenu under this item. */
+    items?: NavItem[];
 };

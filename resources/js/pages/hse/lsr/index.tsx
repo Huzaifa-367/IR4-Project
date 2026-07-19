@@ -1,22 +1,32 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
-import { Pagination } from '@/components/ir4/pagination';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
+import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
+import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import type { PaginatedMeta } from '@/types/hardware';
 import type { HseOption, LsrPrefill, LsrViolation } from '@/types/hse';
 
 type Props = {
-    violations: {
-        data: LsrViolation[];
-        meta: {
-            current_page: number;
-            last_page: number;
-            per_page: number;
-            total: number;
-        };
-    };
+    violations: { data: LsrViolation[]; meta: PaginatedMeta };
     filters: {
         search: string;
         status: string;
@@ -31,6 +41,8 @@ type Props = {
     prefill: LsrPrefill | null;
 };
 
+const ALL = 'all';
+
 export default function LsrIndex({
     violations,
     filters,
@@ -39,29 +51,92 @@ export default function LsrIndex({
     canClose,
 }: Props) {
     const [closeId, setCloseId] = useState<number | null>(null);
+    const [search, setSearch] = useState(filters.search);
+    const [status, setStatus] = useState(filters.status || ALL);
+    const [category, setCategory] = useState(filters.category || ALL);
 
-    function applyFilters(patch: Partial<Props['filters']>): void {
+    const queryParams = {
+        search: search || undefined,
+        status: status === ALL ? undefined : status,
+        category: category === ALL ? undefined : category,
+    };
+
+    function applyFilters(patch: Partial<typeof queryParams> = {}): void {
         router.get(
             '/lsr-violations',
-            {
-                search: patch.search ?? filters.search,
-                status: patch.status ?? filters.status,
-                category: patch.category ?? filters.category,
-            },
+            { ...queryParams, ...patch },
             { preserveState: true, replace: true },
         );
     }
 
+    const columns: SettingsColumn<LsrViolation>[] = [
+        {
+            key: 'category',
+            header: 'Category',
+            cell: (row) => (
+                <Link
+                    href={`/lsr-violations/${row.id}`}
+                    className="font-medium text-text hover:underline"
+                >
+                    {row.category_label}
+                </Link>
+            ),
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            cell: (row) => (
+                <StatusPill
+                    label={row.status_label}
+                    tone={row.status === 'closed' ? 'ok' : 'warn'}
+                />
+            ),
+        },
+        {
+            key: 'worker',
+            header: 'Worker',
+            cell: (row) => row.worker_label ?? '—',
+        },
+        {
+            key: 'occurred',
+            header: 'Occurred',
+            cell: (row) =>
+                row.occurred_at
+                    ? new Date(row.occurred_at).toLocaleString()
+                    : '—',
+        },
+        {
+            key: 'actions',
+            header: '',
+            className: 'w-32 text-right',
+            cell: (row) => (
+                <div className="flex justify-end gap-1">
+                    <Button asChild size="sm" variant="ghost">
+                        <Link href={`/lsr-violations/${row.id}`}>Open</Link>
+                    </Button>
+                    {canClose && row.status === 'open' && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setCloseId(row.id)}
+                        >
+                            Close
+                        </Button>
+                    )}
+                </div>
+            ),
+        },
+    ];
+
     return (
         <>
             <Head title="LSR Violations" />
-            <div className="space-y-6 p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="Life Saving Rules"
-                        description="All LSR rows are user-authored. Closing requires action taken."
-                    />
-                    <div className="flex gap-2">
+            <SettingsPageShell
+                title="Life Saving Rules"
+                description="All LSR rows are user-authored. Closing requires action taken."
+                actions={
+                    <>
                         <Button asChild variant="outline">
                             <Link href="/lsr-violations/summary">Summary</Link>
                         </Button>
@@ -72,131 +147,110 @@ export default function LsrIndex({
                                 </Link>
                             </Button>
                         )}
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant={filters.status === '' ? 'default' : 'outline'}
-                        onClick={() => applyFilters({ status: '' })}
-                    >
-                        All
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant={
-                            filters.status === 'open' ? 'default' : 'outline'
-                        }
-                        onClick={() => applyFilters({ status: 'open' })}
-                    >
-                        Open
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant={
-                            filters.status === 'closed' ? 'default' : 'outline'
-                        }
-                        onClick={() => applyFilters({ status: 'closed' })}
-                    >
-                        Closed
-                    </Button>
-                </div>
-
-                <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/40 text-left">
-                            <tr>
-                                <th className="px-3 py-2">Category</th>
-                                <th className="px-3 py-2">Status</th>
-                                <th className="px-3 py-2">Worker</th>
-                                <th className="px-3 py-2">Occurred</th>
-                                <th className="px-3 py-2" />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {violations.data.map((row) => (
-                                <tr
-                                    key={row.id}
-                                    className="border-t border-border"
+                    </>
+                }
+                filters={
+                    <>
+                        <Input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Search description…"
+                            className="w-full sm:w-56"
+                            aria-label="Search LSR"
+                        />
+                        <div className="flex gap-1.5">
+                            {(
+                                [
+                                    ['all', 'All'],
+                                    ['open', 'Open'],
+                                    ['closed', 'Closed'],
+                                ] as const
+                            ).map(([value, label]) => (
+                                <Button
+                                    key={value}
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        status === value ? 'default' : 'outline'
+                                    }
+                                    onClick={() => {
+                                        setStatus(value);
+                                        applyFilters({
+                                            status:
+                                                value === ALL
+                                                    ? undefined
+                                                    : value,
+                                        });
+                                    }}
                                 >
-                                    <td className="px-3 py-2">
-                                        {row.category_label}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {row.status_label}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {row.worker_label ?? '—'}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {row.occurred_at}
-                                    </td>
-                                    <td className="px-3 py-2 text-right">
-                                        <div className="flex justify-end gap-1">
-                                            <Button
-                                                asChild
-                                                size="sm"
-                                                variant="ghost"
-                                            >
-                                                <Link
-                                                    href={`/lsr-violations/${row.id}`}
-                                                >
-                                                    Open
-                                                </Link>
-                                            </Button>
-                                            {canClose &&
-                                                row.status === 'open' && (
-                                                    <Button
-                                                        type="button"
-                                                        size="sm"
-                                                        variant="secondary"
-                                                        onClick={() =>
-                                                            setCloseId(row.id)
-                                                        }
-                                                    >
-                                                        Close
-                                                    </Button>
-                                                )}
-                                        </div>
-                                    </td>
-                                </tr>
+                                    {label}
+                                </Button>
                             ))}
-                            {violations.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={5}
-                                        className="px-3 py-8 text-center text-muted-foreground"
-                                    >
-                                        No LSR entries.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                    <Pagination
-                        meta={violations.meta}
-                        pageUrl="/lsr-violations"
-                        params={filters}
-                    />
-                </div>
-
-                {closeId !== null && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                        <Form
-                            action={`/lsr-violations/${closeId}/close`}
-                            method="post"
-                            className="w-full max-w-md space-y-3 rounded-lg border border-border bg-background p-4"
-                            onSuccess={() => setCloseId(null)}
+                        </div>
+                        <Select value={category} onValueChange={setCategory}>
+                            <SelectTrigger className="w-48">
+                                <SelectValue placeholder="Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All categories
+                                    </SelectItem>
+                                    {categoryOptions.map((option) => (
+                                        <SelectItem
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => applyFilters()}
                         >
-                            {({ processing, errors }) => (
-                                <>
-                                    <h3 className="font-medium">
-                                        Close LSR #{closeId}
-                                    </h3>
+                            Apply
+                        </Button>
+                    </>
+                }
+            >
+                <SettingsDataTable
+                    columns={columns}
+                    rows={violations.data}
+                    rowKey={(row) => row.id}
+                    meta={violations.meta}
+                    pageUrl="/lsr-violations"
+                    queryParams={queryParams}
+                    emptyTitle="No LSR entries"
+                    emptyDescription="No LSR entries match these filters."
+                />
+            </SettingsPageShell>
+
+            <Dialog
+                open={closeId !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setCloseId(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Close LSR #{closeId}</DialogTitle>
+                    </DialogHeader>
+                    <Form
+                        action={`/lsr-violations/${closeId}/close`}
+                        method="post"
+                        className="flex flex-col gap-4"
+                        options={{ preserveScroll: true }}
+                        onSuccess={() => setCloseId(null)}
+                    >
+                        {({ processing, errors }) => (
+                            <>
+                                <div className="flex flex-col gap-2">
                                     <Label htmlFor="action_taken">
                                         Action taken (required)
                                     </Label>
@@ -211,29 +265,28 @@ export default function LsrIndex({
                                             {errors.action_taken}
                                         </p>
                                     )}
-                                    <div className="flex justify-end gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setCloseId(null)}
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            Close
-                                        </Button>
-                                    </div>
-                                </>
-                            )}
-                        </Form>
-                    </div>
-                )}
-
-                {categoryOptions.length === 0 && null}
-            </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setCloseId(null)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={processing}>
+                                        Close
+                                    </Button>
+                                </DialogFooter>
+                            </>
+                        )}
+                    </Form>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
+
+LsrIndex.layout = {
+    breadcrumbs: [{ title: 'LSR', href: '/lsr-violations' }],
+};

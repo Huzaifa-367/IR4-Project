@@ -106,9 +106,9 @@
     --text: #0f1722;
     --text-dim: #5b6b7c;
     --text-faint: #8a97a6;
-    --accent: #38bdf8;
-    --accent-dim: #38bdf833;
-    --accent-strong: #0ea5e9;
+    --accent: #6366f1;
+    --accent-dim: #6366f133;
+    --accent-strong: #4f46e5;
     --ok: #34d399;
     --ok-bg: #34d39918;
     --warn: #f5a524;
@@ -116,7 +116,7 @@
     --crit: #f0506e;
     --crit-bg: #f0506e18;
     --info: #8b93a7;
-    --viz-1: #38bdf8;
+    --viz-1: #6366f1;
     --viz-2: #a78bfa;
     --viz-3: #34d399;
     --viz-4: #f5a524;
@@ -150,8 +150,8 @@
     --secondary-foreground: var(--text);
     --muted: var(--surface-2);
     --muted-foreground: var(--text-dim);
-    /* brand --accent stays as cyan; shadcn accent utilities resolve via @theme */
-    --accent-foreground: #0a0e14;
+    /* brand --accent is indigo (Command Indigo); shadcn accent utilities resolve via @theme */
+    --accent-foreground: #ffffff;
     --destructive: var(--crit);
     --destructive-foreground: #ffffff;
     --success: var(--ok);
@@ -190,9 +190,9 @@
     --text: #e8eef5;
     --text-dim: #93a1b2;
     --text-faint: #5e6b7a;
-    --accent: #38bdf8;
-    --accent-dim: #38bdf833;
-    --accent-strong: #0ea5e9;
+    --accent: #6366f1;
+    --accent-dim: #6366f133;
+    --accent-strong: #4f46e5;
     --ok: #34d399;
     --ok-bg: #34d39918;
     --warn: #f5a524;
@@ -200,7 +200,7 @@
     --crit: #f0506e;
     --crit-bg: #f0506e18;
     --info: #8b93a7;
-    --viz-1: #38bdf8;
+    --viz-1: #6366f1;
     --viz-2: #a78bfa;
     --viz-3: #34d399;
     --viz-4: #f5a524;
@@ -219,12 +219,12 @@
     --popover: var(--surface-2);
     --popover-foreground: var(--text);
     --primary: var(--accent);
-    --primary-foreground: #0a0e14;
+    --primary-foreground: #ffffff;
     --secondary: var(--surface-2);
     --secondary-foreground: var(--text);
     --muted: var(--surface-2);
     --muted-foreground: var(--text-dim);
-    --accent-foreground: #0a0e14;
+    --accent-foreground: #ffffff;
     --destructive: var(--crit);
     --destructive-foreground: #ffffff;
     --success: var(--ok);
@@ -240,7 +240,7 @@
     --sidebar: var(--surface);
     --sidebar-foreground: var(--text);
     --sidebar-primary: var(--accent);
-    --sidebar-primary-foreground: #0a0e14;
+    --sidebar-primary-foreground: #ffffff;
     --sidebar-accent: var(--accent-dim);
     --sidebar-accent-foreground: var(--accent);
     --sidebar-border: var(--border);
@@ -288,7 +288,9 @@
     }
     40% {
         border-color: var(--crit);
-        box-shadow: 0 0 0 1px var(--crit), var(--shadow-card);
+        box-shadow:
+            0 0 0 1px var(--crit),
+            var(--shadow-card);
     }
 }
 

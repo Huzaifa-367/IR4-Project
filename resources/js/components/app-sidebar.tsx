@@ -1,8 +1,11 @@
 import { Link } from '@inertiajs/react';
 import {
+    AlertTriangle,
+    ArrowRightLeft,
     Bell,
     Boxes,
     Camera,
+    Car,
     ClipboardList,
     CloudSun,
     Cpu,
@@ -18,6 +21,10 @@ import {
     Shield,
     ShieldAlert,
     Siren,
+    SlidersHorizontal,
+    Smartphone,
+    Tag,
+    TrendingUp,
     UserCog,
     Users,
     Video,
@@ -76,11 +83,11 @@ export function AppSidebar() {
             : []),
     ];
 
-    const tracking: NavItem[] = [
+    const trackingChildren: NavItem[] = [
         ...(can('view-tracking')
             ? [
                   {
-                      title: 'Tracking',
+                      title: 'Overview',
                       href: '/tracking',
                       icon: Radio,
                   } satisfies NavItem,
@@ -88,6 +95,29 @@ export function AppSidebar() {
                       title: 'Workers',
                       href: '/tracking/workers',
                       icon: Users,
+                  } satisfies NavItem,
+                  {
+                      title: 'Tags',
+                      href: '/tracking/tags',
+                      icon: Tag,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('manage-portable-devices')
+            ? [
+                  {
+                      title: 'Portable Devices',
+                      href: '/tracking/portable-devices',
+                      icon: Smartphone,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('view-entry-exit')
+            ? [
+                  {
+                      title: 'Entry / Exit',
+                      href: '/tracking/entry-exit',
+                      icon: ArrowRightLeft,
                   } satisfies NavItem,
               ]
             : []),
@@ -116,6 +146,18 @@ export function AppSidebar() {
             : []),
     ];
 
+    const tracking: NavItem[] =
+        trackingChildren.length > 0
+            ? [
+                  {
+                      title: 'Tracking',
+                      href: '/tracking',
+                      icon: Radio,
+                      items: trackingChildren,
+                  },
+              ]
+            : [];
+
     const safety: NavItem[] = [
         ...(can('view-ppe')
             ? [
@@ -123,6 +165,18 @@ export function AppSidebar() {
                       title: 'PPE',
                       href: '/ppe/violations',
                       icon: Shield,
+                      items: [
+                          {
+                              title: 'Violations',
+                              href: '/ppe/violations',
+                              icon: Shield,
+                          },
+                          {
+                              title: 'Trends',
+                              href: '/ppe/trends',
+                              icon: TrendingUp,
+                          },
+                      ],
                   } satisfies NavItem,
               ]
             : []),
@@ -132,6 +186,24 @@ export function AppSidebar() {
                       title: 'Gas & CO₂',
                       href: '/gas',
                       icon: Wind,
+                      items: [
+                          { title: 'Dashboard', href: '/gas', icon: Wind },
+                          {
+                              title: 'Alarms',
+                              href: '/gas/alarms',
+                              icon: AlertTriangle,
+                          },
+                          {
+                              title: 'Trends',
+                              href: '/gas/trends',
+                              icon: TrendingUp,
+                          },
+                          {
+                              title: 'Thresholds',
+                              href: '/gas/thresholds',
+                              icon: SlidersHorizontal,
+                          },
+                      ],
                   } satisfies NavItem,
               ]
             : []),
@@ -156,26 +228,64 @@ export function AppSidebar() {
         ...(can('view-equipment')
             ? [
                   {
-                      title: 'Equipment Items',
+                      title: 'Equipment',
                       href: '/equipment',
                       icon: Package,
+                      items: [
+                          {
+                              title: 'Items',
+                              href: '/equipment',
+                              icon: Package,
+                          },
+                          {
+                              title: 'Checkouts',
+                              href: '/equipment/checkouts',
+                              icon: ClipboardList,
+                          },
+                      ],
                   } satisfies NavItem,
+              ]
+            : []),
+    ];
+
+    const reportsChildren: NavItem[] = [
+        ...(can('view-reports')
+            ? [
                   {
-                      title: 'Checkouts',
-                      href: '/equipment/checkouts',
-                      icon: ClipboardList,
+                      title: 'Weekly Reports',
+                      href: '/reports',
+                      icon: FileBarChart,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('log-vehicle-violations')
+            ? [
+                  {
+                      title: 'Vehicle Violations',
+                      href: '/reports/vehicle-violations',
+                      icon: Car,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('manage-settings')
+            ? [
+                  {
+                      title: 'Report Settings',
+                      href: '/reports/settings',
+                      icon: Settings2,
                   } satisfies NavItem,
               ]
             : []),
     ];
 
     const operations: NavItem[] = [
-        ...(can('view-reports')
+        ...(reportsChildren.length > 0
             ? [
                   {
                       title: 'Reports',
                       href: '/reports',
                       icon: FileBarChart,
+                      items: reportsChildren,
                   } satisfies NavItem,
               ]
             : []),

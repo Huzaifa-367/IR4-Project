@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\TagStatus;
 use App\Enums\WorkerType;
 use App\Models\Concerns\HasCreatedBy;
 use Database\Factories\WorkerFactory;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
@@ -90,5 +92,53 @@ final class Worker extends Model
     public function lsrViolations(): HasMany
     {
         return $this->hasMany(LsrViolation::class);
+    }
+
+    /**
+     * @return HasMany<RfidTag, $this>
+     */
+    public function tags(): HasMany
+    {
+        return $this->hasMany(RfidTag::class);
+    }
+
+    /**
+     * @return HasOne<RfidTag, $this>
+     */
+    public function activeTag(): HasOne
+    {
+        return $this->hasOne(RfidTag::class)->where('status', TagStatus::Assigned);
+    }
+
+    /**
+     * @return HasOne<WorkerPosition, $this>
+     */
+    public function position(): HasOne
+    {
+        return $this->hasOne(WorkerPosition::class);
+    }
+
+    /**
+     * @return HasMany<EntryExitLog, $this>
+     */
+    public function entryExitLogs(): HasMany
+    {
+        return $this->hasMany(EntryExitLog::class);
+    }
+
+    /**
+     * @return HasMany<PortableDevice, $this>
+     */
+    public function portableDevices(): HasMany
+    {
+        return $this->hasMany(PortableDevice::class);
+    }
+
+    /**
+     * @return HasMany<EvacuationReportEntry, $this>
+     */
+    public function evacuationEntries(): HasMany
+    {
+        return $this->hasMany(EvacuationReportEntry::class);
     }
 }

@@ -1,12 +1,23 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { Download, Search } from 'lucide-react';
-import Heading from '@/components/heading';
+import { useState } from 'react';
 import { AuditDiff } from '@/components/ir4/audit-diff';
 import { AuditEventBadge } from '@/components/ir4/audit-event-badge';
+import { Pagination } from '@/components/ir4/pagination';
 import { RequirePermission } from '@/components/ir4/require-permission';
+import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import type { AuditEvent, AuditLog } from '@/types/audit';
+import type { PaginatedMeta } from '@/types/hardware';
 
 type FilterValues = {
     event?: string;
@@ -18,30 +29,14 @@ type FilterValues = {
 };
 
 type Props = {
-    auditLogs: {
-        data: AuditLog[];
-        meta: { current_page: number; last_page: number; total: number };
-    };
+    auditLogs: { data: AuditLog[]; meta: PaginatedMeta };
     filters: FilterValues;
     events: { value: AuditEvent; label: string }[];
     users: { id: number; name: string }[];
     models: { value: string; label: string }[];
 };
 
-const selectClassName =
-    'h-9 rounded-md border border-input bg-background px-3 text-sm';
-
-function buildPageUrl(filters: FilterValues, page: number): string {
-    const parameters: URLSearchParams = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]: [string, string?]) => {
-        if (value) {
-            parameters.set(key, value);
-        }
-    });
-    parameters.set('page', String(page));
-
-    return `/settings/audit-log?${parameters.toString()}`;
-}
+const ALL = 'all';
 
 export default function AuditLogIndex({
     auditLogs,
@@ -50,186 +45,245 @@ export default function AuditLogIndex({
     users,
     models,
 }: Props) {
-    const exportQuery: string = new URLSearchParams(
-        Object.entries(filters).filter(
-            (entry: [string, string?]): entry is [string, string] =>
-                Boolean(entry[1]),
+    const [search, setSearch] = useState(filters.search ?? '');
+    const [event, setEvent] = useState(filters.event || ALL);
+    const [userId, setUserId] = useState(filters.user_id || ALL);
+    const [auditableType, setAuditableType] = useState(
+        filters.auditable_type || ALL,
+    );
+    const [from, setFrom] = useState(filters.from ?? '');
+    const [to, setTo] = useState(filters.to ?? '');
+
+    const queryParams = {
+        search: search || undefined,
+        event: event === ALL ? undefined : event,
+        user_id: userId === ALL ? undefined : userId,
+        auditable_type: auditableType === ALL ? undefined : auditableType,
+        from: from || undefined,
+        to: to || undefined,
+    };
+
+    function applyFilters(): void {
+        router.get('/settings/audit-log', queryParams, {
+            preserveState: true,
+            replace: true,
+        });
+    }
+
+    const exportQuery = new URLSearchParams(
+        Object.entries(queryParams).filter((entry): entry is [string, string] =>
+            Boolean(entry[1]),
         ),
     ).toString();
 
     return (
         <RequirePermission permission="view-audit-log">
             <Head title="Audit log" />
-            <div className="space-y-6 p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="Audit log"
-                        description={`${auditLogs.meta.total} append-only events. Sensitive values are masked before persistence.`}
-                    />
+            <SettingsPageShell
+                title="Audit Log"
+                description={`${auditLogs.meta.total} append-only events. Sensitive values are masked before persistence.`}
+                actions={
                     <Button asChild variant="outline">
                         <a href={`/settings/audit-log/export?${exportQuery}`}>
                             <Download className="size-4" />
                             Export CSV
                         </a>
                     </Button>
-                </div>
-                <form
-                    method="get"
-                    className="grid gap-3 rounded-xl border border-border bg-card p-4 md:grid-cols-3 xl:grid-cols-7"
-                >
-                    <Input
-                        name="search"
-                        defaultValue={filters.search}
-                        placeholder="Description"
-                    />
-                    <select
-                        name="event"
-                        defaultValue={filters.event ?? ''}
-                        className={selectClassName}
-                    >
-                        <option value="">All events</option>
-                        {events.map((event) => (
-                            <option key={event.value} value={event.value}>
-                                {event.label}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        name="user_id"
-                        defaultValue={filters.user_id ?? ''}
-                        className={selectClassName}
-                    >
-                        <option value="">All users</option>
-                        {users.map((user) => (
-                            <option key={user.id} value={user.id}>
-                                {user.name}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        name="auditable_type"
-                        defaultValue={filters.auditable_type ?? ''}
-                        className={selectClassName}
-                    >
-                        <option value="">All models</option>
-                        {models.map((model) => (
-                            <option key={model.value} value={model.value}>
-                                {model.label}
-                            </option>
-                        ))}
-                    </select>
-                    <Input type="date" name="from" defaultValue={filters.from} />
-                    <Input type="date" name="to" defaultValue={filters.to} />
-                    <Button type="submit">
-                        <Search className="size-4" />
-                        Filter
-                    </Button>
-                </form>
-                <div className="overflow-x-auto rounded-xl border border-border bg-card">
-                    <table className="w-full min-w-[900px] text-sm">
-                        <thead className="bg-muted/40 text-left">
-                            <tr>
-                                <th className="px-4 py-3 font-medium">Time</th>
-                                <th className="px-4 py-3 font-medium">Event</th>
-                                <th className="px-4 py-3 font-medium">Actor</th>
-                                <th className="px-4 py-3 font-medium">Subject</th>
-                                <th className="px-4 py-3 font-medium">
-                                    Description
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Details
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {auditLogs.data.map((log: AuditLog) => (
-                                <tr
-                                    key={log.id}
-                                    className="border-t border-border align-top"
-                                >
-                                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
-                                        {new Date(
-                                            log.occurred_at,
-                                        ).toLocaleString()}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <AuditEventBadge event={log.event} />
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {log.user?.name ?? 'System'}
-                                    </td>
-                                    <td className="px-4 py-3 font-mono text-xs">
-                                        {log.auditable_label
-                                            ? `${log.auditable_label} #${log.auditable_id}`
-                                            : '—'}
-                                    </td>
-                                    <td className="max-w-sm px-4 py-3">
-                                        {log.description ?? '—'}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <details className="min-w-80">
-                                            <summary className="cursor-pointer text-xs text-cyan-300">
-                                                View diff and request
-                                            </summary>
-                                            <div className="mt-3 space-y-3">
-                                                <AuditDiff
-                                                    oldValues={log.old_values}
-                                                    newValues={log.new_values}
-                                                />
-                                                <p className="text-xs text-muted-foreground">
-                                                    IP: {log.ip_address ?? '—'} ·
-                                                    Route: {log.route ?? '—'}
-                                                </p>
-                                                <p className="max-w-xl break-all text-xs text-muted-foreground">
-                                                    {log.user_agent ?? '—'}
-                                                </p>
-                                            </div>
-                                        </details>
-                                    </td>
+                }
+                filters={
+                    <>
+                        <Input
+                            value={search}
+                            onChange={(event_) =>
+                                setSearch(event_.target.value)
+                            }
+                            placeholder="Description"
+                            className="w-full sm:w-52"
+                            aria-label="Search description"
+                        />
+                        <Select value={event} onValueChange={setEvent}>
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Event" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All events
+                                    </SelectItem>
+                                    {events.map((option) => (
+                                        <SelectItem
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Select value={userId} onValueChange={setUserId}>
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="User" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All users
+                                    </SelectItem>
+                                    {users.map((user) => (
+                                        <SelectItem
+                                            key={user.id}
+                                            value={String(user.id)}
+                                        >
+                                            {user.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Select
+                            value={auditableType}
+                            onValueChange={setAuditableType}
+                        >
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All models
+                                    </SelectItem>
+                                    {models.map((model) => (
+                                        <SelectItem
+                                            key={model.value}
+                                            value={model.value}
+                                        >
+                                            {model.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Input
+                            type="date"
+                            value={from}
+                            onChange={(event_) => setFrom(event_.target.value)}
+                            className="w-36"
+                            aria-label="From date"
+                        />
+                        <Input
+                            type="date"
+                            value={to}
+                            onChange={(event_) => setTo(event_.target.value)}
+                            className="w-36"
+                            aria-label="To date"
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={applyFilters}
+                        >
+                            <Search className="size-4" />
+                            Apply
+                        </Button>
+                    </>
+                }
+            >
+                <div className="overflow-hidden rounded-[var(--radius-sm)] border border-border bg-surface shadow-[var(--shadow-card)]">
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[900px] text-sm">
+                            <thead className="bg-surface-2 text-left">
+                                <tr>
+                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
+                                        Time
+                                    </th>
+                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
+                                        Event
+                                    </th>
+                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
+                                        Actor
+                                    </th>
+                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
+                                        Subject
+                                    </th>
+                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
+                                        Description
+                                    </th>
+                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
+                                        Details
+                                    </th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {auditLogs.data.map((log: AuditLog) => (
+                                    <tr
+                                        key={log.id}
+                                        className="border-t border-border align-top"
+                                    >
+                                        <td className="px-4 py-3 text-xs whitespace-nowrap text-text-faint">
+                                            {new Date(
+                                                log.occurred_at,
+                                            ).toLocaleString()}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <AuditEventBadge
+                                                event={log.event}
+                                            />
+                                        </td>
+                                        <td className="px-4 py-3 text-text-dim">
+                                            {log.user?.name ?? 'System'}
+                                        </td>
+                                        <td className="px-4 py-3 font-mono text-xs text-text-dim">
+                                            {log.auditable_label
+                                                ? `${log.auditable_label} #${log.auditable_id}`
+                                                : '—'}
+                                        </td>
+                                        <td className="max-w-sm px-4 py-3 text-text-dim">
+                                            {log.description ?? '—'}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <details className="min-w-80">
+                                                <summary className="cursor-pointer text-xs text-[color:var(--accent)]">
+                                                    View diff and request
+                                                </summary>
+                                                <div className="mt-3 space-y-3">
+                                                    <AuditDiff
+                                                        oldValues={
+                                                            log.old_values
+                                                        }
+                                                        newValues={
+                                                            log.new_values
+                                                        }
+                                                    />
+                                                    <p className="text-xs text-text-faint">
+                                                        IP:{' '}
+                                                        {log.ip_address ?? '—'}{' '}
+                                                        · Route:{' '}
+                                                        {log.route ?? '—'}
+                                                    </p>
+                                                    <p className="max-w-xl text-xs break-all text-text-faint">
+                                                        {log.user_agent ?? '—'}
+                                                    </p>
+                                                </div>
+                                            </details>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                     {auditLogs.data.length === 0 && (
-                        <p className="p-8 text-center text-sm text-muted-foreground">
+                        <p className="p-8 text-center text-sm text-text-faint">
                             No audit events match these filters.
                         </p>
                     )}
+                    <Pagination
+                        meta={auditLogs.meta}
+                        pageUrl="/settings/audit-log"
+                        params={queryParams}
+                    />
                 </div>
-                <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                        Page {auditLogs.meta.current_page} of{' '}
-                        {auditLogs.meta.last_page}
-                    </p>
-                    <div className="flex gap-2">
-                        {auditLogs.meta.current_page > 1 && (
-                            <Button asChild variant="outline" size="sm">
-                                <Link
-                                    href={buildPageUrl(
-                                        filters,
-                                        auditLogs.meta.current_page - 1,
-                                    )}
-                                >
-                                    Previous
-                                </Link>
-                            </Button>
-                        )}
-                        {auditLogs.meta.current_page <
-                            auditLogs.meta.last_page && (
-                            <Button asChild variant="outline" size="sm">
-                                <Link
-                                    href={buildPageUrl(
-                                        filters,
-                                        auditLogs.meta.current_page + 1,
-                                    )}
-                                >
-                                    Next
-                                </Link>
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            </div>
+            </SettingsPageShell>
         </RequirePermission>
     );
 }

@@ -1,7 +1,23 @@
-import { Form, Head, Link, router } from '@inertiajs/react';
-import Heading from '@/components/heading';
-import { Pagination } from '@/components/ir4/pagination';
+import { Head, Link, router } from '@inertiajs/react';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
+import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
+import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import type { PaginatedMeta } from '@/types/hardware';
 
 type LogRow = {
     id: number;
@@ -15,14 +31,13 @@ type LogRow = {
 };
 
 type Props = {
-    logs: {
-        data: LogRow[];
-        meta: { current_page: number; last_page: number; total: number };
-    };
+    logs: { data: LogRow[]; meta: PaginatedMeta };
     filters: { direction: string; source: string; worker_id: string };
     workers: Array<{ id: number; name: string }>;
     canCorrect: boolean;
 };
+
+const ALL = 'all';
 
 export default function EntryExitIndex({
     logs,
@@ -30,154 +45,266 @@ export default function EntryExitIndex({
     workers,
     canCorrect,
 }: Props) {
+    const [direction, setDirection] = useState(filters.direction || ALL);
+    const [source, setSource] = useState(filters.source || ALL);
+    const [workerId, setWorkerId] = useState(filters.worker_id || ALL);
+    const [correctionOpen, setCorrectionOpen] = useState(false);
+    const [correctionDirection, setCorrectionDirection] = useState('in');
+    const [correctionWorker, setCorrectionWorker] = useState('');
+
+    const queryParams = {
+        direction: direction === ALL ? undefined : direction,
+        source: source === ALL ? undefined : source,
+        worker_id: workerId === ALL ? undefined : workerId,
+    };
+
+    function applyFilters(): void {
+        router.get('/tracking/entry-exit', queryParams, {
+            preserveState: true,
+            replace: true,
+        });
+    }
+
+    const columns: SettingsColumn<LogRow>[] = [
+        {
+            key: 'when',
+            header: 'When',
+            cell: (row) => new Date(row.occurred_at).toLocaleString(),
+        },
+        { key: 'worker', header: 'Worker', cell: (row) => row.worker_name },
+        {
+            key: 'direction',
+            header: 'Direction',
+            cell: (row) => (
+                <StatusPill
+                    label={row.direction === 'in' ? 'In' : 'Out'}
+                    tone={row.direction === 'in' ? 'ok' : 'neutral'}
+                />
+            ),
+        },
+        {
+            key: 'source',
+            header: 'Source',
+            cell: (row) =>
+                row.source === 'gate_reader'
+                    ? 'Gate'
+                    : row.source === 'manual_correction'
+                      ? 'Manual'
+                      : 'Auto sweep',
+        },
+        {
+            key: 'note',
+            header: 'Note',
+            cell: (row) => row.correction_note ?? '—',
+        },
+    ];
+
     return (
         <>
             <Head title="Entry / exit" />
-            <div className="space-y-6 p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="Entry / exit"
-                        description="Gate and correction history"
-                    />
-                    <Button asChild variant="secondary" size="sm">
-                        <a href="/tracking/entry-exit/export">CSV export</a>
-                    </Button>
-                </div>
-
-                <form
-                    className="flex flex-wrap gap-2"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        const form = new FormData(event.currentTarget);
-                        router.get(
-                            '/tracking/entry-exit',
-                            {
-                                direction: String(form.get('direction') ?? ''),
-                                source: String(form.get('source') ?? ''),
-                                worker_id: String(form.get('worker_id') ?? ''),
-                            },
-                            { preserveState: true, replace: true },
-                        );
-                    }}
-                >
-                    <select
-                        name="direction"
-                        defaultValue={filters.direction}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                        <option value="">All directions</option>
-                        <option value="in">In</option>
-                        <option value="out">Out</option>
-                    </select>
-                    <select
-                        name="source"
-                        defaultValue={filters.source}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                        <option value="">All sources</option>
-                        <option value="gate_reader">Gate</option>
-                        <option value="manual_correction">Manual</option>
-                        <option value="auto_sweep">Auto sweep</option>
-                    </select>
-                    <Button type="submit" variant="secondary">
-                        Filter
-                    </Button>
-                </form>
-
-                {canCorrect && (
-                    <Form
-                        action="/tracking/entry-exit/corrections"
-                        method="post"
-                        className="grid gap-2 rounded-lg border border-border p-4 md:grid-cols-4"
-                    >
-                        {({ processing }) => (
-                            <>
-                                <select
-                                    name="worker_id"
-                                    required
-                                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                                >
-                                    <option value="">Worker</option>
-                                    {workers.map((w) => (
-                                        <option key={w.id} value={w.id}>
-                                            {w.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <select
-                                    name="direction"
-                                    required
-                                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                                >
-                                    <option value="in">In</option>
-                                    <option value="out">Out</option>
-                                </select>
-                                <input
-                                    type="datetime-local"
-                                    name="occurred_at"
-                                    required
-                                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                                />
-                                <input
-                                    name="note"
-                                    required
-                                    minLength={10}
-                                    placeholder="Correction note (≥10)"
-                                    className="h-10 rounded-md border border-input bg-background px-3 text-sm md:col-span-3"
-                                />
-                                <Button type="submit" disabled={processing}>
-                                    Add correction
-                                </Button>
-                            </>
+            <SettingsPageShell
+                title="Entry / Exit"
+                description="Gate and correction history"
+                actions={
+                    <>
+                        {canCorrect && (
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    setCorrectionDirection('in');
+                                    setCorrectionWorker('');
+                                    setCorrectionOpen(true);
+                                }}
+                            >
+                                <Plus data-icon="inline-start" />
+                                Add correction
+                            </Button>
                         )}
-                    </Form>
+                        <Button asChild variant="secondary" size="sm">
+                            <a href="/tracking/entry-exit/export">CSV export</a>
+                        </Button>
+                    </>
+                }
+                filters={
+                    <>
+                        <Select value={direction} onValueChange={setDirection}>
+                            <SelectTrigger className="w-36">
+                                <SelectValue placeholder="Direction" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All directions
+                                    </SelectItem>
+                                    <SelectItem value="in">In</SelectItem>
+                                    <SelectItem value="out">Out</SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Select value={source} onValueChange={setSource}>
+                            <SelectTrigger className="w-36">
+                                <SelectValue placeholder="Source" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All sources
+                                    </SelectItem>
+                                    <SelectItem value="gate_reader">
+                                        Gate
+                                    </SelectItem>
+                                    <SelectItem value="manual_correction">
+                                        Manual
+                                    </SelectItem>
+                                    <SelectItem value="auto_sweep">
+                                        Auto sweep
+                                    </SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Select value={workerId} onValueChange={setWorkerId}>
+                            <SelectTrigger className="w-48">
+                                <SelectValue placeholder="Worker" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All workers
+                                    </SelectItem>
+                                    {workers.map((w) => (
+                                        <SelectItem
+                                            key={w.id}
+                                            value={String(w.id)}
+                                        >
+                                            {w.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={applyFilters}
+                        >
+                            Apply
+                        </Button>
+                    </>
+                }
+            >
+                <SettingsDataTable
+                    columns={columns}
+                    rows={logs.data}
+                    rowKey={(row) => row.id}
+                    meta={logs.meta}
+                    pageUrl="/tracking/entry-exit"
+                    queryParams={queryParams}
+                    emptyTitle="No entry/exit logs"
+                    emptyDescription="No entry/exit logs match these filters."
+                />
+            </SettingsPageShell>
+
+            <Link
+                href="/tracking"
+                className="text-sm text-[color:var(--accent)] hover:underline"
+            >
+                Back to tracking
+            </Link>
+
+            <CrudFormDialog
+                open={correctionOpen}
+                onOpenChange={setCorrectionOpen}
+                title="Add entry/exit correction"
+                description="Creates a new manual_correction row; a gate-generated row is never edited."
+                action="/tracking/entry-exit/corrections"
+                method="post"
+                submitLabel="Add correction"
+                disableSubmit={!correctionWorker}
+                transform={(data) => ({
+                    ...data,
+                    worker_id: correctionWorker,
+                    direction: correctionDirection,
+                })}
+            >
+                {({ errors }) => (
+                    <>
+                        <div className="flex flex-col gap-2">
+                            <Label>Worker</Label>
+                            <Select
+                                value={correctionWorker}
+                                onValueChange={setCorrectionWorker}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Choose a worker…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        {workers.map((w) => (
+                                            <SelectItem
+                                                key={w.id}
+                                                value={String(w.id)}
+                                            >
+                                                {w.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label>Direction</Label>
+                            <Select
+                                value={correctionDirection}
+                                onValueChange={setCorrectionDirection}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectItem value="in">In</SelectItem>
+                                        <SelectItem value="out">Out</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="occurred_at">Occurred at</Label>
+                            <Input
+                                id="occurred_at"
+                                name="occurred_at"
+                                type="datetime-local"
+                                required
+                            />
+                            {errors.occurred_at ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.occurred_at}
+                                </p>
+                            ) : null}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="note">
+                                Correction note (min 10 characters)
+                            </Label>
+                            <Input
+                                id="note"
+                                name="note"
+                                required
+                                minLength={10}
+                            />
+                            {errors.note ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.note}
+                                </p>
+                            ) : null}
+                        </div>
+                    </>
                 )}
-
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50 text-left">
-                            <tr>
-                                <th className="px-3 py-2">When</th>
-                                <th className="px-3 py-2">Worker</th>
-                                <th className="px-3 py-2">Dir</th>
-                                <th className="px-3 py-2">Source</th>
-                                <th className="px-3 py-2">Note</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {logs.data.map((log) => (
-                                <tr
-                                    key={log.id}
-                                    className="border-t border-border"
-                                >
-                                    <td className="px-3 py-2 whitespace-nowrap">
-                                        {log.occurred_at}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {log.worker_name}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {log.direction}
-                                    </td>
-                                    <td className="px-3 py-2">{log.source}</td>
-                                    <td className="px-3 py-2">
-                                        {log.correction_note ?? '—'}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    <Pagination
-                        meta={logs.meta}
-                        pageUrl="/tracking/entry-exit"
-                        params={filters}
-                    />
-                </div>
-
-                <Link href="/tracking" className="text-sm underline">
-                    Back to tracking
-                </Link>
-            </div>
+            </CrudFormDialog>
         </>
     );
 }
+
+EntryExitIndex.layout = {
+    breadcrumbs: [{ title: 'Entry / Exit', href: '/tracking/entry-exit' }],
+};

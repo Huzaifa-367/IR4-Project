@@ -1,16 +1,27 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
-import { Pagination } from '@/components/ir4/pagination';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
+import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
+import { StatusPill } from '@/components/ir4/status-pill';
+import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { ViolationTypeLabels } from '@/types/enums';
+import type { PaginatedMeta } from '@/types/hardware';
 import type { PpeViolation } from '@/types/ppe';
 
 type Props = {
-    violations: {
-        data: PpeViolation[];
-        meta: { current_page: number; last_page: number; total: number };
-    };
+    violations: { data: PpeViolation[]; meta: PaginatedMeta };
     filters: {
         violation_type: string;
         camera_id: string;
@@ -27,6 +38,14 @@ type Props = {
     canExport: boolean;
 };
 
+const ALL = 'all';
+
+const REVIEW_TONE: Record<string, StatusPillTone> = {
+    unreviewed: 'warn',
+    confirmed: 'crit',
+    false_positive: 'neutral',
+};
+
 export default function PpeViolationsIndex({
     violations,
     filters,
@@ -37,6 +56,15 @@ export default function PpeViolationsIndex({
     canExport,
 }: Props) {
     const [selected, setSelected] = useState<number[]>([]);
+    const [violationType, setViolationType] = useState(
+        filters.violation_type || ALL,
+    );
+    const [cameraId, setCameraId] = useState(filters.camera_id || ALL);
+    const [reviewStatus, setReviewStatus] = useState(
+        filters.review_status || ALL,
+    );
+    const [from, setFrom] = useState(filters.from);
+    const [to, setTo] = useState(filters.to);
 
     const toggle = (id: number): void => {
         setSelected((prev) =>
@@ -44,16 +72,126 @@ export default function PpeViolationsIndex({
         );
     };
 
+    const queryParams = {
+        violation_type: violationType === ALL ? undefined : violationType,
+        camera_id: cameraId === ALL ? undefined : cameraId,
+        review_status: reviewStatus === ALL ? undefined : reviewStatus,
+        from: from || undefined,
+        to: to || undefined,
+    };
+
+    function applyFilters(): void {
+        router.get('/ppe/violations', queryParams, {
+            preserveState: true,
+            replace: true,
+        });
+    }
+
+    function exportCsv(): void {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/ppe/violations/export';
+        const token = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
+        form.innerHTML = `
+            <input name="_token" value="${token ?? ''}" />
+            <input name="format" value="csv" />
+            <input name="from" value="${from || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)}" />
+            <input name="to" value="${to || new Date().toISOString().slice(0, 10)}" />
+        `;
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
+    }
+
+    const columns: SettingsColumn<PpeViolation>[] = [
+        ...(canReview
+            ? [
+                  {
+                      key: 'select',
+                      header: (
+                          <Checkbox
+                              checked={
+                                  violations.data.length > 0 &&
+                                  selected.length === violations.data.length
+                              }
+                              onCheckedChange={() =>
+                                  setSelected(
+                                      selected.length === violations.data.length
+                                          ? []
+                                          : violations.data.map((v) => v.id),
+                                  )
+                              }
+                              aria-label="Select all"
+                          />
+                      ),
+                      className: 'w-8',
+                      cell: (row: PpeViolation) => (
+                          <Checkbox
+                              checked={selected.includes(row.id)}
+                              onCheckedChange={() => toggle(row.id)}
+                              aria-label={`Select violation ${row.id}`}
+                          />
+                      ),
+                  } satisfies SettingsColumn<PpeViolation>,
+              ]
+            : []),
+        {
+            key: 'snapshot',
+            header: 'Snapshot',
+            cell: (row) => (
+                <img
+                    src={row.snapshot_url}
+                    alt=""
+                    className="h-12 w-16 rounded-[var(--radius-sm)] object-cover"
+                />
+            ),
+        },
+        {
+            key: 'type',
+            header: 'Type',
+            cell: (row) =>
+                ViolationTypeLabels[
+                    row.violation_type as keyof typeof ViolationTypeLabels
+                ] ?? row.violation_type,
+        },
+        { key: 'camera', header: 'Camera', cell: (row) => row.camera_ref },
+        {
+            key: 'detected',
+            header: 'Detected',
+            cell: (row) => new Date(row.detected_at).toLocaleString(),
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            cell: (row) => (
+                <StatusPill
+                    label={row.review_status.replace('_', ' ')}
+                    tone={REVIEW_TONE[row.review_status] ?? 'neutral'}
+                />
+            ),
+        },
+        {
+            key: 'actions',
+            header: '',
+            className: 'w-20 text-right',
+            cell: (row) => (
+                <Button asChild size="sm" variant="ghost">
+                    <Link href={`/ppe/violations/${row.id}`}>Open</Link>
+                </Button>
+            ),
+        },
+    ];
+
     return (
         <>
             <Head title="PPE Violations" />
-            <div className="space-y-6 p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="PPE violations"
-                        description={`${violations.meta.total} records`}
-                    />
-                    <div className="flex gap-2">
+            <SettingsPageShell
+                title="PPE Violations"
+                description={`${violations.meta.total} records`}
+                actions={
+                    <>
                         <Button asChild variant="secondary" size="sm">
                             <Link href="/ppe/trends">Trends</Link>
                         </Button>
@@ -62,110 +200,107 @@ export default function PpeViolationsIndex({
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                    const form = document.createElement('form');
-                                    form.method = 'POST';
-                                    form.action = '/ppe/violations/export';
-                                    const token = document
-                                        .querySelector(
-                                            'meta[name="csrf-token"]',
-                                        )
-                                        ?.getAttribute('content');
-                                    form.innerHTML = `
-                                        <input name="_token" value="${token ?? ''}" />
-                                        <input name="format" value="csv" />
-                                        <input name="from" value="${filters.from || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)}" />
-                                        <input name="to" value="${filters.to || new Date().toISOString().slice(0, 10)}" />
-                                    `;
-                                    document.body.appendChild(form);
-                                    form.submit();
-                                    form.remove();
-                                }}
+                                onClick={exportCsv}
                             >
                                 Export CSV
                             </Button>
                         )}
-                    </div>
-                </div>
-
-                <form
-                    className="flex flex-wrap gap-3"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        const form = new FormData(event.currentTarget);
-                        router.get(
-                            '/ppe/violations',
-                            {
-                                violation_type: String(
-                                    form.get('violation_type') ?? '',
-                                ),
-                                camera_id: String(form.get('camera_id') ?? ''),
-                                review_status: String(
-                                    form.get('review_status') ?? '',
-                                ),
-                                from: String(form.get('from') ?? ''),
-                                to: String(form.get('to') ?? ''),
-                                search: String(form.get('search') ?? ''),
-                            },
-                            { preserveState: true, replace: true },
-                        );
-                    }}
-                >
-                    <select
-                        name="violation_type"
-                        defaultValue={filters.violation_type}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                        <option value="">All types</option>
-                        {violationTypes.map((type) => (
-                            <option key={type.value} value={type.value}>
-                                {type.label}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        name="camera_id"
-                        defaultValue={filters.camera_id}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                        <option value="">All cameras</option>
-                        {cameras.map((camera) => (
-                            <option key={camera.id} value={camera.id}>
-                                {camera.name}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        name="review_status"
-                        defaultValue={filters.review_status}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                        <option value="">All statuses</option>
-                        {reviewStatuses.map((status) => (
-                            <option key={status.value} value={status.value}>
-                                {status.label}
-                            </option>
-                        ))}
-                    </select>
-                    <input
-                        type="date"
-                        name="from"
-                        defaultValue={filters.from}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    />
-                    <input
-                        type="date"
-                        name="to"
-                        defaultValue={filters.to}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    />
-                    <Button type="submit" size="sm">
-                        Filter
-                    </Button>
-                </form>
-
+                    </>
+                }
+                filters={
+                    <>
+                        <Select
+                            value={violationType}
+                            onValueChange={setViolationType}
+                        >
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All types
+                                    </SelectItem>
+                                    {violationTypes.map((type) => (
+                                        <SelectItem
+                                            key={type.value}
+                                            value={type.value}
+                                        >
+                                            {type.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Select value={cameraId} onValueChange={setCameraId}>
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Camera" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All cameras
+                                    </SelectItem>
+                                    {cameras.map((camera) => (
+                                        <SelectItem
+                                            key={camera.id}
+                                            value={String(camera.id)}
+                                        >
+                                            {camera.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Select
+                            value={reviewStatus}
+                            onValueChange={setReviewStatus}
+                        >
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All statuses
+                                    </SelectItem>
+                                    {reviewStatuses.map((option) => (
+                                        <SelectItem
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Input
+                            type="date"
+                            value={from}
+                            onChange={(event) => setFrom(event.target.value)}
+                            className="w-36"
+                            aria-label="From date"
+                        />
+                        <Input
+                            type="date"
+                            value={to}
+                            onChange={(event) => setTo(event.target.value)}
+                            className="w-36"
+                            aria-label="To date"
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={applyFilters}
+                        >
+                            Apply
+                        </Button>
+                    </>
+                }
+            >
                 {canReview && selected.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="mb-3 flex flex-wrap gap-2">
                         <Form
                             action="/ppe/violations/bulk-review"
                             method="post"
@@ -222,90 +357,17 @@ export default function PpeViolationsIndex({
                         </Form>
                     </div>
                 )}
-
-                <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/40 text-left">
-                            <tr>
-                                {canReview && <th className="w-10 p-3" />}
-                                <th className="p-3">Snapshot</th>
-                                <th className="p-3">Type</th>
-                                <th className="p-3">Camera</th>
-                                <th className="p-3">Detected</th>
-                                <th className="p-3">Status</th>
-                                <th className="p-3" />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {violations.data.map((row) => (
-                                <tr
-                                    key={row.id}
-                                    className="border-t border-border"
-                                >
-                                    {canReview && (
-                                        <td className="p-3">
-                                            <input
-                                                type="checkbox"
-                                                checked={selected.includes(
-                                                    row.id,
-                                                )}
-                                                onChange={() => toggle(row.id)}
-                                            />
-                                        </td>
-                                    )}
-                                    <td className="p-3">
-                                        <img
-                                            src={row.snapshot_url}
-                                            alt=""
-                                            className="h-12 w-16 rounded object-cover"
-                                        />
-                                    </td>
-                                    <td className="p-3">
-                                        {ViolationTypeLabels[
-                                            row.violation_type as keyof typeof ViolationTypeLabels
-                                        ] ?? row.violation_type}
-                                    </td>
-                                    <td className="p-3">{row.camera_ref}</td>
-                                    <td className="p-3">
-                                        {new Date(
-                                            row.detected_at,
-                                        ).toLocaleString()}
-                                    </td>
-                                    <td className="p-3">{row.review_status}</td>
-                                    <td className="p-3 text-right">
-                                        <Button
-                                            asChild
-                                            size="sm"
-                                            variant="ghost"
-                                        >
-                                            <Link
-                                                href={`/ppe/violations/${row.id}`}
-                                            >
-                                                Open
-                                            </Link>
-                                        </Button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {violations.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={canReview ? 7 : 6}
-                                        className="p-6 text-center text-muted-foreground"
-                                    >
-                                        No violations
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                    <Pagination
-                        meta={violations.meta}
-                        pageUrl="/ppe/violations"
-                        params={filters}
-                    />
-                </div>
-            </div>
+                <SettingsDataTable
+                    columns={columns}
+                    rows={violations.data}
+                    rowKey={(row) => row.id}
+                    meta={violations.meta}
+                    pageUrl="/ppe/violations"
+                    queryParams={queryParams}
+                    emptyTitle="No violations"
+                    emptyDescription="No violations match these filters."
+                />
+            </SettingsPageShell>
         </>
     );
 }

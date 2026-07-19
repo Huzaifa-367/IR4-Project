@@ -1,9 +1,15 @@
-import { Form, Head, Link } from '@inertiajs/react';
-import Heading from '@/components/heading';
+import { Form, Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
+import { GeoZonePicker } from '@/components/ir4/geo-zone-map';
+import { Panel } from '@/components/ir4/panel';
+import { StatusPill } from '@/components/ir4/status-pill';
+import { WorkerPicker } from '@/components/ir4/worker-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Worker } from '@/types/worker';
+
+const DEFAULT_RADIUS_METERS = 60;
 
 type Props = {
     zone: {
@@ -17,6 +23,9 @@ type Props = {
         map_x: string | null;
         map_y: string | null;
         map_radius: string | null;
+        latitude: string | null;
+        longitude: string | null;
+        radius_meters: string | null;
         color: string | null;
         current_readers: Array<{
             binding_id: number;
@@ -28,18 +37,68 @@ type Props = {
         access_list: Worker[];
     };
     zoneTypes: Array<{ value: string; label: string }>;
+    workers: Array<{ id: number; name: string }>;
 };
 
-export default function ZoneShow({ zone }: Props) {
+export default function ZoneShow({ zone, workers }: Props) {
+    const [accessListIds, setAccessListIds] = useState<number[]>(
+        zone.access_list.map((worker) => worker.id),
+    );
+    const [savingAccessList, setSavingAccessList] = useState(false);
+    const [latitude, setLatitude] = useState<number | null>(
+        zone.latitude ? Number(zone.latitude) : null,
+    );
+    const [longitude, setLongitude] = useState<number | null>(
+        zone.longitude ? Number(zone.longitude) : null,
+    );
+    const [radiusMeters, setRadiusMeters] = useState(
+        zone.radius_meters ? Number(zone.radius_meters) : DEFAULT_RADIUS_METERS,
+    );
+    const [savingLocation, setSavingLocation] = useState(false);
+
+    function saveAccessList(): void {
+        setSavingAccessList(true);
+        router.put(
+            `/settings/zones/${zone.id}/access-list`,
+            { worker_ids: accessListIds },
+            {
+                preserveScroll: true,
+                onFinish: () => setSavingAccessList(false),
+            },
+        );
+    }
+
+    function saveLocation(): void {
+        setSavingLocation(true);
+        router.patch(
+            `/settings/zones/${zone.id}/map-position`,
+            { latitude, longitude, radius_meters: radiusMeters },
+            { preserveScroll: true, onFinish: () => setSavingLocation(false) },
+        );
+    }
+
     return (
         <>
             <Head title={zone.name} />
-            <div className="space-y-6 p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title={zone.name}
-                        description={`${zone.zone_type_label}${zone.requires_authorization ? ' · auth required' : ''}`}
-                    />
+            <div className="flex flex-col gap-4 p-4 md:p-5">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                        <p className="eyebrow">
+                            {zone.zone_type_label}
+                            {zone.requires_authorization
+                                ? ' · auth required'
+                                : ''}
+                        </p>
+                        <h1 className="font-display text-xl font-semibold tracking-tight text-text md:text-2xl">
+                            {zone.name}
+                        </h1>
+                        <div className="mt-2">
+                            <StatusPill
+                                label={zone.is_active ? 'Active' : 'Inactive'}
+                                tone={zone.is_active ? 'ok' : 'neutral'}
+                            />
+                        </div>
+                    </div>
                     <div className="flex gap-2">
                         <Button asChild variant="outline">
                             <Link href="/settings/zones">Back</Link>
@@ -63,143 +122,122 @@ export default function ZoneShow({ zone }: Props) {
                     </div>
                 </div>
 
-                <section className="space-y-2">
-                    <h2 className="font-medium">Currently bound readers</h2>
-                    <ul className="space-y-1 text-sm">
-                        {zone.current_readers.map((reader) => (
-                            <li key={reader.binding_id}>
-                                {reader.name} ({reader.reference}) · since{' '}
-                                {reader.bound_from}
-                            </li>
-                        ))}
-                        {zone.current_readers.length === 0 && (
-                            <li className="text-muted-foreground">
-                                None — use Repositioning to bind.
-                            </li>
-                        )}
-                    </ul>
-                </section>
-
-                <section className="max-w-xl space-y-3 rounded-lg border border-border p-4">
-                    <h2 className="font-medium">Map position</h2>
-                    <Form
-                        action={`/settings/zones/${zone.id}/map-position`}
-                        method="patch"
-                        className="grid gap-3 sm:grid-cols-2"
+                <div className="grid gap-4 xl:grid-cols-12">
+                    <Panel
+                        title="Currently bound readers"
+                        className="xl:col-span-6"
+                        action={
+                            <Link
+                                href="/settings/repositioning"
+                                className="text-xs text-[color:var(--accent)] hover:underline"
+                            >
+                                Repositioning ›
+                            </Link>
+                        }
                     >
-                        {({ processing }) => (
-                            <>
-                                <div className="grid gap-1">
-                                    <Label htmlFor="map_x">X</Label>
-                                    <Input
-                                        id="map_x"
-                                        name="map_x"
-                                        defaultValue={zone.map_x ?? ''}
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label htmlFor="map_y">Y</Label>
-                                    <Input
-                                        id="map_y"
-                                        name="map_y"
-                                        defaultValue={zone.map_y ?? ''}
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label htmlFor="map_radius">Radius</Label>
-                                    <Input
-                                        id="map_radius"
-                                        name="map_radius"
-                                        defaultValue={zone.map_radius ?? ''}
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label htmlFor="color">Color</Label>
-                                    <Input
-                                        id="color"
-                                        name="color"
-                                        defaultValue={zone.color ?? ''}
-                                    />
-                                </div>
-                                <div className="sm:col-span-2">
-                                    <Button type="submit" disabled={processing}>
-                                        Save map position
-                                    </Button>
-                                </div>
-                            </>
-                        )}
-                    </Form>
-                </section>
+                        <ul className="flex flex-col gap-2 text-sm">
+                            {zone.current_readers.map((reader) => (
+                                <li
+                                    key={reader.binding_id}
+                                    className="flex items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
+                                >
+                                    <span className="text-text">
+                                        {reader.name}{' '}
+                                        <span className="font-mono text-xs text-text-faint">
+                                            {reader.reference}
+                                        </span>
+                                    </span>
+                                    <span className="text-xs text-text-faint">
+                                        since{' '}
+                                        {reader.bound_from
+                                            ? new Date(
+                                                  reader.bound_from,
+                                              ).toLocaleDateString()
+                                            : '—'}
+                                    </span>
+                                </li>
+                            ))}
+                            {zone.current_readers.length === 0 && (
+                                <li className="text-text-faint">
+                                    None — use Repositioning to bind.
+                                </li>
+                            )}
+                        </ul>
+                    </Panel>
 
-                <section className="max-w-xl space-y-3 rounded-lg border border-border p-4">
-                    <h2 className="font-medium">Access list</h2>
-                    <p className="text-sm text-muted-foreground">
-                        Comma-separated worker ids (full picker lands with
-                        DOC-14). Current:{' '}
-                        {zone.access_list.map((w) => w.name).join(', ') ||
-                            'none'}
-                    </p>
-                    <Form
-                        action={`/settings/zones/${zone.id}/access-list`}
-                        method="put"
-                        className="space-y-3"
+                    <Panel
+                        title="Map position"
+                        subtitle="Offline Gulf-region basemap — click to reposition"
+                        className="xl:col-span-6"
                     >
-                        {({ processing, errors }) => (
-                            <>
+                        <div className="flex flex-col gap-3">
+                            <GeoZonePicker
+                                latitude={latitude}
+                                longitude={longitude}
+                                radiusMeters={radiusMeters}
+                                color={zone.color ?? undefined}
+                                onChange={(lat, lng) => {
+                                    setLatitude(lat);
+                                    setLongitude(lng);
+                                }}
+                            />
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="zone-radius" className="w-24">
+                                    Radius (m)
+                                </Label>
                                 <Input
-                                    name="worker_ids_csv"
-                                    id="worker_ids_csv"
-                                    placeholder="1, 2, 3"
-                                    defaultValue={zone.access_list
-                                        .map((w) => w.id)
-                                        .join(', ')}
-                                    onChange={(event) => {
-                                        const form = event.currentTarget.form;
-
-                                        if (!form) {
-                                            return;
-                                        }
-
-                                        form.querySelectorAll(
-                                            'input[name="worker_ids[]"]',
-                                        ).forEach((el) => el.remove());
-                                        event.currentTarget.value
-                                            .split(',')
-                                            .map((v) => v.trim())
-                                            .filter(Boolean)
-                                            .forEach((id) => {
-                                                const hidden =
-                                                    document.createElement(
-                                                        'input',
-                                                    );
-                                                hidden.type = 'hidden';
-                                                hidden.name = 'worker_ids[]';
-                                                hidden.value = id;
-                                                form.appendChild(hidden);
-                                            });
-                                    }}
+                                    id="zone-radius"
+                                    type="number"
+                                    min={1}
+                                    value={radiusMeters}
+                                    onChange={(event) =>
+                                        setRadiusMeters(
+                                            Number(event.target.value) ||
+                                                DEFAULT_RADIUS_METERS,
+                                        )
+                                    }
+                                    className="w-28"
                                 />
-                                {zone.access_list.map((worker) => (
-                                    <input
-                                        key={worker.id}
-                                        type="hidden"
-                                        name="worker_ids[]"
-                                        value={worker.id}
-                                    />
-                                ))}
-                                {errors.worker_ids && (
-                                    <p className="text-sm text-destructive">
-                                        {errors.worker_ids}
-                                    </p>
-                                )}
-                                <Button type="submit" disabled={processing}>
-                                    Update access list
-                                </Button>
-                            </>
-                        )}
-                    </Form>
-                </section>
+                            </div>
+                            <Button
+                                type="button"
+                                disabled={
+                                    savingLocation ||
+                                    latitude === null ||
+                                    longitude === null
+                                }
+                                onClick={saveLocation}
+                                className="self-start"
+                            >
+                                Save map position
+                            </Button>
+                        </div>
+                    </Panel>
+                </div>
+
+                <Panel
+                    title="Access list"
+                    subtitle="Workers authorized to enter without triggering an unauthorized-zone alert."
+                >
+                    <WorkerPicker
+                        workers={workers}
+                        value={accessListIds}
+                        onChange={setAccessListIds}
+                    />
+                    <Button
+                        type="button"
+                        className="mt-3"
+                        disabled={savingAccessList}
+                        onClick={saveAccessList}
+                    >
+                        Update access list
+                    </Button>
+                </Panel>
             </div>
         </>
     );
 }
+
+ZoneShow.layout = {
+    breadcrumbs: [{ title: 'Zones', href: '/settings/zones' }],
+};

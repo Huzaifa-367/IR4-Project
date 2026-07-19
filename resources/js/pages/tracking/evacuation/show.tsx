@@ -1,7 +1,7 @@
-import { Form, Head, Link } from '@inertiajs/react';
-import { router } from '@inertiajs/react';
-import Heading from '@/components/heading';
+import { Form, Head, Link, router } from '@inertiajs/react';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
+import { Panel } from '@/components/ir4/panel';
+import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 
@@ -54,37 +54,48 @@ export default function EvacuationShow({ report, canManage }: Props) {
     return (
         <>
             <Head title={`Evacuation #${report.id}`} />
-            <div className="space-y-6 p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title={`Evacuation #${report.id}`}
-                        description={`${report.accounted}/${report.total} accounted (${pct}%)`}
-                    />
+            <div className="flex flex-col gap-4 p-4 md:p-5">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                        <p className="eyebrow">
+                            Triggered{' '}
+                            {new Date(report.triggered_at).toLocaleString()}
+                        </p>
+                        <h1 className="font-display text-xl font-semibold tracking-tight text-text md:text-2xl">
+                            Evacuation #{report.id}
+                        </h1>
+                        <p className="mt-1 text-sm text-text-dim">
+                            {report.accounted}/{report.total} accounted (
+                            {pct}%)
+                        </p>
+                    </div>
                     <LiveStatusPill status={status} />
                 </div>
 
-                <div className="h-2 overflow-hidden rounded bg-muted">
+                <div className="h-2 overflow-hidden rounded-pill bg-surface-3">
                     <div
-                        className="h-full bg-emerald-600"
+                        className="h-full rounded-pill bg-[color:var(--ok)]"
                         style={{ width: `${pct}%` }}
                     />
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-lg border border-border p-4">
-                        <h2 className="mb-3 font-medium">
-                            Unaccounted ({unaccounted.length})
-                        </h2>
-                        <ul className="space-y-2 text-sm">
+                    <Panel title={`Unaccounted (${unaccounted.length})`}>
+                        <ul className="flex flex-col gap-2 text-sm">
                             {unaccounted.map((entry) => (
                                 <li
                                     key={entry.id}
-                                    className="flex items-center justify-between gap-2"
+                                    className="flex items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
                                 >
-                                    <span>
-                                        {entry.worker_name} ·{' '}
-                                        {entry.last_zone ?? '—'}
-                                    </span>
+                                    <Link
+                                        href={`/tracking/workers/${entry.worker_id}`}
+                                        className="text-text hover:text-[color:var(--accent)] hover:underline"
+                                    >
+                                        {entry.worker_name}
+                                        <span className="ml-1.5 text-xs text-text-faint">
+                                            {entry.last_zone ?? '—'}
+                                        </span>
+                                    </Link>
                                     {canManage && report.status === 'open' && (
                                         <Form
                                             action={`/tracking/evacuation/${report.id}/entries/${entry.id}`}
@@ -103,21 +114,40 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                     )}
                                 </li>
                             ))}
+                            {unaccounted.length === 0 && (
+                                <li className="text-text-faint">
+                                    Everyone is accounted for.
+                                </li>
+                            )}
                         </ul>
-                    </div>
-                    <div className="rounded-lg border border-border p-4">
-                        <h2 className="mb-3 font-medium">
-                            Accounted ({accounted.length})
-                        </h2>
-                        <ul className="space-y-2 text-sm">
+                    </Panel>
+                    <Panel title={`Accounted (${accounted.length})`}>
+                        <ul className="flex flex-col gap-2 text-sm">
                             {accounted.map((entry) => (
-                                <li key={entry.id}>
-                                    {entry.worker_name} ·{' '}
-                                    {entry.accounted_source}
+                                <li
+                                    key={entry.id}
+                                    className="flex items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
+                                >
+                                    <Link
+                                        href={`/tracking/workers/${entry.worker_id}`}
+                                        className="text-text hover:text-[color:var(--accent)] hover:underline"
+                                    >
+                                        {entry.worker_name}
+                                    </Link>
+                                    <StatusPill
+                                        label={entry.accounted_source ?? '—'}
+                                        tone="ok"
+                                        showDot={false}
+                                    />
                                 </li>
                             ))}
+                            {accounted.length === 0 && (
+                                <li className="text-text-faint">
+                                    No one accounted for yet.
+                                </li>
+                            )}
                         </ul>
-                    </div>
+                    </Panel>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -182,3 +212,7 @@ export default function EvacuationShow({ report, canManage }: Props) {
         </>
     );
 }
+
+EvacuationShow.layout = {
+    breadcrumbs: [{ title: 'Evacuation', href: '/tracking/evacuation' }],
+};

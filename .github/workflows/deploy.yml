@@ -1,0 +1,60 @@
+name: Deploy to Hostinger
+
+# Disable Hostinger Git auto-deploy. This workflow SSHs in, git pull, then post-deploy steps.
+# git pull keeps untracked uploads in storage/app/public.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GH_DEPLOY_TOKEN: ${{ secrets.GH_DEPLOY_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: GH_DEPLOY_TOKEN
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            if [ ! -d .git ]; then
+              echo "ERROR: No .git folder — clone the repo on the server first." >&2
+              exit 1
+            fi
+            git remote set-url origin "https://x-access-token:${GH_DEPLOY_TOKEN}@github.com/${{ github.repository }}.git"
+            git pull --ff-only origin main
+            APP_PUBLIC="$(pwd)/storage/app/public"
+            PUBLIC_STORAGE="$(pwd)/public/storage"
+            mkdir -p "$APP_PUBLIC"
+            RESOLVED="$(cd "$APP_PUBLIC" && pwd -P)"
+            if [ -L "$PUBLIC_STORAGE" ] && [ -d "$PUBLIC_STORAGE" ] && [ "$(cd "$PUBLIC_STORAGE" && pwd -P)" = "$RESOLVED" ]; then
+              echo "public/storage already linked"
+            else
+              [ -d "$PUBLIC_STORAGE" ] && [ ! -L "$PUBLIC_STORAGE" ] && rm -rf "$PUBLIC_STORAGE"
+              [ -L "$PUBLIC_STORAGE" ] && rm -f "$PUBLIC_STORAGE"
+              ln -sfn "$RESOLVED" "$PUBLIC_STORAGE"
+              echo "public/storage -> $RESOLVED"
+            fi
+            if command -v composer2 >/dev/null 2>&1; then
+              composer2 install --no-dev --optimize-autoloader --no-interaction
+            else
+              composer install --no-dev --optimize-autoloader --no-interaction
+            fi
+            if command -v npm >/dev/null 2>&1; then
+              npm ci --omit=dev 2>/dev/null || npm install --omit=dev
+              npm run build
+            fi
+            php artisan migrate --force --no-interaction
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            echo "Deploy complete"

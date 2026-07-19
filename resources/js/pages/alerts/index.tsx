@@ -1,16 +1,27 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
-import Heading from '@/components/heading';
+import { useState } from 'react';
 import { useAlertStore } from '@/components/ir4/alert-provider';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
-import { Pagination } from '@/components/ir4/pagination';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
+import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
+import { StatusPill } from '@/components/ir4/status-pill';
+import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import type { Alert } from '@/types/alert';
+import type { PaginatedMeta } from '@/types/hardware';
 
 type Props = {
-    alerts: {
-        data: Alert[];
-        meta: { current_page: number; last_page: number; total: number };
-    };
+    alerts: { data: Alert[]; meta: PaginatedMeta };
     filters: {
         alert_type: string;
         severity: string;
@@ -22,7 +33,20 @@ type Props = {
     statuses: Array<{ value: string; label: string }>;
     canAcknowledge: boolean;
     canResolve: boolean;
-    audibleEnabled: boolean;
+};
+
+const ALL = 'all';
+
+const SEVERITY_TONE: Record<string, StatusPillTone> = {
+    critical: 'crit',
+    warning: 'warn',
+    info: 'info',
+};
+
+const STATUS_TONE: Record<string, StatusPillTone> = {
+    open: 'crit',
+    acknowledged: 'warn',
+    resolved: 'ok',
 };
 
 export default function AlertsIndex({
@@ -34,229 +58,253 @@ export default function AlertsIndex({
     canAcknowledge,
     canResolve,
 }: Props) {
-    const { bellCount, status } = useAlertStore();
+    const { bellCount, status: liveStatus } = useAlertStore();
+    const [search, setSearch] = useState(filters.search);
+    const [severity, setSeverity] = useState(filters.severity || ALL);
+    const [alertType, setAlertType] = useState(filters.alert_type || ALL);
+    const [statusFilter, setStatusFilter] = useState(filters.status || ALL);
+
+    const queryParams = {
+        search: search || undefined,
+        severity: severity === ALL ? undefined : severity,
+        alert_type: alertType === ALL ? undefined : alertType,
+        status: statusFilter === ALL ? undefined : statusFilter,
+    };
+
+    function applyFilters(): void {
+        router.get('/alerts', queryParams, {
+            preserveState: true,
+            replace: true,
+        });
+    }
+
+    const columns: SettingsColumn<Alert>[] = [
+        {
+            key: 'raised',
+            header: 'Raised',
+            cell: (alert) => (
+                <span className="whitespace-nowrap">
+                    {new Date(alert.raised_at).toLocaleString()}
+                    {alert.occurrences > 1 ? (
+                        <span className="ml-1.5 font-mono text-xs text-text-faint">
+                            ×{alert.occurrences}
+                        </span>
+                    ) : null}
+                </span>
+            ),
+        },
+        {
+            key: 'severity',
+            header: 'Severity',
+            cell: (alert) => (
+                <StatusPill
+                    label={alert.severity}
+                    tone={SEVERITY_TONE[alert.severity] ?? 'neutral'}
+                />
+            ),
+        },
+        {
+            key: 'type',
+            header: 'Type',
+            cell: (alert) => alert.alert_type_label,
+        },
+        {
+            key: 'title',
+            header: 'Title',
+            cell: (alert) => (
+                <div>
+                    <span className="text-text">{alert.title}</span>
+                    {alert.payload.suggested_action ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-faint">
+                            <span>
+                                Suggested:{' '}
+                                {String(alert.payload.suggested_action)}
+                            </span>
+                            {alert.payload.suggested_action ===
+                            'create_incident' ? (
+                                <Link
+                                    href={`/incidents/create?alert_id=${alert.id}`}
+                                    className="text-[color:var(--accent)] hover:underline"
+                                >
+                                    Create incident
+                                </Link>
+                            ) : null}
+                            {alert.payload.suggested_action === 'log_lsr' ? (
+                                <Link
+                                    href={`/lsr-violations/create?alert_id=${alert.id}`}
+                                    className="text-[color:var(--accent)] hover:underline"
+                                >
+                                    Log LSR
+                                </Link>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </div>
+            ),
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            cell: (alert) => (
+                <StatusPill
+                    label={alert.status}
+                    tone={STATUS_TONE[alert.status] ?? 'neutral'}
+                />
+            ),
+        },
+        {
+            key: 'actions',
+            header: '',
+            className: 'w-32 text-right',
+            cell: (alert) => (
+                <div className="flex justify-end gap-1">
+                    {canAcknowledge && alert.status === 'open' && (
+                        <Form
+                            action={`/alerts/${alert.id}/acknowledge`}
+                            method="post"
+                        >
+                            {({ processing }) => (
+                                <Button
+                                    type="submit"
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={processing}
+                                >
+                                    Ack
+                                </Button>
+                            )}
+                        </Form>
+                    )}
+                    {canResolve && alert.status !== 'resolved' && (
+                        <Form
+                            action={`/alerts/${alert.id}/resolve`}
+                            method="post"
+                        >
+                            {({ processing }) => (
+                                <Button
+                                    type="submit"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={processing}
+                                >
+                                    Resolve
+                                </Button>
+                            )}
+                        </Form>
+                    )}
+                </div>
+            ),
+        },
+    ];
 
     return (
         <>
             <Head title="Alerts" />
-            <div className="space-y-6 p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="Alert centre"
-                        description={`${bellCount} open`}
-                    />
-                    <LiveStatusPill status={status} />
-                </div>
+            <SettingsPageShell
+                title="Alert Centre"
+                description={`${bellCount} open`}
+                actions={<LiveStatusPill status={liveStatus} />}
+                filters={
+                    <>
+                        <Input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Search title…"
+                            className="w-full sm:w-56"
+                            aria-label="Search alerts"
+                        />
+                        <Select
+                            value={statusFilter}
+                            onValueChange={setStatusFilter}
+                        >
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        Open + ack
+                                    </SelectItem>
+                                    {statuses.map((option) => (
+                                        <SelectItem
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Select value={severity} onValueChange={setSeverity}>
+                            <SelectTrigger className="w-40">
+                                <SelectValue placeholder="Severity" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All severities
+                                    </SelectItem>
+                                    {severities.map((option) => (
+                                        <SelectItem
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Select value={alertType} onValueChange={setAlertType}>
+                            <SelectTrigger className="w-44">
+                                <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem value={ALL}>
+                                        All types
+                                    </SelectItem>
+                                    {alertTypes.map((option) => (
+                                        <SelectItem
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={applyFilters}
+                        >
+                            Apply
+                        </Button>
+                    </>
+                }
+            >
+                <SettingsDataTable
+                    columns={columns}
+                    rows={alerts.data}
+                    rowKey={(alert) => alert.id}
+                    meta={alerts.meta}
+                    pageUrl="/alerts"
+                    queryParams={queryParams}
+                    emptyTitle="No alerts"
+                    emptyDescription="No alerts match these filters."
+                />
+            </SettingsPageShell>
 
-                <form
-                    className="flex flex-wrap gap-3"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        const form = new FormData(event.currentTarget);
-                        router.get(
-                            '/alerts',
-                            {
-                                alert_type: String(
-                                    form.get('alert_type') ?? '',
-                                ),
-                                severity: String(form.get('severity') ?? ''),
-                                status: String(form.get('status') ?? ''),
-                                search: String(form.get('search') ?? ''),
-                            },
-                            { preserveState: true, replace: true },
-                        );
-                    }}
+            <div className="px-4 pb-4 md:px-6">
+                <Link
+                    href="/dashboard"
+                    className="text-sm text-[color:var(--accent)] hover:underline"
                 >
-                    <select
-                        name="status"
-                        defaultValue={filters.status}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                        <option value="">Open + ack</option>
-                        {statuses.map((status) => (
-                            <option key={status.value} value={status.value}>
-                                {status.label}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        name="severity"
-                        defaultValue={filters.severity}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                        <option value="">All severities</option>
-                        {severities.map((severity) => (
-                            <option key={severity.value} value={severity.value}>
-                                {severity.label}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        name="alert_type"
-                        defaultValue={filters.alert_type}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                        <option value="">All types</option>
-                        {alertTypes.map((type) => (
-                            <option key={type.value} value={type.value}>
-                                {type.label}
-                            </option>
-                        ))}
-                    </select>
-                    <input
-                        name="search"
-                        defaultValue={filters.search}
-                        placeholder="Search title"
-                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    />
-                    <Button type="submit" variant="secondary">
-                        Filter
-                    </Button>
-                </form>
-
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50 text-left">
-                            <tr>
-                                <th className="px-3 py-2 font-medium">
-                                    Raised
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Severity
-                                </th>
-                                <th className="px-3 py-2 font-medium">Type</th>
-                                <th className="px-3 py-2 font-medium">Title</th>
-                                <th className="px-3 py-2 font-medium">
-                                    Status
-                                </th>
-                                <th className="px-3 py-2 font-medium" />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {alerts.data.map((alert) => (
-                                <tr
-                                    key={alert.id}
-                                    className="border-t border-border"
-                                >
-                                    <td className="px-3 py-2 whitespace-nowrap">
-                                        {alert.raised_at}
-                                        {alert.occurrences > 1
-                                            ? ` ×${alert.occurrences}`
-                                            : ''}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {alert.severity}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {alert.alert_type_label}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {alert.title}
-                                        {alert.payload.suggested_action ? (
-                                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                                <span>
-                                                    Suggested:{' '}
-                                                    {String(
-                                                        alert.payload
-                                                            .suggested_action,
-                                                    )}
-                                                </span>
-                                                {alert.payload
-                                                    .suggested_action ===
-                                                    'create_incident' && (
-                                                    <Link
-                                                        href={`/incidents/create?alert_id=${alert.id}`}
-                                                        className="text-primary underline"
-                                                    >
-                                                        Create incident
-                                                    </Link>
-                                                )}
-                                                {alert.payload
-                                                    .suggested_action ===
-                                                    'log_lsr' && (
-                                                    <Link
-                                                        href={`/lsr-violations/create?alert_id=${alert.id}`}
-                                                        className="text-primary underline"
-                                                    >
-                                                        Log LSR
-                                                    </Link>
-                                                )}
-                                            </div>
-                                        ) : null}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {alert.status}
-                                    </td>
-                                    <td className="px-3 py-2 text-right">
-                                        <div className="flex justify-end gap-1">
-                                            {canAcknowledge &&
-                                                alert.status === 'open' && (
-                                                    <Form
-                                                        action={`/alerts/${alert.id}/acknowledge`}
-                                                        method="post"
-                                                    >
-                                                        {({ processing }) => (
-                                                            <Button
-                                                                type="submit"
-                                                                size="sm"
-                                                                variant="secondary"
-                                                                disabled={
-                                                                    processing
-                                                                }
-                                                            >
-                                                                Ack
-                                                            </Button>
-                                                        )}
-                                                    </Form>
-                                                )}
-                                            {canResolve &&
-                                                alert.status !== 'resolved' && (
-                                                    <Form
-                                                        action={`/alerts/${alert.id}/resolve`}
-                                                        method="post"
-                                                    >
-                                                        {({ processing }) => (
-                                                            <Button
-                                                                type="submit"
-                                                                size="sm"
-                                                                variant="outline"
-                                                                disabled={
-                                                                    processing
-                                                                }
-                                                            >
-                                                                Resolve
-                                                            </Button>
-                                                        )}
-                                                    </Form>
-                                                )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {alerts.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={6}
-                                        className="px-3 py-8 text-center text-muted-foreground"
-                                    >
-                                        No alerts match these filters.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                    <Pagination
-                        meta={alerts.meta}
-                        pageUrl="/alerts"
-                        params={filters}
-                    />
-                </div>
-
-                <p className="text-sm text-muted-foreground">
-                    <Link href="/dashboard" className="underline">
-                        Dashboard
-                    </Link>
-                </p>
+                    ← Dashboard
+                </Link>
             </div>
         </>
     );

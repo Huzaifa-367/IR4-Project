@@ -30,6 +30,9 @@ final class UpdateZoneRequest extends FormRequest
             'map_x' => ['nullable', 'numeric'],
             'map_y' => ['nullable', 'numeric'],
             'map_radius' => ['nullable', 'numeric', 'min:0'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'radius_meters' => ['nullable', 'numeric', 'min:0'],
             'color' => ['nullable', 'string', 'max:32'],
         ];
     }
