@@ -45,7 +45,7 @@ This maps onto IR4's existing primitives — zones, live gas detectors, RFID ros
 
 PTW involves **two different populations**; IR4 keeps them strictly separate (Worker≠User from DOC-04):
 
-**A. Authorizing / executing staff — software `users`** (log in, sign, hold issuer/receiver certificates). New permissions (DOC-03 catalogue):
+**A. Authorizing / executing staff — software `users`** (log in, sign via RBAC permissions). New permissions (DOC-03 catalogue):
 
 | Permission | Who |
 |---|---|
@@ -61,7 +61,7 @@ PTW involves **two different populations**; IR4 keeps them strictly separate (Wo
 
 > **Why this separation matters:** the Receiver (a user) is *accountable* and signs, but the people holding the tools are **workers** on `permit_personnel`. Cross-referencing only works because the permitted crew are RFID-tracked workers, not login accounts.
 
-**Certification gating (users).** GI 2.100 requires issuers/receivers/gas-testers to be *certified*. IR4 records a `user_certification` (type + number + issued_at + expires_at + issuing_body). The service **hard-blocks** `issue-permit` / `request-permit` / `perform-gas-test` if the user lacks a current certification of the right type, with Safety-Manager override `[CONFIRM AT DESIGN]` (default: hard-block + override).
+**Role gating (users).** GI 2.100 issuer / receiver / gas-tester duties map to **RBAC permissions** (`issue-permit`, `request-permit`, `perform-gas-test`, `approve-permit`) — not a separate `user_certifications` table. Assigning the seeded Permit Issuer / Permit Receiver / Safety Manager roles (or equivalent custom roles) is how a site authorizes who may sign. Competence evidence for **crew** remains on workers (§4.6).
 
 **Document gating (workers).** Before a worker can be added to `permit_personnel` (and again before the permit becomes `active`), IR4 verifies the **dynamic document pack** required for that permit type + personnel role (§4.6). Missing or expired required documents block the add / block issue.
 
@@ -233,7 +233,7 @@ worker_document_types: id, code (unique), name, description,
 //   hot_work_welder       — Welding / hot-work craft card
 //   loto_authorized       — LOTO authorized employee
 //   work_at_height        — Fall-protection competence
-//   gas_tester            — (also usable for users via user_certifications)
+//   gas_tester            — Gas-tester competence (crew / specialty card on the worker)
 
 // Uploaded / recorded documents on a WORKER
 worker_documents: id, worker_id, worker_document_type_id,
@@ -274,17 +274,9 @@ Permissions: `manage-worker-documents` to upload/verify; `view-worker-identity` 
 - **`WorkerDocumentVerificationStatus`:** `pending`, `verified`, `rejected`, `expired`.
 - Personnel **role codes** are **not** a closed PHP enum — they come from `permit_type_roles.role_code` (seeded: `entrant`, `standby`, `fire_watch`, `supervisor`).
 
-### 4.8 `user_certifications` (issuer / receiver / gas-tester cards)
+### 4.8 User authorization (no `user_certifications` table)
 
-```php
-user_certifications: id, user_id → users, cert_type (issuer|receiver|gas_tester|other — string, site-extensible),
-                     certificate_number nullable, issuing_body nullable,
-                     issued_at, expires_at, file_path nullable, // private disk
-                     is_active bool, timestamps, softDeletes
-                     // index (user_id, cert_type, expires_at)
-```
-
-GI 2.100 certificates are organization-scoped in Aramco practice; IR4 (single-site) treats them as user-scoped. `PermitService` checks a non-expired active row of the required `cert_type` before request / issue / gas-test. Safety Manager override writes a `permit_events` + `audit_logs` row with reason.
+Issuer / receiver / gas-tester / approver capability is **RBAC only** (DOC-03 permissions on `users`). IR4 does **not** maintain a parallel `user_certifications` registry for login accounts. Worker competence and medical fitness use `worker_document_types` + `worker_documents` (§4.6) and gate `permit_personnel` assignment.
 
 ### 4.9 Three-path origin (DOC-01)
 
@@ -506,7 +498,7 @@ Detection (§8) and live gas augmentation remain the differentiators either way.
 
 Permits are **compliance records**. The DOC-19 pruner allow-list must **never** include:
 
-`permits`, `permit_gas_tests`, `permit_personnel`, `permit_approvals`, `permit_events`, `work_orders`, `permit_types` (+ checklist/roles/gas/conflicts/doc-requirement children), `worker_document_types`, `worker_documents`, `user_certifications`.
+`permits`, `permit_gas_tests`, `permit_personnel`, `permit_approvals`, `permit_events`, `work_orders`, `permit_types` (+ checklist/roles/gas/conflicts/doc-requirement children), `worker_document_types`, `worker_documents`.
 
 Private document files on the `local`/`private` disk follow the same end-of-project export + wipe rules as other compliance attachments. Catalogue rows (`permit_types`, document types) are configuration — retained for the life of the deployment.
 

@@ -45,21 +45,6 @@ return new class extends Migration
             $table->index(['expires_at']);
         });
 
-        Schema::create('user_certifications', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            $table->string('cert_type');
-            $table->string('certificate_number')->nullable();
-            $table->string('issuing_body')->nullable();
-            $table->timestamp('issued_at')->nullable();
-            $table->timestamp('expires_at')->nullable();
-            $table->string('file_path')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-            $table->softDeletes();
-            $table->index(['user_id', 'cert_type', 'expires_at']);
-        });
-
         Schema::create('permit_types', function (Blueprint $table) {
             $table->id();
             $table->string('code')->unique();
@@ -250,7 +235,6 @@ return new class extends Migration
         Schema::dropIfExists('permit_type_roles');
         Schema::dropIfExists('permit_type_checklist_items');
         Schema::dropIfExists('permit_types');
-        Schema::dropIfExists('user_certifications');
         Schema::dropIfExists('worker_documents');
         Schema::dropIfExists('worker_document_types');
 
