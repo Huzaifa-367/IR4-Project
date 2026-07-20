@@ -26,6 +26,7 @@ final class UpdateZoneRequest extends FormRequest
             'name' => ['sometimes', 'required', 'string', 'max:150'],
             'zone_type' => ['sometimes', 'required', Rule::enum(ZoneType::class)],
             'requires_authorization' => ['sometimes', 'boolean'],
+            'requires_permit' => ['sometimes', 'boolean'],
             'occupancy_limit' => ['nullable', 'integer', 'min:1'],
             'map_x' => ['nullable', 'numeric'],
             'map_y' => ['nullable', 'numeric'],

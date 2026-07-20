@@ -2,6 +2,13 @@ import type { PaginatedMeta } from '@/types/hardware';
 
 export type PermitOption = { value: string; label: string };
 
+export type PermitTypeChecklistItem = {
+    id: number;
+    code: string;
+    label: string;
+    is_mandatory: boolean;
+};
+
 export type PermitTypeRole = {
     role_code: string;
     label: string;
@@ -40,6 +47,7 @@ export type PermitTypeSummary = {
     roles: PermitTypeRole[];
     gas_channels: PermitTypeGasChannel[];
     document_requirements: PermitDocumentRequirement[];
+    checklist_items: PermitTypeChecklistItem[];
 };
 
 export type PermitListItem = {
@@ -170,6 +178,13 @@ export type WorkerOption = {
     id: number;
     label: string;
     reference: string | null;
+    verified_document_codes?: string[];
+};
+
+export type WorkOrderOption = {
+    id: number;
+    reference: string;
+    zone: { id: number; name: string } | null;
 };
 
 export type ZoneOption = {

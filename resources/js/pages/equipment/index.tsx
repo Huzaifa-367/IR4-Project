@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import {
     CustodyBadge,
@@ -32,6 +32,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import { EquipmentStatus, EquipmentStatusLabels } from '@/types/enums';
 import type {
     Equipment,
@@ -92,12 +97,36 @@ export default function EquipmentIndex({
         overdue: overdue === ALL ? undefined : overdue,
     };
 
-    function applyFilters(): void {
-        router.get('/equipment', queryParams, {
-            preserveState: true,
-            replace: true,
+    function applyFilters(
+        patch: Partial<{
+            search: string;
+            equipment_type: string;
+            status: string;
+            checkout_state: string;
+            overdue: string;
+        }> = {},
+    ): void {
+        const nextSearch = patch.search ?? search;
+        const nextEquipmentType = patch.equipment_type ?? equipmentType;
+        const nextStatus = patch.status ?? status;
+        const nextCheckoutState = patch.checkout_state ?? checkoutState;
+        const nextOverdue = patch.overdue ?? overdue;
+
+        visitFilters('/equipment', {
+            search: nextSearch || undefined,
+            equipment_type:
+                nextEquipmentType === ALL ? undefined : nextEquipmentType,
+            status: nextStatus === ALL ? undefined : nextStatus,
+            checkout_state:
+                nextCheckoutState === ALL ? undefined : nextCheckoutState,
+            overdue: nextOverdue === ALL ? undefined : nextOverdue,
         });
     }
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ search: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
 
     function toggleSelected(id: number): void {
         setSelected((current) =>
@@ -257,14 +286,22 @@ export default function EquipmentIndex({
                     <>
                         <Input
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setSearch(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Code, name, type…"
                             className="w-full sm:w-56"
                             aria-label="Search equipment"
                         />
                         <Select
                             value={equipmentType}
-                            onValueChange={setEquipmentType}
+                            onValueChange={(value) => {
+                                setEquipmentType(value);
+                                cancelDebounce();
+                                applyFilters({ equipment_type: value });
+                            }}
                         >
                             <SelectTrigger className="w-36">
                                 <SelectValue placeholder="Type" />
@@ -282,7 +319,14 @@ export default function EquipmentIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={status} onValueChange={setStatus}>
+                        <Select
+                            value={status}
+                            onValueChange={(value) => {
+                                setStatus(value);
+                                cancelDebounce();
+                                applyFilters({ status: value });
+                            }}
+                        >
                             <SelectTrigger className="w-36">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -304,7 +348,11 @@ export default function EquipmentIndex({
                         </Select>
                         <Select
                             value={checkoutState}
-                            onValueChange={setCheckoutState}
+                            onValueChange={(value) => {
+                                setCheckoutState(value);
+                                cancelDebounce();
+                                applyFilters({ checkout_state: value });
+                            }}
                         >
                             <SelectTrigger className="w-36">
                                 <SelectValue placeholder="Custody" />
@@ -324,7 +372,14 @@ export default function EquipmentIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={overdue} onValueChange={setOverdue}>
+                        <Select
+                            value={overdue}
+                            onValueChange={(value) => {
+                                setOverdue(value);
+                                cancelDebounce();
+                                applyFilters({ overdue: value });
+                            }}
+                        >
                             <SelectTrigger className="w-32">
                                 <SelectValue placeholder="Due" />
                             </SelectTrigger>
@@ -338,13 +393,6 @@ export default function EquipmentIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={applyFilters}
-                        >
-                            Apply
-                        </Button>
                     </>
                 }
             >

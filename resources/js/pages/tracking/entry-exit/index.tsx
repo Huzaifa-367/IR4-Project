@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
@@ -17,6 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { visitFilters } from '@/lib/visit-filters';
 import type { PaginatedMeta } from '@/types/hardware';
 
 type LogRow = {
@@ -52,18 +53,29 @@ export default function EntryExitIndex({
     const [correctionDirection, setCorrectionDirection] = useState('in');
     const [correctionWorker, setCorrectionWorker] = useState('');
 
+    function applyFilters(
+        patch: Partial<{
+            direction: string;
+            source: string;
+            worker_id: string;
+        }> = {},
+    ): void {
+        const nextDirection = patch.direction ?? direction;
+        const nextSource = patch.source ?? source;
+        const nextWorkerId = patch.worker_id ?? workerId;
+
+        visitFilters('/tracking/entry-exit', {
+            direction: nextDirection === ALL ? undefined : nextDirection,
+            source: nextSource === ALL ? undefined : nextSource,
+            worker_id: nextWorkerId === ALL ? undefined : nextWorkerId,
+        });
+    }
+
     const queryParams = {
         direction: direction === ALL ? undefined : direction,
         source: source === ALL ? undefined : source,
         worker_id: workerId === ALL ? undefined : workerId,
     };
-
-    function applyFilters(): void {
-        router.get('/tracking/entry-exit', queryParams, {
-            preserveState: true,
-            replace: true,
-        });
-    }
 
     const columns: SettingsColumn<LogRow>[] = [
         {
@@ -127,7 +139,13 @@ export default function EntryExitIndex({
                 }
                 filters={
                     <>
-                        <Select value={direction} onValueChange={setDirection}>
+                        <Select
+                            value={direction}
+                            onValueChange={(value) => {
+                                setDirection(value);
+                                applyFilters({ direction: value });
+                            }}
+                        >
                             <SelectTrigger className="w-36">
                                 <SelectValue placeholder="Direction" />
                             </SelectTrigger>
@@ -141,7 +159,13 @@ export default function EntryExitIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={source} onValueChange={setSource}>
+                        <Select
+                            value={source}
+                            onValueChange={(value) => {
+                                setSource(value);
+                                applyFilters({ source: value });
+                            }}
+                        >
                             <SelectTrigger className="w-36">
                                 <SelectValue placeholder="Source" />
                             </SelectTrigger>
@@ -162,7 +186,13 @@ export default function EntryExitIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={workerId} onValueChange={setWorkerId}>
+                        <Select
+                            value={workerId}
+                            onValueChange={(value) => {
+                                setWorkerId(value);
+                                applyFilters({ worker_id: value });
+                            }}
+                        >
                             <SelectTrigger className="w-48">
                                 <SelectValue placeholder="Worker" />
                             </SelectTrigger>
@@ -182,13 +212,6 @@ export default function EntryExitIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={applyFilters}
-                        >
-                            Apply
-                        </Button>
                     </>
                 }
             >

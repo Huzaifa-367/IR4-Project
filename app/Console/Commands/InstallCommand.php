@@ -5,8 +5,9 @@ namespace App\Console\Commands;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\PermissionCatalogue;
-use Database\Seeders\GasThresholdSeeder;
 use Database\Seeders\DemoSeeder;
+use Database\Seeders\GasThresholdSeeder;
+use Database\Seeders\PermitCatalogueSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SettingsSeeder;
 use Illuminate\Console\Command;
@@ -35,6 +36,7 @@ final class InstallCommand extends Command
         }
 
         $this->callSilent('db:seed', ['--class' => DemoSeeder::class, '--force' => true]);
+        $this->callSilent('db:seed', ['--class' => PermitCatalogueSeeder::class, '--force' => true]);
 
         return self::SUCCESS;
     }

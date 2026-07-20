@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Models\VehicleViolation;
 use App\Models\WeeklyReport;
 use App\Services\WeeklyReportService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
@@ -28,8 +29,8 @@ beforeEach(function () {
 
 it('generates all 10 frozen data keys and excludes false-positive PPE', function () {
     $manager = User::factory()->withRole('Safety Manager')->create();
-    $start = now()->startOfWeek(\Carbon\Carbon::SUNDAY)->subWeek();
-    $end = $start->copy()->endOfWeek(\Carbon\Carbon::SATURDAY);
+    $start = now()->startOfWeek(Carbon::SUNDAY)->subWeek();
+    $end = $start->copy()->endOfWeek(Carbon::SATURDAY);
 
     PpeViolation::factory()->create([
         'detected_at' => $start->copy()->addDay(),
@@ -104,8 +105,8 @@ it('queues generation on the reports queue', function () {
 
 it('adds completeness notes when device offline exceeds threshold', function () {
     $manager = User::factory()->withRole('Safety Manager')->create();
-    $start = now()->startOfWeek(\Carbon\Carbon::SUNDAY)->subWeek();
-    $end = $start->copy()->endOfWeek(\Carbon\Carbon::SATURDAY);
+    $start = now()->startOfWeek(Carbon::SUNDAY)->subWeek();
+    $end = $start->copy()->endOfWeek(Carbon::SATURDAY);
     $device = Device::factory()->create(['device_type' => DeviceType::GasDetector]);
 
     Alert::factory()->create([
@@ -124,8 +125,8 @@ it('adds completeness notes when device offline exceeds threshold', function () 
 
 it('publish-locks and supersedes without mutating the old published report', function () {
     $manager = User::factory()->withRole('Safety Manager')->create();
-    $start = now()->startOfWeek(\Carbon\Carbon::SUNDAY)->subWeek();
-    $end = $start->copy()->endOfWeek(\Carbon\Carbon::SATURDAY);
+    $start = now()->startOfWeek(Carbon::SUNDAY)->subWeek();
+    $end = $start->copy()->endOfWeek(Carbon::SATURDAY);
 
     $first = app(WeeklyReportService::class)->generate($start, $end, $manager);
     $published = app(WeeklyReportService::class)->publish($first, $manager);
@@ -133,7 +134,8 @@ it('publish-locks and supersedes without mutating the old published report', fun
 
     $this->actingAs($manager)
         ->post(route('weekly-reports.publish', $published))
-        ->assertStatus(422);
+        ->assertRedirect()
+        ->assertSessionHas('inertia.flash_data.toast.message');
 
     $second = app(WeeklyReportService::class)->generate($start, $end, $manager);
     expect($second->supersedes_report_id)->toBe($published->id)

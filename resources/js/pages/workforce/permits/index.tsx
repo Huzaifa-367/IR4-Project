@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
@@ -7,6 +7,11 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type {
     PaginatedPermits,
     PermitListItem,
@@ -26,6 +31,24 @@ type Props = {
 };
 
 const ALL = 'all';
+
+const QUICK_STATUS_FILTERS: Array<{ value: string; label: string }> = [
+    { value: 'pending_inspection', label: 'Pending inspection' },
+    { value: 'pending_gas_test', label: 'Gas test' },
+    { value: 'pending_issue', label: 'Pending issue' },
+    { value: 'active', label: 'Active' },
+    { value: 'suspended', label: 'Suspended' },
+];
+
+const TYPE_COLOUR_CLASS: Record<string, string> = {
+    red: 'bg-red-500',
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    yellow: 'bg-yellow-500',
+    orange: 'bg-orange-500',
+    purple: 'bg-purple-500',
+    cyan: 'bg-cyan-500',
+};
 
 const STATUS_TONE: Record<string, StatusPillTone> = {
     draft: 'neutral',
@@ -71,17 +94,27 @@ export default function PermitsIndex({
     const [search, setSearch] = useState(filters.search);
     const [status, setStatus] = useState(filters.status || ALL);
 
+    function applyFilters(
+        patch: Partial<{ search: string; status: string }> = {},
+    ): void {
+        const nextSearch = patch.search ?? search;
+        const nextStatus = patch.status ?? status;
+
+        visitFilters('/workforce/permits', {
+            search: nextSearch || undefined,
+            status: nextStatus === ALL ? undefined : nextStatus,
+        });
+    }
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ search: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
+
     const queryParams = {
         search: search || undefined,
         status: status === ALL ? undefined : status,
     };
-
-    function applyFilters(): void {
-        router.get('/workforce/permits', queryParams, {
-            preserveState: true,
-            replace: true,
-        });
-    }
 
     const columns: SettingsColumn<PermitListItem>[] = [
         {
@@ -94,7 +127,17 @@ export default function PermitsIndex({
         {
             key: 'type',
             header: 'Type',
-            cell: (row) => row.type?.name ?? '—',
+            cell: (row) => (
+                <span className="inline-flex items-center gap-2">
+                    {row.type?.colour_token ? (
+                        <span
+                            className={`h-2 w-2 shrink-0 rounded-full ${TYPE_COLOUR_CLASS[row.type.colour_token] ?? 'bg-muted-foreground'}`}
+                            aria-hidden
+                        />
+                    ) : null}
+                    {row.type?.name ?? '—'}
+                </span>
+            ),
         },
         {
             key: 'zone',
@@ -143,35 +186,77 @@ export default function PermitsIndex({
                     ) : undefined
                 }
                 filters={
-                    <>
-                        <Input
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search number, task…"
-                            className="w-full sm:w-56"
-                            aria-label="Search permits"
-                        />
-                        <select
-                            value={status}
-                            onChange={(event) => setStatus(event.target.value)}
-                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                            aria-label="Filter by status"
-                        >
-                            <option value={ALL}>All statuses</option>
-                            {statusOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
+                    <div className="flex w-full flex-col gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Input
+                                value={search}
+                                onChange={(event) => {
+                                    const value = event.target.value;
+                                    setSearch(value);
+                                    debouncedApplySearch(value);
+                                }}
+                                placeholder="Search number, task…"
+                                className="w-full sm:w-56"
+                                aria-label="Search permits"
+                            />
+                            <select
+                                value={status}
+                                onChange={(event) => {
+                                    const value = event.target.value;
+                                    setStatus(value);
+                                    cancelDebounce();
+                                    applyFilters({ status: value });
+                                }}
+                                className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                                aria-label="Filter by status"
+                            >
+                                <option value={ALL}>All statuses</option>
+                                {statusOptions.map((option) => (
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {QUICK_STATUS_FILTERS.map((chip) => (
+                                <Button
+                                    key={chip.value}
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        status === chip.value
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() => {
+                                        setStatus(chip.value);
+                                        cancelDebounce();
+                                        applyFilters({ status: chip.value });
+                                    }}
+                                >
+                                    {chip.label}
+                                </Button>
                             ))}
-                        </select>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={applyFilters}
-                        >
-                            Apply
-                        </Button>
-                    </>
+                            {status !== ALL ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setStatus(ALL);
+                                        cancelDebounce();
+                                        applyFilters({ status: ALL });
+                                    }}
+                                >
+                                    Clear filter
+                                </Button>
+                            ) : null}
+                        </div>
+                    </div>
                 }
             >
                 <SettingsDataTable

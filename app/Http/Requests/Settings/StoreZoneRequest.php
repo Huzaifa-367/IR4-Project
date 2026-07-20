@@ -23,6 +23,7 @@ final class StoreZoneRequest extends FormRequest
             'name' => ['required', 'string', 'max:150'],
             'zone_type' => ['required', Rule::enum(ZoneType::class)],
             'requires_authorization' => ['sometimes', 'boolean'],
+            'requires_permit' => ['sometimes', 'boolean'],
             'occupancy_limit' => ['nullable', 'integer', 'min:1'],
             'map_x' => ['nullable', 'numeric'],
             'map_y' => ['nullable', 'numeric'],

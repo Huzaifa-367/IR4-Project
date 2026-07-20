@@ -99,6 +99,22 @@ final class WorkerDocumentController extends BaseController
             ->with('flash', ['success' => 'Document verified.']);
     }
 
+    public function reject(Request $request, Worker $worker, WorkerDocument $document): RedirectResponse
+    {
+        abort_unless($request->user()?->can('manage-worker-documents') ?? false, 403);
+        abort_unless($document->worker_id === $worker->id, 404);
+
+        $document->update([
+            'verification_status' => WorkerDocumentVerificationStatus::Rejected,
+            'verified_by' => null,
+            'verified_at' => null,
+        ]);
+
+        return redirect()
+            ->route('tracking.workers.show', $worker)
+            ->with('flash', ['success' => 'Document rejected.']);
+    }
+
     public function destroy(Request $request, Worker $worker, WorkerDocument $document): RedirectResponse
     {
         abort_unless($request->user()?->can('manage-worker-documents') ?? false, 403);

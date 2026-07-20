@@ -20,6 +20,7 @@ final class ZoneService
             'name' => $data['name'],
             'zone_type' => $data['zone_type'],
             'requires_authorization' => (bool) ($data['requires_authorization'] ?? false),
+            'requires_permit' => (bool) ($data['requires_permit'] ?? false),
             'occupancy_limit' => $data['occupancy_limit'] ?? null,
             'map_x' => $data['map_x'] ?? null,
             'map_y' => $data['map_y'] ?? null,

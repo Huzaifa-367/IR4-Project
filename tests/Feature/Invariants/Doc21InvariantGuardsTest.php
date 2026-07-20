@@ -36,9 +36,9 @@ it('invariant: audit log is append-only at the model and has no mutation routes'
     ]);
 
     expect(fn () => $log->update(['description' => 'mutated']))
-        ->toThrow(\LogicException::class)
+        ->toThrow(LogicException::class)
         ->and(fn () => $log->delete())
-        ->toThrow(\LogicException::class);
+        ->toThrow(LogicException::class);
 
     $mutating = collect(app('router')->getRoutes())
         ->filter(fn ($route) => str_contains($route->uri(), 'audit-log') || str_contains($route->uri(), 'audit_log'))
@@ -108,7 +108,8 @@ it('invariant: one assigned tag per worker and replace is atomic', function () {
 
     $this->actingAs($admin)
         ->post(route('tracking.tags.assign', $new), ['worker_id' => $worker->id])
-        ->assertStatus(409);
+        ->assertRedirect()
+        ->assertSessionHas('inertia.flash_data.toast.message');
 
     $this->actingAs($admin)
         ->post(route('tracking.workers.replace-tag', $worker), [

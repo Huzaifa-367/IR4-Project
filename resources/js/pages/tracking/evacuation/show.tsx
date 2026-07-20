@@ -166,7 +166,15 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                     <Button
                                         type="submit"
                                         size="sm"
-                                        disabled={processing}
+                                        disabled={
+                                            processing ||
+                                            unaccounted.length > 0
+                                        }
+                                        title={
+                                            unaccounted.length > 0
+                                                ? 'Account all workers first, or use Force close with a note'
+                                                : undefined
+                                        }
                                     >
                                         Close
                                     </Button>
@@ -175,7 +183,7 @@ export default function EvacuationShow({ report, canManage }: Props) {
                             <Form
                                 action={`/tracking/evacuation/${report.id}/close`}
                                 method="post"
-                                className="flex gap-2"
+                                className="flex flex-wrap items-center gap-2"
                             >
                                 {({ processing }) => (
                                     <>
@@ -188,8 +196,9 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                             name="note"
                                             required
                                             minLength={10}
-                                            placeholder="Force-close note ≥10"
-                                            className="h-9 rounded-md border border-input px-2 text-sm"
+                                            placeholder="Force-close note ≥10 chars"
+                                            className="h-9 min-w-[14rem] flex-1 rounded-md border border-input px-2 text-sm"
+                                            aria-label="Force-close note"
                                         />
                                         <Button
                                             type="submit"
@@ -202,6 +211,14 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                     </>
                                 )}
                             </Form>
+                            {unaccounted.length > 0 ? (
+                                <p className="basis-full text-sm text-[color:var(--warn)]">
+                                    {unaccounted.length} worker
+                                    {unaccounted.length === 1 ? '' : 's'} still
+                                    unaccounted — use Force close with a note, or
+                                    account them first.
+                                </p>
+                            ) : null}
                         </>
                     )}
                     <Button asChild variant="outline" size="sm">

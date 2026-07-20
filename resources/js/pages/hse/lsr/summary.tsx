@@ -1,7 +1,8 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { visitFilters } from '@/lib/visit-filters';
 
 type Props = {
     summary: {
@@ -37,7 +38,7 @@ export default function LsrSummary({ summary, filters }: Props) {
                     onSubmit={(event) => {
                         event.preventDefault();
                         const form = new FormData(event.currentTarget);
-                        router.get('/lsr-violations/summary', {
+                        visitFilters('/lsr-violations/summary', {
                             from: String(form.get('from') ?? ''),
                             to: String(form.get('to') ?? ''),
                         });

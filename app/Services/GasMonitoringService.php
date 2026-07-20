@@ -7,6 +7,7 @@ use App\Enums\AuditEvent;
 use App\Enums\DeviceType;
 use App\Enums\GasAlarmLevel;
 use App\Enums\GasType;
+use App\Enums\PermitStatus;
 use App\Enums\ThresholdDirection;
 use App\Events\GasLiveUpdated;
 use App\Models\AuditLog;
@@ -15,6 +16,8 @@ use App\Models\GasAlarm;
 use App\Models\GasReading;
 use App\Models\GasReadingRollup;
 use App\Models\GasThreshold;
+use App\Models\Permit;
+use App\Models\ReaderZoneBinding;
 use App\Models\User;
 use App\Support\Ingest\IngestEventRejected;
 use App\Support\Ingest\IngestTimestamps;
@@ -36,6 +39,7 @@ final class GasMonitoringService
         private readonly SettingsService $settings,
         private readonly AuditService $audit,
         private readonly SensorRollupService $rollups,
+        private readonly PermitService $permits,
     ) {}
 
     /**
@@ -630,6 +634,34 @@ final class GasMonitoringService
             'alert_id' => $alert->id,
             'during_outage' => false,
         ]);
+
+        if ($level === GasAlarmLevel::Alarm) {
+            $this->suspendActivePermitsForDevice($device);
+        }
+    }
+
+    private function suspendActivePermitsForDevice(Device $device): void
+    {
+        $zoneIds = ReaderZoneBinding::query()
+            ->where('device_id', $device->id)
+            ->whereNull('bound_until')
+            ->pluck('zone_id');
+
+        if ($zoneIds->isEmpty()) {
+            return;
+        }
+
+        Permit::query()
+            ->where('status', PermitStatus::Active)
+            ->whereIn('zone_id', $zoneIds)
+            ->orderBy('id')
+            ->each(function (Permit $permit): void {
+                $this->permits->suspend(
+                    $permit,
+                    null,
+                    'Suspended automatically due to gas alarm in zone.',
+                );
+            });
     }
 
     private function trackHysteresis(Device $device, GasType $gasType, float $value, GasThreshold $threshold): void

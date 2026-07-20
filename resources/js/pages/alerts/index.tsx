@@ -1,4 +1,4 @@
-import { Form, Head, Link, router } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { useAlertStore } from '@/components/ir4/alert-provider';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
@@ -17,6 +17,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type { Alert } from '@/types/alert';
 import type { PaginatedMeta } from '@/types/hardware';
 
@@ -64,19 +69,38 @@ export default function AlertsIndex({
     const [alertType, setAlertType] = useState(filters.alert_type || ALL);
     const [statusFilter, setStatusFilter] = useState(filters.status || ALL);
 
+    function applyFilters(
+        patch: Partial<{
+            search: string;
+            severity: string;
+            alert_type: string;
+            status: string;
+        }> = {},
+    ): void {
+        const nextSearch = patch.search ?? search;
+        const nextSeverity = patch.severity ?? severity;
+        const nextAlertType = patch.alert_type ?? alertType;
+        const nextStatus = patch.status ?? statusFilter;
+
+        visitFilters('/alerts', {
+            search: nextSearch || undefined,
+            severity: nextSeverity === ALL ? undefined : nextSeverity,
+            alert_type: nextAlertType === ALL ? undefined : nextAlertType,
+            status: nextStatus === ALL ? undefined : nextStatus,
+        });
+    }
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ search: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
+
     const queryParams = {
         search: search || undefined,
         severity: severity === ALL ? undefined : severity,
         alert_type: alertType === ALL ? undefined : alertType,
         status: statusFilter === ALL ? undefined : statusFilter,
     };
-
-    function applyFilters(): void {
-        router.get('/alerts', queryParams, {
-            preserveState: true,
-            replace: true,
-        });
-    }
 
     const columns: SettingsColumn<Alert>[] = [
         {
@@ -208,14 +232,22 @@ export default function AlertsIndex({
                     <>
                         <Input
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setSearch(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Search title…"
                             className="w-full sm:w-56"
                             aria-label="Search alerts"
                         />
                         <Select
                             value={statusFilter}
-                            onValueChange={setStatusFilter}
+                            onValueChange={(value) => {
+                                setStatusFilter(value);
+                                cancelDebounce();
+                                applyFilters({ status: value });
+                            }}
                         >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Status" />
@@ -236,7 +268,14 @@ export default function AlertsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={severity} onValueChange={setSeverity}>
+                        <Select
+                            value={severity}
+                            onValueChange={(value) => {
+                                setSeverity(value);
+                                cancelDebounce();
+                                applyFilters({ severity: value });
+                            }}
+                        >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Severity" />
                             </SelectTrigger>
@@ -256,7 +295,14 @@ export default function AlertsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={alertType} onValueChange={setAlertType}>
+                        <Select
+                            value={alertType}
+                            onValueChange={(value) => {
+                                setAlertType(value);
+                                cancelDebounce();
+                                applyFilters({ alert_type: value });
+                            }}
+                        >
                             <SelectTrigger className="w-44">
                                 <SelectValue placeholder="Type" />
                             </SelectTrigger>
@@ -276,13 +322,6 @@ export default function AlertsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={applyFilters}
-                        >
-                            Apply
-                        </Button>
                     </>
                 }
             >

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuthenticateDevice;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Support\ApiResponse;
@@ -11,6 +12,10 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -29,10 +34,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->alias([
-            'auth.device' => \App\Http\Middleware\AuthenticateDevice::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'auth.device' => AuthenticateDevice::class,
+            'permission' => PermissionMiddleware::class,
+            'role' => RoleMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
         ]);
 
         $middleware->web(append: [
@@ -84,20 +89,33 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (HttpExceptionInterface $e, Request $request) {
-            if (! $request->is('api/*')) {
-                return null;
+            $status = $e->getStatusCode();
+            $message = $e->getMessage() ?: 'Request failed.';
+
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $code = match ($status) {
+                    409 => 'CONFLICT',
+                    429 => 'RATE_LIMITED',
+                    403 => 'FORBIDDEN',
+                    401 => 'UNAUTHENTICATED',
+                    404 => 'NOT_FOUND',
+                    default => 'HTTP_ERROR',
+                };
+
+                return ApiResponse::error($code, $message, status: $status);
             }
 
-            $status = $e->getStatusCode();
-            $code = match ($status) {
-                409 => 'CONFLICT',
-                429 => 'RATE_LIMITED',
-                403 => 'FORBIDDEN',
-                401 => 'UNAUTHENTICATED',
-                404 => 'NOT_FOUND',
-                default => 'HTTP_ERROR',
-            };
+            // Domain guards (409/422) on operator UI: toast + stay on page.
+            // Leave 401/403/404/5xx to Laravel's normal error pages.
+            if (in_array($status, [409, 422], true) && $request->hasSession()) {
+                Inertia::flash('toast', [
+                    'type' => $status === 409 ? 'warning' : 'error',
+                    'message' => $message,
+                ]);
 
-            return ApiResponse::error($code, $e->getMessage() ?: 'Request failed.', status: $status);
+                return Inertia::back();
+            }
+
+            return null;
         });
     })->create();

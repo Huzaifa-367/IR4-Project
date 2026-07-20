@@ -1,4 +1,4 @@
-import { Form, Head, Link, router } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
@@ -22,6 +22,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type { PaginatedMeta } from '@/types/hardware';
 import type { HseOption, LsrPrefill, LsrViolation } from '@/types/hse';
 
@@ -55,19 +60,34 @@ export default function LsrIndex({
     const [status, setStatus] = useState(filters.status || ALL);
     const [category, setCategory] = useState(filters.category || ALL);
 
+    function applyFilters(
+        patch: Partial<{
+            search: string;
+            status: string;
+            category: string;
+        }> = {},
+    ): void {
+        const nextSearch = patch.search ?? search;
+        const nextStatus = patch.status ?? status;
+        const nextCategory = patch.category ?? category;
+
+        visitFilters('/lsr-violations', {
+            search: nextSearch || undefined,
+            status: nextStatus === ALL ? undefined : nextStatus,
+            category: nextCategory === ALL ? undefined : nextCategory,
+        });
+    }
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ search: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
+
     const queryParams = {
         search: search || undefined,
         status: status === ALL ? undefined : status,
         category: category === ALL ? undefined : category,
     };
-
-    function applyFilters(patch: Partial<typeof queryParams> = {}): void {
-        router.get(
-            '/lsr-violations',
-            { ...queryParams, ...patch },
-            { preserveState: true, replace: true },
-        );
-    }
 
     const columns: SettingsColumn<LsrViolation>[] = [
         {
@@ -153,7 +173,11 @@ export default function LsrIndex({
                     <>
                         <Input
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setSearch(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Search description…"
                             className="w-full sm:w-56"
                             aria-label="Search LSR"
@@ -175,19 +199,22 @@ export default function LsrIndex({
                                     }
                                     onClick={() => {
                                         setStatus(value);
-                                        applyFilters({
-                                            status:
-                                                value === ALL
-                                                    ? undefined
-                                                    : value,
-                                        });
+                                        cancelDebounce();
+                                        applyFilters({ status: value });
                                     }}
                                 >
                                     {label}
                                 </Button>
                             ))}
                         </div>
-                        <Select value={category} onValueChange={setCategory}>
+                        <Select
+                            value={category}
+                            onValueChange={(value) => {
+                                setCategory(value);
+                                cancelDebounce();
+                                applyFilters({ category: value });
+                            }}
+                        >
                             <SelectTrigger className="w-48">
                                 <SelectValue placeholder="Category" />
                             </SelectTrigger>
@@ -207,13 +234,6 @@ export default function LsrIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => applyFilters()}
-                        >
-                            Apply
-                        </Button>
                     </>
                 }
             >

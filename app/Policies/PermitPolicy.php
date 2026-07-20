@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\PermitStatus;
 use App\Models\Permit;
 use App\Models\User;
 
@@ -24,7 +25,11 @@ final class PermitPolicy
 
     public function update(User $user, Permit $permit): bool
     {
-        return $user->can('request-permit');
+        if (! $user->can('request-permit')) {
+            return false;
+        }
+
+        return in_array($permit->status, [PermitStatus::Draft, PermitStatus::Rejected], true);
     }
 
     public function issue(User $user, Permit $permit): bool

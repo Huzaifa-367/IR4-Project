@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { MoreHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
@@ -27,7 +27,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type {
     DeviceRow,
     HardwareOption,
@@ -84,17 +89,35 @@ export default function DevicesIndex({
     const [typeValue, setTypeValue] = useState('rfid_reader');
     const [nextStatus, setNextStatus] = useState('maintenance');
 
-    const applyFilters = (): void => {
-        router.get(
-            '/hardware/devices',
-            {
-                q: q || undefined,
-                device_type: deviceType === 'all' ? undefined : deviceType,
-                status: status === 'all' ? undefined : status,
-            },
-            { preserveState: true, replace: true },
-        );
+    const queryParams = {
+        q: q || undefined,
+        device_type: deviceType === 'all' ? undefined : deviceType,
+        status: status === 'all' ? undefined : status,
     };
+
+    const applyFilters = (
+        patch: Partial<{
+            q: string;
+            device_type: string;
+            status: string;
+        }> = {},
+    ): void => {
+        const nextQ = patch.q ?? q;
+        const nextDeviceType = patch.device_type ?? deviceType;
+        const nextStatus = patch.status ?? status;
+
+        visitFilters('/hardware/devices', {
+            q: nextQ || undefined,
+            device_type:
+                nextDeviceType === 'all' ? undefined : nextDeviceType,
+            status: nextStatus === 'all' ? undefined : nextStatus,
+        });
+    };
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ q: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
 
     const columns: SettingsColumn<DeviceRow>[] = [
         {
@@ -225,11 +248,22 @@ export default function DevicesIndex({
                     <>
                         <Input
                             value={q}
-                            onChange={(event) => setQ(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setQ(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Search…"
                             className="w-full sm:w-56"
                         />
-                        <Select value={deviceType} onValueChange={setDeviceType}>
+                        <Select
+                            value={deviceType}
+                            onValueChange={(value) => {
+                                setDeviceType(value);
+                                cancelDebounce();
+                                applyFilters({ device_type: value });
+                            }}
+                        >
                             <SelectTrigger className="w-44">
                                 <SelectValue placeholder="Type" />
                             </SelectTrigger>
@@ -247,7 +281,14 @@ export default function DevicesIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={status} onValueChange={setStatus}>
+                        <Select
+                            value={status}
+                            onValueChange={(value) => {
+                                setStatus(value);
+                                cancelDebounce();
+                                applyFilters({ status: value });
+                            }}
+                        >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -267,9 +308,6 @@ export default function DevicesIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button type="button" variant="outline" onClick={applyFilters}>
-                            Apply
-                        </Button>
                     </>
                 }
             >
@@ -279,11 +317,7 @@ export default function DevicesIndex({
                     rowKey={(device) => device.id}
                     meta={devices.meta}
                     pageUrl="/hardware/devices"
-                    queryParams={{
-                        q: q || undefined,
-                        device_type: deviceType === 'all' ? undefined : deviceType,
-                        status: status === 'all' ? undefined : status,
-                    }}
+                    queryParams={queryParams}
                     emptyTitle="No devices"
                     emptyDescription="Register a device on an asset to begin commissioning."
                 />

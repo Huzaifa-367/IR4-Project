@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { AnalyticalChart } from '@/components/ir4/analytical-chart';
 import { CardHeading } from '@/components/ir4/card-heading';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { ppeInfo } from '@/lib/analytics-info';
 import { buildTrendChartData, trendChartSeries } from '@/lib/trend-chart';
+import { visitFilters } from '@/lib/visit-filters';
 import { ViolationTypeLabels } from '@/types/enums';
 import type { PpeDashboardSnapshot } from '@/types/ppe';
 
@@ -83,18 +84,18 @@ export default function PpeTrendsIndex({
             return;
         }
 
-        router.get(
+        visitFilters(
             '/ppe/trends',
             { range: nextRange },
-            { only: ['snapshot', 'filters'], preserveState: true, replace: true },
+            { only: ['snapshot', 'filters'] },
         );
     };
 
     const applyCustomRange = (): void => {
-        router.get(
+        visitFilters(
             '/ppe/trends',
             { range: 'custom', from, to },
-            { only: ['snapshot', 'filters'], preserveState: true, replace: true },
+            { only: ['snapshot', 'filters'] },
         );
     };
 

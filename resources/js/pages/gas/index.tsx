@@ -23,6 +23,7 @@ import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import { gasInfo } from '@/lib/analytics-info';
 import { buildTrendChartData, trendChartSeries } from '@/lib/trend-chart';
+import { visitFilters } from '@/lib/visit-filters';
 import { GasTypeLabels } from '@/types/enums';
 import type { GasDashboardSnapshot, GasLivePanel, GasThreshold } from '@/types/gas';
 
@@ -245,7 +246,7 @@ export default function GasDashboard({
         const nextDevice = patch.device_id ?? deviceId;
         const nextRange = (patch.range ?? range) as RangeValue;
 
-        router.get(
+        visitFilters(
             '/gas',
             {
                 device_id:
@@ -254,11 +255,7 @@ export default function GasDashboard({
                 from: nextRange === 'custom' ? (patch.from ?? from) : undefined,
                 to: nextRange === 'custom' ? (patch.to ?? to) : undefined,
             },
-            {
-                only: ['snapshot', 'filters'],
-                preserveState: true,
-                replace: true,
-            },
+            { only: ['snapshot', 'filters'] },
         );
     };
 

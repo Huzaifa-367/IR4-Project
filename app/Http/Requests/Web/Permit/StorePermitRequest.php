@@ -21,6 +21,7 @@ final class StorePermitRequest extends FormRequest
         return [
             'permit_type_id' => ['required', 'integer', Rule::exists('permit_types', 'id')],
             'zone_id' => ['nullable', 'integer', Rule::exists('zones', 'id')],
+            'work_order_id' => ['nullable', 'integer', Rule::exists('work_orders', 'id')],
             'task_description' => ['required', 'string', 'max:2000'],
             'personnel' => ['nullable', 'array'],
             'personnel.*.worker_id' => ['required', 'integer', Rule::exists('workers', 'id')],

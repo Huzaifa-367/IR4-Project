@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
@@ -19,6 +19,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type { PaginatedMeta } from '@/types/hardware';
 
 type TagRow = {
@@ -63,16 +68,27 @@ export default function TagsIndex({
     const [assignWorker, setAssignWorker] = useState('');
     const [unassignTarget, setUnassignTarget] = useState<TagRow | null>(null);
 
-    const applyFilters = (): void => {
-        router.get(
-            '/hardware/tags',
-            {
-                status: status === 'all' ? undefined : status,
-                search: search || undefined,
-            },
-            { preserveState: true, replace: true },
-        );
+    const queryParams = {
+        status: status === 'all' ? undefined : status,
+        search: search || undefined,
     };
+
+    const applyFilters = (
+        patch: Partial<{ status: string; search: string }> = {},
+    ): void => {
+        const nextStatus = patch.status ?? status;
+        const nextSearch = patch.search ?? search;
+
+        visitFilters('/hardware/tags', {
+            status: nextStatus === 'all' ? undefined : nextStatus,
+            search: nextSearch || undefined,
+        });
+    };
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ search: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
 
     const columns: SettingsColumn<TagRow>[] = [
         {
@@ -144,12 +160,23 @@ export default function TagsIndex({
                     <>
                         <Input
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setSearch(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Search UID…"
                             className="w-full sm:w-56"
                             aria-label="Search tags"
                         />
-                        <Select value={status} onValueChange={setStatus}>
+                        <Select
+                            value={status}
+                            onValueChange={(value) => {
+                                setStatus(value);
+                                cancelDebounce();
+                                applyFilters({ status: value });
+                            }}
+                        >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -169,13 +196,6 @@ export default function TagsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={applyFilters}
-                        >
-                            Apply
-                        </Button>
                     </>
                 }
             >
@@ -185,10 +205,7 @@ export default function TagsIndex({
                     rowKey={(tag) => tag.id}
                     meta={tags.meta}
                     pageUrl="/hardware/tags"
-                    queryParams={{
-                        status: status === 'all' ? undefined : status,
-                        search: search || undefined,
-                    }}
+                    queryParams={queryParams}
                     emptyTitle="No tags"
                     emptyDescription="Register the first RFID tag to build the spare pool."
                 />

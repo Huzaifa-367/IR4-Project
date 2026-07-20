@@ -18,8 +18,8 @@ use App\Models\PermitTypeDocumentRequirement;
 use App\Models\PermitTypeGasChannel;
 use App\Models\ReaderZoneBinding;
 use App\Models\User;
-use App\Models\UserCertification;
 use App\Models\WorkerDocument;
+use App\Models\WorkOrder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -92,22 +92,82 @@ final class PermitService
         });
     }
 
+    /**
+     * @param  array{
+     *     zone_id?: int|null,
+     *     task_description: string,
+     *     checklist?: array<string, mixed>|null,
+     *     controls?: array<string, mixed>|null,
+     *     personnel?: list<array{worker_id: int, role_code: string}>,
+     *     is_extended?: bool
+     * }  $data
+     */
+    public function updateDraft(Permit $permit, User $actor, array $data): Permit
+    {
+        return DB::transaction(function () use ($permit, $actor, $data): Permit {
+            $permit = $this->reload($permit);
+
+            if (! in_array($permit->status, [PermitStatus::Draft, PermitStatus::Rejected], true)) {
+                throw ValidationException::withMessages([
+                    'status' => ['Only draft or rejected permits can be updated.'],
+                ]);
+            }
+
+            $permit->update([
+                'zone_id' => $data['zone_id'] ?? null,
+                'task_description' => $data['task_description'],
+                'checklist' => $data['checklist'] ?? null,
+                'controls' => $data['controls'] ?? null,
+                'is_extended' => (bool) ($data['is_extended'] ?? false),
+            ]);
+
+            if (array_key_exists('personnel', $data)) {
+                $permit->personnel()->delete();
+
+                foreach ($data['personnel'] ?? [] as $row) {
+                    $workerId = (int) $row['worker_id'];
+                    $roleCode = (string) $row['role_code'];
+
+                    $this->assertWorkerDocuments($permit, $workerId, $roleCode);
+
+                    PermitPersonnel::query()->create([
+                        'permit_id' => $permit->id,
+                        'worker_id' => $workerId,
+                        'role_code' => $roleCode,
+                        'documents_verified_at' => now(),
+                    ]);
+                }
+            }
+
+            $this->recordEvent($permit, 'draft_updated', [
+                'personnel_count' => array_key_exists('personnel', $data)
+                    ? count($data['personnel'] ?? [])
+                    : $permit->personnel()->count(),
+            ], $actor);
+
+            return $permit->fresh([
+                'type',
+                'zone',
+                'personnel.worker',
+                'receiver',
+            ]) ?? $permit;
+        });
+    }
+
     public function submit(Permit $permit, User $actor): Permit
     {
         return DB::transaction(function () use ($permit, $actor): Permit {
             $permit = $this->reload($permit);
 
-            if ($permit->status !== PermitStatus::Draft) {
+            if (! in_array($permit->status, [PermitStatus::Draft, PermitStatus::Rejected], true)) {
                 throw ValidationException::withMessages([
-                    'status' => ['Only draft permits can be submitted.'],
+                    'status' => ['Only draft or rejected permits can be submitted.'],
                 ]);
             }
 
+            $this->assertMandatoryChecklist($permit);
+            $this->assertMandatoryRoles($permit);
             $this->assertAllPersonnelDocuments($permit);
-
-            $receiver = $permit->receiver ?? User::query()->findOrFail($permit->receiver_id);
-            $override = $actor->can('manage-settings');
-            $this->assertUserCert($receiver, 'receiver', $override);
 
             $nextStatus = $this->statusAfterSubmit($permit);
 
@@ -177,9 +237,6 @@ final class PermitService
             $permit = $this->reload($permit);
             $type = $permit->type ?? PermitType::query()->findOrFail($permit->permit_type_id);
 
-            $override = $tester->can('manage-settings');
-            $this->assertUserCert($tester, 'gas_tester', $override);
-
             $passed = $this->evaluateGasPass($type, $readings);
             $result = $passed ? GasTestResult::Pass : GasTestResult::Fail;
 
@@ -248,10 +305,9 @@ final class PermitService
                 ]);
             }
 
+            $this->assertMandatoryChecklist($permit);
+            $this->assertMandatoryRoles($permit);
             $this->assertAllPersonnelDocuments($permit);
-
-            $override = $issuer->can('manage-settings');
-            $this->assertUserCert($issuer, 'issuer', $override);
 
             $validFrom = now();
             $validTo = $validFrom->copy()->addMinutes($type->default_validity_minutes);
@@ -372,9 +428,6 @@ final class PermitService
 
             $this->assertAllPersonnelDocuments($permit);
 
-            $override = $issuer->can('manage-settings');
-            $this->assertUserCert($issuer, 'issuer', $override);
-
             $permit->update([
                 'renewal_count' => $permit->renewal_count + 1,
                 'valid_to' => $proposedValidTo,
@@ -491,6 +544,117 @@ final class PermitService
                 ],
             ]);
         }
+    }
+
+    /**
+     * @return array{
+     *     is_clear: bool,
+     *     total_permits: int,
+     *     active_permits: int,
+     *     pending_permits: int,
+     *     permits: list<array<string, mixed>>
+     * }
+     */
+    public function workOrderClearance(WorkOrder $workOrder): array
+    {
+        $workOrder->load([
+            'permits.type:id,code,name,colour_token',
+            'permits.zone:id,name',
+        ]);
+
+        $permits = $workOrder->permits;
+
+        $terminal = [
+            PermitStatus::Closed,
+            PermitStatus::Cancelled,
+            PermitStatus::Expired,
+        ];
+
+        $activeCount = $permits->where('status', PermitStatus::Active)->count();
+        $pendingCount = $permits
+            ->filter(fn (Permit $permit): bool => ! in_array($permit->status, $terminal, true)
+                && $permit->status !== PermitStatus::Active)
+            ->count();
+
+        $isClear = $permits->isEmpty()
+            || $permits->every(fn (Permit $permit): bool => $permit->status === PermitStatus::Active);
+
+        return [
+            'is_clear' => $isClear,
+            'total_permits' => $permits->count(),
+            'active_permits' => $activeCount,
+            'pending_permits' => $pendingCount,
+            'permits' => $permits->map(fn (Permit $permit): array => [
+                'id' => $permit->id,
+                'permit_number' => $permit->permit_number,
+                'status' => $permit->status->value,
+                'status_label' => $permit->status->label(),
+                'type' => $permit->type === null ? null : [
+                    'id' => $permit->type->id,
+                    'code' => $permit->type->code,
+                    'name' => $permit->type->name,
+                    'colour_token' => $permit->type->colour_token,
+                ],
+                'zone' => $permit->zone === null ? null : [
+                    'id' => $permit->zone->id,
+                    'name' => $permit->zone->name,
+                ],
+            ])->values()->all(),
+        ];
+    }
+
+    public function expireOverdue(): int
+    {
+        $count = 0;
+
+        Permit::query()
+            ->where('status', PermitStatus::Active)
+            ->whereNotNull('valid_to')
+            ->where('valid_to', '<', now())
+            ->orderBy('id')
+            ->each(function (Permit $permit) use (&$count): void {
+                DB::transaction(function () use ($permit, &$count): void {
+                    $permit->update(['status' => PermitStatus::Expired]);
+                    $this->recordEvent($permit, 'expired', [
+                        'reason' => 'valid_to_passed',
+                        'valid_to' => $permit->valid_to?->toIso8601String(),
+                    ], null);
+                    $count++;
+                });
+            });
+
+        return $count;
+    }
+
+    public function suspendStaleGasTests(): int
+    {
+        $count = 0;
+
+        Permit::query()
+            ->where('status', PermitStatus::Active)
+            ->where('gas_test_required', true)
+            ->with(['type', 'gasTests'])
+            ->orderBy('id')
+            ->each(function (Permit $permit) use (&$count): void {
+                $retestMinutes = $permit->type?->retest_interval_minutes;
+                if ($retestMinutes === null) {
+                    return;
+                }
+
+                $latestPass = $permit->gasTests
+                    ->where('result', GasTestResult::Pass)
+                    ->sortByDesc('tested_at')
+                    ->first();
+
+                if ($latestPass !== null && $latestPass->tested_at->gte(now()->subMinutes($retestMinutes))) {
+                    return;
+                }
+
+                $this->suspend($permit, null, 'Gas retest interval exceeded (automated).');
+                $count++;
+            });
+
+        return $count;
     }
 
     /**
@@ -652,6 +816,8 @@ final class PermitService
     {
         return Permit::query()->with([
             'type.gasChannels',
+            'type.checklistItems',
+            'type.roles',
             'type.documentRequirements.workerDocumentType',
             'zone',
             'personnel.worker',
@@ -670,6 +836,96 @@ final class PermitService
             $this->assertWorkerDocuments($permit, $person->worker_id, $person->role_code);
             $person->update(['documents_verified_at' => now()]);
         }
+    }
+
+    private function assertMandatoryChecklist(Permit $permit): void
+    {
+        $type = $permit->type ?? PermitType::query()->findOrFail($permit->permit_type_id);
+
+        $items = $type->relationLoaded('checklistItems')
+            ? $type->checklistItems->where('is_mandatory', true)->where('is_active', true)
+            : $type->checklistItems()
+                ->where('is_mandatory', true)
+                ->where('is_active', true)
+                ->get();
+
+        if ($items->isEmpty()) {
+            return;
+        }
+
+        /** @var array<string, mixed> $answers */
+        $answers = $permit->checklist ?? [];
+
+        /** @var list<string> $missing */
+        $missing = [];
+
+        foreach ($items as $item) {
+            $value = $answers[$item->code] ?? $answers[(string) $item->id] ?? null;
+
+            if (! $this->checklistItemAnswered($value)) {
+                $missing[] = $item->code;
+            }
+        }
+
+        if ($missing !== []) {
+            throw ValidationException::withMessages([
+                'checklist' => [
+                    'Mandatory checklist items not completed: '.implode(', ', $missing).'.',
+                ],
+            ]);
+        }
+    }
+
+    private function assertMandatoryRoles(Permit $permit): void
+    {
+        $type = $permit->type ?? PermitType::query()->findOrFail($permit->permit_type_id);
+
+        $roles = $type->relationLoaded('roles')
+            ? $type->roles->where('is_mandatory', true)
+            : $type->roles()->where('is_mandatory', true)->get();
+
+        if ($roles->isEmpty()) {
+            return;
+        }
+
+        /** @var array<string, int> $counts */
+        $counts = [];
+
+        foreach ($permit->personnel as $person) {
+            $counts[$person->role_code] = ($counts[$person->role_code] ?? 0) + 1;
+        }
+
+        /** @var list<string> $shortfalls */
+        $shortfalls = [];
+
+        foreach ($roles as $role) {
+            $assigned = $counts[$role->role_code] ?? 0;
+
+            if ($assigned < $role->min_count) {
+                $shortfalls[] = $role->role_code.' (need '.$role->min_count.', have '.$assigned.')';
+            }
+        }
+
+        if ($shortfalls !== []) {
+            throw ValidationException::withMessages([
+                'personnel' => [
+                    'Mandatory crew roles not satisfied: '.implode(', ', $shortfalls).'.',
+                ],
+            ]);
+        }
+    }
+
+    private function checklistItemAnswered(mixed $value): bool
+    {
+        if ($value === true || $value === 1) {
+            return true;
+        }
+
+        if (is_string($value)) {
+            return in_array(strtolower($value), ['1', 'true', 'yes', 'on'], true);
+        }
+
+        return false;
     }
 
     private function statusAfterSubmit(Permit $permit): PermitStatus
@@ -702,29 +958,6 @@ final class PermitService
         }
 
         return PermitStatus::PendingIssue;
-    }
-
-    private function assertUserCert(User $user, string $certType, bool $override): void
-    {
-        if ($override) {
-            return;
-        }
-
-        $hasCert = UserCertification::query()
-            ->where('user_id', $user->id)
-            ->where('cert_type', $certType)
-            ->where('is_active', true)
-            ->where(function ($query): void {
-                $query->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            })
-            ->exists();
-
-        if (! $hasCert) {
-            throw ValidationException::withMessages([
-                'certification' => ["User lacks a current {$certType} certification."],
-            ]);
-        }
     }
 
     /**

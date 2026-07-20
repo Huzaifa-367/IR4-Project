@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\PermitType;
 use App\Models\PermitTypeChecklistItem;
+use App\Models\PermitTypeConflict;
 use App\Models\PermitTypeDocumentRequirement;
 use App\Models\PermitTypeGasChannel;
 use App\Models\PermitTypeRole;
@@ -133,7 +134,7 @@ final class PermitCatalogueSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        $this->upsertPermitType([
+        $excavation = $this->upsertPermitType([
             'code' => 'excavation',
             'name' => 'Excavation',
             'description' => 'Digging and earthwork with utility clearance and edge protection.',
@@ -151,7 +152,7 @@ final class PermitCatalogueSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        $this->upsertPermitType([
+        $electrical = $this->upsertPermitType([
             'code' => 'electrical',
             'name' => 'Electrical Work',
             'description' => 'Live or de-energized electrical isolation work.',
@@ -169,7 +170,7 @@ final class PermitCatalogueSeeder extends Seeder
             'is_active' => false,
         ]);
 
-        $this->upsertPermitType([
+        $workAtHeight = $this->upsertPermitType([
             'code' => 'work_at_height',
             'name' => 'Work at Height',
             'description' => 'Fall-from-height work requiring harness and anchor points.',
@@ -191,6 +192,20 @@ final class PermitCatalogueSeeder extends Seeder
         $this->seedConfinedSpacePack($confinedSpace, $documentTypes);
         $this->seedEquipmentOpeningPack($equipmentOpening, $documentTypes);
         $this->seedColdWorkPack($coldWork);
+        $this->seedGenericCrewRoles($excavation, [
+            ['role_code' => 'supervisor', 'label' => 'Excavation Supervisor', 'min_count' => 1, 'sort_order' => 10],
+            ['role_code' => 'spotter', 'label' => 'Spotter / Banksman', 'min_count' => 1, 'sort_order' => 20],
+            ['role_code' => 'worker', 'label' => 'Crew Member', 'min_count' => 1, 'sort_order' => 30],
+        ]);
+        $this->seedGenericCrewRoles($electrical, [
+            ['role_code' => 'authorized', 'label' => 'Authorized Electrical Worker', 'min_count' => 1, 'sort_order' => 10],
+            ['role_code' => 'supervisor', 'label' => 'Electrical Supervisor', 'min_count' => 1, 'sort_order' => 20],
+        ]);
+        $this->seedGenericCrewRoles($workAtHeight, [
+            ['role_code' => 'supervisor', 'label' => 'Work at Height Supervisor', 'min_count' => 1, 'sort_order' => 10],
+            ['role_code' => 'worker', 'label' => 'Height Worker', 'min_count' => 1, 'sort_order' => 20],
+        ]);
+        $this->seedSimopsConflicts($hotWork, $confinedSpace);
     }
 
     /**
@@ -347,6 +362,11 @@ final class PermitCatalogueSeeder extends Seeder
      */
     private function seedEquipmentOpeningPack(PermitType $type, array $documentTypes): void
     {
+        $this->seedGenericCrewRoles($type, [
+            ['role_code' => 'supervisor', 'label' => 'Work Supervisor', 'min_count' => 1, 'sort_order' => 10, 'is_mandatory' => false],
+            ['role_code' => 'worker', 'label' => 'Crew Member', 'min_count' => 1, 'sort_order' => 20, 'is_mandatory' => false],
+        ]);
+
         $gasChannels = [
             ['channel_code' => 'o2_pct', 'label' => 'Oxygen', 'unit' => '%vol', 'alarm_below' => 19.5, 'alarm_above' => 23.5, 'sort_order' => 10],
             ['channel_code' => 'lel_pct', 'label' => 'LEL', 'unit' => '%LEL', 'alarm_above' => 10.0, 'sort_order' => 20],
@@ -389,6 +409,11 @@ final class PermitCatalogueSeeder extends Seeder
 
     private function seedColdWorkPack(PermitType $type): void
     {
+        $this->seedGenericCrewRoles($type, [
+            ['role_code' => 'supervisor', 'label' => 'Work Supervisor', 'min_count' => 1, 'sort_order' => 10, 'is_mandatory' => false],
+            ['role_code' => 'worker', 'label' => 'Crew Member', 'min_count' => 1, 'sort_order' => 20, 'is_mandatory' => false],
+        ]);
+
         $checklist = [
             ['code' => 'jsa_complete', 'label' => 'Job safety analysis completed', 'sort_order' => 10],
             ['code' => 'tools_inspected', 'label' => 'Tools and equipment inspected', 'sort_order' => 20],
@@ -408,6 +433,24 @@ final class PermitCatalogueSeeder extends Seeder
         }
     }
 
+    /**
+     * @param  list<array{role_code: string, label: string, min_count?: int, sort_order?: int, is_mandatory?: bool}>  $roles
+     */
+    private function seedGenericCrewRoles(PermitType $type, array $roles): void
+    {
+        foreach ($roles as $role) {
+            PermitTypeRole::query()->updateOrCreate(
+                ['permit_type_id' => $type->id, 'role_code' => $role['role_code']],
+                [
+                    'label' => $role['label'],
+                    'min_count' => $role['min_count'] ?? 1,
+                    'is_mandatory' => $role['is_mandatory'] ?? false,
+                    'sort_order' => $role['sort_order'] ?? 0,
+                ],
+            );
+        }
+    }
+
     private function upsertDocRequirement(
         PermitType $type,
         WorkerDocumentType $documentType,
@@ -422,6 +465,33 @@ final class PermitCatalogueSeeder extends Seeder
             [
                 'is_mandatory' => true,
                 'must_be_verified' => true,
+            ],
+        );
+    }
+
+    private function seedSimopsConflicts(PermitType $hotWork, PermitType $confinedSpace): void
+    {
+        PermitTypeConflict::query()->updateOrCreate(
+            [
+                'permit_type_id' => $hotWork->id,
+                'conflicts_with_type_id' => $confinedSpace->id,
+                'scope' => 'same_zone',
+            ],
+            [
+                'severity' => 'block',
+                'note' => 'Hot work and confined space entry must not overlap in the same zone.',
+            ],
+        );
+
+        PermitTypeConflict::query()->updateOrCreate(
+            [
+                'permit_type_id' => $confinedSpace->id,
+                'conflicts_with_type_id' => $hotWork->id,
+                'scope' => 'same_zone',
+            ],
+            [
+                'severity' => 'block',
+                'note' => 'Confined space entry and hot work must not overlap in the same zone.',
             ],
         );
     }

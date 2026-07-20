@@ -1,5 +1,4 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { router } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
@@ -24,6 +23,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type { PaginatedMeta } from '@/types/hardware';
 import type { WeeklyReport } from '@/types/report';
 
@@ -72,12 +76,22 @@ export default function ReportsIndex({
         status: status === ALL ? undefined : status,
     };
 
-    function applyFilters(): void {
-        router.get('/reports', queryParams, {
-            preserveState: true,
-            replace: true,
+    function applyFilters(
+        patch: Partial<{ search: string; status: string }> = {},
+    ): void {
+        const nextSearch = patch.search ?? search;
+        const nextStatus = patch.status ?? status;
+
+        visitFilters('/reports', {
+            search: nextSearch || undefined,
+            status: nextStatus === ALL ? undefined : nextStatus,
         });
     }
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ search: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
 
     const columns: SettingsColumn<WeeklyReport>[] = [
         {
@@ -159,12 +173,23 @@ export default function ReportsIndex({
                     <>
                         <Input
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setSearch(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Search report number…"
                             className="w-full sm:w-56"
                             aria-label="Search reports"
                         />
-                        <Select value={status} onValueChange={setStatus}>
+                        <Select
+                            value={status}
+                            onValueChange={(value) => {
+                                setStatus(value);
+                                cancelDebounce();
+                                applyFilters({ status: value });
+                            }}
+                        >
                             <SelectTrigger className="w-44">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -184,13 +209,6 @@ export default function ReportsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={applyFilters}
-                        >
-                            Apply
-                        </Button>
                     </>
                 }
             >

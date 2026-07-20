@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\DeviceType;
-use App\Enums\ZoneType;
 use App\Models\Device;
 use App\Models\ReaderZoneBinding;
 use App\Models\User;
@@ -67,7 +66,7 @@ it('resolveZoneAt uses recorded_at not current binding', function () {
 
     expect($service->resolveZoneAt($reader, Carbon::parse('2026-07-05 12:00:00'))?->id)->toBe($zoneA->id)
         ->and($service->resolveZoneAt($reader, $t2)?->id)->toBe($zoneB->id)
-        ->and($service->resolveZoneAt($reader, Carbon::parse('2026-06-01')) )->toBeNull();
+        ->and($service->resolveZoneAt($reader, Carbon::parse('2026-06-01')))->toBeNull();
 });
 
 it('rejects binding a non-reader device', function () {
@@ -87,7 +86,8 @@ it('blocks deleting a zone that has bindings', function () {
 
     $this->actingAs($admin)
         ->delete(route('settings.zones.destroy', $zone))
-        ->assertStatus(409);
+        ->assertRedirect()
+        ->assertSessionHas('inertia.flash_data.toast.message');
 });
 
 it('allows deleting a never-bound zone', function () {

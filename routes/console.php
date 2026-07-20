@@ -28,6 +28,11 @@ Schedule::call(function (TrackingService $tracking): void {
     $tracking->checkStationaryTags();
 })->everyMinute()->name('ir4:tracking-stationary-tags');
 
+Schedule::command('ir4:permits-tick')
+    ->everyMinute()
+    ->name('ir4:permits-tick')
+    ->withoutOverlapping(55);
+
 Schedule::call(function (TrackingService $tracking): void {
     $tracking->sweepOffsiteTags();
 })->hourly()->name('ir4:tracking-absence-sweep');

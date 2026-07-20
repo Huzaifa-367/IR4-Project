@@ -20,6 +20,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import { dashboardInfo } from '@/lib/dashboard-info';
+import { visitFilters } from '@/lib/visit-filters';
 import { dashboard } from '@/routes';
 import type {
     DashboardPermissions,
@@ -154,26 +155,18 @@ export default function DashboardIndex({
             return;
         }
 
-        router.get(
+        visitFilters(
             '/dashboard',
             { range: nextRange },
-            {
-                only: ['summary', 'filters'],
-                preserveState: true,
-                replace: true,
-            },
+            { only: ['summary', 'filters'] },
         );
     };
 
     const applyCustomRange = (): void => {
-        router.get(
+        visitFilters(
             '/dashboard',
             { range: 'custom', from, to },
-            {
-                only: ['summary', 'filters'],
-                preserveState: true,
-                replace: true,
-            },
+            { only: ['summary', 'filters'] },
         );
     };
 

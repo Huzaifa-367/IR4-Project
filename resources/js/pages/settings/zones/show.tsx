@@ -18,6 +18,7 @@ type Props = {
         zone_type: string;
         zone_type_label: string;
         requires_authorization: boolean;
+        requires_permit: boolean;
         occupancy_limit: number | null;
         is_active: boolean;
         map_x: string | null;
@@ -88,6 +89,7 @@ export default function ZoneShow({ zone, workers }: Props) {
                             {zone.requires_authorization
                                 ? ' · auth required'
                                 : ''}
+                            {zone.requires_permit ? ' · PTW required' : ''}
                         </p>
                         <h1 className="font-display text-xl font-semibold tracking-tight text-text md:text-2xl">
                             {zone.name}

@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
@@ -23,6 +23,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type { PaginatedMeta } from '@/types/hardware';
 import type { VehicleViolation } from '@/types/report';
 
@@ -55,13 +60,22 @@ export default function VehicleViolationsIndex({
         camera_id: '',
     });
 
-    function applyFilters(): void {
-        router.get(
-            '/reports/vehicle-violations',
-            { search: search || undefined },
-            { preserveState: true, replace: true },
-        );
+    const queryParams = { search: search || undefined };
+
+    function applyFilters(
+        patch: Partial<{ search: string }> = {},
+    ): void {
+        const nextSearch = patch.search ?? search;
+
+        visitFilters('/reports/vehicle-violations', {
+            search: nextSearch || undefined,
+        });
     }
+
+    const [debouncedApplySearch] = useDebouncedCallback(
+        (value: string) => applyFilters({ search: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
 
     const columns: SettingsColumn<VehicleViolation>[] = [
         {
@@ -126,18 +140,15 @@ export default function VehicleViolationsIndex({
                     <>
                         <Input
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setSearch(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Vehicle, type, description…"
                             className="w-full sm:w-64"
                             aria-label="Search vehicle violations"
                         />
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={applyFilters}
-                        >
-                            Apply
-                        </Button>
                     </>
                 }
             >
@@ -147,7 +158,7 @@ export default function VehicleViolationsIndex({
                     rowKey={(row) => row.id}
                     meta={violations.meta}
                     pageUrl="/reports/vehicle-violations"
-                    queryParams={{ search: search || undefined }}
+                    queryParams={queryParams}
                     emptyTitle="No vehicle violations"
                     emptyDescription="No vehicle violations match these filters."
                 />

@@ -404,8 +404,8 @@ export default function WorkersShow({
 
                 {canManageDocuments ? (
                     <Panel
-                        title="Competence & fitness documents"
-                        subtitle="required for permit crew assignment"
+                        title="Certificates & documents"
+                        subtitle="Competence, medical, and site certificates that gate permit crew assignment"
                     >
                         <ul className="mb-4 flex flex-col gap-2 text-sm">
                             {documents.map((document) => (
@@ -460,29 +460,46 @@ export default function WorkersShow({
                                         )}
                                         {document.verification_status ===
                                             'pending' && (
-                                            <Form
-                                                action={`/workforce/workers/${worker.id}/documents/${document.id}/verify`}
-                                                method="post"
-                                            >
-                                                {({ processing }) => (
-                                                    <Button
-                                                        type="submit"
-                                                        size="sm"
-                                                        variant="secondary"
-                                                        disabled={
-                                                            processing ||
-                                                            !document.has_file
-                                                        }
-                                                        title={
-                                                            document.has_file
-                                                                ? undefined
-                                                                : 'Attach a file before verifying'
-                                                        }
-                                                    >
-                                                        Verify
-                                                    </Button>
-                                                )}
-                                            </Form>
+                                            <>
+                                                <Form
+                                                    action={`/workforce/workers/${worker.id}/documents/${document.id}/verify`}
+                                                    method="post"
+                                                >
+                                                    {({ processing }) => (
+                                                        <Button
+                                                            type="submit"
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            disabled={
+                                                                processing ||
+                                                                !document.has_file
+                                                            }
+                                                            title={
+                                                                document.has_file
+                                                                    ? undefined
+                                                                    : 'Attach a file before verifying'
+                                                            }
+                                                        >
+                                                            Verify
+                                                        </Button>
+                                                    )}
+                                                </Form>
+                                                <Form
+                                                    action={`/workforce/workers/${worker.id}/documents/${document.id}/reject`}
+                                                    method="post"
+                                                >
+                                                    {({ processing }) => (
+                                                        <Button
+                                                            type="submit"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            disabled={processing}
+                                                        >
+                                                            Reject
+                                                        </Button>
+                                                    )}
+                                                </Form>
+                                            </>
                                         )}
                                         <Form
                                             action={`/workforce/workers/${worker.id}/documents/${document.id}`}

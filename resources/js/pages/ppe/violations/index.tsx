@@ -1,4 +1,4 @@
-import { Form, Head, Link, router } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
@@ -16,6 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { visitFilters } from '@/lib/visit-filters';
 import { ViolationTypeLabels } from '@/types/enums';
 import type { PaginatedMeta } from '@/types/hardware';
 import type { PpeViolation } from '@/types/ppe';
@@ -80,10 +81,25 @@ export default function PpeViolationsIndex({
         to: to || undefined,
     };
 
-    function applyFilters(): void {
-        router.get('/ppe/violations', queryParams, {
-            preserveState: true,
-            replace: true,
+    function applyFilters(
+        overrides?: Partial<{
+            violation_type: string;
+            camera_id: string;
+            review_status: string;
+        }>,
+    ): void {
+        const nextViolationType = overrides?.violation_type ?? violationType;
+        const nextCameraId = overrides?.camera_id ?? cameraId;
+        const nextReviewStatus = overrides?.review_status ?? reviewStatus;
+
+        visitFilters('/ppe/violations', {
+            violation_type:
+                nextViolationType === ALL ? undefined : nextViolationType,
+            camera_id: nextCameraId === ALL ? undefined : nextCameraId,
+            review_status:
+                nextReviewStatus === ALL ? undefined : nextReviewStatus,
+            from: from || undefined,
+            to: to || undefined,
         });
     }
 
@@ -211,7 +227,10 @@ export default function PpeViolationsIndex({
                     <>
                         <Select
                             value={violationType}
-                            onValueChange={setViolationType}
+                            onValueChange={(value) => {
+                                setViolationType(value);
+                                applyFilters({ violation_type: value });
+                            }}
                         >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Type" />
@@ -232,7 +251,13 @@ export default function PpeViolationsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={cameraId} onValueChange={setCameraId}>
+                        <Select
+                            value={cameraId}
+                            onValueChange={(value) => {
+                                setCameraId(value);
+                                applyFilters({ camera_id: value });
+                            }}
+                        >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Camera" />
                             </SelectTrigger>
@@ -254,7 +279,10 @@ export default function PpeViolationsIndex({
                         </Select>
                         <Select
                             value={reviewStatus}
-                            onValueChange={setReviewStatus}
+                            onValueChange={(value) => {
+                                setReviewStatus(value);
+                                applyFilters({ review_status: value });
+                            }}
                         >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Status" />
@@ -292,7 +320,7 @@ export default function PpeViolationsIndex({
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={applyFilters}
+                            onClick={() => applyFilters()}
                         >
                             Apply
                         </Button>

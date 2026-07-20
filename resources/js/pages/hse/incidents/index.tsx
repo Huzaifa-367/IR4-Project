@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
@@ -15,6 +15,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type { PaginatedMeta } from '@/types/hardware';
 import type { HseIncident, HseOption } from '@/types/hse';
 
@@ -78,6 +83,36 @@ export default function IncidentsIndex({
     );
     const [severity, setSeverity] = useState(filters.severity || ALL);
 
+    function applyFilters(
+        patch: Partial<{
+            search: string;
+            status: string;
+            source: string;
+            incident_type: string;
+            severity: string;
+        }> = {},
+    ): void {
+        const nextSearch = patch.search ?? search;
+        const nextStatus = patch.status ?? status;
+        const nextSource = patch.source ?? source;
+        const nextIncidentType = patch.incident_type ?? incidentType;
+        const nextSeverity = patch.severity ?? severity;
+
+        visitFilters('/incidents', {
+            search: nextSearch || undefined,
+            status: nextStatus === ALL ? undefined : nextStatus,
+            source: nextSource === ALL ? undefined : nextSource,
+            incident_type:
+                nextIncidentType === ALL ? undefined : nextIncidentType,
+            severity: nextSeverity === ALL ? undefined : nextSeverity,
+        });
+    }
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ search: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
+
     const queryParams = {
         search: search || undefined,
         status: status === ALL ? undefined : status,
@@ -85,13 +120,6 @@ export default function IncidentsIndex({
         incident_type: incidentType === ALL ? undefined : incidentType,
         severity: severity === ALL ? undefined : severity,
     };
-
-    function applyFilters(): void {
-        router.get('/incidents', queryParams, {
-            preserveState: true,
-            replace: true,
-        });
-    }
 
     const columns: SettingsColumn<HseIncident>[] = [
         {
@@ -160,12 +188,23 @@ export default function IncidentsIndex({
                     <>
                         <Input
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setSearch(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Search number, nature…"
                             className="w-full sm:w-56"
                             aria-label="Search incidents"
                         />
-                        <Select value={status} onValueChange={setStatus}>
+                        <Select
+                            value={status}
+                            onValueChange={(value) => {
+                                setStatus(value);
+                                cancelDebounce();
+                                applyFilters({ status: value });
+                            }}
+                        >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -185,7 +224,14 @@ export default function IncidentsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={source} onValueChange={setSource}>
+                        <Select
+                            value={source}
+                            onValueChange={(value) => {
+                                setSource(value);
+                                cancelDebounce();
+                                applyFilters({ source: value });
+                            }}
+                        >
                             <SelectTrigger className="w-36">
                                 <SelectValue placeholder="Source" />
                             </SelectTrigger>
@@ -207,7 +253,11 @@ export default function IncidentsIndex({
                         </Select>
                         <Select
                             value={incidentType}
-                            onValueChange={setIncidentType}
+                            onValueChange={(value) => {
+                                setIncidentType(value);
+                                cancelDebounce();
+                                applyFilters({ incident_type: value });
+                            }}
                         >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Type" />
@@ -228,7 +278,14 @@ export default function IncidentsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={severity} onValueChange={setSeverity}>
+                        <Select
+                            value={severity}
+                            onValueChange={(value) => {
+                                setSeverity(value);
+                                cancelDebounce();
+                                applyFilters({ severity: value });
+                            }}
+                        >
                             <SelectTrigger className="w-36">
                                 <SelectValue placeholder="Severity" />
                             </SelectTrigger>
@@ -248,13 +305,6 @@ export default function IncidentsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={applyFilters}
-                        >
-                            Apply
-                        </Button>
                     </>
                 }
             >

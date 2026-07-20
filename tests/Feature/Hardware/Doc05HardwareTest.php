@@ -87,7 +87,8 @@ it('blocks deleting an asset that still has children', function () {
 
     $this->actingAs($admin)
         ->delete(route('settings.assets.destroy', $asset))
-        ->assertStatus(409);
+        ->assertRedirect()
+        ->assertSessionHas('inertia.flash_data.toast.message');
 });
 
 it('marks stale devices offline via health service', function () {

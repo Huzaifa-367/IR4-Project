@@ -114,7 +114,8 @@ it('blocks deactivate when worker is present', function () {
 
     $this->actingAs($user)
         ->post(route('tracking.workers.deactivate', $worker))
-        ->assertStatus(409);
+        ->assertRedirect()
+        ->assertSessionHas('inertia.flash_data.toast.message');
 });
 
 it('offboards an inactive-site worker', function () {

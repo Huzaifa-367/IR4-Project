@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { Download, Search } from 'lucide-react';
 import { useState } from 'react';
 import { AuditDiff } from '@/components/ir4/audit-diff';
@@ -16,6 +16,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type { AuditEvent, AuditLog } from '@/types/audit';
 import type { PaginatedMeta } from '@/types/hardware';
 
@@ -63,12 +68,29 @@ export default function AuditLogIndex({
         to: to || undefined,
     };
 
-    function applyFilters(): void {
-        router.get('/settings/audit-log', queryParams, {
-            preserveState: true,
-            replace: true,
+    function applyFilters(patch: Partial<FilterValues> = {}): void {
+        const nextSearch = patch.search ?? search;
+        const nextEvent = patch.event ?? event;
+        const nextUserId = patch.user_id ?? userId;
+        const nextAuditableType = patch.auditable_type ?? auditableType;
+        const nextFrom = patch.from ?? from;
+        const nextTo = patch.to ?? to;
+
+        visitFilters('/settings/audit-log', {
+            search: nextSearch || undefined,
+            event: nextEvent === ALL ? undefined : nextEvent,
+            user_id: nextUserId === ALL ? undefined : nextUserId,
+            auditable_type:
+                nextAuditableType === ALL ? undefined : nextAuditableType,
+            from: nextFrom || undefined,
+            to: nextTo || undefined,
         });
     }
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ search: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
 
     const exportQuery = new URLSearchParams(
         Object.entries(queryParams).filter((entry): entry is [string, string] =>
@@ -94,14 +116,23 @@ export default function AuditLogIndex({
                     <>
                         <Input
                             value={search}
-                            onChange={(event_) =>
-                                setSearch(event_.target.value)
-                            }
+                            onChange={(event_) => {
+                                const value = event_.target.value;
+                                setSearch(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Description"
                             className="w-full sm:w-52"
                             aria-label="Search description"
                         />
-                        <Select value={event} onValueChange={setEvent}>
+                        <Select
+                            value={event}
+                            onValueChange={(value) => {
+                                setEvent(value);
+                                cancelDebounce();
+                                applyFilters({ event: value });
+                            }}
+                        >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Event" />
                             </SelectTrigger>
@@ -121,7 +152,14 @@ export default function AuditLogIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={userId} onValueChange={setUserId}>
+                        <Select
+                            value={userId}
+                            onValueChange={(value) => {
+                                setUserId(value);
+                                cancelDebounce();
+                                applyFilters({ user_id: value });
+                            }}
+                        >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="User" />
                             </SelectTrigger>
@@ -143,7 +181,11 @@ export default function AuditLogIndex({
                         </Select>
                         <Select
                             value={auditableType}
-                            onValueChange={setAuditableType}
+                            onValueChange={(value) => {
+                                setAuditableType(value);
+                                cancelDebounce();
+                                applyFilters({ auditable_type: value });
+                            }}
                         >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Model" />
@@ -181,7 +223,7 @@ export default function AuditLogIndex({
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={applyFilters}
+                            onClick={() => applyFilters()}
                         >
                             <Search className="size-4" />
                             Apply

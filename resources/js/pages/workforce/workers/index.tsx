@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
@@ -18,6 +18,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type { Worker, WorkerListFilters } from '@/types/worker';
 
 type Props = {
@@ -46,17 +51,35 @@ export default function WorkersIndex({
     const [form, setForm] = useState<FormState | null>(null);
     const [editType, setEditType] = useState('contractor');
 
+    const applyFilters = (
+        patch: Partial<{
+            search: string;
+            contractor: string;
+            worker_type: string;
+        }> = {},
+    ): void => {
+        const nextSearch = patch.search ?? search;
+        const nextContractor = patch.contractor ?? contractor;
+        const nextWorkerType = patch.worker_type ?? workerType;
+
+        visitFilters('/workforce/workers', {
+            search: nextSearch || undefined,
+            contractor: nextContractor || undefined,
+            worker_type:
+                nextWorkerType === 'all' ? undefined : nextWorkerType,
+        });
+    };
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (patch: Partial<{ search: string; contractor: string }>) =>
+            applyFilters(patch),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
+
     const queryParams = {
         search: search || undefined,
         contractor: contractor || undefined,
         worker_type: workerType === 'all' ? undefined : workerType,
-    };
-
-    const applyFilters = (): void => {
-        router.get('/workforce/workers', queryParams, {
-            preserveState: true,
-            replace: true,
-        });
     };
 
     const columns: SettingsColumn<Worker>[] = [
@@ -167,7 +190,11 @@ export default function WorkersIndex({
                     <>
                         <Input
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setSearch(value);
+                                debouncedApplySearch({ search: value });
+                            }}
                             placeholder={
                                 canSeeIdentity
                                     ? 'Name, badge…'
@@ -178,16 +205,22 @@ export default function WorkersIndex({
                         />
                         <Input
                             value={contractor}
-                            onChange={(event) =>
-                                setContractor(event.target.value)
-                            }
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setContractor(value);
+                                debouncedApplySearch({ contractor: value });
+                            }}
                             placeholder="Contractor"
                             className="w-40"
                             aria-label="Filter by contractor"
                         />
                         <Select
                             value={workerType}
-                            onValueChange={setWorkerType}
+                            onValueChange={(value) => {
+                                setWorkerType(value);
+                                cancelDebounce();
+                                applyFilters({ worker_type: value });
+                            }}
                         >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Type" />
@@ -208,13 +241,6 @@ export default function WorkersIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={applyFilters}
-                        >
-                            Apply
-                        </Button>
                     </>
                 }
             >

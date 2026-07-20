@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import { environmentInfo } from '@/lib/analytics-info';
+import { visitFilters } from '@/lib/visit-filters';
 import { dashboard } from '@/routes';
 import type {
     EnvironmentDashboardSnapshot,
@@ -151,18 +152,18 @@ export default function EnvironmentTrends({
             return;
         }
 
-        router.get(
+        visitFilters(
             '/environment',
             { range: nextRange },
-            { only: ['snapshot', 'filters'], preserveState: true, replace: true },
+            { only: ['snapshot', 'filters'] },
         );
     };
 
     const applyCustomRange = (): void => {
-        router.get(
+        visitFilters(
             '/environment',
             { range: 'custom', from, to },
-            { only: ['snapshot', 'filters'], preserveState: true, replace: true },
+            { only: ['snapshot', 'filters'] },
         );
     };
 

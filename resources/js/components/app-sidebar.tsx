@@ -248,6 +248,11 @@ export function AppSidebar() {
                       href: '/workforce/permits',
                       icon: FileCheck,
                   } satisfies NavItem,
+                  {
+                      title: 'Work orders',
+                      href: '/workforce/work-orders',
+                      icon: ClipboardList,
+                  } satisfies NavItem,
               ]
             : []),
         ...(can('manage-portable-devices')
@@ -265,6 +270,11 @@ export function AppSidebar() {
                       title: 'Permit types',
                       href: '/workforce/permit-types',
                       icon: IdCard,
+                  } satisfies NavItem,
+                  {
+                      title: 'Document types',
+                      href: '/workforce/worker-document-types',
+                      icon: ScrollText,
                   } satisfies NavItem,
               ]
             : []),

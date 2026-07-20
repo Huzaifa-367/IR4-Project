@@ -1,11 +1,10 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { MoreHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import {
     SettingsDataTable
-    
 } from '@/components/ir4/settings/settings-data-table';
 import type {SettingsColumn} from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
@@ -28,6 +27,11 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type {
     CameraRow,
     HardwareOption,
@@ -77,16 +81,27 @@ export default function CamerasIndex({
     const [typeValue, setTypeValue] = useState('fixed');
     const [aiEnabled, setAiEnabled] = useState(true);
 
-    const applyFilters = (): void => {
-        router.get(
-            '/hardware/cameras',
-            {
-                q: q || undefined,
-                status: status === 'all' ? undefined : status,
-            },
-            { preserveState: true, replace: true },
-        );
+    const queryParams = {
+        q: q || undefined,
+        status: status === 'all' ? undefined : status,
     };
+
+    const applyFilters = (
+        patch: Partial<{ q: string; status: string }> = {},
+    ): void => {
+        const nextQ = patch.q ?? q;
+        const nextStatus = patch.status ?? status;
+
+        visitFilters('/hardware/cameras', {
+            q: nextQ || undefined,
+            status: nextStatus === 'all' ? undefined : nextStatus,
+        });
+    };
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ q: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
 
     const columns: SettingsColumn<CameraRow>[] = [
         {
@@ -207,11 +222,22 @@ export default function CamerasIndex({
                     <>
                         <Input
                             value={q}
-                            onChange={(event) => setQ(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setQ(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Search…"
                             className="w-full sm:w-56"
                         />
-                        <Select value={status} onValueChange={setStatus}>
+                        <Select
+                            value={status}
+                            onValueChange={(value) => {
+                                setStatus(value);
+                                cancelDebounce();
+                                applyFilters({ status: value });
+                            }}
+                        >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -233,9 +259,6 @@ export default function CamerasIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button type="button" variant="outline" onClick={applyFilters}>
-                            Apply
-                        </Button>
                     </>
                 }
             >
@@ -245,10 +268,7 @@ export default function CamerasIndex({
                     rowKey={(camera) => camera.id}
                     meta={cameras.meta}
                     pageUrl="/hardware/cameras"
-                    queryParams={{
-                        q: q || undefined,
-                        status: status === 'all' ? undefined : status,
-                    }}
+                    queryParams={queryParams}
                     emptyTitle="No cameras"
                     emptyDescription="Register a camera on an asset for the live wall."
                 />

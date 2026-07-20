@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { CustodyBadge, OverdueBadge } from '@/components/ir4/equipment-badges';
 import { ReturnDialog } from '@/components/ir4/return-dialog';
@@ -8,6 +8,11 @@ import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type { EquipmentCheckout } from '@/types/equipment';
 import type { PaginatedMeta } from '@/types/hardware';
 
@@ -27,16 +32,22 @@ export default function EquipmentCheckoutsIndex({
     );
     const [search, setSearch] = useState(filters.search);
 
-    function applyFilters(patch: { open?: boolean; search?: string }): void {
-        router.get(
-            '/equipment/checkouts',
-            {
-                open: (patch.open ?? filters.open) ? '1' : '0',
-                search: (patch.search ?? search) || undefined,
-            },
-            { preserveState: true, replace: true },
-        );
+    function applyFilters(
+        patch: Partial<{ open: boolean; search: string }> = {},
+    ): void {
+        const nextOpen = patch.open ?? filters.open;
+        const nextSearch = patch.search ?? search;
+
+        visitFilters('/equipment/checkouts', {
+            open: nextOpen ? '1' : '0',
+            search: nextSearch || undefined,
+        });
     }
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ search: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
 
     const columns: SettingsColumn<EquipmentCheckout>[] = [
         {
@@ -145,7 +156,10 @@ export default function EquipmentCheckoutsIndex({
                                 type="button"
                                 size="sm"
                                 variant={filters.open ? 'default' : 'outline'}
-                                onClick={() => applyFilters({ open: true })}
+                                onClick={() => {
+                                    cancelDebounce();
+                                    applyFilters({ open: true });
+                                }}
                             >
                                 Open
                             </Button>
@@ -153,26 +167,25 @@ export default function EquipmentCheckoutsIndex({
                                 type="button"
                                 size="sm"
                                 variant={!filters.open ? 'default' : 'outline'}
-                                onClick={() => applyFilters({ open: false })}
+                                onClick={() => {
+                                    cancelDebounce();
+                                    applyFilters({ open: false });
+                                }}
                             >
                                 History
                             </Button>
                         </div>
                         <Input
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setSearch(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Worker, code, reason…"
                             className="w-56"
                             aria-label="Search checkouts"
                         />
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => applyFilters({})}
-                        >
-                            Search
-                        </Button>
                     </>
                 }
             >

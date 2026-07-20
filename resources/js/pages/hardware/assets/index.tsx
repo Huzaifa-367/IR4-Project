@@ -1,11 +1,10 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { MoreHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import {
     SettingsDataTable
-    
 } from '@/components/ir4/settings/settings-data-table';
 import type {SettingsColumn} from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
@@ -28,6 +27,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    FILTER_SEARCH_DEBOUNCE_MS,
+    visitFilters,
+} from '@/lib/visit-filters';
 import type { AssetRow, HardwareOption, Paginated } from '@/types/hardware';
 
 type Props = {
@@ -68,17 +72,30 @@ export default function AssetsIndex({
     const [editType, setEditType] = useState('pole');
     const [editStatus, setEditStatus] = useState('active');
 
-    const applyFilters = (): void => {
-        router.get(
-            '/hardware/assets',
-            {
-                q: q || undefined,
-                asset_type: assetType === 'all' ? undefined : assetType,
-                status: status === 'all' ? undefined : status,
-            },
-            { preserveState: true, replace: true },
-        );
+    const queryParams = {
+        q: q || undefined,
+        asset_type: assetType === 'all' ? undefined : assetType,
+        status: status === 'all' ? undefined : status,
     };
+
+    const applyFilters = (
+        patch: Partial<{ q: string; asset_type: string; status: string }> = {},
+    ): void => {
+        const nextQ = patch.q ?? q;
+        const nextAssetType = patch.asset_type ?? assetType;
+        const nextStatus = patch.status ?? status;
+
+        visitFilters('/hardware/assets', {
+            q: nextQ || undefined,
+            asset_type: nextAssetType === 'all' ? undefined : nextAssetType,
+            status: nextStatus === 'all' ? undefined : nextStatus,
+        });
+    };
+
+    const [debouncedApplySearch, cancelDebounce] = useDebouncedCallback(
+        (value: string) => applyFilters({ q: value }),
+        FILTER_SEARCH_DEBOUNCE_MS,
+    );
 
     const columns: SettingsColumn<AssetRow>[] = [
         {
@@ -189,12 +206,23 @@ export default function AssetsIndex({
                     <>
                         <Input
                             value={q}
-                            onChange={(event) => setQ(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setQ(value);
+                                debouncedApplySearch(value);
+                            }}
                             placeholder="Search…"
                             className="w-full sm:w-56"
                             aria-label="Search assets"
                         />
-                        <Select value={assetType} onValueChange={setAssetType}>
+                        <Select
+                            value={assetType}
+                            onValueChange={(value) => {
+                                setAssetType(value);
+                                cancelDebounce();
+                                applyFilters({ asset_type: value });
+                            }}
+                        >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Type" />
                             </SelectTrigger>
@@ -212,7 +240,14 @@ export default function AssetsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={status} onValueChange={setStatus}>
+                        <Select
+                            value={status}
+                            onValueChange={(value) => {
+                                setStatus(value);
+                                cancelDebounce();
+                                applyFilters({ status: value });
+                            }}
+                        >
                             <SelectTrigger className="w-40">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -232,9 +267,6 @@ export default function AssetsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button type="button" variant="outline" onClick={applyFilters}>
-                            Apply
-                        </Button>
                     </>
                 }
             >
@@ -244,11 +276,7 @@ export default function AssetsIndex({
                     rowKey={(asset) => asset.id}
                     meta={assets.meta}
                     pageUrl="/hardware/assets"
-                    queryParams={{
-                        q: q || undefined,
-                        asset_type: assetType === 'all' ? undefined : assetType,
-                        status: status === 'all' ? undefined : status,
-                    }}
+                    queryParams={queryParams}
                     emptyTitle="No assets"
                     emptyDescription="Register a pole, gate, or SCC unit to begin commissioning."
                 />

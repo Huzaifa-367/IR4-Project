@@ -74,7 +74,8 @@ it('treats retired as terminal except documents', function () {
             'inspected_at' => now()->toDateString(),
             'outcome' => InspectionOutcome::Pass->value,
         ])
-        ->assertStatus(422);
+        ->assertRedirect()
+        ->assertSessionHas('inertia.flash_data.toast.message');
 });
 
 it('flags overdue equipment with a deduped alert and resolves when cleared', function () {
@@ -181,7 +182,8 @@ it('resolves by token and drives checkout then return with open-checkout guards'
         ->post(route('equipment.checkout', $equipment), [
             'worker_id' => $worker->id,
         ]);
-    expect($duplicate->status())->toBe(409);
+    $duplicate->assertRedirect(route('equipment.show', $equipment))
+        ->assertSessionHas('inertia.flash_data.toast.message');
 
     $nonCheckoutable = Equipment::factory()->create(['is_checkoutable' => false]);
     $this->from(route('equipment.show', $nonCheckoutable))
@@ -217,7 +219,8 @@ it('blocks worker offboarding while an open checkout exists', function () {
 
     $this->actingAs($user)
         ->post(route('tracking.workers.offboard', $worker))
-        ->assertStatus(409);
+        ->assertRedirect()
+        ->assertSessionHas('inertia.flash_data.toast.message');
 });
 
 it('serves the public page without auth and rejects writes', function () {

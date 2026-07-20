@@ -1,4 +1,4 @@
-import { Form, Head, Link, router } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
@@ -13,6 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { visitFilters } from '@/lib/visit-filters';
 import { GasTypeLabels } from '@/types/enums';
 import type { GasAlarm } from '@/types/gas';
 import type { PaginatedMeta } from '@/types/hardware';
@@ -39,18 +40,29 @@ export default function GasAlarmsIndex({
     const [level, setLevel] = useState(filters.level || ALL);
     const [resolved, setResolved] = useState(filters.resolved || ALL);
 
+    function applyFilters(
+        patch: Partial<{
+            gas_type: string;
+            level: string;
+            resolved: string;
+        }> = {},
+    ): void {
+        const nextGasType = patch.gas_type ?? gasType;
+        const nextLevel = patch.level ?? level;
+        const nextResolved = patch.resolved ?? resolved;
+
+        visitFilters('/gas/alarms', {
+            gas_type: nextGasType === ALL ? undefined : nextGasType,
+            level: nextLevel === ALL ? undefined : nextLevel,
+            resolved: nextResolved === ALL ? undefined : nextResolved,
+        });
+    }
+
     const queryParams = {
         gas_type: gasType === ALL ? undefined : gasType,
         level: level === ALL ? undefined : level,
         resolved: resolved === ALL ? undefined : resolved,
     };
-
-    function applyFilters(): void {
-        router.get('/gas/alarms', queryParams, {
-            preserveState: true,
-            replace: true,
-        });
-    }
 
     const columns: SettingsColumn<GasAlarm>[] = [
         {
@@ -137,7 +149,13 @@ export default function GasAlarmsIndex({
                 }
                 filters={
                     <>
-                        <Select value={resolved} onValueChange={setResolved}>
+                        <Select
+                            value={resolved}
+                            onValueChange={(value) => {
+                                setResolved(value);
+                                applyFilters({ resolved: value });
+                            }}
+                        >
                             <SelectTrigger className="w-36">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -151,7 +169,13 @@ export default function GasAlarmsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={level} onValueChange={setLevel}>
+                        <Select
+                            value={level}
+                            onValueChange={(value) => {
+                                setLevel(value);
+                                applyFilters({ level: value });
+                            }}
+                        >
                             <SelectTrigger className="w-36">
                                 <SelectValue placeholder="Level" />
                             </SelectTrigger>
@@ -167,7 +191,13 @@ export default function GasAlarmsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Select value={gasType} onValueChange={setGasType}>
+                        <Select
+                            value={gasType}
+                            onValueChange={(value) => {
+                                setGasType(value);
+                                applyFilters({ gas_type: value });
+                            }}
+                        >
                             <SelectTrigger className="w-32">
                                 <SelectValue placeholder="Gas" />
                             </SelectTrigger>
@@ -189,13 +219,6 @@ export default function GasAlarmsIndex({
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={applyFilters}
-                        >
-                            Apply
-                        </Button>
                     </>
                 }
             >

@@ -29,6 +29,7 @@ type ZoneRow = {
     zone_type: string;
     zone_type_label: string;
     requires_authorization: boolean;
+    requires_permit: boolean;
     occupancy_limit: number | null;
     is_active: boolean;
     latitude: string | null;
@@ -56,6 +57,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
     const [deleteTarget, setDeleteTarget] = useState<ZoneRow | null>(null);
     const [editType, setEditType] = useState('work');
     const [requiresAuth, setRequiresAuth] = useState(false);
+    const [requiresPermit, setRequiresPermit] = useState(false);
     const [latitude, setLatitude] = useState<number | null>(null);
     const [longitude, setLongitude] = useState<number | null>(null);
     const [radiusMeters, setRadiusMeters] = useState(DEFAULT_RADIUS_METERS);
@@ -84,6 +86,16 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
             cell: (zone) =>
                 zone.requires_authorization ? (
                     <StatusPill label="Required" tone="warn" />
+                ) : (
+                    <span className="text-text-faint">—</span>
+                ),
+        },
+        {
+            key: 'permit',
+            header: 'PTW',
+            cell: (zone) =>
+                zone.requires_permit ? (
+                    <StatusPill label="Required" tone="accent" />
                 ) : (
                     <span className="text-text-faint">—</span>
                 ),
@@ -128,6 +140,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                         onClick={() => {
                             setEditType(zone.zone_type);
                             setRequiresAuth(zone.requires_authorization);
+                            setRequiresPermit(zone.requires_permit);
                             setLatitude(
                                 zone.latitude ? Number(zone.latitude) : null,
                             );
@@ -228,6 +241,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                     ...data,
                     zone_type: editType,
                     requires_authorization: requiresAuth ? '1' : '0',
+                    requires_permit: requiresPermit ? '1' : '0',
                     latitude: latitude ?? '',
                     longitude: longitude ?? '',
                     radius_meters: latitude ? radiusMeters : '',
@@ -304,6 +318,15 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                                 }
                             />
                             Requires authorization (access list)
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                                checked={requiresPermit}
+                                onCheckedChange={(checked) =>
+                                    setRequiresPermit(checked === true)
+                                }
+                            />
+                            Requires permit to work (PTW zone)
                         </label>
                         <div className="flex flex-col gap-2">
                             <Label>Location</Label>

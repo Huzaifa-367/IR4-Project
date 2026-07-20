@@ -20,6 +20,7 @@ use App\Models\VehicleViolation;
 use App\Models\Worker;
 use App\Services\EquipmentService;
 use App\Services\WeeklyReportService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -83,8 +84,8 @@ it('scenario 09: equipment checkout return damaged maintenance and overdue flag'
 // DOC-21 scenario 10: Weekly report generate/publish/supersede.
 it('scenario 10: weekly report generate publish lock and supersede', function () {
     $manager = User::factory()->withRole('Safety Manager')->create();
-    $start = now()->startOfWeek(\Carbon\Carbon::SUNDAY)->subWeek();
-    $end = $start->copy()->endOfWeek(\Carbon\Carbon::SATURDAY);
+    $start = now()->startOfWeek(Carbon::SUNDAY)->subWeek();
+    $end = $start->copy()->endOfWeek(Carbon::SATURDAY);
 
     PpeViolation::factory()->create([
         'detected_at' => $start->copy()->addDay(),
@@ -128,7 +129,8 @@ it('scenario 10: weekly report generate publish lock and supersede', function ()
 
     $this->actingAs($manager)
         ->post(route('weekly-reports.publish', $published))
-        ->assertStatus(422);
+        ->assertRedirect()
+        ->assertSessionHas('inertia.flash_data.toast.message');
 
     $second = app(WeeklyReportService::class)->generate($start, $end, $manager);
     expect($second->supersedes_report_id)->toBe($published->id)

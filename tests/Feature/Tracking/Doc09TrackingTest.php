@@ -8,28 +8,27 @@ use App\Models\Alert;
 use App\Models\Device;
 use App\Models\EntryExitLog;
 use App\Models\EvacuationReport;
+use App\Models\LsrViolation;
 use App\Models\RfidTag;
 use App\Models\TagReading;
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\WorkerPosition;
 use App\Models\Zone;
-use App\Services\EvacuationService;
 use App\Services\ReaderBindingService;
 use App\Services\TagService;
 use App\Services\TrackingService;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
-function trackingIngest(Device $device, string $plain, string $tagUid, ?\DateTimeInterface $at = null): void
+function trackingIngest(Device $device, string $plain, string $tagUid, ?DateTimeInterface $at = null): void
 {
     test()->postJson(route('api.ingest.tag-readings'), [
         'events' => [[
             'event_uid' => (string) Str::uuid(),
             'reader_ref' => $device->reference,
             'tag_uid' => $tagUid,
-            'recorded_at' => \Illuminate\Support\Carbon::instance($at ?? now())->toIso8601String(),
+            'recorded_at' => Carbon::instance($at ?? now())->toIso8601String(),
         ]],
     ], ['X-Device-Token' => $plain])->assertAccepted();
 }
@@ -49,7 +48,8 @@ it('assigns tags and rejects double-assign', function () {
     $other = RfidTag::factory()->create();
     $this->actingAs($admin)
         ->post(route('tracking.tags.assign', $other), ['worker_id' => $worker->id])
-        ->assertStatus(409);
+        ->assertRedirect()
+        ->assertSessionHas('inertia.flash_data.toast.message');
 });
 
 it('advances positions on live reads and ignores backfill rewind', function () {
@@ -123,7 +123,7 @@ it('raises red zone alert without creating LSR rows', function () {
     trackingIngest($reader, $plain, $tag->tag_uid, now());
 
     expect(Alert::query()->where('alert_type', AlertType::RedZoneIntrusion)->count())->toBe(1)
-        ->and(\App\Models\LsrViolation::query()->count())->toBe(0);
+        ->and(LsrViolation::query()->count())->toBe(0);
 });
 
 it('sweeps absent on-site tags off site', function () {
@@ -159,8 +159,13 @@ it('triggers evacuation freezes on-site workers and closes with force', function
         ->and($report->entries()->count())->toBe(1);
 
     $this->actingAs($admin)
+        ->from(route('tracking.evacuation.show', $report))
         ->post(route('tracking.evacuation.close', $report))
-        ->assertStatus(409);
+        ->assertRedirect(route('tracking.evacuation.show', $report))
+        ->assertSessionHas(
+            'inertia.flash_data.toast.message',
+            'Cannot close while workers remain unaccounted; use force close with a note.',
+        );
 
     $this->actingAs($admin)
         ->post(route('tracking.evacuation.close', $report), [

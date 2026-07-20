@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Web\Permit;
 use App\Enums\GasTestPhase;
 use App\Enums\GasTestSource;
 use App\Enums\PermitStatus;
+use App\Enums\WorkerDocumentVerificationStatus;
 use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\Permit\InspectPermitRequest;
 use App\Http\Requests\Web\Permit\NoteRequest;
 use App\Http\Requests\Web\Permit\RecordGasTestRequest;
 use App\Http\Requests\Web\Permit\StorePermitRequest;
+use App\Http\Requests\Web\Permit\UpdatePermitRequest;
 use App\Models\Permit;
 use App\Models\PermitType;
 use App\Models\Worker;
+use App\Models\WorkOrder;
 use App\Models\Zone;
 use App\Services\PermitService;
 use Illuminate\Http\JsonResponse;
@@ -96,6 +99,7 @@ final class PermitController extends BaseController
                 ->with([
                     'roles' => fn ($query) => $query->orderBy('sort_order'),
                     'gasChannels' => fn ($query) => $query->orderBy('sort_order'),
+                    'checklistItems' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('label'),
                     'documentRequirements.workerDocumentType',
                 ])
                 ->orderBy('sort_order')
@@ -132,17 +136,69 @@ final class PermitController extends BaseController
                             'name' => $req->workerDocumentType->name,
                         ],
                     ])->values()->all(),
+                    'checklist_items' => $type->checklistItems->map(fn ($item): array => [
+                        'id' => $item->id,
+                        'code' => $item->code,
+                        'label' => $item->label,
+                        'is_mandatory' => $item->is_mandatory,
+                    ])->values()->all(),
                 ])
                 ->values()
                 ->all(),
             'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'requires_permit']),
-            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'employee_code'])->map(
-                fn (Worker $worker): array => [
-                    'id' => $worker->id,
-                    'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
-                    'reference' => $canSeeIdentity ? $worker->employee_code : null,
-                ],
-            )->values()->all(),
+            'workOrders' => WorkOrder::query()
+                ->where('status', 'open')
+                ->with('zone:id,name')
+                ->orderByDesc('created_at')
+                ->get(['id', 'reference', 'zone_id'])
+                ->map(fn (WorkOrder $row): array => [
+                    'id' => $row->id,
+                    'reference' => $row->reference,
+                    'zone' => $row->zone === null ? null : [
+                        'id' => $row->zone->id,
+                        'name' => $row->zone->name,
+                    ],
+                ])
+                ->values()
+                ->all(),
+            'workers' => Worker::query()
+                ->where('is_active', true)
+                ->with(['documents.documentType'])
+                ->orderBy('name')
+                ->get()
+                ->map(function (Worker $worker) use ($canSeeIdentity): array {
+                    $verifiedCodes = $worker->documents
+                        ->filter(function ($document): bool {
+                            if ($document->isExpired()) {
+                                return false;
+                            }
+
+                            if ($document->expires_at !== null && $document->expires_at->isPast()) {
+                                return false;
+                            }
+
+                            if ($document->documentType?->requires_file && ($document->file_path === null || $document->file_path === '')) {
+                                return false;
+                            }
+
+                            return ! in_array($document->verification_status, [
+                                WorkerDocumentVerificationStatus::Rejected,
+                                WorkerDocumentVerificationStatus::Expired,
+                            ], true);
+                        })
+                        ->map(fn ($document) => $document->documentType?->code)
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all();
+
+                    return [
+                        'id' => $worker->id,
+                        'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
+                        'reference' => $canSeeIdentity ? $worker->employee_code : null,
+                        'verified_document_codes' => $verifiedCodes,
+                    ];
+                })->values()->all(),
         ]);
     }
 
@@ -155,19 +211,66 @@ final class PermitController extends BaseController
             ->with('flash', ['success' => 'Permit draft created.']);
     }
 
+    public function update(UpdatePermitRequest $request, Permit $permit, PermitService $permits): RedirectResponse
+    {
+        $permits->updateDraft($permit, $request->user(), $request->validated());
+
+        return redirect()
+            ->route('permits.show', $permit)
+            ->with('flash', ['success' => 'Permit draft updated.']);
+    }
+
     public function show(Request $request, Permit $permit, PermitService $permits): InertiaResponse
     {
         $this->authorize('view', $permit);
 
         $user = $request->user();
+        $permit->loadMissing(['type.gasChannels', 'type.checklistItems', 'type.roles']);
+        $canSeeIdentity = $user?->can('view-worker-identity') ?? false;
+        $isEditable = in_array($permit->status, [PermitStatus::Draft, PermitStatus::Rejected], true);
 
         return Inertia::render('workforce/permits/show', [
             'permit' => $permits->toArray($permit),
+            'gasChannels' => ($permit->type?->gasChannels ?? collect())->map(fn ($channel): array => [
+                'channel_code' => $channel->channel_code,
+                'label' => $channel->label,
+                'unit' => $channel->unit,
+                'alarm_below' => $channel->alarm_below,
+                'alarm_above' => $channel->alarm_above,
+            ])->values()->all(),
+            'checklistItems' => ($permit->type?->checklistItems ?? collect())->map(fn ($item): array => [
+                'id' => $item->id,
+                'code' => $item->code,
+                'label' => $item->label,
+                'is_mandatory' => $item->is_mandatory,
+            ])->values()->all(),
+            'zones' => $isEditable && ($user?->can('update', $permit) ?? false)
+                ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'requires_permit'])
+                : [],
+            'workers' => $isEditable && ($user?->can('update', $permit) ?? false)
+                ? Worker::query()
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'employee_code'])
+                    ->map(fn (Worker $worker): array => [
+                        'id' => $worker->id,
+                        'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
+                        'reference' => $canSeeIdentity ? $worker->employee_code : null,
+                    ])->values()->all()
+                : [],
+            'typeRoles' => ($permit->type?->roles ?? collect())->map(fn ($role): array => [
+                'role_code' => $role->role_code,
+                'label' => $role->label,
+                'min_count' => $role->min_count,
+                'is_mandatory' => $role->is_mandatory,
+            ])->values()->all(),
+            'allowsExtended' => (bool) ($permit->type?->allows_extended ?? false),
             'gasPhaseOptions' => collect(GasTestPhase::cases())->map(fn (GasTestPhase $phase): array => [
                 'value' => $phase->value,
                 'label' => $phase->label(),
             ]),
             'canRequest' => $user?->can('request-permit') ?? false,
+            'canUpdate' => $user?->can('update', $permit) ?? false,
             'canIssue' => $user?->can('issue', $permit) ?? false,
             'canApprove' => $user?->can('approve', $permit) ?? false,
             'canGasTest' => $user?->can('gasTest', $permit) ?? false,
@@ -184,6 +287,7 @@ final class PermitController extends BaseController
 
     public function inspect(InspectPermitRequest $request, Permit $permit, PermitService $permits): RedirectResponse
     {
+        $this->authorize('inspect', $permit);
         $permits->recordJointInspection($permit, $request->user(), $request->string('as')->toString());
 
         return back()->with('flash', ['success' => 'Joint inspection recorded.']);
@@ -232,6 +336,7 @@ final class PermitController extends BaseController
 
     public function suspend(NoteRequest $request, Permit $permit, PermitService $permits): RedirectResponse
     {
+        $this->authorize('suspend', $permit);
         $permits->suspend($permit, $request->user(), $request->string('note')->toString());
 
         return back()->with('flash', ['success' => 'Permit suspended.']);
@@ -255,6 +360,7 @@ final class PermitController extends BaseController
 
     public function cancel(NoteRequest $request, Permit $permit, PermitService $permits): RedirectResponse
     {
+        $this->authorize('cancel', $permit);
         $permits->cancel($permit, $request->user(), $request->string('note')->toString());
 
         return back()->with('flash', ['success' => 'Permit cancelled.']);
@@ -262,6 +368,7 @@ final class PermitController extends BaseController
 
     public function close(NoteRequest $request, Permit $permit, PermitService $permits): RedirectResponse
     {
+        $this->authorize('close', $permit);
         $permits->close($permit, $request->user(), $request->string('note')->toString());
 
         return back()->with('flash', ['success' => 'Permit closed.']);
@@ -269,6 +376,7 @@ final class PermitController extends BaseController
 
     public function reject(NoteRequest $request, Permit $permit, PermitService $permits): RedirectResponse
     {
+        $this->authorize('reject', $permit);
         $permits->reject($permit, $request->user(), $request->string('note')->toString());
 
         return back()->with('flash', ['success' => 'Permit rejected.']);
