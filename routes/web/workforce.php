@@ -56,6 +56,7 @@ Route::middleware('permission:manage-portable-devices')->prefix('workforce/porta
 Route::middleware('permission:manage-worker-documents')->prefix('workforce/workers/{worker}/documents')->name('workers.documents.')->group(function (): void {
     Route::get('/', [WorkerDocumentController::class, 'index'])->name('index');
     Route::post('/', [WorkerDocumentController::class, 'store'])->name('store');
+    Route::put('{document}', [WorkerDocumentController::class, 'update'])->name('update');
     Route::post('{document}/verify', [WorkerDocumentController::class, 'verify'])->name('verify');
     Route::post('{document}/reject', [WorkerDocumentController::class, 'reject'])->name('reject');
     Route::delete('{document}', [WorkerDocumentController::class, 'destroy'])->name('destroy');

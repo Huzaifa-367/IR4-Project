@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -30,6 +31,8 @@ import {
 import type { PaginatedMeta } from '@/types/hardware';
 import type { HseOption, LsrPrefill, LsrViolation } from '@/types/hse';
 
+type Named = { id: number; name: string };
+
 type Props = {
     violations: { data: LsrViolation[]; meta: PaginatedMeta };
     filters: {
@@ -44,6 +47,8 @@ type Props = {
     canLog: boolean;
     canClose: boolean;
     prefill: LsrPrefill | null;
+    zones: Named[];
+    workers: Named[];
 };
 
 const ALL = 'all';
@@ -54,12 +59,15 @@ export default function LsrIndex({
     categoryOptions,
     canLog,
     canClose,
+    prefill = null,
+    zones = [],
+    workers = [],
 }: Props) {
     const [closeId, setCloseId] = useState<number | null>(null);
+    const [logOpen, setLogOpen] = useState(() => prefill !== null);
     const [search, setSearch] = useState(filters.search);
     const [status, setStatus] = useState(filters.status || ALL);
     const [category, setCategory] = useState(filters.category || ALL);
-
     function applyFilters(
         patch: Partial<{
             search: string;
@@ -88,6 +96,11 @@ export default function LsrIndex({
         status: status === ALL ? undefined : status,
         category: category === ALL ? undefined : category,
     };
+
+    const isPpeLinked = prefill?.ppe_violation_id != null;
+    const defaultOccurred =
+        prefill?.occurred_at?.slice(0, 16) ??
+        new Date().toISOString().slice(0, 16);
 
     const columns: SettingsColumn<LsrViolation>[] = [
         {
@@ -161,10 +174,11 @@ export default function LsrIndex({
                             <Link href="/lsr-violations/summary">Summary</Link>
                         </Button>
                         {canLog && (
-                            <Button asChild>
-                                <Link href="/lsr-violations/create">
-                                    Log LSR
-                                </Link>
+                            <Button
+                                type="button"
+                                onClick={() => setLogOpen(true)}
+                            >
+                                Log LSR
                             </Button>
                         )}
                     </>
@@ -248,6 +262,182 @@ export default function LsrIndex({
                     emptyDescription="No LSR entries match these filters."
                 />
             </SettingsPageShell>
+
+            <Dialog
+                open={logOpen}
+                onOpenChange={(open) => {
+                    setLogOpen(open);
+                }}
+            >
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Log LSR</DialogTitle>
+                        <DialogDescription>
+                            {prefill
+                                ? `Prefill from alert #${prefill.alert_id} — review and submit.`
+                                : 'Manual Life Saving Rule entry.'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {isPpeLinked && (
+                        <p className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                            PPE-linked LSR keeps worker identity null (camera
+                            never identified anyone).
+                        </p>
+                    )}
+
+                    <Form
+                        action="/lsr-violations"
+                        method="post"
+                        className="grid gap-4"
+                        options={{ preserveScroll: true }}
+                        onSuccess={() => setLogOpen(false)}
+                    >
+                        {({ processing, errors }) => (
+                            <>
+                                {prefill?.alert_id ? (
+                                    <input
+                                        type="hidden"
+                                        name="alert_id"
+                                        value={prefill.alert_id}
+                                    />
+                                ) : null}
+                                {prefill?.ppe_violation_id ? (
+                                    <input
+                                        type="hidden"
+                                        name="ppe_violation_id"
+                                        value={prefill.ppe_violation_id}
+                                    />
+                                ) : null}
+                                {prefill?.camera_id ? (
+                                    <input
+                                        type="hidden"
+                                        name="camera_id"
+                                        value={prefill.camera_id}
+                                    />
+                                ) : null}
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="log-category">
+                                        Category
+                                    </Label>
+                                    <select
+                                        id="log-category"
+                                        name="category"
+                                        required
+                                        defaultValue={prefill?.category ?? ''}
+                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                                    >
+                                        {categoryOptions.map((option) => (
+                                            <option
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="log-occurred_at">
+                                        Occurred at
+                                    </Label>
+                                    <Input
+                                        id="log-occurred_at"
+                                        name="occurred_at"
+                                        type="datetime-local"
+                                        required
+                                        defaultValue={defaultOccurred}
+                                    />
+                                    {errors.occurred_at ? (
+                                        <p className="text-sm text-destructive">
+                                            {errors.occurred_at}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="log-zone_id">Zone</Label>
+                                    <select
+                                        id="log-zone_id"
+                                        name="zone_id"
+                                        defaultValue={prefill?.zone_id ?? ''}
+                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                                    >
+                                        <option value="">—</option>
+                                        {zones.map((zone) => (
+                                            <option
+                                                key={zone.id}
+                                                value={zone.id}
+                                            >
+                                                {zone.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {!isPpeLinked && (
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="log-worker_id">
+                                            Worker
+                                        </Label>
+                                        <select
+                                            id="log-worker_id"
+                                            name="worker_id"
+                                            defaultValue={
+                                                prefill?.worker_id ?? ''
+                                            }
+                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                                        >
+                                            <option value="">—</option>
+                                            {workers.map((worker) => (
+                                                <option
+                                                    key={worker.id}
+                                                    value={worker.id}
+                                                >
+                                                    {worker.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="log-description">
+                                        Description
+                                    </Label>
+                                    <textarea
+                                        id="log-description"
+                                        name="description"
+                                        rows={4}
+                                        defaultValue={
+                                            prefill?.description ?? ''
+                                        }
+                                        className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                                    />
+                                </div>
+
+                                <DialogFooter>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setLogOpen(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={processing}
+                                    >
+                                        Submit LSR
+                                    </Button>
+                                </DialogFooter>
+                            </>
+                        )}
+                    </Form>
+                </DialogContent>
+            </Dialog>
 
             <Dialog
                 open={closeId !== null}

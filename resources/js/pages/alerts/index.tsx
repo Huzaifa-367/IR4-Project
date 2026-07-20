@@ -147,7 +147,7 @@ export default function AlertsIndex({
                             {alert.payload.suggested_action ===
                             'create_incident' ? (
                                 <Link
-                                    href={`/incidents/create?alert_id=${alert.id}`}
+                                    href={`/incidents?alert_id=${alert.id}`}
                                     className="text-[color:var(--accent)] hover:underline"
                                 >
                                     Create incident
@@ -155,7 +155,7 @@ export default function AlertsIndex({
                             ) : null}
                             {alert.payload.suggested_action === 'log_lsr' ? (
                                 <Link
-                                    href={`/lsr-violations/create?alert_id=${alert.id}`}
+                                    href={`/lsr-violations?alert_id=${alert.id}`}
                                     className="text-[color:var(--accent)] hover:underline"
                                 >
                                     Log LSR

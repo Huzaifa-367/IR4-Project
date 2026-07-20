@@ -5,6 +5,7 @@ use App\Http\Controllers\Web\Ppe\PpeViolationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('permission:view-ppe')->prefix('ppe')->name('ppe.')->group(function (): void {
+    Route::get('/', PpeTrendsController::class)->name('index');
     Route::get('violations', [PpeViolationController::class, 'index'])->name('violations.index');
     Route::post('violations/bulk-review', [PpeViolationController::class, 'bulkReview'])
         ->middleware('permission:review-ppe')
@@ -16,7 +17,6 @@ Route::middleware('permission:view-ppe')->prefix('ppe')->name('ppe.')->group(fun
     Route::post('violations/{violation}/review', [PpeViolationController::class, 'review'])
         ->middleware('permission:review-ppe')
         ->name('violations.review');
-    Route::get('trends', PpeTrendsController::class)->name('trends.index');
     Route::get('api/violations/summary', [PpeViolationController::class, 'summary'])->name('api.summary');
     Route::get('api/violations/recent', [PpeViolationController::class, 'recent'])->name('api.recent');
 });

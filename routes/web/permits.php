@@ -23,7 +23,7 @@ Route::middleware('permission:view-permits')->prefix('workforce/permits')->name(
         ->middleware('permission:request-permit')
         ->name('submit');
     Route::post('{permit}/inspection', [PermitController::class, 'inspect'])
-        ->middleware('permission:issue-permit')
+        ->middleware('permission:issue-permit|request-permit')
         ->name('inspect');
     Route::post('{permit}/gas-tests', [PermitController::class, 'storeGasTest'])
         ->middleware('permission:perform-gas-test')
@@ -97,7 +97,7 @@ Route::middleware('permission:manage-permit-catalogue')->prefix('workforce/worke
     Route::put('{workerDocumentType}', [WorkerDocumentTypeController::class, 'update'])->name('update');
 });
 
-Route::middleware('permission:manage-permit-catalogue')->prefix('access/crew-roles')->name('settings.crew-roles.')->group(function (): void {
+Route::middleware('permission:manage-permit-catalogue')->prefix('workforce/crew-roles')->name('settings.crew-roles.')->group(function (): void {
     Route::get('/', [CrewRoleController::class, 'index'])->name('index');
     Route::post('/', [CrewRoleController::class, 'store'])->name('store');
     Route::put('{crewRole}', [CrewRoleController::class, 'update'])->name('update');

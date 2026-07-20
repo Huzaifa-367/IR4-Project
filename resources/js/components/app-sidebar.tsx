@@ -1,6 +1,5 @@
 import { Link } from '@inertiajs/react';
 import {
-    AlertTriangle,
     ArrowRightLeft,
     Bell,
     Boxes,
@@ -91,8 +90,27 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
+        ...(can('view-gas')
+            ? [
+                  {
+                      title: 'Gas & CO₂',
+                      href: '/gas',
+                      icon: Wind,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('view-ppe')
+            ? [
+                  {
+                      title: 'PPE Trends',
+                      href: '/ppe',
+                      icon: TrendingUp,
+                  } satisfies NavItem,
+              ]
+            : []),
     ];
 
+    // Live operations only — zone setup lives under Settings.
     const liveChildren: NavItem[] = [
         ...(can('view-tracking')
             ? [
@@ -121,20 +139,6 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('manage-zones')
-            ? [
-                  {
-                      title: 'Zones & Map',
-                      href: '/settings/zones',
-                      icon: MapPinned,
-                  } satisfies NavItem,
-                  {
-                      title: 'Repositioning',
-                      href: '/settings/repositioning',
-                      icon: Move,
-                  } satisfies NavItem,
-              ]
-            : []),
     ];
 
     const live: NavItem[] =
@@ -150,51 +154,23 @@ export function AppSidebar() {
             : [];
 
     // Safety screens operators open during a shift.
+    // Violation / event forms are grouped: PPE → LSR → Vehicle → Incidents.
     const safety: NavItem[] = [
         ...(can('view-gas')
             ? [
                   {
-                      title: 'Gas & CO₂',
-                      href: '/gas',
+                      title: 'Gas Alarms',
+                      href: '/gas/alarms',
                       icon: Wind,
-                      items: [
-                          { title: 'Dashboard', href: '/gas', icon: Wind },
-                          {
-                              title: 'Alarms',
-                              href: '/gas/alarms',
-                              icon: AlertTriangle,
-                          },
-                      ],
                   } satisfies NavItem,
               ]
             : []),
         ...(can('view-ppe')
             ? [
                   {
-                      title: 'PPE',
+                      title: 'PPE Violations',
                       href: '/ppe/violations',
                       icon: Shield,
-                      items: [
-                          {
-                              title: 'Violations',
-                              href: '/ppe/violations',
-                              icon: Shield,
-                          },
-                          {
-                              title: 'Trends',
-                              href: '/ppe/trends',
-                              icon: TrendingUp,
-                          },
-                      ],
-                  } satisfies NavItem,
-              ]
-            : []),
-        ...(can('view-incidents')
-            ? [
-                  {
-                      title: 'Incidents',
-                      href: '/incidents',
-                      icon: FileWarning,
                   } satisfies NavItem,
               ]
             : []),
@@ -207,30 +183,43 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('view-equipment')
+        ...(can('log-vehicle-violations')
             ? [
                   {
-                      title: 'Equipment',
-                      href: '/equipment',
-                      icon: Package,
-                      items: [
-                          {
-                              title: 'Items',
-                              href: '/equipment',
-                              icon: Package,
-                          },
-                          {
-                              title: 'Checkouts',
-                              href: '/equipment/checkouts',
-                              icon: ClipboardList,
-                          },
-                      ],
+                      title: 'Vehicle Violations',
+                      href: '/reports/vehicle-violations',
+                      icon: Car,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('view-incidents')
+            ? [
+                  {
+                      title: 'Incidents',
+                      href: '/incidents',
+                      icon: FileWarning,
                   } satisfies NavItem,
               ]
             : []),
     ];
 
-    // People & permits — frequent, but after live safety.
+    // Equipment custody — above Workforce.
+    const equipment: NavItem[] = can('view-equipment')
+        ? [
+              {
+                  title: 'Items',
+                  href: '/equipment',
+                  icon: Package,
+              },
+              {
+                  title: 'Checkouts',
+                  href: '/equipment/checkouts',
+                  icon: ClipboardList,
+              },
+          ]
+        : [];
+
+    // Workforce usage — day-to-day pages only.
     const workforceChildren: NavItem[] = [
         ...(can('view-tracking')
             ? [
@@ -264,20 +253,6 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('manage-permit-catalogue')
-            ? [
-                  {
-                      title: 'Permit types',
-                      href: '/workforce/permit-types',
-                      icon: IdCard,
-                  } satisfies NavItem,
-                  {
-                      title: 'Document types',
-                      href: '/workforce/worker-document-types',
-                      icon: ScrollText,
-                  } satisfies NavItem,
-              ]
-            : []),
     ];
 
     const workforce: NavItem[] =
@@ -295,7 +270,44 @@ export function AppSidebar() {
               ]
             : [];
 
-    // Admin / config — least visited; keep at the bottom.
+    // Catalogue / values to configure — bottom of nav.
+    const catalogueChildren: NavItem[] = [
+        ...(can('manage-permit-catalogue')
+            ? [
+                  {
+                      title: 'Permit types',
+                      href: '/workforce/permit-types',
+                      icon: IdCard,
+                  } satisfies NavItem,
+                  {
+                      title: 'Crew roles',
+                      href: '/workforce/crew-roles',
+                      icon: HardHat,
+                  } satisfies NavItem,
+                  {
+                      title: 'Document types',
+                      href: '/workforce/worker-document-types',
+                      icon: ScrollText,
+                  } satisfies NavItem,
+              ]
+            : []),
+    ];
+
+    const catalogue: NavItem[] =
+        catalogueChildren.length > 0
+            ? [
+                  {
+                      title: 'PTW catalogue',
+                      href: firstHref(
+                          catalogueChildren,
+                          '/workforce/permit-types',
+                      ),
+                      icon: IdCard,
+                      items: catalogueChildren,
+                  },
+              ]
+            : [];
+
     const hardwareChildren: NavItem[] = [
         ...(can('manage-devices')
             ? [
@@ -346,15 +358,6 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('manage-permit-catalogue')
-            ? [
-                  {
-                      title: 'Crew roles',
-                      href: '/access/crew-roles',
-                      icon: HardHat,
-                  } satisfies NavItem,
-              ]
-            : []),
     ];
 
     const reportsChildren: NavItem[] = [
@@ -364,15 +367,6 @@ export function AppSidebar() {
                       title: 'Weekly Reports',
                       href: '/reports',
                       icon: FileBarChart,
-                  } satisfies NavItem,
-              ]
-            : []),
-        ...(can('log-vehicle-violations')
-            ? [
-                  {
-                      title: 'Vehicle Violations',
-                      href: '/reports/vehicle-violations',
-                      icon: Car,
                   } satisfies NavItem,
               ]
             : []),
@@ -394,6 +388,20 @@ export function AppSidebar() {
                       title: 'General',
                       href: '/settings/general',
                       icon: Settings2,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('manage-zones')
+            ? [
+                  {
+                      title: 'Zones & Map',
+                      href: '/settings/zones',
+                      icon: MapPinned,
+                  } satisfies NavItem,
+                  {
+                      title: 'Repositioning',
+                      href: '/settings/repositioning',
+                      icon: Move,
                   } satisfies NavItem,
               ]
             : []),
@@ -481,8 +489,10 @@ export function AppSidebar() {
                 <NavMain items={overview} label="Overview" />
                 <NavMain items={live} label="Live" />
                 <NavMain items={safety} label="Safety" />
+                <NavMain items={equipment} label="Equipment" />
                 <NavMain items={workforce} label="Workforce" />
                 <NavMain items={admin} label="Admin" />
+                <NavMain items={catalogue} label="Catalogue" />
             </SidebarContent>
 
             <SidebarFooter className="gap-3 border-t border-sidebar-border p-3">

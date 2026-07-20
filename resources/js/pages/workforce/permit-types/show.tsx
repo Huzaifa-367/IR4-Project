@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState, type ReactNode } from 'react';
+import { useState  } from 'react';
+import type {ReactNode} from 'react';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
@@ -92,12 +93,15 @@ type Props = {
 type DialogState =
     | { kind: 'edit-type' }
     | { kind: 'add-role' }
+    | { kind: 'edit-role'; role: CrewRole }
     | { kind: 'add-checklist' }
     | { kind: 'edit-checklist'; item: ChecklistItem }
     | { kind: 'add-gas' }
     | { kind: 'edit-gas'; channel: GasChannel }
     | { kind: 'add-conflict' }
+    | { kind: 'edit-conflict'; conflict: Conflict }
     | { kind: 'add-doc-req' }
+    | { kind: 'edit-doc-req'; requirement: DocRequirement }
     | null;
 
 export default function PermitTypeShow({
@@ -131,20 +135,34 @@ export default function PermitTypeShow({
         {
             key: 'actions',
             header: '',
-            className: 'w-28 text-right',
+            className: 'w-40 text-right',
             cell: (row) => (
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                        if (confirm(`Remove “${row.label}”?`)) {
-                            router.delete(`/access/crew-roles/${row.id}`);
+                <div className="flex justify-end gap-1">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                            setDialog({ kind: 'edit-role', role: row })
                         }
-                    }}
-                >
-                    Remove
-                </Button>
+                    >
+                        Edit
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                            if (confirm(`Remove “${row.label}”?`)) {
+                                router.delete(
+                                    `/workforce/crew-roles/${row.id}`,
+                                );
+                            }
+                        }}
+                    >
+                        Remove
+                    </Button>
+                </div>
             ),
         },
     ];
@@ -292,20 +310,32 @@ export default function PermitTypeShow({
         {
             key: 'actions',
             header: '',
-            className: 'w-28 text-right',
+            className: 'w-40 text-right',
             cell: (row) => (
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                        if (confirm('Remove this SIMOPS conflict?')) {
-                            router.delete(`${base}/conflicts/${row.id}`);
+                <div className="flex justify-end gap-1">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                            setDialog({ kind: 'edit-conflict', conflict: row })
                         }
-                    }}
-                >
-                    Remove
-                </Button>
+                    >
+                        Edit
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                            if (confirm('Remove this SIMOPS conflict?')) {
+                                router.delete(`${base}/conflicts/${row.id}`);
+                            }
+                        }}
+                    >
+                        Remove
+                    </Button>
+                </div>
             ),
         },
     ];
@@ -338,22 +368,37 @@ export default function PermitTypeShow({
         {
             key: 'actions',
             header: '',
-            className: 'w-28 text-right',
+            className: 'w-40 text-right',
             cell: (row) => (
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                        if (confirm('Remove this document requirement?')) {
-                            router.delete(
-                                `${base}/document-requirements/${row.id}`,
-                            );
+                <div className="flex justify-end gap-1">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                            setDialog({
+                                kind: 'edit-doc-req',
+                                requirement: row,
+                            })
                         }
-                    }}
-                >
-                    Remove
-                </Button>
+                    >
+                        Edit
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                            if (confirm('Remove this document requirement?')) {
+                                router.delete(
+                                    `${base}/document-requirements/${row.id}`,
+                                );
+                            }
+                        }}
+                    >
+                        Remove
+                    </Button>
+                </div>
             ),
         },
     ];
@@ -381,7 +426,7 @@ export default function PermitTypeShow({
                             Edit type
                         </Button>
                         <Button asChild variant="outline">
-                            <Link href="/access/crew-roles">All crew roles</Link>
+                            <Link href="/workforce/crew-roles">All crew roles</Link>
                         </Button>
                     </div>
                 }
@@ -618,20 +663,36 @@ export default function PermitTypeShow({
             </CrudFormDialog>
 
             <CrudFormDialog
-                open={dialog?.kind === 'add-role'}
+                open={
+                    dialog?.kind === 'add-role' || dialog?.kind === 'edit-role'
+                }
                 onOpenChange={(open) => {
                     if (!open) {
                         setDialog(null);
                     }
                 }}
-                title="Add crew role"
-                action="/access/crew-roles"
-                method="post"
-                submitLabel="Create role"
+                title={
+                    dialog?.kind === 'edit-role'
+                        ? 'Edit crew role'
+                        : 'Add crew role'
+                }
+                action={
+                    dialog?.kind === 'edit-role'
+                        ? `/workforce/crew-roles/${dialog.role.id}`
+                        : '/workforce/crew-roles'
+                }
+                method={dialog?.kind === 'edit-role' ? 'put' : 'post'}
+                submitLabel="Save role"
             >
                 {() => (
                     <>
-                    <input type="hidden" name="permit_type_id" value={permitType.id} />
+                    {dialog?.kind !== 'edit-role' ? (
+                        <input
+                            type="hidden"
+                            name="permit_type_id"
+                            value={permitType.id}
+                        />
+                    ) : null}
                     <div className="grid gap-3 sm:grid-cols-2">
                         <Field label="Code" htmlFor="role_code">
                             <Input
@@ -640,10 +701,24 @@ export default function PermitTypeShow({
                                 required
                                 placeholder="fire_watch"
                                 pattern="[a-z][a-z0-9_]*"
+                                defaultValue={
+                                    dialog?.kind === 'edit-role'
+                                        ? dialog.role.role_code
+                                        : ''
+                                }
                             />
                         </Field>
                         <Field label="Label" htmlFor="role_label">
-                            <Input id="role_label" name="label" required />
+                            <Input
+                                id="role_label"
+                                name="label"
+                                required
+                                defaultValue={
+                                    dialog?.kind === 'edit-role'
+                                        ? dialog.role.label
+                                        : ''
+                                }
+                            />
                         </Field>
                         <Field label="Min count" htmlFor="role_min">
                             <Input
@@ -651,14 +726,35 @@ export default function PermitTypeShow({
                                 name="min_count"
                                 type="number"
                                 min={0}
-                                defaultValue={1}
+                                defaultValue={
+                                    dialog?.kind === 'edit-role'
+                                        ? dialog.role.min_count
+                                        : 1
+                                }
                                 required
+                            />
+                        </Field>
+                        <Field label="Sort order" htmlFor="role_sort">
+                            <Input
+                                id="role_sort"
+                                name="sort_order"
+                                type="number"
+                                min={0}
+                                defaultValue={
+                                    dialog?.kind === 'edit-role'
+                                        ? dialog.role.sort_order
+                                        : 0
+                                }
                             />
                         </Field>
                         <FlagCheckbox
                             name="is_mandatory"
                             label="Mandatory"
-                            defaultChecked
+                            defaultChecked={
+                                dialog?.kind === 'edit-role'
+                                    ? dialog.role.is_mandatory
+                                    : true
+                            }
                         />
                     </div>
                     </>
@@ -857,16 +953,27 @@ export default function PermitTypeShow({
             </CrudFormDialog>
 
             <CrudFormDialog
-                open={dialog?.kind === 'add-conflict'}
+                open={
+                    dialog?.kind === 'add-conflict' ||
+                    dialog?.kind === 'edit-conflict'
+                }
                 onOpenChange={(open) => {
                     if (!open) {
                         setDialog(null);
                     }
                 }}
-                title="Add SIMOPS conflict"
-                action={`${base}/conflicts`}
-                method="post"
-                submitLabel="Add conflict"
+                title={
+                    dialog?.kind === 'edit-conflict'
+                        ? 'Edit SIMOPS conflict'
+                        : 'Add SIMOPS conflict'
+                }
+                action={
+                    dialog?.kind === 'edit-conflict'
+                        ? `${base}/conflicts/${dialog.conflict.id}`
+                        : `${base}/conflicts`
+                }
+                method={dialog?.kind === 'edit-conflict' ? 'put' : 'post'}
+                submitLabel="Save conflict"
             >
                 {() => (
                     <>
@@ -876,6 +983,14 @@ export default function PermitTypeShow({
                                 id="conflict_type"
                                 name="conflicts_with_type_id"
                                 required
+                                defaultValue={
+                                    dialog?.kind === 'edit-conflict'
+                                        ? String(
+                                              dialog.conflict
+                                                  .conflicts_with_type_id,
+                                          )
+                                        : ''
+                                }
                                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                             >
                                 <option value="">Select type…</option>
@@ -891,11 +1006,17 @@ export default function PermitTypeShow({
                                 id="conflict_scope"
                                 name="scope"
                                 required
-                                defaultValue="same_zone"
+                                defaultValue={
+                                    dialog?.kind === 'edit-conflict'
+                                        ? dialog.conflict.scope
+                                        : 'same_zone'
+                                }
                                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                             >
                                 <option value="same_zone">Same zone</option>
-                                <option value="adjacent_zone">Adjacent zone</option>
+                                <option value="adjacent_zone">
+                                    Adjacent zone
+                                </option>
                             </select>
                         </Field>
                         <Field label="Severity" htmlFor="conflict_severity">
@@ -903,7 +1024,11 @@ export default function PermitTypeShow({
                                 id="conflict_severity"
                                 name="severity"
                                 required
-                                defaultValue="warn"
+                                defaultValue={
+                                    dialog?.kind === 'edit-conflict'
+                                        ? dialog.conflict.severity
+                                        : 'warn'
+                                }
                                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                             >
                                 <option value="warn">Warn</option>
@@ -911,7 +1036,15 @@ export default function PermitTypeShow({
                             </select>
                         </Field>
                         <Field label="Note" htmlFor="conflict_note">
-                            <Input id="conflict_note" name="note" />
+                            <Input
+                                id="conflict_note"
+                                name="note"
+                                defaultValue={
+                                    dialog?.kind === 'edit-conflict'
+                                        ? (dialog.conflict.note ?? '')
+                                        : ''
+                                }
+                            />
                         </Field>
                     </div>
                     </>
@@ -919,16 +1052,27 @@ export default function PermitTypeShow({
             </CrudFormDialog>
 
             <CrudFormDialog
-                open={dialog?.kind === 'add-doc-req'}
+                open={
+                    dialog?.kind === 'add-doc-req' ||
+                    dialog?.kind === 'edit-doc-req'
+                }
                 onOpenChange={(open) => {
                     if (!open) {
                         setDialog(null);
                     }
                 }}
-                title="Add document requirement"
-                action={`${base}/document-requirements`}
-                method="post"
-                submitLabel="Add requirement"
+                title={
+                    dialog?.kind === 'edit-doc-req'
+                        ? 'Edit document requirement'
+                        : 'Add document requirement'
+                }
+                action={
+                    dialog?.kind === 'edit-doc-req'
+                        ? `${base}/document-requirements/${dialog.requirement.id}`
+                        : `${base}/document-requirements`
+                }
+                method={dialog?.kind === 'edit-doc-req' ? 'put' : 'post'}
+                submitLabel="Save requirement"
             >
                 {() => (
                     <>
@@ -938,6 +1082,14 @@ export default function PermitTypeShow({
                                 id="doc_type"
                                 name="worker_document_type_id"
                                 required
+                                defaultValue={
+                                    dialog?.kind === 'edit-doc-req'
+                                        ? String(
+                                              dialog.requirement
+                                                  .worker_document_type_id,
+                                          )
+                                        : ''
+                                }
                                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                             >
                                 <option value="">Select document…</option>
@@ -953,7 +1105,11 @@ export default function PermitTypeShow({
                                 id="doc_role"
                                 name="role_code"
                                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                                defaultValue=""
+                                defaultValue={
+                                    dialog?.kind === 'edit-doc-req'
+                                        ? (dialog.requirement.role_code ?? '')
+                                        : ''
+                                }
                             >
                                 <option value="">Any role</option>
                                 {permitType.roles.map((role) => (
@@ -969,12 +1125,20 @@ export default function PermitTypeShow({
                         <FlagCheckbox
                             name="is_mandatory"
                             label="Mandatory"
-                            defaultChecked
+                            defaultChecked={
+                                dialog?.kind === 'edit-doc-req'
+                                    ? dialog.requirement.is_mandatory
+                                    : true
+                            }
                         />
                         <FlagCheckbox
                             name="must_be_verified"
                             label="Must be verified"
-                            defaultChecked
+                            defaultChecked={
+                                dialog?.kind === 'edit-doc-req'
+                                    ? dialog.requirement.must_be_verified
+                                    : true
+                            }
                         />
                     </div>
                     </>
@@ -1059,7 +1223,7 @@ function FlagCheckbox({
 
 PermitTypeShow.layout = {
     breadcrumbs: [
-        { title: 'Workforce', href: '/workforce/workers' },
+        { title: 'Catalogue', href: '/workforce/permit-types' },
         { title: 'Permit types', href: '/workforce/permit-types' },
     ],
 };

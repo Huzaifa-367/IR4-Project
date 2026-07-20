@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
+import { Panel } from '@/components/ir4/panel';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
-import { Panel } from '@/components/ir4/panel';
 import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
@@ -115,43 +115,66 @@ export default function WorkOrderShow({
                         </Button>
                         {canCreatePermit ? (
                             <Button asChild>
-                                <Link href="/workforce/permits/create">
-                                    Request permit
+                                <Link
+                                    href={`/workforce/permits/create?work_order_id=${workOrder.id}`}
+                                >
+                                    Add permit
                                 </Link>
                             </Button>
                         ) : null}
                     </div>
                 </div>
 
-                <Panel title="Clearance status">
+                <Panel title="Job clearance">
                     <div className="flex flex-wrap items-center gap-3">
                         <StatusPill
                             label={
-                                clearance.is_clear
-                                    ? 'All permits active'
-                                    : 'Pending permits'
+                                clearance.total_permits === 0
+                                    ? 'No permits yet'
+                                    : clearance.is_clear
+                                      ? 'All permits active'
+                                      : 'Waiting on permits'
                             }
-                            tone={clearance.is_clear ? 'ok' : 'warn'}
+                            tone={
+                                clearance.total_permits === 0
+                                    ? 'neutral'
+                                    : clearance.is_clear
+                                      ? 'ok'
+                                      : 'warn'
+                            }
                         />
                         <span className="text-sm text-text-dim">
                             {clearance.active_permits} active ·{' '}
-                            {clearance.pending_permits} pending ·{' '}
+                            {clearance.pending_permits} in progress ·{' '}
                             {clearance.total_permits} total
                         </span>
                     </div>
                     <p className="mt-2 text-xs text-text-faint">
-                        Work order is clear when every linked permit is active,
-                        or when no permits are linked yet.
+                        Saudi practice: the job package is clear when every
+                        linked permit type needed for the work is active.
                     </p>
                 </Panel>
 
-                <Panel title="Linked permits">
+                <Panel
+                    title="Permits for this job"
+                    action={
+                        canCreatePermit ? (
+                            <Button asChild size="sm">
+                                <Link
+                                    href={`/workforce/permits/create?work_order_id=${workOrder.id}`}
+                                >
+                                    Add permit
+                                </Link>
+                            </Button>
+                        ) : undefined
+                    }
+                >
                     <SettingsDataTable
                         columns={columns}
                         rows={clearance.permits}
                         rowKey={(row) => row.id}
-                        emptyTitle="No permits linked"
-                        emptyDescription="Link permits by selecting this work order when requesting a permit."
+                        emptyTitle="No permits yet"
+                        emptyDescription="Add a hot work, cold work, CSE, or other permit for this job."
                     />
                 </Panel>
             </div>

@@ -100,6 +100,7 @@ Real life: the first days of on-site AI calibration, plus dust/glare/PPE-color e
 - Metrics: counts by type, by camera, by hour-of-day (heatmap), and a **false-positive rate** stat (evidences calibration progress).
 
 ### 6.2 List & detail (`view-ppe`)
+- **`GET /ppe`** — PPE trends dashboard (range filters, by-type / by-camera / heatmap).
 - **`GET /ppe/violations`** — filterable table (type, camera, review_status, date range, backfill), newest first; snapshot thumbnails via signed URL.
 - **`GET /ppe/violations/{violation}`** — full snapshot (signed URL), camera, confidence, linked alert, and any linked LSR (DOC-14).
 
@@ -128,9 +129,9 @@ Per the confirmed model (DOC-07 §8): a PPE violation is **evidence a user can a
 ## 9. Frontend (React / Inertia)
 
 - **`pages/live/index.tsx`** — LiveWallPage (feeds grid, AI-status chips, violation toasts; `?display=1` kiosk).
-- **`pages/ppe/violations/index.tsx`** — PpeViolationListPage: filter chips, thumbnail column, review-status badges, bulk-select review, row → detail.
+- **`pages/ppe/index.tsx`** — PpeTrendPage (`GET /ppe`): stacked bars by type/day, hour heatmap, per-camera breakdown, **FP-rate** stat, Export PDF/CSV buttons.
+- **`pages/ppe/violations/index.tsx`** — PpeViolationListPage (`GET /ppe/violations`): filter chips, thumbnail column, review-status badges, bulk-select review, row → detail.
 - **`pages/ppe/violations/show.tsx`** — detail: snapshot viewer, camera/time/confidence, Confirm / Mark-false-positive actions (with note), linked alert + any linked LSR.
-- **`pages/ppe/trends/index.tsx`** — PpeTrendPage: stacked bars by type/day, hour heatmap, per-camera breakdown, **FP-rate** stat, Export PDF/CSV buttons.
 - **Components:** `PpeSnapshot` (signed-URL image with expiry handling), `ViolationTypeBadge`, `ReviewStatusBadge`, `PpeToast` (wall).
 - **Types (`types/ppe.ts`):** `PpeViolation`, `ViolationType`, `ReviewStatus`, `PpeSummaryRow`, `PpeExportResult`. Note: no worker field exists on any PPE type.
 - Real-time via the `ppe` channel (DOC-08); the wall + PPE card subscribe.

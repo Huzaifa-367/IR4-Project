@@ -136,6 +136,43 @@ it('completes cold work flow through inspection to issue', function (): void {
         ->and($permit->valid_to)->not->toBeNull();
 });
 
+it('lets a permit receiver co-sign joint inspection', function (): void {
+    $issuer = User::factory()->withRole('Permit Issuer')->create();
+    $receiver = User::factory()->withRole('Permit Receiver')->create();
+    $coldWork = PermitType::query()->where('code', 'cold_work')->firstOrFail();
+    $zone = Zone::factory()->create();
+
+    $this->actingAs($receiver)
+        ->post(route('permits.store'), [
+            'permit_type_id' => $coldWork->id,
+            'zone_id' => $zone->id,
+            'task_description' => 'Receiver-owned cold work request.',
+            'checklist' => coldWorkChecklist(),
+        ])
+        ->assertRedirect();
+
+    $permit = Permit::query()->firstOrFail();
+
+    $this->actingAs($receiver)
+        ->post(route('permits.submit', $permit))
+        ->assertRedirect();
+
+    expect($permit->fresh()?->status)->toBe(PermitStatus::PendingInspection);
+
+    $this->actingAs($issuer)
+        ->post(route('permits.inspect', $permit), ['as' => 'issuer'])
+        ->assertRedirect();
+
+    $this->actingAs($receiver)
+        ->post(route('permits.inspect', $permit), ['as' => 'receiver'])
+        ->assertRedirect();
+
+    $permit = $permit->fresh() ?? $permit;
+    expect($permit->status)->toBe(PermitStatus::PendingIssue)
+        ->and($permit->joint_inspection_by_issuer)->toBe($issuer->id)
+        ->and($permit->joint_inspection_by_receiver)->toBe($receiver->id);
+});
+
 it('blocks hot work store when fire watch worker lacks required documents', function (): void {
     $admin = User::factory()->withRole('Super Admin')->create();
     $hotWork = PermitType::query()->where('code', 'hot_work')->firstOrFail();
@@ -226,6 +263,77 @@ it('stores a worker document attachment on the private disk', function (): void 
         ->and(Storage::disk('private')->exists($document->file_path))->toBeTrue();
 });
 
+it('uploads multiple files as separate documents for one type', function (): void {
+    Storage::fake('private');
+
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $worker = Worker::factory()->create();
+    $documentType = WorkerDocumentType::query()->where('code', 'medical_fitness')->firstOrFail();
+
+    $this->actingAs($admin)
+        ->from(route('tracking.workers.show', $worker))
+        ->post(route('workers.documents.store', $worker), [
+            'worker_document_type_id' => $documentType->id,
+            'expires_at' => now()->addYear()->toDateString(),
+            'files' => [
+                UploadedFile::fake()->create('page-1.pdf', 80, 'application/pdf'),
+                UploadedFile::fake()->create('page-2.pdf', 90, 'application/pdf'),
+            ],
+        ])
+        ->assertRedirect(route('tracking.workers.show', $worker));
+
+    $docs = WorkerDocument::query()
+        ->where('worker_id', $worker->id)
+        ->where('worker_document_type_id', $documentType->id)
+        ->get();
+
+    expect($docs)->toHaveCount(2)
+        ->and($docs->every(fn (WorkerDocument $doc): bool => Storage::disk('private')->exists((string) $doc->file_path)))->toBeTrue();
+});
+
+it('updates a worker document and returns it to pending', function (): void {
+    Storage::fake('private');
+
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $worker = Worker::factory()->create();
+    $documentType = WorkerDocumentType::query()->where('code', 'medical_fitness')->firstOrFail();
+
+    $oldPath = 'worker-docs/'.$worker->id.'/old.pdf';
+    Storage::disk('private')->put($oldPath, 'old');
+
+    $document = WorkerDocument::query()->create([
+        'worker_id' => $worker->id,
+        'worker_document_type_id' => $documentType->id,
+        'document_number' => 'MED-OLD',
+        'expires_at' => now()->addMonths(6),
+        'file_path' => $oldPath,
+        'verification_status' => WorkerDocumentVerificationStatus::Verified,
+        'verified_by' => $admin->id,
+        'verified_at' => now(),
+        'uploaded_by' => $admin->id,
+    ]);
+
+    $replacement = UploadedFile::fake()->create('fitness-v2.pdf', 100, 'application/pdf');
+
+    $this->actingAs($admin)
+        ->from(route('tracking.workers.show', $worker))
+        ->put(route('workers.documents.update', [$worker, $document]), [
+            'document_number' => 'MED-NEW',
+            'expires_at' => now()->addYear()->toDateString(),
+            'file' => $replacement,
+        ])
+        ->assertRedirect(route('tracking.workers.show', $worker));
+
+    $document = $document->fresh() ?? $document;
+
+    expect($document->document_number)->toBe('MED-NEW')
+        ->and($document->verification_status)->toBe(WorkerDocumentVerificationStatus::Pending)
+        ->and($document->verified_by)->toBeNull()
+        ->and($document->file_path)->not->toBe($oldPath)
+        ->and(Storage::disk('private')->exists($oldPath))->toBeFalse()
+        ->and(Storage::disk('private')->exists((string) $document->file_path))->toBeTrue();
+});
+
 it('rejects document upload without a file when the type requires one', function (): void {
     $admin = User::factory()->withRole('Super Admin')->create();
     $worker = Worker::factory()->create();
@@ -253,7 +361,7 @@ it('lists and creates crew roles for a permit type', function (): void {
         ->get(route('settings.crew-roles.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('access/crew-roles/index')
+            ->component('workforce/crew-roles/index')
             ->has('roles')
             ->has('permitTypes'));
 

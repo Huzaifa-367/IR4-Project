@@ -213,6 +213,39 @@ it('prefills lsr from alert without inserting until submit', function () {
         ->and(LsrViolation::query()->first()?->alert_id)->toBe($alert->id);
 });
 
+it('opens create via index dialog props and redirects legacy create urls', function () {
+    $operator = User::factory()->withRole('SCC Operator')->create();
+    $alert = app(AlertService::class)->raise(
+        type: AlertType::FallDetection,
+        title: 'Fall',
+    );
+
+    $this->actingAs($operator)
+        ->get(route('hse.incidents.create', ['alert_id' => $alert->id]))
+        ->assertRedirect(route('hse.incidents.index', ['alert_id' => $alert->id]));
+
+    $this->actingAs($operator)
+        ->get(route('hse.lsr.create', ['alert_id' => $alert->id]))
+        ->assertRedirect(route('hse.lsr.index', ['alert_id' => $alert->id]));
+
+    $this->actingAs($operator)
+        ->get(route('hse.incidents.index', ['alert_id' => $alert->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('hse/incidents/index')
+            ->where('prefill.alert_id', $alert->id)
+            ->has('zones'));
+
+    $this->actingAs($operator)
+        ->get(route('hse.lsr.index', ['alert_id' => $alert->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('hse/lsr/index')
+            ->where('prefill.alert_id', $alert->id)
+            ->has('zones')
+            ->has('workers'));
+});
+
 it('logs permit categories manually and returns summary counts', function () {
     $operator = User::factory()->withRole('SCC Operator')->create();
 

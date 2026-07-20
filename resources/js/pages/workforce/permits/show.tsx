@@ -31,11 +31,18 @@ type Props = {
     canIssue: boolean;
     canApprove: boolean;
     canGasTest: boolean;
+    canInspect: boolean;
 };
 
 type PersonnelRow = {
     worker_id: string;
     role_code: string;
+};
+
+type FlowStep = {
+    id: string;
+    label: string;
+    status: 'done' | 'current' | 'upcoming' | 'skipped';
 };
 
 const STATUS_TONE: Record<string, StatusPillTone> = {
@@ -83,6 +90,114 @@ function checklistAnswered(
     );
 }
 
+function eligibilityFor(
+    worker: WorkerOption | undefined,
+    permitTypeId: number | undefined,
+    roleCode: string,
+): { ready: boolean; missing_labels: string[] } | null {
+    if (!worker || !permitTypeId || !roleCode) {
+        return null;
+    }
+
+    return (
+        worker.role_eligibility?.[`${permitTypeId}:${roleCode}`] ?? {
+            ready: true,
+            missing: [],
+            missing_labels: [],
+        }
+    );
+}
+
+function buildFlowSteps(permit: PermitDetail): FlowStep[] {
+    const status = permit.status;
+    const needsInspection =
+        permit.joint_inspection?.required ??
+        permit.type?.requires_joint_inspection ??
+        false;
+    const needsGas = permit.gas_test_required;
+    const needsApproval =
+        permit.is_extended || (permit.type?.requires_approver ?? false);
+
+    const terminal = ['closed', 'cancelled', 'rejected', 'expired'].includes(
+        status,
+    );
+    const activeLike = ['active', 'suspended'].includes(status);
+
+    const order: string[] = ['draft'];
+
+    if (needsInspection) {
+        order.push('inspection');
+    }
+
+    if (needsGas) {
+        order.push('gas');
+    }
+
+    if (needsApproval) {
+        order.push('approval');
+    }
+
+    order.push('issue', 'active');
+
+    const statusToStep: Record<string, string> = {
+        draft: 'draft',
+        rejected: 'draft',
+        pending_inspection: 'inspection',
+        pending_gas_test: 'gas',
+        pending_approval: 'approval',
+        pending_issue: 'issue',
+        active: 'active',
+        suspended: 'active',
+        closed: 'active',
+        cancelled: 'active',
+        expired: 'active',
+    };
+
+    const currentId = statusToStep[status] ?? 'draft';
+    const currentIndex = order.indexOf(currentId);
+
+    return order.map((id, index) => {
+        const labelMap: Record<string, string> = {
+            draft: 'Prepare',
+            inspection: 'Inspect',
+            gas: 'Gas test',
+            approval: 'Approve',
+            issue: 'Issue',
+            active: 'Active',
+        };
+
+        if (terminal && id === 'active') {
+            return { id, label: permit.status_label, status: 'done' };
+        }
+
+        if (activeLike && id === 'active') {
+            return { id, label: 'Active', status: 'current' };
+        }
+
+        if (!needsInspection && id === 'inspection') {
+            return { id, label: labelMap[id], status: 'skipped' };
+        }
+
+        if (!needsGas && id === 'gas') {
+            return { id, label: labelMap[id], status: 'skipped' };
+        }
+
+        if (!needsApproval && id === 'approval') {
+            return { id, label: labelMap[id], status: 'skipped' };
+        }
+
+        if (index < currentIndex) {
+            return { id, label: labelMap[id], status: 'done' };
+        }
+
+        if (index === currentIndex) {
+            return { id, label: labelMap[id], status: 'current' };
+        }
+
+        return { id, label: labelMap[id], status: 'upcoming' };
+    });
+}
+
 export default function PermitShow({
     permit,
     gasChannels,
@@ -97,6 +212,7 @@ export default function PermitShow({
     canIssue,
     canApprove,
     canGasTest,
+    canInspect,
 }: Props) {
     const [note, setNote] = useState('');
     const [gasReadings, setGasReadings] = useState<Record<string, string>>({});
@@ -126,12 +242,161 @@ export default function PermitShow({
     });
 
     const isEditable = canUpdate && ['draft', 'rejected'].includes(permit.status);
+    const permitTypeId = permit.type?.id;
+    const flowSteps = useMemo(() => buildFlowSteps(permit), [permit]);
 
     const checklistComplete = useMemo(() => {
         const mandatory = checklistItems.filter((item) => item.is_mandatory);
 
         return mandatory.every((item) => checklist[item.code] === true);
     }, [checklist, checklistItems]);
+
+    const roleShortfalls = useMemo(() => {
+        const counts: Record<string, number> = {};
+
+        for (const row of personnel) {
+            if (!row.role_code || !row.worker_id) {
+                continue;
+            }
+
+            counts[row.role_code] = (counts[row.role_code] ?? 0) + 1;
+        }
+
+        return typeRoles
+            .filter((role) => role.is_mandatory)
+            .filter((role) => (counts[role.role_code] ?? 0) < role.min_count)
+            .map(
+                (role) =>
+                    `${role.label} (need ${role.min_count}, have ${counts[role.role_code] ?? 0})`,
+            );
+    }, [personnel, typeRoles]);
+
+    const documentBlockers = useMemo(() => {
+        if (isEditable) {
+            return personnel
+                .filter((row) => row.worker_id && row.role_code)
+                .flatMap((row) => {
+                    const worker = workers.find(
+                        (item) => String(item.id) === row.worker_id,
+                    );
+                    const eligibility = eligibilityFor(
+                        worker,
+                        permitTypeId,
+                        row.role_code,
+                    );
+
+                    if (!eligibility || eligibility.ready) {
+                        return [];
+                    }
+
+                    return [
+                        `${worker?.label ?? 'Worker'}: missing ${eligibility.missing_labels.join(', ') || 'documents'}`,
+                    ];
+                });
+        }
+
+        return permit.personnel
+            .filter((person) => person.document_status.status === 'red')
+            .map(
+                (person) =>
+                    `${person.worker_label ?? `#${person.worker_id}`}: missing ${(person.document_status.missing ?? []).join(', ') || 'documents'}`,
+            );
+    }, [isEditable, permit.personnel, personnel, permitTypeId, workers]);
+
+    const blockers = useMemo(() => {
+        if (!['draft', 'rejected'].includes(permit.status)) {
+            return [] as string[];
+        }
+
+        const items: string[] = [];
+
+        if (!checklistComplete && checklistItems.some((item) => item.is_mandatory)) {
+            items.push('Complete all mandatory checklist / JSA items');
+        }
+
+        if (roleShortfalls.length > 0) {
+            items.push(`Assign mandatory crew: ${roleShortfalls.join('; ')}`);
+        }
+
+        if (documentBlockers.length > 0) {
+            items.push(...documentBlockers);
+        }
+
+        if (personnel.every((row) => !row.worker_id || !row.role_code)) {
+            items.push('Assign at least one crew member');
+        }
+
+        return items;
+    }, [
+        checklistComplete,
+        checklistItems,
+        documentBlockers,
+        permit.status,
+        personnel,
+        roleShortfalls,
+    ]);
+
+    const canSubmit =
+        canRequest &&
+        ['draft', 'rejected'].includes(permit.status) &&
+        blockers.length === 0;
+
+    const nextAction = useMemo(() => {
+        switch (permit.status) {
+            case 'draft':
+            case 'rejected':
+                return {
+                    title: 'Prepare & submit',
+                    detail:
+                        blockers.length > 0
+                            ? 'Finish the items below, save, then submit for the next gate.'
+                            : 'Checklist and crew look ready. Submit to start inspection / gas / issue.',
+                    tone: blockers.length > 0 ? ('warn' as const) : ('ok' as const),
+                };
+            case 'pending_inspection':
+                return {
+                    title: 'Joint site inspection',
+                    detail: `Issuer ${permit.joint_inspection?.issuer_signed ? 'signed' : 'pending'} · Receiver ${permit.joint_inspection?.receiver_signed ? 'signed' : 'pending'}. Both must sign before work can proceed.`,
+                    tone: 'warn' as const,
+                };
+            case 'pending_gas_test':
+                return {
+                    title: 'Atmospheric gas test',
+                    detail: 'Record a passing pre-start gas test for the configured channels.',
+                    tone: 'warn' as const,
+                };
+            case 'pending_approval':
+                return {
+                    title: 'Approver sign-off',
+                    detail: 'Extended or high-risk type — approver must authorize before issue.',
+                    tone: 'warn' as const,
+                };
+            case 'pending_issue':
+                return {
+                    title: 'Ready to issue',
+                    detail: 'Issuer authorizes the permit and starts the validity window.',
+                    tone: 'accent' as const,
+                };
+            case 'active':
+                return {
+                    title: 'Permit active',
+                    detail: `Valid to ${formatDate(permit.valid_to)}. Renew, suspend, or close when work ends.`,
+                    tone: 'ok' as const,
+                };
+            case 'suspended':
+                return {
+                    title: 'Stop work — suspended',
+                    detail: 'Resume only when conditions are safe again.',
+                    tone: 'crit' as const,
+                };
+            default:
+                return {
+                    title: permit.status_label,
+                    detail: 'This permit is no longer in the live authorization path.',
+                    tone: 'neutral' as const,
+                };
+        }
+    }, [blockers.length, permit]);
 
     function postAction(url: string, data: RequestPayload = {}): void {
         router.post(url, data as RequestPayload, { preserveScroll: true });
@@ -151,10 +416,30 @@ export default function PermitShow({
         value: string,
     ): void {
         setPersonnel((rows) =>
-            rows.map((row, i) =>
-                i === index ? { ...row, [field]: value } : row,
-            ),
+            rows.map((row, i) => {
+                if (i !== index) {
+                    return row;
+                }
+
+                if (field === 'role_code') {
+                    return { ...row, role_code: value, worker_id: '' };
+                }
+
+                return { ...row, [field]: value };
+            }),
         );
+    }
+
+    function workersForRole(roleCode: string): WorkerOption[] {
+        if (!roleCode || !permitTypeId) {
+            return workers;
+        }
+
+        return workers.filter((worker) => {
+            const eligibility = eligibilityFor(worker, permitTypeId, roleCode);
+
+            return eligibility?.ready ?? true;
+        });
     }
 
     function toggleChecklistItem(code: string, checked: boolean): void {
@@ -177,10 +462,17 @@ export default function PermitShow({
         setGasReadings(next);
     }
 
+    const needsNote =
+        canIssue ||
+        canApprove ||
+        ['pending_issue', 'pending_approval', 'active', 'suspended'].includes(
+            permit.status,
+        );
+
     return (
         <>
             <Head title={permit.permit_number} />
-            <div className="flex flex-col gap-4 p-4 md:p-5">
+            <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:p-5">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                         <p className="eyebrow">{permit.type?.name ?? 'Permit'}</p>
@@ -195,16 +487,82 @@ export default function PermitShow({
                             {permit.gas_test_required && (
                                 <StatusPill label="Gas test required" tone="warn" />
                             )}
+                            {permit.is_extended && (
+                                <StatusPill label="Extended" tone="accent" />
+                            )}
+                            {permit.type?.sa_form_code && (
+                                <StatusPill
+                                    label={permit.type.sa_form_code}
+                                    tone="neutral"
+                                />
+                            )}
                         </div>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            {permit.zone?.name ?? 'No zone'}
+                            {permit.work_order ? (
+                                <>
+                                    {' · '}
+                                    <Link
+                                        href={`/workforce/work-orders/${permit.work_order.id}`}
+                                        className="underline-offset-2 hover:underline"
+                                    >
+                                        {permit.work_order.reference}
+                                    </Link>
+                                </>
+                            ) : null}
+                        </p>
                     </div>
                     <Button asChild variant="outline">
-                        <Link href="/workforce/permits">Back</Link>
+                        <Link href="/workforce/permits">All permits</Link>
                     </Button>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                    {canRequest &&
-                        ['draft', 'rejected'].includes(permit.status) && (
+                <nav
+                    aria-label="Permit progress"
+                    className="flex flex-wrap gap-2 rounded-lg border border-border bg-muted/30 p-3"
+                >
+                    {flowSteps.map((step) => (
+                        <div
+                            key={step.id}
+                            className={[
+                                'rounded-md px-2.5 py-1 text-xs font-medium',
+                                step.status === 'current' &&
+                                    'bg-primary text-primary-foreground',
+                                step.status === 'done' &&
+                                    'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+                                step.status === 'upcoming' &&
+                                    'bg-background text-muted-foreground',
+                                step.status === 'skipped' &&
+                                    'bg-transparent text-muted-foreground/50 line-through',
+                            ]
+                                .filter(Boolean)
+                                .join(' ')}
+                        >
+                            {step.label}
+                        </div>
+                    ))}
+                </nav>
+
+                <Panel title={nextAction.title}>
+                    <p className="text-sm text-muted-foreground">
+                        {nextAction.detail}
+                    </p>
+
+                    {blockers.length > 0 && (
+                        <ul className="mt-3 space-y-1.5 text-sm">
+                            {blockers.map((blocker) => (
+                                <li
+                                    key={blocker}
+                                    className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-amber-900 dark:text-amber-100"
+                                >
+                                    {blocker}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        {canSubmit && (
                             <Button
                                 type="button"
                                 onClick={() =>
@@ -213,315 +571,449 @@ export default function PermitShow({
                                     )
                                 }
                             >
-                                Submit
+                                Submit for authorization
                             </Button>
                         )}
-                    {canIssue && permit.status === 'pending_inspection' && (
-                        <>
+
+                        {canInspect &&
+                            permit.status === 'pending_inspection' && (
+                                <>
+                                    {canIssue &&
+                                        !permit.joint_inspection
+                                            ?.issuer_signed && (
+                                            <Button
+                                                type="button"
+                                                onClick={() =>
+                                                    postAction(
+                                                        `/workforce/permits/${permit.id}/inspection`,
+                                                        { as: 'issuer' },
+                                                    )
+                                                }
+                                            >
+                                                Sign as issuer
+                                            </Button>
+                                        )}
+                                    {canRequest &&
+                                        !permit.joint_inspection
+                                            ?.receiver_signed && (
+                                            <Button
+                                                type="button"
+                                                variant={
+                                                    canIssue
+                                                        ? 'outline'
+                                                        : 'default'
+                                                }
+                                                onClick={() =>
+                                                    postAction(
+                                                        `/workforce/permits/${permit.id}/inspection`,
+                                                        { as: 'receiver' },
+                                                    )
+                                                }
+                                            >
+                                                Sign as receiver
+                                            </Button>
+                                        )}
+                                    {permit.joint_inspection?.issuer_signed &&
+                                        permit.joint_inspection
+                                            ?.receiver_signed && (
+                                            <StatusPill
+                                                label="Both parties signed"
+                                                tone="ok"
+                                            />
+                                        )}
+                                </>
+                            )}
+
+                        {canApprove &&
+                            permit.status === 'pending_approval' && (
+                                <Button
+                                    type="button"
+                                    onClick={() =>
+                                        postAction(
+                                            `/workforce/permits/${permit.id}/approve`,
+                                            { note: note || undefined },
+                                        )
+                                    }
+                                >
+                                    Approve
+                                </Button>
+                            )}
+
+                        {canIssue && permit.status === 'pending_issue' && (
                             <Button
                                 type="button"
-                                variant="outline"
                                 onClick={() =>
                                     postAction(
-                                        `/workforce/permits/${permit.id}/inspection`,
-                                        { as: 'issuer' },
+                                        `/workforce/permits/${permit.id}/issue`,
+                                        { note: note || undefined },
                                     )
                                 }
                             >
-                                Inspect (issuer)
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                    postAction(
-                                        `/workforce/permits/${permit.id}/inspection`,
-                                        { as: 'receiver' },
-                                    )
-                                }
-                            >
-                                Inspect (receiver)
-                            </Button>
-                        </>
-                    )}
-                    {canApprove && permit.status === 'pending_approval' && (
-                        <Button
-                            type="button"
-                            onClick={() =>
-                                postAction(
-                                    `/workforce/permits/${permit.id}/approve`,
-                                    {
-                                        note: note || undefined,
-                                    },
-                                )
-                            }
-                        >
-                            Approve
-                        </Button>
-                    )}
-                    {canIssue && permit.status === 'pending_issue' && (
-                        <Button
-                            type="button"
-                            onClick={() =>
-                                postAction(
-                                    `/workforce/permits/${permit.id}/issue`,
-                                    {
-                                        note: note || undefined,
-                                    },
-                                )
-                            }
-                        >
-                            Issue
-                        </Button>
-                    )}
-                    {canGasTest && permit.status === 'pending_gas_test' && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => void loadGasSuggestion()}
-                        >
-                            Load gas suggestion
-                        </Button>
-                    )}
-                    {canIssue && permit.status === 'active' && (
-                        <>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                    postAction(
-                                        `/workforce/permits/${permit.id}/renew`,
-                                    )
-                                }
-                            >
-                                Renew
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                onClick={() =>
-                                    postAction(
-                                        `/workforce/permits/${permit.id}/suspend`,
-                                        {
-                                            note: note || 'Suspended',
-                                        },
-                                    )
-                                }
-                            >
-                                Suspend
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                    postAction(
-                                        `/workforce/permits/${permit.id}/close`,
-                                        {
-                                            note: note || 'Work complete',
-                                        },
-                                    )
-                                }
-                            >
-                                Close
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                onClick={() =>
-                                    postAction(
-                                        `/workforce/permits/${permit.id}/cancel`,
-                                        {
-                                            note: note || 'Cancelled',
-                                        },
-                                    )
-                                }
-                            >
-                                Cancel
-                            </Button>
-                        </>
-                    )}
-                    {canIssue && permit.status === 'suspended' && (
-                        <Button
-                            type="button"
-                            onClick={() =>
-                                postAction(
-                                    `/workforce/permits/${permit.id}/resume`,
-                                )
-                            }
-                        >
-                            Resume
-                        </Button>
-                    )}
-                    {canIssue &&
-                        !['active', 'closed', 'cancelled', 'rejected'].includes(
-                            permit.status,
-                        ) && (
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                onClick={() =>
-                                    postAction(
-                                        `/workforce/permits/${permit.id}/reject`,
-                                        {
-                                            note: note || 'Rejected',
-                                        },
-                                    )
-                                }
-                            >
-                                Reject
+                                Issue permit
                             </Button>
                         )}
-                </div>
+
+                        {canIssue && permit.status === 'active' && (
+                            <>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() =>
+                                        postAction(
+                                            `/workforce/permits/${permit.id}/renew`,
+                                        )
+                                    }
+                                >
+                                    Renew
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() =>
+                                        postAction(
+                                            `/workforce/permits/${permit.id}/close`,
+                                            {
+                                                note:
+                                                    note || 'Work complete',
+                                            },
+                                        )
+                                    }
+                                >
+                                    Close
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() =>
+                                        postAction(
+                                            `/workforce/permits/${permit.id}/suspend`,
+                                            {
+                                                note: note || 'Suspended',
+                                            },
+                                        )
+                                    }
+                                >
+                                    Suspend
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() =>
+                                        postAction(
+                                            `/workforce/permits/${permit.id}/cancel`,
+                                            {
+                                                note: note || 'Cancelled',
+                                            },
+                                        )
+                                    }
+                                >
+                                    Cancel
+                                </Button>
+                            </>
+                        )}
+
+                        {canIssue && permit.status === 'suspended' && (
+                            <Button
+                                type="button"
+                                onClick={() =>
+                                    postAction(
+                                        `/workforce/permits/${permit.id}/resume`,
+                                    )
+                                }
+                            >
+                                Resume
+                            </Button>
+                        )}
+
+                        {canIssue &&
+                            ![
+                                'active',
+                                'closed',
+                                'cancelled',
+                                'rejected',
+                                'expired',
+                            ].includes(permit.status) && (
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() =>
+                                        postAction(
+                                            `/workforce/permits/${permit.id}/reject`,
+                                            {
+                                                note: note || 'Rejected',
+                                            },
+                                        )
+                                    }
+                                >
+                                    Reject
+                                </Button>
+                            )}
+                    </div>
+
+                    {needsNote && (
+                        <div className="mt-3 grid gap-1 sm:max-w-md">
+                            <Label htmlFor="action-note">Action note</Label>
+                            <Input
+                                id="action-note"
+                                value={note}
+                                onChange={(event) => setNote(event.target.value)}
+                                placeholder="Optional note for approve / issue / close…"
+                            />
+                        </div>
+                    )}
+                </Panel>
 
                 {isEditable ? (
                     <Form
                         action={`/workforce/permits/${permit.id}`}
                         method="put"
-                        className="space-y-4 rounded-lg border border-border p-4"
+                        className="space-y-6"
                     >
                         {({ processing, errors }) => (
                             <>
-                                <h2 className="text-sm font-medium">Edit draft</h2>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="zone_id">Zone</Label>
-                                    <select
-                                        id="zone_id"
-                                        name="zone_id"
-                                        defaultValue={permit.zone?.id ?? ''}
-                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                    >
-                                        <option value="">—</option>
-                                        {zones.map((zone) => (
-                                            <option key={zone.id} value={zone.id}>
-                                                {zone.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="task_description">Task</Label>
-                                    <textarea
-                                        id="task_description"
-                                        name="task_description"
-                                        rows={4}
-                                        required
-                                        defaultValue={permit.task_description}
-                                        className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                                    />
-                                    {errors.task_description && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.task_description}
+                                <section className="space-y-4 rounded-lg border border-border p-4">
+                                    <div>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
+                                            1 · Job
                                         </p>
-                                    )}
-                                </div>
+                                        <h2 className="text-sm font-semibold text-text">
+                                            Task & location
+                                        </h2>
+                                    </div>
 
-                                {allowsExtended && (
-                                    <label className="flex items-center gap-2 text-sm">
-                                        <input
-                                            type="checkbox"
-                                            name="is_extended"
-                                            value="1"
-                                            defaultChecked={permit.is_extended}
-                                            className="rounded border-input"
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="zone_id">Zone</Label>
+                                        <select
+                                            id="zone_id"
+                                            name="zone_id"
+                                            defaultValue={permit.zone?.id ?? ''}
+                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                                        >
+                                            <option value="">—</option>
+                                            {zones.map((zone) => (
+                                                <option
+                                                    key={zone.id}
+                                                    value={zone.id}
+                                                >
+                                                    {zone.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="task_description">
+                                            Task
+                                        </Label>
+                                        <textarea
+                                            id="task_description"
+                                            name="task_description"
+                                            rows={4}
+                                            required
+                                            defaultValue={
+                                                permit.task_description
+                                            }
+                                            className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                                         />
-                                        Extended permit (requires approver)
-                                    </label>
-                                )}
+                                        {errors.task_description && (
+                                            <p className="text-sm text-destructive">
+                                                {errors.task_description}
+                                            </p>
+                                        )}
+                                    </div>
 
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <Label>Personnel</Label>
+                                    {allowsExtended && (
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <input
+                                                type="checkbox"
+                                                name="is_extended"
+                                                value="1"
+                                                defaultChecked={
+                                                    permit.is_extended
+                                                }
+                                                className="rounded border-input"
+                                            />
+                                            Extended permit (requires
+                                            approver)
+                                        </label>
+                                    )}
+                                </section>
+
+                                <section className="space-y-4 rounded-lg border border-border p-4">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div>
+                                            <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
+                                                2 · Crew
+                                            </p>
+                                            <h2 className="text-sm font-semibold text-text">
+                                                Roles first, then ready workers
+                                            </h2>
+                                        </div>
                                         <Button
                                             type="button"
                                             size="sm"
                                             variant="outline"
                                             onClick={addPersonnelRow}
                                         >
-                                            Add row
+                                            Add
                                         </Button>
                                     </div>
-                                    {personnel.map((row, index) => (
-                                        <div
-                                            key={index}
-                                            className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_1fr_auto]"
-                                        >
-                                            <div className="grid gap-1">
-                                                <Label>Worker</Label>
-                                                <select
-                                                    name={`personnel[${index}][worker_id]`}
-                                                    value={row.worker_id}
-                                                    onChange={(event) =>
-                                                        updatePersonnelRow(
-                                                            index,
-                                                            'worker_id',
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                                >
-                                                    <option value="">—</option>
-                                                    {workers.map((worker) => (
-                                                        <option
-                                                            key={worker.id}
-                                                            value={worker.id}
-                                                        >
-                                                            {worker.label}
+
+                                    {typeRoles.length === 0 && (
+                                        <p className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
+                                            No crew roles configured for this
+                                            permit type. Add them under
+                                            Catalogue → Crew roles.
+                                        </p>
+                                    )}
+
+                                    {personnel.map((row, index) => {
+                                        const readyWorkers = workersForRole(
+                                            row.role_code,
+                                        );
+                                        const selected = workers.find(
+                                            (worker) =>
+                                                String(worker.id) ===
+                                                row.worker_id,
+                                        );
+                                        const eligibility = eligibilityFor(
+                                            selected,
+                                            permitTypeId,
+                                            row.role_code,
+                                        );
+
+                                        return (
+                                            <div
+                                                key={index}
+                                                className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_1fr_auto]"
+                                            >
+                                                <div className="grid gap-1">
+                                                    <Label>Role</Label>
+                                                    <select
+                                                        name={`personnel[${index}][role_code]`}
+                                                        value={row.role_code}
+                                                        onChange={(event) =>
+                                                            updatePersonnelRow(
+                                                                index,
+                                                                'role_code',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                                                    >
+                                                        <option value="">
+                                                            —
                                                         </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="grid gap-1">
-                                                <Label>Role</Label>
-                                                <select
-                                                    name={`personnel[${index}][role_code]`}
-                                                    value={row.role_code}
-                                                    onChange={(event) =>
-                                                        updatePersonnelRow(
-                                                            index,
-                                                            'role_code',
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                                >
-                                                    <option value="">—</option>
-                                                    {typeRoles.map((role) => (
-                                                        <option
-                                                            key={role.role_code}
-                                                            value={role.role_code}
-                                                        >
-                                                            {role.label}
+                                                        {typeRoles.map(
+                                                            (role) => (
+                                                                <option
+                                                                    key={
+                                                                        role.role_code
+                                                                    }
+                                                                    value={
+                                                                        role.role_code
+                                                                    }
+                                                                >
+                                                                    {
+                                                                        role.label
+                                                                    }
+                                                                    {role.is_mandatory
+                                                                        ? ' *'
+                                                                        : ''}
+                                                                </option>
+                                                            ),
+                                                        )}
+                                                    </select>
+                                                </div>
+                                                <div className="grid gap-1">
+                                                    <Label>Worker</Label>
+                                                    <select
+                                                        name={`personnel[${index}][worker_id]`}
+                                                        value={row.worker_id}
+                                                        disabled={
+                                                            !row.role_code
+                                                        }
+                                                        onChange={(event) =>
+                                                            updatePersonnelRow(
+                                                                index,
+                                                                'worker_id',
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm disabled:opacity-50"
+                                                    >
+                                                        <option value="">
+                                                            {row.role_code
+                                                                ? readyWorkers.length ===
+                                                                  0
+                                                                    ? 'No ready workers'
+                                                                    : 'Select worker'
+                                                                : 'Pick role first'}
                                                         </option>
-                                                    ))}
-                                                </select>
+                                                        {readyWorkers.map(
+                                                            (worker) => (
+                                                                <option
+                                                                    key={
+                                                                        worker.id
+                                                                    }
+                                                                    value={
+                                                                        worker.id
+                                                                    }
+                                                                >
+                                                                    {
+                                                                        worker.label
+                                                                    }
+                                                                </option>
+                                                            ),
+                                                        )}
+                                                    </select>
+                                                    {eligibility &&
+                                                        !eligibility.ready && (
+                                                            <p className="text-xs text-destructive">
+                                                                Missing:{' '}
+                                                                {eligibility.missing_labels.join(
+                                                                    ', ',
+                                                                )}
+                                                            </p>
+                                                        )}
+                                                </div>
+                                                {personnel.length > 1 && (
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="self-end"
+                                                        onClick={() =>
+                                                            removePersonnelRow(
+                                                                index,
+                                                            )
+                                                        }
+                                                    >
+                                                        Remove
+                                                    </Button>
+                                                )}
                                             </div>
-                                            {personnel.length > 1 && (
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="self-end"
-                                                    onClick={() =>
-                                                        removePersonnelRow(index)
-                                                    }
-                                                >
-                                                    Remove
-                                                </Button>
-                                            )}
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     {errors.personnel && (
                                         <p className="text-sm text-destructive">
                                             {errors.personnel}
                                         </p>
                                     )}
-                                </div>
+                                </section>
 
                                 {checklistItems.length > 0 && (
-                                    <div className="space-y-3">
-                                        <Label>Checklist / JSA</Label>
+                                    <section className="space-y-4 rounded-lg border border-border p-4">
+                                        <div>
+                                            <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
+                                                3 · Checklist / JSA
+                                            </p>
+                                            <h2 className="text-sm font-semibold text-text">
+                                                Confirm hazards & precautions
+                                            </h2>
+                                        </div>
                                         <ul className="space-y-2">
                                             {checklistItems.map((item) => (
                                                 <li
@@ -534,8 +1026,9 @@ export default function PermitShow({
                                                         name={`checklist[${item.code}]`}
                                                         value="1"
                                                         checked={
-                                                            checklist[item.code] ??
-                                                            false
+                                                            checklist[
+                                                                item.code
+                                                            ] ?? false
                                                         }
                                                         onChange={(event) =>
                                                             toggleChecklistItem(
@@ -566,12 +1059,15 @@ export default function PermitShow({
                                                 {errors.checklist}
                                             </p>
                                         )}
-                                    </div>
+                                    </section>
                                 )}
 
-                                <div className="flex justify-end">
-                                    <Button type="submit" disabled={processing}>
-                                        Save changes
+                                <div className="flex justify-end gap-2">
+                                    <Button
+                                        type="submit"
+                                        disabled={processing}
+                                    >
+                                        Save draft
                                     </Button>
                                 </div>
                             </>
@@ -585,7 +1081,9 @@ export default function PermitShow({
                             </p>
                             <dl className="mt-4 grid gap-2 text-sm">
                                 <div className="flex justify-between gap-4">
-                                    <dt className="text-muted-foreground">Zone</dt>
+                                    <dt className="text-muted-foreground">
+                                        Zone
+                                    </dt>
                                     <dd>{permit.zone?.name ?? '—'}</dd>
                                 </div>
                                 <div className="flex justify-between gap-4">
@@ -593,6 +1091,12 @@ export default function PermitShow({
                                         Receiver
                                     </dt>
                                     <dd>{permit.receiver?.name ?? '—'}</dd>
+                                </div>
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-muted-foreground">
+                                        Issuer
+                                    </dt>
+                                    <dd>{permit.issuer?.name ?? '—'}</dd>
                                 </div>
                                 <div className="flex justify-between gap-4">
                                     <dt className="text-muted-foreground">
@@ -622,7 +1126,8 @@ export default function PermitShow({
                                             </span>
                                             <StatusPill
                                                 label={
-                                                    person.document_status.status
+                                                    person.document_status
+                                                        .status
                                                 }
                                                 tone={docTone(
                                                     person.document_status
@@ -652,36 +1157,89 @@ export default function PermitShow({
                                         key={item.code}
                                         className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
                                     >
-                                        <span>{item.label}</span>
+                                        <span>
+                                            {item.label}
+                                            {item.is_mandatory ? ' *' : ''}
+                                        </span>
                                         <StatusPill
-                                            label={answered ? 'Checked' : 'Open'}
+                                            label={
+                                                answered ? 'Checked' : 'Open'
+                                            }
                                             tone={answered ? 'ok' : 'warn'}
                                         />
                                     </li>
                                 );
                             })}
                         </ul>
-                        {!checklistComplete &&
-                            ['draft', 'rejected'].includes(permit.status) && (
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                    Complete all mandatory checklist items before
-                                    submitting.
+                    </Panel>
+                )}
+
+                {permit.status === 'pending_inspection' && (
+                    <Panel title="Joint inspection">
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="rounded-md border border-border px-3 py-2 text-sm">
+                                <p className="text-muted-foreground">Issuer</p>
+                                <StatusPill
+                                    label={
+                                        permit.joint_inspection?.issuer_signed
+                                            ? 'Signed'
+                                            : 'Awaiting signature'
+                                    }
+                                    tone={
+                                        permit.joint_inspection?.issuer_signed
+                                            ? 'ok'
+                                            : 'warn'
+                                    }
+                                />
+                            </div>
+                            <div className="rounded-md border border-border px-3 py-2 text-sm">
+                                <p className="text-muted-foreground">
+                                    Receiver
                                 </p>
-                            )}
+                                <StatusPill
+                                    label={
+                                        permit.joint_inspection
+                                            ?.receiver_signed
+                                            ? 'Signed'
+                                            : 'Awaiting signature'
+                                    }
+                                    tone={
+                                        permit.joint_inspection
+                                            ?.receiver_signed
+                                            ? 'ok'
+                                            : 'warn'
+                                    }
+                                />
+                            </div>
+                        </div>
                     </Panel>
                 )}
 
                 {canGasTest && permit.status === 'pending_gas_test' && (
                     <Panel title="Record gas test">
+                        <div className="mb-3 flex flex-wrap gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void loadGasSuggestion()}
+                            >
+                                Prefill from live sensors
+                            </Button>
+                        </div>
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             {gasChannels.map((channel) => (
                                 <div
                                     key={channel.channel_code}
                                     className="grid gap-1"
                                 >
-                                    <Label htmlFor={`gas-${channel.channel_code}`}>
+                                    <Label
+                                        htmlFor={`gas-${channel.channel_code}`}
+                                    >
                                         {channel.label}
-                                        {channel.unit ? ` (${channel.unit})` : ''}
+                                        {channel.unit
+                                            ? ` (${channel.unit})`
+                                            : ''}
                                     </Label>
                                     <Input
                                         id={`gas-${channel.channel_code}`}
@@ -714,7 +1272,8 @@ export default function PermitShow({
                         </div>
                         {gasChannels.length === 0 && (
                             <p className="text-sm text-muted-foreground">
-                                No gas channels configured for this permit type.
+                                No gas channels configured for this permit
+                                type. Add them under Catalogue → Permit types.
                             </p>
                         )}
                         <div className="mt-3 grid gap-2 sm:max-w-xs">
@@ -757,53 +1316,64 @@ export default function PermitShow({
                     </Panel>
                 )}
 
-                <Panel title="Gas tests">
-                    {permit.gas_tests.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            No gas tests recorded.
-                        </p>
-                    ) : (
-                        <ul className="space-y-2 text-sm">
-                            {permit.gas_tests.map((test) => (
-                                <li
-                                    key={test.id}
-                                    className="rounded-md border border-border px-3 py-2"
-                                >
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <StatusPill
-                                            label={test.result_label}
-                                            tone={
-                                                test.result === 'pass'
-                                                    ? 'ok'
-                                                    : 'crit'
-                                            }
-                                        />
-                                        <span>{formatDate(test.tested_at)}</span>
-                                        <span className="text-muted-foreground">
-                                            {test.phase_label} ·{' '}
-                                            {test.source_label}
-                                        </span>
-                                    </div>
-                                    {Object.keys(test.readings).length > 0 && (
-                                        <dl className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-                                            {Object.entries(test.readings).map(
-                                                ([code, value]) => (
+                {(permit.gas_tests.length > 0 ||
+                    permit.gas_test_required) && (
+                    <Panel title="Gas tests">
+                        {permit.gas_tests.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                No gas tests recorded yet.
+                            </p>
+                        ) : (
+                            <ul className="space-y-2 text-sm">
+                                {permit.gas_tests.map((test) => (
+                                    <li
+                                        key={test.id}
+                                        className="rounded-md border border-border px-3 py-2"
+                                    >
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <StatusPill
+                                                label={test.result_label}
+                                                tone={
+                                                    test.result === 'pass'
+                                                        ? 'ok'
+                                                        : 'crit'
+                                                }
+                                            />
+                                            <span>
+                                                {formatDate(test.tested_at)}
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                                {test.phase_label} ·{' '}
+                                                {test.source_label}
+                                                {test.tested_by_name
+                                                    ? ` · ${test.tested_by_name}`
+                                                    : ''}
+                                            </span>
+                                        </div>
+                                        {Object.keys(test.readings).length >
+                                            0 && (
+                                            <dl className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                                                {Object.entries(
+                                                    test.readings,
+                                                ).map(([code, value]) => (
                                                     <div
                                                         key={code}
                                                         className="flex justify-between gap-2"
                                                     >
                                                         <dt>{code}</dt>
-                                                        <dd>{String(value)}</dd>
+                                                        <dd>
+                                                            {String(value)}
+                                                        </dd>
                                                     </div>
-                                                ),
-                                            )}
-                                        </dl>
-                                    )}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </Panel>
+                                                ))}
+                                            </dl>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </Panel>
+                )}
 
                 <div className="grid gap-4 lg:grid-cols-2">
                     <Panel title="Approvals">
@@ -851,16 +1421,6 @@ export default function PermitShow({
                         )}
                     </Panel>
                 </div>
-
-                {(canIssue || canApprove) && (
-                    <Panel title="Action note">
-                        <Input
-                            value={note}
-                            onChange={(event) => setNote(event.target.value)}
-                            placeholder="Optional note for approve / issue / close…"
-                        />
-                    </Panel>
-                )}
             </div>
         </>
     );

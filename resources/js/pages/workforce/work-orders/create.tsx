@@ -19,7 +19,7 @@ export default function WorkOrderCreate({ zones }: Props) {
                 <div className="flex items-center justify-between gap-4">
                     <Heading
                         title="New work order"
-                        description="Create a reference to group permits for a job package."
+                        description="Job package reference. Add permits under it next (hot work, CSE, …)."
                     />
                     <Button asChild variant="outline">
                         <Link href="/workforce/work-orders">Back</Link>

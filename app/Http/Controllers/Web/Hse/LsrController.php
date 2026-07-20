@@ -76,6 +76,17 @@ final class LsrController extends BaseController
             'canLog' => $request->user()?->can('log-lsr') ?? false,
             'canClose' => $request->user()?->can('close-lsr') ?? false,
             'prefill' => $this->resolvePrefill($request, $lsr),
+            'zones' => ($request->user()?->can('log-lsr') ?? false)
+                ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])
+                : [],
+            'workers' => ($request->user()?->can('log-lsr') ?? false)
+                ? Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])->map(
+                    fn (Worker $worker): array => [
+                        'id' => $worker->id,
+                        'name' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
+                    ],
+                )->values()->all()
+                : [],
         ]);
     }
 
@@ -146,25 +157,11 @@ final class LsrController extends BaseController
         return response()->json($service->summary($from, $to));
     }
 
-    public function createForm(Request $request, LsrService $lsr): InertiaResponse
+    public function createForm(Request $request): RedirectResponse
     {
         $this->authorize('create', LsrViolation::class);
-        $canSeeIdentity = $request->user()?->can('view-worker-identity') ?? false;
 
-        return Inertia::render('hse/lsr/create', [
-            'prefill' => $this->resolvePrefill($request, $lsr),
-            'categoryOptions' => collect(LsrCategory::cases())->map(fn ($c) => [
-                'value' => $c->value,
-                'label' => $c->label(),
-            ]),
-            'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])->map(
-                fn (Worker $worker): array => [
-                    'id' => $worker->id,
-                    'name' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
-                ],
-            )->values()->all(),
-        ]);
+        return redirect()->route('hse.lsr.index', $request->only('alert_id'));
     }
 
     /**

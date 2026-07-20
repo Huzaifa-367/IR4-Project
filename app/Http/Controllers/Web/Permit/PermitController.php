@@ -191,6 +191,9 @@ final class PermitController extends BaseController
                     'role_eligibility' => $roleEligibility,
                 ];
             })->values()->all(),
+            'initialWorkOrderId' => $request->filled('work_order_id')
+                ? (int) $request->input('work_order_id')
+                : null,
         ]);
     }
 
@@ -212,60 +215,92 @@ final class PermitController extends BaseController
             ->with('flash', ['success' => 'Permit draft updated.']);
     }
 
-    public function show(Request $request, Permit $permit, PermitService $permits): InertiaResponse
-    {
+    public function show(
+        Request $request,
+        Permit $permit,
+        PermitService $permits,
+        WorkerDocumentReadinessService $readiness,
+    ): InertiaResponse {
         $this->authorize('view', $permit);
 
         $user = $request->user();
-        $permit->loadMissing(['type.gasChannels', 'type.checklistItems', 'type.roles']);
+        $permit->loadMissing([
+            'type.gasChannels',
+            'type.roles',
+            'type.checklistItems' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('label'),
+        ]);
         $canSeeIdentity = $user?->can('view-worker-identity') ?? false;
         $isEditable = in_array($permit->status, [PermitStatus::Draft, PermitStatus::Rejected], true);
+        $canUpdate = $user?->can('update', $permit) ?? false;
+        $type = $permit->type;
+
+        $workers = [];
+
+        if ($isEditable && $canUpdate && $type instanceof PermitType) {
+            $workers = Worker::query()
+                ->where('is_active', true)
+                ->with(['documents.documentType'])
+                ->orderBy('name')
+                ->get()
+                ->map(function (Worker $worker) use ($canSeeIdentity, $readiness, $type): array {
+                    $roleEligibility = [];
+
+                    foreach ($type->roles as $role) {
+                        $assessment = $readiness->assessRole($worker->id, $type, $role->role_code);
+                        $roleEligibility[(string) $type->id.':'.$role->role_code] = [
+                            'ready' => $assessment['ready'],
+                            'missing' => $assessment['missing'],
+                            'missing_labels' => $assessment['missing_labels'],
+                        ];
+                    }
+
+                    return [
+                        'id' => $worker->id,
+                        'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
+                        'reference' => $canSeeIdentity ? $worker->employee_code : null,
+                        'role_eligibility' => $roleEligibility,
+                    ];
+                })
+                ->values()
+                ->all();
+        }
 
         return Inertia::render('workforce/permits/show', [
             'permit' => $permits->toArray($permit),
-            'gasChannels' => ($permit->type?->gasChannels ?? collect())->map(fn ($channel): array => [
+            'gasChannels' => ($type?->gasChannels ?? collect())->map(fn ($channel): array => [
                 'channel_code' => $channel->channel_code,
                 'label' => $channel->label,
                 'unit' => $channel->unit,
                 'alarm_below' => $channel->alarm_below,
                 'alarm_above' => $channel->alarm_above,
             ])->values()->all(),
-            'checklistItems' => ($permit->type?->checklistItems ?? collect())->map(fn ($item): array => [
+            'checklistItems' => ($type?->checklistItems ?? collect())->map(fn ($item): array => [
                 'id' => $item->id,
                 'code' => $item->code,
                 'label' => $item->label,
                 'is_mandatory' => $item->is_mandatory,
             ])->values()->all(),
-            'zones' => $isEditable && ($user?->can('update', $permit) ?? false)
+            'zones' => $isEditable && $canUpdate
                 ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'requires_permit'])
                 : [],
-            'workers' => $isEditable && ($user?->can('update', $permit) ?? false)
-                ? Worker::query()
-                    ->where('is_active', true)
-                    ->orderBy('name')
-                    ->get(['id', 'name', 'employee_code'])
-                    ->map(fn (Worker $worker): array => [
-                        'id' => $worker->id,
-                        'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
-                        'reference' => $canSeeIdentity ? $worker->employee_code : null,
-                    ])->values()->all()
-                : [],
-            'typeRoles' => ($permit->type?->roles ?? collect())->map(fn ($role): array => [
+            'workers' => $workers,
+            'typeRoles' => ($type?->roles ?? collect())->map(fn ($role): array => [
                 'role_code' => $role->role_code,
                 'label' => $role->label,
                 'min_count' => $role->min_count,
                 'is_mandatory' => $role->is_mandatory,
             ])->values()->all(),
-            'allowsExtended' => (bool) ($permit->type?->allows_extended ?? false),
+            'allowsExtended' => (bool) ($type?->allows_extended ?? false),
             'gasPhaseOptions' => collect(GasTestPhase::cases())->map(fn (GasTestPhase $phase): array => [
                 'value' => $phase->value,
                 'label' => $phase->label(),
             ]),
             'canRequest' => $user?->can('request-permit') ?? false,
-            'canUpdate' => $user?->can('update', $permit) ?? false,
+            'canUpdate' => $canUpdate,
             'canIssue' => $user?->can('issue', $permit) ?? false,
             'canApprove' => $user?->can('approve', $permit) ?? false,
             'canGasTest' => $user?->can('gasTest', $permit) ?? false,
+            'canInspect' => $user?->can('inspect', $permit) ?? false,
         ]);
     }
 

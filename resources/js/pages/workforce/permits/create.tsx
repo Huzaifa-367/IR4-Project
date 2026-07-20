@@ -1,4 +1,4 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import Heading from '@/components/heading';
 import { StatusPill } from '@/components/ir4/status-pill';
@@ -17,6 +17,7 @@ type Props = {
     zones: ZoneOption[];
     workOrders: WorkOrderOption[];
     workers: WorkerOption[];
+    initialWorkOrderId?: number | null;
 };
 
 type PersonnelRow = {
@@ -42,7 +43,7 @@ function eligibilityFor(
     );
 }
 
-function docToneForEligibility(
+function eligibilityTone(
     eligibility: { ready: boolean } | null,
 ): StatusPillTone {
     if (!eligibility) {
@@ -57,22 +58,46 @@ export default function PermitCreate({
     zones,
     workOrders,
     workers,
+    initialWorkOrderId = null,
 }: Props) {
+    const page = usePage();
+    const queryWorkOrderId =
+        typeof page.url === 'string'
+            ? new URL(page.url, 'http://local').searchParams.get('work_order_id')
+            : null;
+
+    const resolvedWorkOrderId = (
+        initialWorkOrderId ??
+        (queryWorkOrderId ? Number(queryWorkOrderId) : null) ??
+        ''
+    ).toString();
+
+    const initialZoneId =
+        workOrders
+            .find((order) => order.id.toString() === resolvedWorkOrderId)
+            ?.zone?.id?.toString() ?? '';
+
     const [permitTypeId, setPermitTypeId] = useState(
         permitTypes[0]?.id?.toString() ?? '',
     );
+    const [workOrderId, setWorkOrderId] = useState(resolvedWorkOrderId);
+    const [zoneId, setZoneId] = useState(initialZoneId);
     const [personnel, setPersonnel] = useState<PersonnelRow[]>([
         { worker_id: '', role_code: '' },
     ]);
-    const [checklist, setChecklist] = useState<Record<string, boolean>>({});
-    const [showBlockedWorkers, setShowBlockedWorkers] = useState(false);
 
     const selectedType = useMemo(
         () =>
-            permitTypes.find(
-                (type) => type.id.toString() === permitTypeId,
-            ) ?? null,
+            permitTypes.find((type) => type.id.toString() === permitTypeId) ??
+            null,
         [permitTypeId, permitTypes],
+    );
+
+    const selectedWorkOrder = useMemo(
+        () =>
+            workOrders.find((order) => order.id.toString() === workOrderId) ??
+            null,
+        [workOrderId, workOrders],
     );
 
     function addPersonnelRow(): void {
@@ -103,10 +128,6 @@ export default function PermitCreate({
         );
     }
 
-    function toggleChecklistItem(code: string, checked: boolean): void {
-        setChecklist((current) => ({ ...current, [code]: checked }));
-    }
-
     function workersForRole(roleCode: string): WorkerOption[] {
         if (!roleCode || !permitTypeId) {
             return workers;
@@ -114,9 +135,6 @@ export default function PermitCreate({
 
         return workers.filter((worker) => {
             const eligibility = eligibilityFor(worker, permitTypeId, roleCode);
-            if (showBlockedWorkers) {
-                return true;
-            }
 
             return eligibility?.ready ?? true;
         });
@@ -125,187 +143,233 @@ export default function PermitCreate({
     return (
         <>
             <Head title="Request permit" />
-            <div className="mx-auto max-w-3xl space-y-6 p-6">
+            <div className="mx-auto max-w-2xl space-y-6 p-6">
                 <div className="flex items-center justify-between gap-4">
                     <Heading
                         title="Request permit"
-                        description="Assign crew by role. Documents are managed on the worker profile — only ready workers appear by default."
+                        description="Job details + ready crew. Checklist and gas tests happen on the draft after create."
                     />
                     <Button asChild variant="outline">
-                        <Link href="/workforce/permits">Back</Link>
+                        <Link
+                            href={
+                                selectedWorkOrder
+                                    ? `/workforce/work-orders/${selectedWorkOrder.id}`
+                                    : '/workforce/permits'
+                            }
+                        >
+                            Back
+                        </Link>
                     </Button>
                 </div>
 
                 <Form
                     action="/workforce/permits"
                     method="post"
-                    className="space-y-6 rounded-lg border border-border p-4"
+                    className="space-y-8"
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="permit_type_id">
-                                    Permit type
-                                </Label>
-                                <select
-                                    id="permit_type_id"
-                                    name="permit_type_id"
-                                    value={permitTypeId}
-                                    onChange={(event) => {
-                                        setPermitTypeId(event.target.value);
-                                        setChecklist({});
-                                        setPersonnel((rows) =>
-                                            rows.map((row) => ({
-                                                ...row,
-                                                role_code: '',
-                                                worker_id: '',
-                                            })),
-                                        );
-                                    }}
-                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                    required
-                                >
-                                    {permitTypes.map((type) => (
-                                        <option key={type.id} value={type.id}>
-                                            {type.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.permit_type_id && (
-                                    <p className="text-sm text-destructive">
-                                        {errors.permit_type_id}
+                            <section className="space-y-4 rounded-lg border border-border p-4">
+                                <div>
+                                    <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
+                                        1 · Job
                                     </p>
-                                )}
-                            </div>
+                                    <h2 className="text-sm font-semibold text-text">
+                                        What work is this for?
+                                    </h2>
+                                </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="zone_id">Zone</Label>
-                                <select
-                                    id="zone_id"
-                                    name="zone_id"
-                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                >
-                                    <option value="">—</option>
-                                    {zones.map((zone) => (
-                                        <option key={zone.id} value={zone.id}>
-                                            {zone.name}
-                                            {zone.requires_permit
-                                                ? ' (permit required)'
-                                                : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                                {workOrders.length > 0 ? (
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="work_order_id">
+                                            Work order
+                                        </Label>
+                                        <select
+                                            id="work_order_id"
+                                            name="work_order_id"
+                                            value={workOrderId}
+                                            onChange={(event) => {
+                                                const nextId =
+                                                    event.target.value;
+                                                setWorkOrderId(nextId);
+                                                const order = workOrders.find(
+                                                    (item) =>
+                                                        item.id.toString() ===
+                                                        nextId,
+                                                );
 
-                            {workOrders.length > 0 ? (
+                                                if (order?.zone) {
+                                                    setZoneId(
+                                                        String(order.zone.id),
+                                                    );
+                                                }
+                                            }}
+                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                                        >
+                                            <option value="">
+                                                Standalone (no work order)
+                                            </option>
+                                            {workOrders.map((order) => (
+                                                <option
+                                                    key={order.id}
+                                                    value={order.id}
+                                                >
+                                                    {order.reference}
+                                                    {order.zone
+                                                        ? ` · ${order.zone.name}`
+                                                        : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-xs text-muted-foreground">
+                                            Optional. Use a work order to group
+                                            related permits for one job package.
+                                        </p>
+                                    </div>
+                                ) : null}
+
                                 <div className="grid gap-2">
-                                    <Label htmlFor="work_order_id">
-                                        Work order (optional)
+                                    <Label htmlFor="permit_type_id">
+                                        Permit type
                                     </Label>
                                     <select
-                                        id="work_order_id"
-                                        name="work_order_id"
+                                        id="permit_type_id"
+                                        name="permit_type_id"
+                                        value={permitTypeId}
+                                        onChange={(event) => {
+                                            setPermitTypeId(
+                                                event.target.value,
+                                            );
+                                            setPersonnel([
+                                                {
+                                                    worker_id: '',
+                                                    role_code: '',
+                                                },
+                                            ]);
+                                        }}
+                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                                        required
+                                    >
+                                        {permitTypes.map((type) => (
+                                            <option
+                                                key={type.id}
+                                                value={type.id}
+                                            >
+                                                {type.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.permit_type_id && (
+                                        <p className="text-sm text-destructive">
+                                            {errors.permit_type_id}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="zone_id">Zone</Label>
+                                    <select
+                                        id="zone_id"
+                                        name="zone_id"
+                                        value={zoneId}
+                                        onChange={(event) =>
+                                            setZoneId(event.target.value)
+                                        }
                                         className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
                                     >
                                         <option value="">—</option>
-                                        {workOrders.map((order) => (
+                                        {zones.map((zone) => (
                                             <option
-                                                key={order.id}
-                                                value={order.id}
+                                                key={zone.id}
+                                                value={zone.id}
                                             >
-                                                {order.reference}
-                                                {order.zone
-                                                    ? ` · ${order.zone.name}`
+                                                {zone.name}
+                                                {zone.requires_permit
+                                                    ? ' (permit required)'
                                                     : ''}
                                             </option>
                                         ))}
                                     </select>
-                                    {errors.work_order_id && (
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="task_description">
+                                        Task
+                                    </Label>
+                                    <textarea
+                                        id="task_description"
+                                        name="task_description"
+                                        rows={3}
+                                        required
+                                        className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                                        placeholder="Short description of the work…"
+                                    />
+                                    {errors.task_description && (
                                         <p className="text-sm text-destructive">
-                                            {errors.work_order_id}
+                                            {errors.task_description}
                                         </p>
                                     )}
                                 </div>
-                            ) : null}
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="task_description">Task</Label>
-                                <textarea
-                                    id="task_description"
-                                    name="task_description"
-                                    rows={4}
-                                    required
-                                    className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                                    placeholder="Describe the work to be performed…"
-                                />
-                                {errors.task_description && (
-                                    <p className="text-sm text-destructive">
-                                        {errors.task_description}
-                                    </p>
-                                )}
-                            </div>
+                                {selectedType?.allows_extended ? (
+                                    <label className="flex items-center gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            name="is_extended"
+                                            value="1"
+                                            className="rounded border-input"
+                                        />
+                                        Extended validity (needs approver)
+                                    </label>
+                                ) : null}
+                            </section>
 
-                            {selectedType?.allows_extended && (
-                                <label className="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        name="is_extended"
-                                        value="1"
-                                        className="rounded border-input"
-                                    />
-                                    Extended permit (requires approver)
-                                </label>
-                            )}
-
-                            <div className="space-y-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
+                            <section className="space-y-4 rounded-lg border border-border p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-2">
                                     <div>
-                                        <Label>Personnel</Label>
-                                        <p className="text-xs text-muted-foreground">
-                                            Pick role first, then a ready worker.
-                                            Missing docs? Fix them on the worker
-                                            profile.
+                                        <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
+                                            2 · Crew
+                                        </p>
+                                        <h2 className="text-sm font-semibold text-text">
+                                            Who is authorized?
+                                        </h2>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Only workers ready for the role
+                                            (documents verified).{' '}
+                                            <Link
+                                                href="/workforce/workers/create"
+                                                className="underline"
+                                            >
+                                                Add worker
+                                            </Link>
                                         </p>
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <input
-                                                type="checkbox"
-                                                checked={showBlockedWorkers}
-                                                onChange={(event) =>
-                                                    setShowBlockedWorkers(
-                                                        event.target.checked,
-                                                    )
-                                                }
-                                                className="rounded border-input"
-                                            />
-                                            Show blocked workers
-                                        </label>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={addPersonnelRow}
-                                            disabled={
-                                                (selectedType?.roles.length ??
-                                                    0) === 0
-                                            }
-                                        >
-                                            Add row
-                                        </Button>
-                                    </div>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={addPersonnelRow}
+                                        disabled={
+                                            (selectedType?.roles.length ??
+                                                0) === 0
+                                        }
+                                    >
+                                        Add person
+                                    </Button>
                                 </div>
+
                                 {(selectedType?.roles.length ?? 0) === 0 ? (
                                     <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
-                                        No crew roles are configured for this
-                                        permit type. Add roles under Access →
-                                        Crew roles before assigning personnel.
+                                        No crew roles on this type. Configure
+                                        them under Catalogue → Permit types.
                                     </p>
                                 ) : null}
+
                                 {personnel.map((row, index) => {
                                     const worker = workers.find(
                                         (item) =>
-                                            item.id.toString() === row.worker_id,
+                                            item.id.toString() ===
+                                            row.worker_id,
                                     );
                                     const eligibility = eligibilityFor(
                                         worker,
@@ -346,7 +410,8 @@ export default function PermitCreate({
                                                         Select role
                                                     </option>
                                                     {(
-                                                        selectedType?.roles ?? []
+                                                        selectedType?.roles ??
+                                                        []
                                                     ).map((role) => (
                                                         <option
                                                             key={role.role_code}
@@ -355,9 +420,6 @@ export default function PermitCreate({
                                                             }
                                                         >
                                                             {role.label}
-                                                            {role.is_mandatory
-                                                                ? ` (min ${role.min_count})`
-                                                                : ''}
                                                         </option>
                                                     ))}
                                                 </select>
@@ -381,79 +443,48 @@ export default function PermitCreate({
                                                 >
                                                     <option value="">
                                                         {row.role_code === ''
-                                                            ? 'Select role first'
+                                                            ? 'Pick role first'
                                                             : roleWorkers.length ===
                                                                 0
                                                               ? 'No ready workers'
                                                               : 'Select worker'}
                                                     </option>
-                                                    {roleWorkers.map((item) => {
-                                                        const itemEligibility =
-                                                            eligibilityFor(
-                                                                item,
-                                                                permitTypeId,
-                                                                row.role_code,
-                                                            );
-                                                        const ready =
-                                                            itemEligibility?.ready ??
-                                                            true;
-
-                                                        return (
-                                                            <option
-                                                                key={item.id}
-                                                                value={item.id}
-                                                            >
-                                                                {item.label}
-                                                                {item.reference
-                                                                    ? ` (${item.reference})`
-                                                                    : ''}
-                                                                {ready
-                                                                    ? ''
-                                                                    : ' — blocked'}
-                                                            </option>
-                                                        );
-                                                    })}
+                                                    {roleWorkers.map((item) => (
+                                                        <option
+                                                            key={item.id}
+                                                            value={item.id}
+                                                        >
+                                                            {item.label}
+                                                            {item.reference
+                                                                ? ` (${item.reference})`
+                                                                : ''}
+                                                        </option>
+                                                    ))}
                                                 </select>
                                             </div>
                                             <div className="flex flex-col items-start gap-1 self-end">
                                                 {row.worker_id &&
                                                     row.role_code && (
-                                                        <>
-                                                            <StatusPill
-                                                                label={
-                                                                    eligibility?.ready
-                                                                        ? 'Ready'
-                                                                        : 'Blocked'
-                                                                }
-                                                                tone={docToneForEligibility(
-                                                                    eligibility,
-                                                                )}
-                                                            />
-                                                            {eligibility &&
-                                                                !eligibility.ready && (
-                                                                    <p className="max-w-[12rem] text-xs text-destructive">
-                                                                        Missing:{' '}
-                                                                        {(
-                                                                            eligibility.missing_labels
-                                                                                .length >
-                                                                            0
-                                                                                ? eligibility.missing_labels
-                                                                                : eligibility.missing
-                                                                        ).join(
-                                                                            ', ',
-                                                                        )}
-                                                                        .{' '}
-                                                                        <Link
-                                                                            href={`/workforce/workers/${row.worker_id}?onboarding=1`}
-                                                                            className="underline"
-                                                                        >
-                                                                            Fix
-                                                                            on
-                                                                            worker
-                                                                        </Link>
-                                                                    </p>
-                                                                )}
-                                                        </>
+                                                        <StatusPill
+                                                            label={
+                                                                eligibility?.ready
+                                                                    ? 'Ready'
+                                                                    : 'Blocked'
+                                                            }
+                                                            tone={eligibilityTone(
+                                                                eligibility,
+                                                            )}
+                                                        />
+                                                    )}
+                                                {eligibility &&
+                                                    !eligibility.ready &&
+                                                    row.worker_id && (
+                                                        <Link
+                                                            href={`/workforce/workers/${row.worker_id}?onboarding=1`}
+                                                            className="text-xs underline"
+                                                        >
+                                                            Fix documents
+                                                        </Link>
                                                     )}
                                                 {personnel.length > 1 && (
                                                     <Button
@@ -478,76 +509,15 @@ export default function PermitCreate({
                                         {errors.personnel}
                                     </p>
                                 )}
+                            </section>
+
+                            <div className="flex flex-wrap items-center justify-between gap-3">
                                 <p className="text-xs text-muted-foreground">
-                                    Need a new crew member?{' '}
-                                    <Link
-                                        href="/workforce/workers/create"
-                                        className="underline"
-                                    >
-                                        Add worker
-                                    </Link>{' '}
-                                    and complete their documents before
-                                    assigning them here.
+                                    Creates a draft. Complete checklist /
+                                    inspection / gas on the next screen.
                                 </p>
-                            </div>
-
-                            {selectedType &&
-                                selectedType.checklist_items.length > 0 && (
-                                    <div className="space-y-3">
-                                        <Label>Checklist / JSA</Label>
-                                        <ul className="space-y-2">
-                                            {selectedType.checklist_items.map(
-                                                (item) => (
-                                                    <li
-                                                        key={item.code}
-                                                        className="flex items-start gap-2 rounded-md border border-border px-3 py-2 text-sm"
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            id={`checklist-${item.code}`}
-                                                            name={`checklist[${item.code}]`}
-                                                            value="1"
-                                                            checked={
-                                                                checklist[
-                                                                    item.code
-                                                                ] ?? false
-                                                            }
-                                                            onChange={(event) =>
-                                                                toggleChecklistItem(
-                                                                    item.code,
-                                                                    event.target
-                                                                        .checked,
-                                                                )
-                                                            }
-                                                            className="mt-0.5 rounded border-input"
-                                                        />
-                                                        <label
-                                                            htmlFor={`checklist-${item.code}`}
-                                                            className="flex-1"
-                                                        >
-                                                            {item.label}
-                                                            {item.is_mandatory && (
-                                                                <span className="text-muted-foreground">
-                                                                    {' '}
-                                                                    (required)
-                                                                </span>
-                                                            )}
-                                                        </label>
-                                                    </li>
-                                                ),
-                                            )}
-                                        </ul>
-                                        {errors.checklist && (
-                                            <p className="text-sm text-destructive">
-                                                {errors.checklist}
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-
-                            <div className="flex justify-end gap-2">
                                 <Button type="submit" disabled={processing}>
-                                    Save draft
+                                    Create draft
                                 </Button>
                             </div>
                         </>

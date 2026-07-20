@@ -32,14 +32,6 @@ type Props = {
 
 const ALL = 'all';
 
-const QUICK_STATUS_FILTERS: Array<{ value: string; label: string }> = [
-    { value: 'pending_inspection', label: 'Pending inspection' },
-    { value: 'pending_gas_test', label: 'Gas test' },
-    { value: 'pending_issue', label: 'Pending issue' },
-    { value: 'active', label: 'Active' },
-    { value: 'suspended', label: 'Suspended' },
-];
-
 const TYPE_COLOUR_CLASS: Record<string, string> = {
     red: 'bg-red-500',
     blue: 'bg-blue-500',
@@ -186,76 +178,39 @@ export default function PermitsIndex({
                     ) : undefined
                 }
                 filters={
-                    <div className="flex w-full flex-col gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Input
-                                value={search}
-                                onChange={(event) => {
-                                    const value = event.target.value;
-                                    setSearch(value);
-                                    debouncedApplySearch(value);
-                                }}
-                                placeholder="Search number, task…"
-                                className="w-full sm:w-56"
-                                aria-label="Search permits"
-                            />
-                            <select
-                                value={status}
-                                onChange={(event) => {
-                                    const value = event.target.value;
-                                    setStatus(value);
-                                    cancelDebounce();
-                                    applyFilters({ status: value });
-                                }}
-                                className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                aria-label="Filter by status"
-                            >
-                                <option value={ALL}>All statuses</option>
-                                {statusOptions.map((option) => (
-                                    <option
-                                        key={option.value}
-                                        value={option.value}
-                                    >
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {QUICK_STATUS_FILTERS.map((chip) => (
-                                <Button
-                                    key={chip.value}
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        status === chip.value
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() => {
-                                        setStatus(chip.value);
-                                        cancelDebounce();
-                                        applyFilters({ status: chip.value });
-                                    }}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                            value={search}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setSearch(value);
+                                debouncedApplySearch(value);
+                            }}
+                            placeholder="Search number, task…"
+                            className="w-full sm:w-56"
+                            aria-label="Search permits"
+                        />
+                        <select
+                            value={status}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                setStatus(value);
+                                cancelDebounce();
+                                applyFilters({ status: value });
+                            }}
+                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                            aria-label="Filter by status"
+                        >
+                            <option value={ALL}>All statuses</option>
+                            {statusOptions.map((option) => (
+                                <option
+                                    key={option.value}
+                                    value={option.value}
                                 >
-                                    {chip.label}
-                                </Button>
+                                    {option.label}
+                                </option>
                             ))}
-                            {status !== ALL ? (
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {
-                                        setStatus(ALL);
-                                        cancelDebounce();
-                                        applyFilters({ status: ALL });
-                                    }}
-                                >
-                                    Clear filter
-                                </Button>
-                            ) : null}
-                        </div>
+                        </select>
                     </div>
                 }
             >

@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
@@ -6,7 +6,16 @@ import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell
 import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -21,7 +30,9 @@ import {
     visitFilters,
 } from '@/lib/visit-filters';
 import type { PaginatedMeta } from '@/types/hardware';
-import type { HseIncident, HseOption } from '@/types/hse';
+import type { HseIncident, HseOption, IncidentPrefill } from '@/types/hse';
+
+type ZoneOption = { id: number; name: string };
 
 type Props = {
     incidents: {
@@ -43,6 +54,8 @@ type Props = {
     severityOptions: HseOption[];
     canLog: boolean;
     canClassify: boolean;
+    prefill: IncidentPrefill | null;
+    zones: ZoneOption[];
 };
 
 const ALL = 'all';
@@ -74,7 +87,10 @@ export default function IncidentsIndex({
     typeOptions,
     severityOptions,
     canLog,
+    prefill = null,
+    zones = [],
 }: Props) {
+    const [logOpen, setLogOpen] = useState(() => prefill !== null);
     const [search, setSearch] = useState(filters.search);
     const [status, setStatus] = useState(filters.status || ALL);
     const [source, setSource] = useState(filters.source || ALL);
@@ -82,7 +98,6 @@ export default function IncidentsIndex({
         filters.incident_type || ALL,
     );
     const [severity, setSeverity] = useState(filters.severity || ALL);
-
     function applyFilters(
         patch: Partial<{
             search: string;
@@ -120,6 +135,10 @@ export default function IncidentsIndex({
         incident_type: incidentType === ALL ? undefined : incidentType,
         severity: severity === ALL ? undefined : severity,
     };
+
+    const defaultOccurred =
+        prefill?.occurred_at?.slice(0, 16) ??
+        new Date().toISOString().slice(0, 16);
 
     const columns: SettingsColumn<HseIncident>[] = [
         {
@@ -179,8 +198,8 @@ export default function IncidentsIndex({
                 description="User-authored safety records. Alerts may prefill — nothing is saved until submit."
                 actions={
                     canLog ? (
-                        <Button asChild>
-                            <Link href="/incidents/create">Log incident</Link>
+                        <Button type="button" onClick={() => setLogOpen(true)}>
+                            Log incident
                         </Button>
                     ) : undefined
                 }
@@ -319,6 +338,138 @@ export default function IncidentsIndex({
                     emptyDescription="No incidents match these filters."
                 />
             </SettingsPageShell>
+
+            <Dialog open={logOpen} onOpenChange={setLogOpen}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Log incident</DialogTitle>
+                        <DialogDescription>
+                            {prefill
+                                ? `Prefill from alert #${prefill.alert_id} — review and submit.`
+                                : 'Manual HSE incident. Nothing is auto-created from alerts.'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {prefill ? (
+                        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+                            <p className="font-medium">
+                                From alert: {prefill.alert.title}
+                            </p>
+                            <p className="text-muted-foreground">
+                                Type {prefill.alert.alert_type}. Evidence
+                                attaches on submit.
+                            </p>
+                        </div>
+                    ) : null}
+
+                    <Form
+                        action="/incidents"
+                        method="post"
+                        className="grid gap-4"
+                    >
+                        {({ processing, errors }) => (
+                            <>
+                                {prefill?.alert_id ? (
+                                    <input
+                                        type="hidden"
+                                        name="alert_id"
+                                        value={prefill.alert_id}
+                                    />
+                                ) : null}
+                                {prefill?.ppe_violation_id ? (
+                                    <input
+                                        type="hidden"
+                                        name="ppe_violation_id"
+                                        value={prefill.ppe_violation_id}
+                                    />
+                                ) : null}
+                                {prefill?.camera_id ? (
+                                    <input
+                                        type="hidden"
+                                        name="camera_id"
+                                        value={prefill.camera_id}
+                                    />
+                                ) : null}
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="incident-occurred_at">
+                                        Occurred at
+                                    </Label>
+                                    <Input
+                                        id="incident-occurred_at"
+                                        name="occurred_at"
+                                        type="datetime-local"
+                                        required
+                                        defaultValue={defaultOccurred}
+                                    />
+                                    {errors.occurred_at ? (
+                                        <p className="text-sm text-destructive">
+                                            {errors.occurred_at}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="incident-zone_id">
+                                        Zone
+                                    </Label>
+                                    <select
+                                        id="incident-zone_id"
+                                        name="zone_id"
+                                        defaultValue={prefill?.zone_id ?? ''}
+                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                                    >
+                                        <option value="">—</option>
+                                        {zones.map((zone) => (
+                                            <option
+                                                key={zone.id}
+                                                value={zone.id}
+                                            >
+                                                {zone.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="nature_of_incident">
+                                        Initial notes
+                                    </Label>
+                                    <textarea
+                                        id="nature_of_incident"
+                                        name="nature_of_incident"
+                                        rows={4}
+                                        defaultValue={
+                                            prefill?.nature_of_incident ?? ''
+                                        }
+                                        className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                                    />
+                                </div>
+
+                                <DialogFooter>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setLogOpen(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={processing}
+                                    >
+                                        Submit incident
+                                    </Button>
+                                </DialogFooter>
+                            </>
+                        )}
+                    </Form>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
+
+IncidentsIndex.layout = {
+    breadcrumbs: [{ title: 'Incidents', href: '/incidents' }],
+};

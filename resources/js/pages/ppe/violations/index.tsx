@@ -209,7 +209,7 @@ export default function PpeViolationsIndex({
                 actions={
                     <>
                         <Button asChild variant="secondary" size="sm">
-                            <Link href="/ppe/trends">Trends</Link>
+                            <Link href="/ppe">Trends</Link>
                         </Button>
                         {canExport && (
                             <Button

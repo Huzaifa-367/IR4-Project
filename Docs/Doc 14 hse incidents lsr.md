@@ -208,10 +208,9 @@ FormRequests enforce the min-length decision fields (DOC-01 §8): classification
 
 ## 8. Frontend (React / Inertia)
 
-- **`pages/hse/incidents/index.tsx`** — IncidentListPage: status pipeline chips (Open → Under review → Classified → Closed), filters (type, severity, source, date), source badge (manual / from alert).
+- **`pages/hse/incidents/index.tsx`** — IncidentListPage: filters (type, severity, source, status); **Log incident** opens a create dialog (manual or prefilled via `?alert_id=`).
 - **`pages/hse/incidents/show.tsx`** — IncidentDetailPage: status stepper; **evidence gallery** (snapshot lightbox, RFID-roster snapshot table, linked PPE violation, documents, notes — auto-captured vs user-added clearly marked); personnel sections (auto `present_in_zone` vs curated `involved`/`witness`); **ClassifyForm**; reopen/close.
-- **`pages/hse/incidents/create.tsx`** — IncidentCreateForm: blank (manual) or **prefilled from an alert** (via the alert's suggested-action link), with the prefilled evidence shown for review before submit.
-- **`pages/hse/lsr/index.tsx`** — LsrListPage: category tabs, open/closed, "Log LSR" button, close-with-action dialog; from-alert prefill lands here too.
+- **`pages/hse/lsr/index.tsx`** — LsrListPage: category filters, open/closed; **Log LSR** create dialog + close-with-action dialog; from-alert prefill via `?alert_id=`.
 - **`pages/hse/lsr/summary.tsx`** — LsrSummaryPage: category chart, range picker.
 - **Components:** `IncidentStatusStepper`, `EvidenceGallery`, `RfidRosterTable`, `WorkerPicker` (DOC-04, identity-aware), `ClassifyForm`, `LsrForm`, `CloseLsrDialog`, `SourceBadge`.
 - **Types (`types/hse.ts`):** `HseIncident`, `IncidentSource`, `IncidentStatus`, `IncidentType`, `Severity`, `IncidentPersonnel`, `Involvement`, `IncidentEvidence`, `EvidenceType`, `LsrViolation`, `LsrCategory`.

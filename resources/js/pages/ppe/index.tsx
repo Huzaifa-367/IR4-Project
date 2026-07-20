@@ -85,7 +85,7 @@ export default function PpeTrendsIndex({
         }
 
         visitFilters(
-            '/ppe/trends',
+            '/ppe',
             { range: nextRange },
             { only: ['snapshot', 'filters'] },
         );
@@ -93,7 +93,7 @@ export default function PpeTrendsIndex({
 
     const applyCustomRange = (): void => {
         visitFilters(
-            '/ppe/trends',
+            '/ppe',
             { range: 'custom', from, to },
             { only: ['snapshot', 'filters'] },
         );

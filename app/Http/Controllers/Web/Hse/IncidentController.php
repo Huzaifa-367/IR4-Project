@@ -94,23 +94,18 @@ final class IncidentController extends BaseController
             ]),
             'canLog' => $request->user()?->can('log-incidents') ?? false,
             'canClassify' => $request->user()?->can('classify-incidents') ?? false,
+            'prefill' => $this->resolvePrefill($request, $incidents),
+            'zones' => ($request->user()?->can('log-incidents') ?? false)
+                ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])
+                : [],
         ]);
     }
 
-    public function create(Request $request, IncidentService $incidents): InertiaResponse
+    public function create(Request $request): RedirectResponse
     {
         $this->authorize('create', HseIncident::class);
 
-        $prefill = null;
-        if ($request->filled('alert_id')) {
-            $alert = Alert::query()->findOrFail((int) $request->integer('alert_id'));
-            $prefill = $incidents->prefillFromAlert($alert);
-        }
-
-        return Inertia::render('hse/incidents/create', [
-            'prefill' => $prefill,
-            'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-        ]);
+        return redirect()->route('hse.incidents.index', $request->only('alert_id'));
     }
 
     public function store(StoreHseIncidentRequest $request, IncidentService $incidents): RedirectResponse
@@ -185,5 +180,19 @@ final class IncidentController extends BaseController
         $incidents->addEvidence($incident, $request->validated(), $request->user());
 
         return back()->with('flash', ['success' => 'Evidence attached.']);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function resolvePrefill(Request $request, IncidentService $incidents): ?array
+    {
+        if (! $request->filled('alert_id')) {
+            return null;
+        }
+
+        $alert = Alert::query()->find((int) $request->integer('alert_id'));
+
+        return $alert !== null ? $incidents->prefillFromAlert($alert) : null;
     }
 }

@@ -34,7 +34,7 @@ final class CrewRoleController extends BaseController
                 'name' => $type->name,
             ]);
 
-        return Inertia::render('access/crew-roles/index', [
+        return Inertia::render('workforce/crew-roles/index', [
             'roles' => $roles->values()->all(),
             'permitTypes' => $permitTypes->values()->all(),
         ]);

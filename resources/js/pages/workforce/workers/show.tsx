@@ -4,9 +4,12 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import {
     WorkerDocumentsPanel,
-    type DocumentChecklistItem,
-    type PermitReadinessRow,
-    type ReadinessSummary,
+} from '@/components/ir4/worker-documents-panel';
+import type {
+    DocumentChecklistItem,
+    DocumentRow,
+    PermitReadinessRow,
+    ReadinessSummary,
 } from '@/components/ir4/worker-documents-panel';
 import { Button } from '@/components/ui/button';
 import type { Worker } from '@/types/worker';
@@ -51,19 +54,6 @@ type LsrRow = {
     category_label: string;
     status_label: string;
     occurred_at: string | null;
-};
-
-type DocumentRow = {
-    id: number;
-    type_name: string;
-    document_number: string | null;
-    issuing_body: string | null;
-    issued_at: string | null;
-    expires_at: string | null;
-    verification_status: string;
-    verification_status_label: string;
-    has_file: boolean;
-    download_url: string | null;
 };
 
 type DocumentTypeOption = {
@@ -128,21 +118,13 @@ export default function WorkersShow({
             <div className="flex flex-col gap-4 p-4 md:p-5">
                 {onboarding ? (
                     <div className="rounded-lg border border-border bg-surface-2 px-4 py-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
-                            Worker onboarding
+                        <p className="text-sm font-medium text-text">
+                            Worker created — add certificates
                         </p>
-                        <ol className="mt-2 flex flex-wrap gap-3 text-sm">
-                            <li className="text-text">
-                                <span className="font-medium">1. Profile</span>{' '}
-                                · done
-                            </li>
-                            <li className="font-medium text-primary">
-                                2. Documents
-                            </li>
-                            <li className="text-text-faint">
-                                3. Permit readiness
-                            </li>
-                        </ol>
+                        <p className="mt-1 text-sm text-text-dim">
+                            Upload the recommended packs below so this worker can
+                            be assigned to permits.
+                        </p>
                     </div>
                 ) : null}
                 <div className="flex flex-wrap items-end justify-between gap-4">
@@ -437,8 +419,8 @@ export default function WorkersShow({
 
                 {canManageDocuments ? (
                     <Panel
-                        title="Certificates & documents"
-                        subtitle="Upload once on the worker — permit assignment only checks readiness"
+                        title="Certificates"
+                        subtitle="Upload once · reuse on every permit"
                     >
                         <WorkerDocumentsPanel
                             workerId={worker.id}

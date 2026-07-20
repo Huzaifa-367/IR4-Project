@@ -33,8 +33,18 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
         },
         {
             key: 'roles',
-            header: 'Crew roles',
+            header: 'Roles',
             cell: (row) => row.roles_count,
+        },
+        {
+            key: 'checklist',
+            header: 'Checklist',
+            cell: (row) => row.checklist_items_count,
+        },
+        {
+            key: 'docs',
+            header: 'Doc reqs',
+            cell: (row) => row.document_requirements_count,
         },
         {
             key: 'gas',
@@ -54,10 +64,12 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
         {
             key: 'open',
             header: '',
-            className: 'w-24 text-right',
+            className: 'w-36 text-right',
             cell: (row) => (
-                <Button asChild size="sm" variant="outline">
-                    <Link href={`/workforce/permit-types/${row.id}`}>Open</Link>
+                <Button asChild size="sm">
+                    <Link href={`/workforce/permit-types/${row.id}`}>
+                        Configure
+                    </Link>
                 </Button>
             ),
         },
@@ -86,9 +98,9 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
         <>
             <Head title="Permit types" />
             <SettingsPageShell
-                eyebrow="Workforce"
+                eyebrow="Catalogue"
                 title="Permit types"
-                description="Dynamic GI 2.100 catalogue — types, roles, gas packs, and document requirements."
+                description="Open a type to manage its crew roles, checklist, gas pack, SIMOPS conflicts, and document requirements."
                 actions={
                     <Button type="button" onClick={() => setShowCreate((v) => !v)}>
                         {showCreate ? 'Cancel' : 'Add type'}
@@ -149,7 +161,7 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
 
 PermitTypesIndex.layout = {
     breadcrumbs: [
-        { title: 'Workforce', href: '/workforce/workers' },
+        { title: 'Catalogue', href: '/workforce/permit-types' },
         { title: 'Permit types', href: '/workforce/permit-types' },
     ],
 };

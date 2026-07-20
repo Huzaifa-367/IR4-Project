@@ -125,8 +125,8 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
 - **Sidebar** (quiet, `--surface`, active item in `--accent`): grouped, with items hidden unless the user holds the matching `view-*` permission (DOC-03):
   - **Overview** — Dashboard, Live View
   - **Tracking** — Workers, Tags, Zones, Entry/Exit, Devices Register, Evacuation
-  - **PPE** — Violations, Trends
-  - **Gas & CO₂** — Live, Trends, Alarms, Thresholds
+  - **PPE** — Trends (`/ppe`), Violations (`/ppe/violations`)
+  - **Gas & CO₂** — Live (`/gas`), Alarms (`/gas/alarms`), Thresholds (settings)
   - **Equipment** — Items, Checkouts
   - **HSE** — Incidents, LSR, Summary
   - **Reports** — Weekly, Vehicle Violations, Settings

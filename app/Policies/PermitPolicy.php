@@ -64,7 +64,8 @@ final class PermitPolicy
 
     public function inspect(User $user, Permit $permit): bool
     {
-        return $user->can('issue-permit');
+        // Issuer and receiver both co-sign the joint site inspection (GI 2.100).
+        return $user->can('issue-permit') || $user->can('request-permit');
     }
 
     public function approve(User $user, Permit $permit): bool

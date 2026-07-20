@@ -115,6 +115,14 @@ export type PermitEvent = {
     user_name: string | null;
 };
 
+export type PermitJointInspection = {
+    required: boolean;
+    complete: boolean;
+    issuer_signed: boolean;
+    receiver_signed: boolean;
+    signed_at: string | null;
+};
+
 export type PermitDetail = {
     id: number;
     permit_number: string;
@@ -131,6 +139,7 @@ export type PermitDetail = {
     close_note: string | null;
     cancel_reason: string | null;
     joint_inspection_at: string | null;
+    joint_inspection: PermitJointInspection;
     checklist: Record<string, unknown> | null;
     controls: Record<string, unknown> | null;
     source: string;
@@ -140,6 +149,10 @@ export type PermitDetail = {
         name: string;
         colour_token: string | null;
         sa_form_code: string | null;
+        requires_gas_test: boolean;
+        requires_joint_inspection: boolean;
+        requires_approver: boolean;
+        allows_extended: boolean;
     } | null;
     zone: {
         id: number;
@@ -147,6 +160,7 @@ export type PermitDetail = {
         requires_permit: boolean;
     } | null;
     work_order_id: number | null;
+    work_order: { id: number; reference: string } | null;
     receiver: { id: number; name: string } | null;
     issuer: { id: number; name: string } | null;
     approver: { id: number; name: string } | null;

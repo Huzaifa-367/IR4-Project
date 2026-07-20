@@ -127,7 +127,7 @@ export default function WorkerDocumentTypesIndex({
         <>
             <Head title="Worker document types" />
             <SettingsPageShell
-                eyebrow="Workforce"
+                eyebrow="Catalogue"
                 title="Worker document types"
                 description="Competence, medical, and identity document catalogue — required before permit crew assignment."
                 actions={
@@ -289,7 +289,7 @@ export default function WorkerDocumentTypesIndex({
 
 WorkerDocumentTypesIndex.layout = {
     breadcrumbs: [
-        { title: 'Workforce', href: '/workforce/workers' },
+        { title: 'Catalogue', href: '/workforce/permit-types' },
         {
             title: 'Document types',
             href: '/workforce/worker-document-types',

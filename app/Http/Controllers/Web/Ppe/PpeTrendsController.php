@@ -19,7 +19,7 @@ final class PpeTrendsController extends BaseController
 
         [$range, $from, $to] = TrendRange::resolve($request);
 
-        return Inertia::render('ppe/trends/index', [
+        return Inertia::render('ppe/index', [
             'snapshot' => $ppe->dashboardSnapshot($from, $to),
             'filters' => [
                 'range' => $range,

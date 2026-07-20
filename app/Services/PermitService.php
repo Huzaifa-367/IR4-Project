@@ -740,6 +740,13 @@ final class PermitService
             'close_note' => $permit->close_note,
             'cancel_reason' => $permit->cancel_reason,
             'joint_inspection_at' => optional($permit->joint_inspection_at)?->toIso8601String(),
+            'joint_inspection' => [
+                'required' => (bool) ($permit->type?->requires_joint_inspection ?? false),
+                'complete' => $permit->hasJointInspectionComplete(),
+                'issuer_signed' => $permit->joint_inspection_by_issuer !== null,
+                'receiver_signed' => $permit->joint_inspection_by_receiver !== null,
+                'signed_at' => optional($permit->joint_inspection_at)?->toIso8601String(),
+            ],
             'checklist' => $permit->checklist,
             'controls' => $permit->controls,
             'source' => $permit->source,
@@ -749,6 +756,10 @@ final class PermitService
                 'name' => $permit->type->name,
                 'colour_token' => $permit->type->colour_token,
                 'sa_form_code' => $permit->type->sa_form_code,
+                'requires_gas_test' => $permit->type->requires_gas_test,
+                'requires_joint_inspection' => $permit->type->requires_joint_inspection,
+                'requires_approver' => $permit->type->requires_approver,
+                'allows_extended' => $permit->type->allows_extended,
             ],
             'zone' => $permit->zone === null ? null : [
                 'id' => $permit->zone->id,
@@ -756,6 +767,10 @@ final class PermitService
                 'requires_permit' => $permit->zone->requires_permit,
             ],
             'work_order_id' => $permit->work_order_id,
+            'work_order' => $permit->workOrder === null ? null : [
+                'id' => $permit->workOrder->id,
+                'reference' => $permit->workOrder->reference,
+            ],
             'receiver' => $permit->receiver === null ? null : [
                 'id' => $permit->receiver->id,
                 'name' => $permit->receiver->name,
@@ -822,6 +837,7 @@ final class PermitService
             'type.roles',
             'type.documentRequirements.workerDocumentType',
             'zone',
+            'workOrder',
             'personnel.worker',
             'gasTests.tester',
             'approvals.user',

@@ -234,11 +234,13 @@ final class WorkerController extends BaseController
                     ->get()
                     ->map(fn (WorkerDocument $document): array => [
                         'id' => $document->id,
+                        'worker_document_type_id' => $document->worker_document_type_id,
                         'type_name' => $document->documentType?->name ?? '—',
                         'document_number' => $document->document_number,
                         'issuing_body' => $document->issuing_body,
                         'issued_at' => $document->issued_at?->toDateString(),
                         'expires_at' => $document->expires_at?->toDateString(),
+                        'notes' => $document->notes,
                         'verification_status' => $document->verification_status->value,
                         'verification_status_label' => $document->verification_status->label(),
                         'has_file' => $document->file_path !== null && $document->file_path !== '',
