@@ -70,9 +70,7 @@ final class WorkerDocumentController extends BaseController
             'uploaded_by' => $request->user()?->id,
         ]);
 
-        return redirect()
-            ->route('tracking.workers.show', $worker)
-            ->with('flash', ['success' => 'Document uploaded.']);
+        return back()->with('flash', ['success' => 'Document uploaded.']);
     }
 
     public function verify(Request $request, Worker $worker, WorkerDocument $document): RedirectResponse
@@ -94,9 +92,7 @@ final class WorkerDocumentController extends BaseController
             'verified_at' => now(),
         ]);
 
-        return redirect()
-            ->route('tracking.workers.show', $worker)
-            ->with('flash', ['success' => 'Document verified.']);
+        return back()->with('flash', ['success' => 'Document verified.']);
     }
 
     public function reject(Request $request, Worker $worker, WorkerDocument $document): RedirectResponse
@@ -110,9 +106,7 @@ final class WorkerDocumentController extends BaseController
             'verified_at' => null,
         ]);
 
-        return redirect()
-            ->route('tracking.workers.show', $worker)
-            ->with('flash', ['success' => 'Document rejected.']);
+        return back()->with('flash', ['success' => 'Document rejected.']);
     }
 
     public function destroy(Request $request, Worker $worker, WorkerDocument $document): RedirectResponse
@@ -126,8 +120,6 @@ final class WorkerDocumentController extends BaseController
 
         $document->delete();
 
-        return redirect()
-            ->route('tracking.workers.show', $worker)
-            ->with('flash', ['success' => 'Document removed.']);
+        return back()->with('flash', ['success' => 'Document removed.']);
     }
 }

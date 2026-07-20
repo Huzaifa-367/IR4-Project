@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Models\Worker;
 use App\Models\WorkerImport;
 use App\Services\WorkerService;
+use Database\Seeders\PermitCatalogueSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -12,17 +13,21 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 it('creates and lists workers for manage-workers users', function () {
     $user = User::factory()->withRole('SCC Operator')->create();
 
-    $this->actingAs($user)
+    $response = $this->actingAs($user)
         ->post(route('tracking.workers.store'), [
             'name' => 'Jane Doe',
             'contractor' => 'ACME',
             'worker_type' => 'contractor',
             'role_title' => 'Rigger',
             'badge_number' => 'BDG-1',
-        ])
-        ->assertRedirect();
+        ]);
 
     $worker = Worker::query()->where('badge_number', 'BDG-1')->firstOrFail();
+
+    $response->assertRedirect(route('tracking.workers.show', [
+        'worker' => $worker,
+        'onboarding' => 1,
+    ]));
 
     $this->actingAs($user)
         ->get(route('tracking.workers.index'))
@@ -34,6 +39,24 @@ it('creates and lists workers for manage-workers users', function () {
 
     expect($worker->present)->toBeFalse()
         ->and($worker->created_by)->toBe($user->id);
+});
+
+it('shows document checklist and permit readiness on worker show during onboarding', function () {
+    $this->seed(PermitCatalogueSeeder::class);
+
+    $user = User::factory()->withRole('Super Admin')->create();
+    $worker = Worker::factory()->create(['created_by' => $user->id]);
+
+    $this->actingAs($user)
+        ->get(route('tracking.workers.show', ['worker' => $worker, 'onboarding' => 1]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('workforce/workers/show')
+            ->where('onboarding', true)
+            ->has('documentChecklist')
+            ->has('permitReadiness')
+            ->has('readinessSummary')
+            ->where('readinessSummary.verified_docs', 0));
 });
 
 it('strips identity without view-worker-identity', function () {

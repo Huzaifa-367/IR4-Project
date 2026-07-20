@@ -6,7 +6,6 @@ import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import type {
-    PermitDocumentRequirement,
     PermitTypeSummary,
     WorkerOption,
     WorkOrderOption,
@@ -25,37 +24,32 @@ type PersonnelRow = {
     role_code: string;
 };
 
-function docToneForWorker(
+function eligibilityFor(
     worker: WorkerOption | undefined,
+    permitTypeId: string,
     roleCode: string,
-    requirements: PermitDocumentRequirement[],
+): { ready: boolean; missing: string[]; missing_labels: string[] } | null {
+    if (!worker || !permitTypeId || !roleCode) {
+        return null;
+    }
+
+    return (
+        worker.role_eligibility?.[`${permitTypeId}:${roleCode}`] ?? {
+            ready: true,
+            missing: [],
+            missing_labels: [],
+        }
+    );
+}
+
+function docToneForEligibility(
+    eligibility: { ready: boolean } | null,
 ): StatusPillTone {
-    if (!worker || !roleCode) {
+    if (!eligibility) {
         return 'neutral';
     }
 
-    const mandatory = requirements.filter(
-        (req) =>
-            req.is_mandatory &&
-            (req.role_code === null || req.role_code === roleCode),
-    );
-
-    if (mandatory.length === 0) {
-        return 'ok';
-    }
-
-    const verified = new Set(worker.verified_document_codes ?? []);
-    const missing = mandatory.filter(
-        (req) =>
-            req.worker_document_type &&
-            !verified.has(req.worker_document_type.code),
-    );
-
-    if (missing.length > 0) {
-        return 'crit';
-    }
-
-    return 'ok';
+    return eligibility.ready ? 'ok' : 'crit';
 }
 
 export default function PermitCreate({
@@ -71,6 +65,7 @@ export default function PermitCreate({
         { worker_id: '', role_code: '' },
     ]);
     const [checklist, setChecklist] = useState<Record<string, boolean>>({});
+    const [showBlockedWorkers, setShowBlockedWorkers] = useState(false);
 
     const selectedType = useMemo(
         () =>
@@ -94,14 +89,37 @@ export default function PermitCreate({
         value: string,
     ): void {
         setPersonnel((rows) =>
-            rows.map((row, i) =>
-                i === index ? { ...row, [field]: value } : row,
-            ),
+            rows.map((row, i) => {
+                if (i !== index) {
+                    return row;
+                }
+
+                if (field === 'role_code') {
+                    return { ...row, role_code: value, worker_id: '' };
+                }
+
+                return { ...row, [field]: value };
+            }),
         );
     }
 
     function toggleChecklistItem(code: string, checked: boolean): void {
         setChecklist((current) => ({ ...current, [code]: checked }));
+    }
+
+    function workersForRole(roleCode: string): WorkerOption[] {
+        if (!roleCode || !permitTypeId) {
+            return workers;
+        }
+
+        return workers.filter((worker) => {
+            const eligibility = eligibilityFor(worker, permitTypeId, roleCode);
+            if (showBlockedWorkers) {
+                return true;
+            }
+
+            return eligibility?.ready ?? true;
+        });
     }
 
     return (
@@ -111,7 +129,7 @@ export default function PermitCreate({
                 <div className="flex items-center justify-between gap-4">
                     <Heading
                         title="Request permit"
-                        description="Select type, describe the task, and assign crew with required roles."
+                        description="Assign crew by role. Documents are managed on the worker profile — only ready workers appear by default."
                     />
                     <Button asChild variant="outline">
                         <Link href="/workforce/permits">Back</Link>
@@ -140,6 +158,7 @@ export default function PermitCreate({
                                             rows.map((row) => ({
                                                 ...row,
                                                 role_code: '',
+                                                worker_id: '',
                                             })),
                                         );
                                     }}
@@ -239,20 +258,42 @@ export default function PermitCreate({
                             )}
 
                             <div className="space-y-3">
-                                <div className="flex items-center justify-between gap-2">
-                                    <Label>Personnel</Label>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={addPersonnelRow}
-                                        disabled={
-                                            (selectedType?.roles.length ?? 0) ===
-                                            0
-                                        }
-                                    >
-                                        Add row
-                                    </Button>
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <Label>Personnel</Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            Pick role first, then a ready worker.
+                                            Missing docs? Fix them on the worker
+                                            profile.
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <input
+                                                type="checkbox"
+                                                checked={showBlockedWorkers}
+                                                onChange={(event) =>
+                                                    setShowBlockedWorkers(
+                                                        event.target.checked,
+                                                    )
+                                                }
+                                                className="rounded border-input"
+                                            />
+                                            Show blocked workers
+                                        </label>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={addPersonnelRow}
+                                            disabled={
+                                                (selectedType?.roles.length ??
+                                                    0) === 0
+                                            }
+                                        >
+                                            Add row
+                                        </Button>
+                                    </div>
                                 </div>
                                 {(selectedType?.roles.length ?? 0) === 0 ? (
                                     <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
@@ -266,10 +307,13 @@ export default function PermitCreate({
                                         (item) =>
                                             item.id.toString() === row.worker_id,
                                     );
-                                    const docTone = docToneForWorker(
+                                    const eligibility = eligibilityFor(
                                         worker,
+                                        permitTypeId,
                                         row.role_code,
-                                        selectedType?.document_requirements ?? [],
+                                    );
+                                    const roleWorkers = workersForRole(
+                                        row.role_code,
                                     );
 
                                     return (
@@ -277,34 +321,6 @@ export default function PermitCreate({
                                             key={index}
                                             className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_1fr_auto]"
                                         >
-                                            <div className="grid gap-1">
-                                                <Label>Worker</Label>
-                                                <select
-                                                    name={`personnel[${index}][worker_id]`}
-                                                    value={row.worker_id}
-                                                    onChange={(event) =>
-                                                        updatePersonnelRow(
-                                                            index,
-                                                            'worker_id',
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                                >
-                                                    <option value="">—</option>
-                                                    {workers.map((item) => (
-                                                        <option
-                                                            key={item.id}
-                                                            value={item.id}
-                                                        >
-                                                            {item.label}
-                                                            {item.reference
-                                                                ? ` (${item.reference})`
-                                                                : ''}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
                                             <div className="grid gap-1">
                                                 <Label>Role</Label>
                                                 <select
@@ -346,13 +362,98 @@ export default function PermitCreate({
                                                     ))}
                                                 </select>
                                             </div>
+                                            <div className="grid gap-1">
+                                                <Label>Worker</Label>
+                                                <select
+                                                    name={`personnel[${index}][worker_id]`}
+                                                    value={row.worker_id}
+                                                    onChange={(event) =>
+                                                        updatePersonnelRow(
+                                                            index,
+                                                            'worker_id',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                                                    disabled={
+                                                        row.role_code === ''
+                                                    }
+                                                >
+                                                    <option value="">
+                                                        {row.role_code === ''
+                                                            ? 'Select role first'
+                                                            : roleWorkers.length ===
+                                                                0
+                                                              ? 'No ready workers'
+                                                              : 'Select worker'}
+                                                    </option>
+                                                    {roleWorkers.map((item) => {
+                                                        const itemEligibility =
+                                                            eligibilityFor(
+                                                                item,
+                                                                permitTypeId,
+                                                                row.role_code,
+                                                            );
+                                                        const ready =
+                                                            itemEligibility?.ready ??
+                                                            true;
+
+                                                        return (
+                                                            <option
+                                                                key={item.id}
+                                                                value={item.id}
+                                                            >
+                                                                {item.label}
+                                                                {item.reference
+                                                                    ? ` (${item.reference})`
+                                                                    : ''}
+                                                                {ready
+                                                                    ? ''
+                                                                    : ' — blocked'}
+                                                            </option>
+                                                        );
+                                                    })}
+                                                </select>
+                                            </div>
                                             <div className="flex flex-col items-start gap-1 self-end">
                                                 {row.worker_id &&
                                                     row.role_code && (
-                                                        <StatusPill
-                                                            label="Documents"
-                                                            tone={docTone}
-                                                        />
+                                                        <>
+                                                            <StatusPill
+                                                                label={
+                                                                    eligibility?.ready
+                                                                        ? 'Ready'
+                                                                        : 'Blocked'
+                                                                }
+                                                                tone={docToneForEligibility(
+                                                                    eligibility,
+                                                                )}
+                                                            />
+                                                            {eligibility &&
+                                                                !eligibility.ready && (
+                                                                    <p className="max-w-[12rem] text-xs text-destructive">
+                                                                        Missing:{' '}
+                                                                        {(
+                                                                            eligibility.missing_labels
+                                                                                .length >
+                                                                            0
+                                                                                ? eligibility.missing_labels
+                                                                                : eligibility.missing
+                                                                        ).join(
+                                                                            ', ',
+                                                                        )}
+                                                                        .{' '}
+                                                                        <Link
+                                                                            href={`/workforce/workers/${row.worker_id}?onboarding=1`}
+                                                                            className="underline"
+                                                                        >
+                                                                            Fix
+                                                                            on
+                                                                            worker
+                                                                        </Link>
+                                                                    </p>
+                                                                )}
+                                                        </>
                                                     )}
                                                 {personnel.length > 1 && (
                                                     <Button
@@ -377,6 +478,17 @@ export default function PermitCreate({
                                         {errors.personnel}
                                     </p>
                                 )}
+                                <p className="text-xs text-muted-foreground">
+                                    Need a new crew member?{' '}
+                                    <Link
+                                        href="/workforce/workers/create"
+                                        className="underline"
+                                    >
+                                        Add worker
+                                    </Link>{' '}
+                                    and complete their documents before
+                                    assigning them here.
+                                </p>
                             </div>
 
                             {selectedType &&

@@ -15,7 +15,7 @@ export default function WorkersCreate({ workerTypes }: Props) {
                 <div className="flex items-center justify-between gap-4">
                     <Heading
                         title="Add worker"
-                        description="Create a tracked personnel record."
+                        description="Create the profile first. Next you’ll upload certificates so the worker can be assigned to permit roles."
                     />
                     <Button asChild variant="outline">
                         <Link href="/workforce/workers">Back</Link>

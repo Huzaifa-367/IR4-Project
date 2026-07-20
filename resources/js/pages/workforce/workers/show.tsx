@@ -2,9 +2,13 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { Panel } from '@/components/ir4/panel';
 import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
+import {
+    WorkerDocumentsPanel,
+    type DocumentChecklistItem,
+    type PermitReadinessRow,
+    type ReadinessSummary,
+} from '@/components/ir4/worker-documents-panel';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import type { Worker } from '@/types/worker';
 
 type TagHistoryRow = {
@@ -67,10 +71,13 @@ type DocumentTypeOption = {
     name: string;
     code: string;
     requires_file: boolean;
+    requires_expiry?: boolean;
+    category?: string | null;
 };
 
 type Props = {
     worker: Worker;
+    onboarding?: boolean;
     canManage: boolean;
     canSeeEntryExit: boolean;
     canSeePortableDevices: boolean;
@@ -84,6 +91,9 @@ type Props = {
     lsrViolations: LsrRow[];
     documents: DocumentRow[];
     documentTypes: DocumentTypeOption[];
+    documentChecklist: DocumentChecklistItem[];
+    permitReadiness: PermitReadinessRow[];
+    readinessSummary: ReadinessSummary | null;
 };
 
 function formatDate(value: string | null): string {
@@ -92,6 +102,7 @@ function formatDate(value: string | null): string {
 
 export default function WorkersShow({
     worker,
+    onboarding = false,
     canManage,
     canSeeEntryExit,
     canSeePortableDevices,
@@ -105,6 +116,9 @@ export default function WorkersShow({
     lsrViolations,
     documents,
     documentTypes,
+    documentChecklist = [],
+    permitReadiness = [],
+    readinessSummary = null,
 }: Props) {
     const activeTag = tagHistory.find((tag) => tag.status === 'assigned');
 
@@ -112,6 +126,25 @@ export default function WorkersShow({
         <>
             <Head title={worker.name} />
             <div className="flex flex-col gap-4 p-4 md:p-5">
+                {onboarding ? (
+                    <div className="rounded-lg border border-border bg-surface-2 px-4 py-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
+                            Worker onboarding
+                        </p>
+                        <ol className="mt-2 flex flex-wrap gap-3 text-sm">
+                            <li className="text-text">
+                                <span className="font-medium">1. Profile</span>{' '}
+                                · done
+                            </li>
+                            <li className="font-medium text-primary">
+                                2. Documents
+                            </li>
+                            <li className="text-text-faint">
+                                3. Permit readiness
+                            </li>
+                        </ol>
+                    </div>
+                ) : null}
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                         <p className="eyebrow">
@@ -405,216 +438,17 @@ export default function WorkersShow({
                 {canManageDocuments ? (
                     <Panel
                         title="Certificates & documents"
-                        subtitle="Competence, medical, and site certificates that gate permit crew assignment"
+                        subtitle="Upload once on the worker — permit assignment only checks readiness"
                     >
-                        <ul className="mb-4 flex flex-col gap-2 text-sm">
-                            {documents.map((document) => (
-                                <li
-                                    key={document.id}
-                                    className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
-                                >
-                                    <div>
-                                        <p className="text-text">
-                                            {document.type_name}
-                                            {document.document_number
-                                                ? ` · ${document.document_number}`
-                                                : ''}
-                                        </p>
-                                        <p className="text-xs text-text-faint">
-                                            {[
-                                                document.issuing_body,
-                                                document.expires_at
-                                                    ? `Expires ${document.expires_at}`
-                                                    : null,
-                                                document.has_file
-                                                    ? 'Attachment on file'
-                                                    : 'No attachment',
-                                            ]
-                                                .filter(Boolean)
-                                                .join(' · ') || '—'}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <StatusPill
-                                            label={
-                                                document.verification_status_label
-                                            }
-                                            tone={documentStatusTone(
-                                                document.verification_status,
-                                            )}
-                                        />
-                                        {document.download_url && (
-                                            <Button
-                                                asChild
-                                                size="sm"
-                                                variant="outline"
-                                            >
-                                                <a
-                                                    href={document.download_url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    Download
-                                                </a>
-                                            </Button>
-                                        )}
-                                        {document.verification_status ===
-                                            'pending' && (
-                                            <>
-                                                <Form
-                                                    action={`/workforce/workers/${worker.id}/documents/${document.id}/verify`}
-                                                    method="post"
-                                                >
-                                                    {({ processing }) => (
-                                                        <Button
-                                                            type="submit"
-                                                            size="sm"
-                                                            variant="secondary"
-                                                            disabled={
-                                                                processing ||
-                                                                !document.has_file
-                                                            }
-                                                            title={
-                                                                document.has_file
-                                                                    ? undefined
-                                                                    : 'Attach a file before verifying'
-                                                            }
-                                                        >
-                                                            Verify
-                                                        </Button>
-                                                    )}
-                                                </Form>
-                                                <Form
-                                                    action={`/workforce/workers/${worker.id}/documents/${document.id}/reject`}
-                                                    method="post"
-                                                >
-                                                    {({ processing }) => (
-                                                        <Button
-                                                            type="submit"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            disabled={processing}
-                                                        >
-                                                            Reject
-                                                        </Button>
-                                                    )}
-                                                </Form>
-                                            </>
-                                        )}
-                                        <Form
-                                            action={`/workforce/workers/${worker.id}/documents/${document.id}`}
-                                            method="delete"
-                                        >
-                                            {({ processing }) => (
-                                                <Button
-                                                    type="submit"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    disabled={processing}
-                                                >
-                                                    Remove
-                                                </Button>
-                                            )}
-                                        </Form>
-                                    </div>
-                                </li>
-                            ))}
-                            {documents.length === 0 && (
-                                <li className="text-text-faint">
-                                    No documents on file.
-                                </li>
-                            )}
-                        </ul>
-
-                        <Form
-                            action={`/workforce/workers/${worker.id}/documents`}
-                            method="post"
-                            encType="multipart/form-data"
-                            options={{ preserveScroll: true }}
-                            className="grid gap-3 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-3"
-                        >
-                            {({ processing, errors }) => (
-                                <>
-                                    <div className="space-y-1.5">
-                                        <Label htmlFor="worker_document_type_id">
-                                            Document type
-                                        </Label>
-                                        <select
-                                            id="worker_document_type_id"
-                                            name="worker_document_type_id"
-                                            required
-                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none"
-                                            defaultValue=""
-                                        >
-                                            <option value="" disabled>
-                                                Select type
-                                            </option>
-                                            {documentTypes.map((type) => (
-                                                <option
-                                                    key={type.id}
-                                                    value={type.id}
-                                                >
-                                                    {type.name}
-                                                    {type.requires_file
-                                                        ? ' (file required)'
-                                                        : ''}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors.worker_document_type_id && (
-                                            <p className="text-sm text-destructive">
-                                                {
-                                                    errors.worker_document_type_id
-                                                }
-                                            </p>
-                                        )}
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label htmlFor="document_number">
-                                            Number
-                                        </Label>
-                                        <Input
-                                            id="document_number"
-                                            name="document_number"
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label htmlFor="expires_at">
-                                            Expires
-                                        </Label>
-                                        <Input
-                                            id="expires_at"
-                                            name="expires_at"
-                                            type="date"
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5 sm:col-span-2">
-                                        <Label htmlFor="file">
-                                            Attachment (PDF or image, ≤50 MB)
-                                        </Label>
-                                        <Input
-                                            id="file"
-                                            name="file"
-                                            type="file"
-                                            accept="application/pdf,.pdf,image/jpeg,image/png,.jpg,.jpeg,.png"
-                                        />
-                                        {errors.file && (
-                                            <p className="text-sm text-destructive">
-                                                {errors.file}
-                                            </p>
-                                        )}
-                                    </div>
-                                    <div className="flex items-end">
-                                        <Button
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            Add document
-                                        </Button>
-                                    </div>
-                                </>
-                            )}
-                        </Form>
+                        <WorkerDocumentsPanel
+                            workerId={worker.id}
+                            documents={documents}
+                            documentTypes={documentTypes}
+                            checklist={documentChecklist}
+                            permitReadiness={permitReadiness}
+                            summary={readinessSummary}
+                            onboarding={onboarding}
+                        />
                     </Panel>
                 ) : null}
 
@@ -686,18 +520,6 @@ function tagStatusTone(status: string): StatusPillTone {
     return 'neutral';
 }
 
-function documentStatusTone(status: string): StatusPillTone {
-    if (status === 'verified') {
-        return 'ok';
-    }
-
-    if (status === 'rejected' || status === 'expired') {
-        return 'crit';
-    }
-
-    return 'warn';
-}
-
 function Field({ label, value }: { label: string; value: string | null }) {
     return (
         <div>
@@ -708,5 +530,8 @@ function Field({ label, value }: { label: string; value: string | null }) {
 }
 
 WorkersShow.layout = {
-    breadcrumbs: [{ title: 'Workforce', href: '/workforce/workers' }, { title: 'Workers', href: '/workforce/workers' }],
+    breadcrumbs: [
+        { title: 'Workforce', href: '/workforce/workers' },
+        { title: 'Workers', href: '/workforce/workers' },
+    ],
 };

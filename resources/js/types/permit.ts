@@ -179,6 +179,14 @@ export type WorkerOption = {
     label: string;
     reference: string | null;
     verified_document_codes?: string[];
+    role_eligibility?: Record<
+        string,
+        {
+            ready: boolean;
+            missing: string[];
+            missing_labels: string[];
+        }
+    >;
 };
 
 export type WorkOrderOption = {

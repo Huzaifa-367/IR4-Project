@@ -210,6 +210,7 @@ it('stores a worker document attachment on the private disk', function (): void 
     $file = UploadedFile::fake()->create('fitness.pdf', 120, 'application/pdf');
 
     $this->actingAs($admin)
+        ->from(route('tracking.workers.show', $worker))
         ->post(route('workers.documents.store', $worker), [
             'worker_document_type_id' => $documentType->id,
             'document_number' => 'MED-001',
@@ -415,6 +416,7 @@ it('rejects a pending worker document', function (): void {
     ]);
 
     $this->actingAs($admin)
+        ->from(route('tracking.workers.show', $worker))
         ->post(route('workers.documents.reject', [$worker, $document]))
         ->assertRedirect(route('tracking.workers.show', $worker));
 

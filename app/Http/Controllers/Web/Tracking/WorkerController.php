@@ -20,6 +20,7 @@ use App\Models\WorkerDocument;
 use App\Models\WorkerDocumentType;
 use App\Models\WorkerImport;
 use App\Services\SignedStorageUrlService;
+use App\Services\WorkerDocumentReadinessService;
 use App\Services\WorkerService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -117,12 +118,19 @@ final class WorkerController extends BaseController
         $worker = $workers->create($request->validated());
 
         return redirect()
-            ->route('tracking.workers.show', $worker)
-            ->with('flash', ['success' => 'Worker created.']);
+            ->route('tracking.workers.show', [
+                'worker' => $worker,
+                'onboarding' => 1,
+            ])
+            ->with('flash', ['success' => 'Worker created. Add certificates next so they can be assigned to permits.']);
     }
 
-    public function show(Request $request, Worker $worker, SignedStorageUrlService $signedUrls): InertiaResponse
-    {
+    public function show(
+        Request $request,
+        Worker $worker,
+        SignedStorageUrlService $signedUrls,
+        WorkerDocumentReadinessService $readiness,
+    ): InertiaResponse {
         $this->authorize('view', $worker);
 
         $user = $request->user();
@@ -134,6 +142,7 @@ final class WorkerController extends BaseController
 
         return Inertia::render('workforce/workers/show', [
             'worker' => (new WorkerResource($worker))->resolve($request),
+            'onboarding' => $request->boolean('onboarding'),
             'canManage' => $user?->can('manage-workers') ?? false,
             'canSeeEntryExit' => $canSeeEntryExit,
             'canSeePortableDevices' => $canSeePortableDevices,
@@ -215,6 +224,9 @@ final class WorkerController extends BaseController
                     ])
                 : [],
             'canManageDocuments' => $canManageDocuments,
+            'documentChecklist' => $canManageDocuments ? $readiness->checklist($worker) : [],
+            'permitReadiness' => $canManageDocuments ? $readiness->roleMatrix($worker) : [],
+            'readinessSummary' => $canManageDocuments ? $readiness->summary($worker) : null,
             'documents' => $canManageDocuments
                 ? $worker->documents()
                     ->with('documentType:id,code,name,requires_file')
@@ -238,13 +250,16 @@ final class WorkerController extends BaseController
             'documentTypes' => $canManageDocuments
                 ? WorkerDocumentType::query()
                     ->where('is_active', true)
+                    ->orderBy('sort_order')
                     ->orderBy('name')
-                    ->get(['id', 'name', 'code', 'requires_file'])
+                    ->get(['id', 'name', 'code', 'requires_file', 'requires_expiry', 'category'])
                     ->map(fn (WorkerDocumentType $type): array => [
                         'id' => $type->id,
                         'name' => $type->name,
                         'code' => $type->code,
                         'requires_file' => $type->requires_file,
+                        'requires_expiry' => $type->requires_expiry,
+                        'category' => $type->category,
                     ])
                 : [],
         ]);

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Web\Permit;
 use App\Enums\GasTestPhase;
 use App\Enums\GasTestSource;
 use App\Enums\PermitStatus;
-use App\Enums\WorkerDocumentVerificationStatus;
 use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\Permit\InspectPermitRequest;
 use App\Http\Requests\Web\Permit\NoteRequest;
@@ -18,6 +17,7 @@ use App\Models\Worker;
 use App\Models\WorkOrder;
 use App\Models\Zone;
 use App\Services\PermitService;
+use App\Services\WorkerDocumentReadinessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -87,23 +87,31 @@ final class PermitController extends BaseController
         ]);
     }
 
-    public function create(Request $request): InertiaResponse
+    public function create(Request $request, WorkerDocumentReadinessService $readiness): InertiaResponse
     {
         $this->authorize('create', Permit::class);
 
         $canSeeIdentity = $request->user()?->can('view-worker-identity') ?? false;
 
+        $permitTypes = PermitType::query()
+            ->where('is_active', true)
+            ->with([
+                'roles' => fn ($query) => $query->orderBy('sort_order'),
+                'gasChannels' => fn ($query) => $query->orderBy('sort_order'),
+                'checklistItems' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('label'),
+                'documentRequirements.workerDocumentType',
+            ])
+            ->orderBy('sort_order')
+            ->get();
+
+        $workers = Worker::query()
+            ->where('is_active', true)
+            ->with(['documents.documentType'])
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('workforce/permits/create', [
-            'permitTypes' => PermitType::query()
-                ->where('is_active', true)
-                ->with([
-                    'roles' => fn ($query) => $query->orderBy('sort_order'),
-                    'gasChannels' => fn ($query) => $query->orderBy('sort_order'),
-                    'checklistItems' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('label'),
-                    'documentRequirements.workerDocumentType',
-                ])
-                ->orderBy('sort_order')
-                ->get()
+            'permitTypes' => $permitTypes
                 ->map(fn (PermitType $type): array => [
                     'id' => $type->id,
                     'code' => $type->code,
@@ -161,44 +169,28 @@ final class PermitController extends BaseController
                 ])
                 ->values()
                 ->all(),
-            'workers' => Worker::query()
-                ->where('is_active', true)
-                ->with(['documents.documentType'])
-                ->orderBy('name')
-                ->get()
-                ->map(function (Worker $worker) use ($canSeeIdentity): array {
-                    $verifiedCodes = $worker->documents
-                        ->filter(function ($document): bool {
-                            if ($document->isExpired()) {
-                                return false;
-                            }
+            'workers' => $workers->map(function (Worker $worker) use ($canSeeIdentity, $readiness, $permitTypes): array {
+                $roleEligibility = [];
 
-                            if ($document->expires_at !== null && $document->expires_at->isPast()) {
-                                return false;
-                            }
+                foreach ($permitTypes as $type) {
+                    foreach ($type->roles as $role) {
+                        $assessment = $readiness->assessRole($worker->id, $type, $role->role_code);
+                        $roleEligibility[$type->id.':'.$role->role_code] = [
+                            'ready' => $assessment['ready'],
+                            'missing' => $assessment['missing'],
+                            'missing_labels' => $assessment['missing_labels'],
+                        ];
+                    }
+                }
 
-                            if ($document->documentType?->requires_file && ($document->file_path === null || $document->file_path === '')) {
-                                return false;
-                            }
-
-                            return ! in_array($document->verification_status, [
-                                WorkerDocumentVerificationStatus::Rejected,
-                                WorkerDocumentVerificationStatus::Expired,
-                            ], true);
-                        })
-                        ->map(fn ($document) => $document->documentType?->code)
-                        ->filter()
-                        ->unique()
-                        ->values()
-                        ->all();
-
-                    return [
-                        'id' => $worker->id,
-                        'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
-                        'reference' => $canSeeIdentity ? $worker->employee_code : null,
-                        'verified_document_codes' => $verifiedCodes,
-                    ];
-                })->values()->all(),
+                return [
+                    'id' => $worker->id,
+                    'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
+                    'reference' => $canSeeIdentity ? $worker->employee_code : null,
+                    'verified_document_codes' => $readiness->gateSatisfyingCodes($worker),
+                    'role_eligibility' => $roleEligibility,
+                ];
+            })->values()->all(),
         ]);
     }
 

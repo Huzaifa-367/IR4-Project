@@ -8,13 +8,11 @@ use App\Enums\GasTestResult;
 use App\Enums\GasTestSource;
 use App\Enums\PermitApprovalAction;
 use App\Enums\PermitStatus;
-use App\Enums\WorkerDocumentVerificationStatus;
 use App\Models\GasReading;
 use App\Models\Permit;
 use App\Models\PermitGasTest;
 use App\Models\PermitPersonnel;
 use App\Models\PermitType;
-use App\Models\PermitTypeDocumentRequirement;
 use App\Models\PermitTypeGasChannel;
 use App\Models\ReaderZoneBinding;
 use App\Models\User;
@@ -25,6 +23,10 @@ use Illuminate\Validation\ValidationException;
 
 final class PermitService
 {
+    public function __construct(
+        private readonly WorkerDocumentReadinessService $readiness,
+    ) {}
+
     /**
      * @param  array{
      *     permit_type_id: int,
@@ -532,7 +534,7 @@ final class PermitService
         $missing = [];
 
         foreach ($requirements as $requirement) {
-            if (! $this->workerSatisfiesRequirement($workerId, $requirement)) {
+            if (! $this->readiness->workerSatisfiesRequirement($workerId, $requirement)) {
                 $missing[] = $requirement->workerDocumentType?->code ?? (string) $requirement->worker_document_type_id;
             }
         }
@@ -540,7 +542,7 @@ final class PermitService
         if ($missing !== []) {
             throw ValidationException::withMessages([
                 'personnel' => [
-                    'Worker #'.$workerId.' is missing required documents: '.implode(', ', $missing).'.',
+                    'Worker #'.$workerId.' is missing required documents: '.implode(', ', $missing).'. Upload and verify them on the worker profile before assigning this role.',
                 ],
             ]);
         }
@@ -1009,41 +1011,6 @@ final class PermitService
         return true;
     }
 
-    private function workerSatisfiesRequirement(int $workerId, PermitTypeDocumentRequirement $requirement): bool
-    {
-        $document = WorkerDocument::query()
-            ->where('worker_id', $workerId)
-            ->where('worker_document_type_id', $requirement->worker_document_type_id)
-            ->where(function ($query): void {
-                $query->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            })
-            ->with('documentType')
-            ->orderByDesc('expires_at')
-            ->first();
-
-        if ($document === null) {
-            return false;
-        }
-
-        if ($document->isExpired()) {
-            return false;
-        }
-
-        if ($document->documentType?->requires_file && ($document->file_path === null || $document->file_path === '')) {
-            return false;
-        }
-
-        if ($requirement->must_be_verified) {
-            return $document->verification_status === WorkerDocumentVerificationStatus::Verified;
-        }
-
-        return ! in_array($document->verification_status, [
-            WorkerDocumentVerificationStatus::Rejected,
-            WorkerDocumentVerificationStatus::Expired,
-        ], true);
-    }
-
     /**
      * @return array{status: string, missing: list<string>, expiring_soon: list<string>}
      */
@@ -1068,7 +1035,7 @@ final class PermitService
         foreach ($requirements as $requirement) {
             $code = $requirement->workerDocumentType?->code ?? (string) $requirement->worker_document_type_id;
 
-            if (! $this->workerSatisfiesRequirement($workerId, $requirement)) {
+            if (! $this->readiness->workerSatisfiesRequirement($workerId, $requirement)) {
                 $missing[] = $code;
 
                 continue;
