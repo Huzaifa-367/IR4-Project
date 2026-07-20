@@ -2,8 +2,8 @@
 
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
-use App\Http\Controllers\Web\Settings\AuditLogController;
 use App\Http\Controllers\Web\Settings\AssetController;
+use App\Http\Controllers\Web\Settings\AuditLogController;
 use App\Http\Controllers\Web\Settings\CameraController;
 use App\Http\Controllers\Web\Settings\DeviceController;
 use App\Http\Controllers\Web\Settings\GeneralSettingsController;
@@ -54,37 +54,44 @@ Route::middleware($authStack)->group(function () {
         Route::get('settings/audit-log/export', [AuditLogController::class, 'export'])->name('settings.audit-log.export');
     });
 
-    Route::middleware('permission:manage-roles')->group(function () {
-        Route::get('settings/roles', [RoleController::class, 'index'])->name('settings.roles.index');
-        Route::post('settings/roles', [RoleController::class, 'store'])->name('settings.roles.store');
-        Route::put('settings/roles/{role}', [RoleController::class, 'update'])->name('settings.roles.update');
-        Route::delete('settings/roles/{role}', [RoleController::class, 'destroy'])->name('settings.roles.destroy');
+    // Access — user RBAC
+    Route::middleware('permission:manage-roles')->prefix('access/roles')->name('settings.roles.')->group(function () {
+        Route::get('/', [RoleController::class, 'index'])->name('index');
+        Route::post('/', [RoleController::class, 'store'])->name('store');
+        Route::put('{role}', [RoleController::class, 'update'])->name('update');
+        Route::delete('{role}', [RoleController::class, 'destroy'])->name('destroy');
     });
 
-    Route::middleware('permission:manage-users')->group(function () {
-        Route::get('settings/users', [UserController::class, 'index'])->name('settings.users.index');
-        Route::post('settings/users', [UserController::class, 'store'])->name('settings.users.store');
-        Route::put('settings/users/{user}', [UserController::class, 'update'])->name('settings.users.update');
+    Route::middleware('permission:manage-users')->prefix('access/users')->name('settings.users.')->group(function () {
+        Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::post('/', [UserController::class, 'store'])->name('store');
+        Route::put('{user}', [UserController::class, 'update'])->name('update');
     });
 
     Route::middleware('permission:manage-devices')->group(function () {
-        Route::get('settings/assets', [AssetController::class, 'index'])->name('settings.assets.index');
-        Route::post('settings/assets', [AssetController::class, 'store'])->name('settings.assets.store');
-        Route::get('settings/assets/{asset}', [AssetController::class, 'show'])->name('settings.assets.show');
-        Route::put('settings/assets/{asset}', [AssetController::class, 'update'])->name('settings.assets.update');
-        Route::delete('settings/assets/{asset}', [AssetController::class, 'destroy'])->name('settings.assets.destroy');
+        Route::prefix('hardware/assets')->name('settings.assets.')->group(function () {
+            Route::get('/', [AssetController::class, 'index'])->name('index');
+            Route::post('/', [AssetController::class, 'store'])->name('store');
+            Route::get('{asset}', [AssetController::class, 'show'])->name('show');
+            Route::put('{asset}', [AssetController::class, 'update'])->name('update');
+            Route::delete('{asset}', [AssetController::class, 'destroy'])->name('destroy');
+        });
 
-        Route::get('settings/cameras', [CameraController::class, 'index'])->name('settings.cameras.index');
-        Route::post('settings/cameras', [CameraController::class, 'store'])->name('settings.cameras.store');
-        Route::put('settings/cameras/{camera}', [CameraController::class, 'update'])->name('settings.cameras.update');
-        Route::patch('settings/cameras/{camera}/status', [CameraController::class, 'setStatus'])->name('settings.cameras.status');
-        Route::patch('settings/cameras/{camera}/ai', [CameraController::class, 'toggleAi'])->name('settings.cameras.toggle-ai');
+        Route::prefix('hardware/cameras')->name('settings.cameras.')->group(function () {
+            Route::get('/', [CameraController::class, 'index'])->name('index');
+            Route::post('/', [CameraController::class, 'store'])->name('store');
+            Route::put('{camera}', [CameraController::class, 'update'])->name('update');
+            Route::patch('{camera}/status', [CameraController::class, 'setStatus'])->name('status');
+            Route::patch('{camera}/ai', [CameraController::class, 'toggleAi'])->name('toggle-ai');
+        });
 
-        Route::get('settings/devices', [DeviceController::class, 'index'])->name('settings.devices.index');
-        Route::post('settings/devices', [DeviceController::class, 'store'])->name('settings.devices.store');
-        Route::put('settings/devices/{device}', [DeviceController::class, 'update'])->name('settings.devices.update');
-        Route::patch('settings/devices/{device}/status', [DeviceController::class, 'setStatus'])->name('settings.devices.status');
-        Route::post('settings/devices/{device}/token', [DeviceController::class, 'regenerateToken'])->name('settings.devices.token');
+        Route::prefix('hardware/devices')->name('settings.devices.')->group(function () {
+            Route::get('/', [DeviceController::class, 'index'])->name('index');
+            Route::post('/', [DeviceController::class, 'store'])->name('store');
+            Route::put('{device}', [DeviceController::class, 'update'])->name('update');
+            Route::patch('{device}/status', [DeviceController::class, 'setStatus'])->name('status');
+            Route::post('{device}/token', [DeviceController::class, 'regenerateToken'])->name('token');
+        });
     });
 
     Route::middleware('permission:manage-zones')->group(function () {

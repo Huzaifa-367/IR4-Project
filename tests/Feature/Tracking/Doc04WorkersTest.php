@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Models\Worker;
+use App\Models\WorkerImport;
 use App\Services\WorkerService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
@@ -27,7 +28,7 @@ it('creates and lists workers for manage-workers users', function () {
         ->get(route('tracking.workers.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('tracking/workers/index')
+            ->component('workforce/workers/index')
             ->has('workers.data', 1)
             ->where('workers.data.0.name', 'Jane Doe'));
 
@@ -158,7 +159,7 @@ it('imports valid csv rows partially when some fail', function () {
         ->post(route('tracking.workers.import.store'), ['file' => $file])
         ->assertRedirect(route('tracking.workers.import'));
 
-    $import = \App\Models\WorkerImport::query()->latest('id')->firstOrFail();
+    $import = WorkerImport::query()->latest('id')->firstOrFail();
     app(WorkerService::class)->processImport($import);
 
     expect(Worker::query()->count())->toBe(2)
@@ -181,7 +182,7 @@ it('updates on re-import matched by badge_number', function () {
     $path = 'imports/workers/test.csv';
     Storage::disk('private')->put($path, $csv);
 
-    $import = \App\Models\WorkerImport::query()->create([
+    $import = WorkerImport::query()->create([
         'created_by' => $user->id,
         'original_filename' => 'test.csv',
         'stored_path' => $path,

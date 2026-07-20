@@ -36,7 +36,7 @@ final class UserController extends BaseController
             ->orderBy('name')
             ->get(['id', 'name', 'is_system', 'is_read_only']);
 
-        return Inertia::render('settings/users/index', [
+        return Inertia::render('access/users/index', [
             'users' => $users,
             'roles' => $roles,
             'temporaryPassword' => session()->pull('temporary_password'),

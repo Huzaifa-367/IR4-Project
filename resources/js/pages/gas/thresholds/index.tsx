@@ -15,16 +15,16 @@ export default function GasThresholdsIndex({ thresholds, canManage }: Props) {
             <div className="flex flex-col gap-4 p-4 md:p-5">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
-                        <p className="eyebrow">Gas &amp; CO₂</p>
+                        <p className="eyebrow">Settings</p>
                         <h1 className="font-display text-xl font-semibold tracking-tight text-text md:text-2xl">
-                            Thresholds
+                            Gas thresholds
                         </h1>
                         <p className="mt-1 text-sm text-text-dim">
                             Global installation thresholds (v1)
                         </p>
                     </div>
                     <Button asChild size="sm" variant="secondary">
-                        <Link href="/gas">Dashboard</Link>
+                        <Link href="/gas">Gas dashboard</Link>
                     </Button>
                 </div>
 
@@ -34,7 +34,7 @@ export default function GasThresholdsIndex({ thresholds, canManage }: Props) {
                 >
                     {canManage ? (
                         <Form
-                            action="/gas/thresholds"
+                            action="/settings/gas-thresholds"
                             method="put"
                             className="flex flex-col gap-4"
                         >
@@ -187,3 +187,10 @@ export default function GasThresholdsIndex({ thresholds, canManage }: Props) {
         </>
     );
 }
+
+GasThresholdsIndex.layout = {
+    breadcrumbs: [
+        { title: 'Settings', href: '/settings/general' },
+        { title: 'Gas thresholds', href: '/settings/gas-thresholds' },
+    ],
+};

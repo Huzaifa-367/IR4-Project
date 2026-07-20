@@ -10,7 +10,10 @@ import {
     CloudSun,
     Cpu,
     FileBarChart,
+    FileCheck,
     FileWarning,
+    HardHat,
+    IdCard,
     LayoutGrid,
     MapPinned,
     Move,
@@ -48,10 +51,17 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
+function firstHref(items: NavItem[], fallback: string): string {
+    const href = items[0]?.href;
+
+    return typeof href === 'string' ? href : fallback;
+}
+
 export function AppSidebar() {
     const { can } = usePermissions();
     const { bellCount } = useAlertStore();
 
+    // Daily command-centre surfaces — highest traffic first.
     const overview: NavItem[] = [
         {
             title: 'Dashboard',
@@ -63,15 +73,6 @@ export function AppSidebar() {
             href: '/alerts',
             icon: Bell,
         },
-        ...(can('view-dashboard')
-            ? [
-                  {
-                      title: 'Environment',
-                      href: '/environment',
-                      icon: CloudSun,
-                  } satisfies NavItem,
-              ]
-            : []),
         ...(can('view-live-cameras')
             ? [
                   {
@@ -81,34 +82,24 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-    ];
-
-    const trackingChildren: NavItem[] = [
-        ...(can('view-tracking')
+        ...(can('view-dashboard')
             ? [
                   {
-                      title: 'Overview',
-                      href: '/tracking',
-                      icon: Radio,
-                  } satisfies NavItem,
-                  {
-                      title: 'Workers',
-                      href: '/tracking/workers',
-                      icon: Users,
-                  } satisfies NavItem,
-                  {
-                      title: 'Tags',
-                      href: '/tracking/tags',
-                      icon: Tag,
+                      title: 'Environment',
+                      href: '/environment',
+                      icon: CloudSun,
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('manage-portable-devices')
+    ];
+
+    const liveChildren: NavItem[] = [
+        ...(can('view-tracking')
             ? [
                   {
-                      title: 'Portable Devices',
-                      href: '/tracking/portable-devices',
-                      icon: Smartphone,
+                      title: 'Live Tracking',
+                      href: '/tracking',
+                      icon: Radio,
                   } satisfies NavItem,
               ]
             : []),
@@ -118,6 +109,15 @@ export function AppSidebar() {
                       title: 'Entry / Exit',
                       href: '/tracking/entry-exit',
                       icon: ArrowRightLeft,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('trigger-evacuation') || can('manage-evacuation')
+            ? [
+                  {
+                      title: 'Evacuation',
+                      href: '/tracking/evacuation',
+                      icon: Siren,
                   } satisfies NavItem,
               ]
             : []),
@@ -135,30 +135,39 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('trigger-evacuation') || can('manage-evacuation')
-            ? [
-                  {
-                      title: 'Evacuation',
-                      href: '/tracking/evacuation',
-                      icon: Siren,
-                  } satisfies NavItem,
-              ]
-            : []),
     ];
 
-    const tracking: NavItem[] =
-        trackingChildren.length > 0
+    const live: NavItem[] =
+        liveChildren.length > 0
             ? [
                   {
-                      title: 'Tracking',
-                      href: '/tracking',
-                      icon: Radio,
-                      items: trackingChildren,
+                      title: 'Site',
+                      href: firstHref(liveChildren, '/tracking'),
+                      icon: MapPinned,
+                      items: liveChildren,
                   },
               ]
             : [];
 
+    // Safety screens operators open during a shift.
     const safety: NavItem[] = [
+        ...(can('view-gas')
+            ? [
+                  {
+                      title: 'Gas & CO₂',
+                      href: '/gas',
+                      icon: Wind,
+                      items: [
+                          { title: 'Dashboard', href: '/gas', icon: Wind },
+                          {
+                              title: 'Alarms',
+                              href: '/gas/alarms',
+                              icon: AlertTriangle,
+                          },
+                      ],
+                  } satisfies NavItem,
+              ]
+            : []),
         ...(can('view-ppe')
             ? [
                   {
@@ -175,33 +184,6 @@ export function AppSidebar() {
                               title: 'Trends',
                               href: '/ppe/trends',
                               icon: TrendingUp,
-                          },
-                      ],
-                  } satisfies NavItem,
-              ]
-            : []),
-        ...(can('view-gas')
-            ? [
-                  {
-                      title: 'Gas & CO₂',
-                      href: '/gas',
-                      icon: Wind,
-                      items: [
-                          { title: 'Dashboard', href: '/gas', icon: Wind },
-                          {
-                              title: 'Alarms',
-                              href: '/gas/alarms',
-                              icon: AlertTriangle,
-                          },
-                          {
-                              title: 'Trends',
-                              href: '/gas/trends',
-                              icon: TrendingUp,
-                          },
-                          {
-                              title: 'Thresholds',
-                              href: '/gas/thresholds',
-                              icon: SlidersHorizontal,
                           },
                       ],
                   } satisfies NavItem,
@@ -248,6 +230,123 @@ export function AppSidebar() {
             : []),
     ];
 
+    // People & permits — frequent, but after live safety.
+    const workforceChildren: NavItem[] = [
+        ...(can('view-tracking')
+            ? [
+                  {
+                      title: 'Workers',
+                      href: '/workforce/workers',
+                      icon: Users,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('view-permits')
+            ? [
+                  {
+                      title: 'Permits',
+                      href: '/workforce/permits',
+                      icon: FileCheck,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('manage-portable-devices')
+            ? [
+                  {
+                      title: 'Portable Devices',
+                      href: '/workforce/portable-devices',
+                      icon: Smartphone,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('manage-permit-catalogue')
+            ? [
+                  {
+                      title: 'Permit types',
+                      href: '/workforce/permit-types',
+                      icon: IdCard,
+                  } satisfies NavItem,
+              ]
+            : []),
+    ];
+
+    const workforce: NavItem[] =
+        workforceChildren.length > 0
+            ? [
+                  {
+                      title: 'Workforce',
+                      href: firstHref(
+                          workforceChildren,
+                          '/workforce/workers',
+                      ),
+                      icon: Users,
+                      items: workforceChildren,
+                  },
+              ]
+            : [];
+
+    // Admin / config — least visited; keep at the bottom.
+    const hardwareChildren: NavItem[] = [
+        ...(can('manage-devices')
+            ? [
+                  {
+                      title: 'Assets',
+                      href: '/hardware/assets',
+                      icon: Boxes,
+                  } satisfies NavItem,
+                  {
+                      title: 'Devices',
+                      href: '/hardware/devices',
+                      icon: Cpu,
+                  } satisfies NavItem,
+                  {
+                      title: 'Cameras',
+                      href: '/hardware/cameras',
+                      icon: Camera,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('view-tracking') || can('manage-tags')
+            ? [
+                  {
+                      title: 'Tags',
+                      href: '/hardware/tags',
+                      icon: Tag,
+                  } satisfies NavItem,
+              ]
+            : []),
+    ];
+
+    const accessChildren: NavItem[] = [
+        ...(can('manage-users')
+            ? [
+                  {
+                      title: 'Users',
+                      href: '/access/users',
+                      icon: UserCog,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('manage-roles')
+            ? [
+                  {
+                      title: 'User roles',
+                      href: '/access/roles',
+                      icon: Shield,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('manage-permit-catalogue')
+            ? [
+                  {
+                      title: 'Crew roles',
+                      href: '/access/crew-roles',
+                      icon: HardHat,
+                  } satisfies NavItem,
+              ]
+            : []),
+    ];
+
     const reportsChildren: NavItem[] = [
         ...(can('view-reports')
             ? [
@@ -278,14 +377,22 @@ export function AppSidebar() {
             : []),
     ];
 
-    const operations: NavItem[] = [
-        ...(reportsChildren.length > 0
+    const settingsChildren: NavItem[] = [
+        ...(can('manage-settings') || can('configure-alerts')
             ? [
                   {
-                      title: 'Reports',
-                      href: '/reports',
-                      icon: FileBarChart,
-                      items: reportsChildren,
+                      title: 'General',
+                      href: '/settings/general',
+                      icon: Settings2,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('view-gas') || can('manage-gas-thresholds')
+            ? [
+                  {
+                      title: 'Gas thresholds',
+                      href: '/settings/gas-thresholds',
+                      icon: SlidersHorizontal,
                   } satisfies NavItem,
               ]
             : []),
@@ -298,51 +405,49 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('manage-settings') ||
-        can('configure-alerts') ||
-        can('manage-gas-thresholds')
+    ];
+
+    const admin: NavItem[] = [
+        ...(hardwareChildren.length > 0
             ? [
                   {
-                      title: 'General',
-                      href: '/settings/general',
-                      icon: Settings2,
-                  } satisfies NavItem,
-              ]
-            : []),
-        ...(can('manage-roles')
-            ? [
-                  {
-                      title: 'Roles',
-                      href: '/settings/roles',
-                      icon: Shield,
-                  } satisfies NavItem,
-              ]
-            : []),
-        ...(can('manage-users')
-            ? [
-                  {
-                      title: 'Users',
-                      href: '/settings/users',
-                      icon: UserCog,
-                  } satisfies NavItem,
-              ]
-            : []),
-        ...(can('manage-devices')
-            ? [
-                  {
-                      title: 'Assets',
-                      href: '/settings/assets',
-                      icon: Boxes,
-                  } satisfies NavItem,
-                  {
-                      title: 'Devices',
-                      href: '/settings/devices',
+                      title: 'Hardware',
+                      href: firstHref(hardwareChildren, '/hardware/assets'),
                       icon: Cpu,
+                      items: hardwareChildren,
                   } satisfies NavItem,
+              ]
+            : []),
+        ...(accessChildren.length > 0
+            ? [
                   {
-                      title: 'Cameras',
-                      href: '/settings/cameras',
-                      icon: Camera,
+                      title: 'Access',
+                      href: firstHref(accessChildren, '/access/users'),
+                      icon: UserCog,
+                      items: accessChildren,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(reportsChildren.length > 0
+            ? [
+                  {
+                      title: 'Reports',
+                      href: firstHref(reportsChildren, '/reports'),
+                      icon: FileBarChart,
+                      items: reportsChildren,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(settingsChildren.length > 0
+            ? [
+                  {
+                      title: 'Settings',
+                      href: firstHref(
+                          settingsChildren,
+                          '/settings/general',
+                      ),
+                      icon: Settings2,
+                      items: settingsChildren,
                   } satisfies NavItem,
               ]
             : []),
@@ -364,9 +469,10 @@ export function AppSidebar() {
 
             <SidebarContent className="gap-1 py-2">
                 <NavMain items={overview} label="Overview" />
-                <NavMain items={tracking} label="Tracking" />
+                <NavMain items={live} label="Live" />
                 <NavMain items={safety} label="Safety" />
-                <NavMain items={operations} label="Operations" />
+                <NavMain items={workforce} label="Workforce" />
+                <NavMain items={admin} label="Admin" />
             </SidebarContent>
 
             <SidebarFooter className="gap-3 border-t border-sidebar-border p-3">

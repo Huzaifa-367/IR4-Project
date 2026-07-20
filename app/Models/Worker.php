@@ -141,4 +141,12 @@ final class Worker extends Model
     {
         return $this->hasMany(EvacuationReportEntry::class);
     }
+
+    /**
+     * @return HasMany<WorkerDocument, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(WorkerDocument::class);
+    }
 }

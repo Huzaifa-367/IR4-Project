@@ -35,7 +35,7 @@ final class RoleController extends BaseController
                 'permissions' => $role->permissions->pluck('name')->values()->all(),
             ]);
 
-        return Inertia::render('settings/roles/index', [
+        return Inertia::render('access/roles/index', [
             'roles' => $roles,
             'catalogue' => PermissionCatalogue::grouped(),
         ]);

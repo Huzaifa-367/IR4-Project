@@ -145,10 +145,10 @@ export default function TrackingIndex({
 
                 <div className="flex flex-wrap gap-2">
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/tracking/tags">Tags</Link>
+                        <Link href="/hardware/tags">Tags</Link>
                     </Button>
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/tracking/workers">Workers</Link>
+                        <Link href="/workforce/workers">Workers</Link>
                     </Button>
                     <Button asChild variant="outline" size="sm">
                         <Link href="/tracking/entry-exit">Entry / exit</Link>

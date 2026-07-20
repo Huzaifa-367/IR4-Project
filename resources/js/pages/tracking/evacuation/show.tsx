@@ -88,7 +88,7 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                     className="flex items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
                                 >
                                     <Link
-                                        href={`/tracking/workers/${entry.worker_id}`}
+                                        href={`/workforce/workers/${entry.worker_id}`}
                                         className="text-text hover:text-[color:var(--accent)] hover:underline"
                                     >
                                         {entry.worker_name}
@@ -129,7 +129,7 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                     className="flex items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
                                 >
                                     <Link
-                                        href={`/tracking/workers/${entry.worker_id}`}
+                                        href={`/workforce/workers/${entry.worker_id}`}
                                         className="text-text hover:text-[color:var(--accent)] hover:underline"
                                     >
                                         {entry.worker_name}

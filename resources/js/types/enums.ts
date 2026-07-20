@@ -286,6 +286,46 @@ export const GasAlarmLevelLabels: Record<GasAlarmLevel, string> = {
   'alarm': 'Alarm',
 };
 
+export const GasTestPhase = {
+  PreStart: 'pre_start',
+  Periodic: 'periodic',
+  PostBreak: 'post_break',
+  Renewal: 'renewal',
+} as const;
+
+export type GasTestPhase = (typeof GasTestPhase)[keyof typeof GasTestPhase];
+
+export const GasTestPhaseLabels: Record<GasTestPhase, string> = {
+  'pre_start': 'Pre-start',
+  'periodic': 'Periodic',
+  'post_break': 'Post-break',
+  'renewal': 'Renewal',
+};
+
+export const GasTestResult = {
+  Pass: 'pass',
+  Fail: 'fail',
+} as const;
+
+export type GasTestResult = (typeof GasTestResult)[keyof typeof GasTestResult];
+
+export const GasTestResultLabels: Record<GasTestResult, string> = {
+  'pass': 'Pass',
+  'fail': 'Fail',
+};
+
+export const GasTestSource = {
+  Manual: 'manual',
+  Device: 'device',
+} as const;
+
+export type GasTestSource = (typeof GasTestSource)[keyof typeof GasTestSource];
+
+export const GasTestSourceLabels: Record<GasTestSource, string> = {
+  'manual': 'Manual',
+  'device': 'Device',
+};
+
 export const GasType = {
   Lel: 'lel',
   H2s: 'h2s',
@@ -487,6 +527,60 @@ export const MusterStatusLabels: Record<MusterStatus, string> = {
   'accounted': 'Accounted',
 };
 
+export const PermitApprovalAction = {
+  Issued: 'issued',
+  Approved: 'approved',
+  Renewed: 'renewed',
+  Suspended: 'suspended',
+  Resumed: 'resumed',
+  Cancelled: 'cancelled',
+  Closed: 'closed',
+  Rejected: 'rejected',
+} as const;
+
+export type PermitApprovalAction = (typeof PermitApprovalAction)[keyof typeof PermitApprovalAction];
+
+export const PermitApprovalActionLabels: Record<PermitApprovalAction, string> = {
+  'issued': 'Issued',
+  'approved': 'Approved',
+  'renewed': 'Renewed',
+  'suspended': 'Suspended',
+  'resumed': 'Resumed',
+  'cancelled': 'Cancelled',
+  'closed': 'Closed',
+  'rejected': 'Rejected',
+};
+
+export const PermitStatus = {
+  Draft: 'draft',
+  PendingInspection: 'pending_inspection',
+  PendingGasTest: 'pending_gas_test',
+  PendingIssue: 'pending_issue',
+  PendingApproval: 'pending_approval',
+  Active: 'active',
+  Suspended: 'suspended',
+  Expired: 'expired',
+  Closed: 'closed',
+  Cancelled: 'cancelled',
+  Rejected: 'rejected',
+} as const;
+
+export type PermitStatus = (typeof PermitStatus)[keyof typeof PermitStatus];
+
+export const PermitStatusLabels: Record<PermitStatus, string> = {
+  'draft': 'Draft',
+  'pending_inspection': 'Pending inspection',
+  'pending_gas_test': 'Pending gas test',
+  'pending_issue': 'Pending issue',
+  'pending_approval': 'Pending approval',
+  'active': 'Active',
+  'suspended': 'Suspended',
+  'expired': 'Expired',
+  'closed': 'Closed',
+  'cancelled': 'Cancelled',
+  'rejected': 'Rejected',
+};
+
 export const PortableDeviceStatus = {
   Approved: 'approved',
   Revoked: 'revoked',
@@ -599,6 +693,22 @@ export const ViolationTypeLabels: Record<ViolationType, string> = {
   'missing_mask': 'Missing mask',
 };
 
+export const WorkerDocumentVerificationStatus = {
+  Pending: 'pending',
+  Verified: 'verified',
+  Rejected: 'rejected',
+  Expired: 'expired',
+} as const;
+
+export type WorkerDocumentVerificationStatus = (typeof WorkerDocumentVerificationStatus)[keyof typeof WorkerDocumentVerificationStatus];
+
+export const WorkerDocumentVerificationStatusLabels: Record<WorkerDocumentVerificationStatus, string> = {
+  'pending': 'Pending',
+  'verified': 'Verified',
+  'rejected': 'Rejected',
+  'expired': 'Expired',
+};
+
 export const WorkerType = {
   Employee: 'employee',
   Contractor: 'contractor',
@@ -663,6 +773,13 @@ export const Permission = {
   ViewLsr: 'view-lsr',
   LogLsr: 'log-lsr',
   CloseLsr: 'close-lsr',
+  ViewPermits: 'view-permits',
+  RequestPermit: 'request-permit',
+  IssuePermit: 'issue-permit',
+  ApprovePermit: 'approve-permit',
+  PerformGasTest: 'perform-gas-test',
+  ManagePermitCatalogue: 'manage-permit-catalogue',
+  ManageWorkerDocuments: 'manage-worker-documents',
   ViewReports: 'view-reports',
   GenerateReports: 'generate-reports',
   PublishReports: 'publish-reports',

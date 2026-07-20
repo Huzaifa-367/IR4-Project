@@ -39,6 +39,16 @@ final class RolePermissionSeeder extends Seeder
         $this->seedStarterRoleIfMissing('Project Manager', true, $this->projectManagerPermissions(), 'Read-only oversight: KPIs and published reports.');
         $this->seedStarterRoleIfMissing('Client Representative', true, [], 'Configurable read-only client window.');
         $this->seedStarterRoleIfMissing('Field Staff', false, [], 'No platform login — public QR page only.');
+        $this->seedStarterRoleIfMissing('Permit Issuer', false, [
+            'issue-permit',
+            'perform-gas-test',
+            'view-permits',
+            'approve-permit',
+        ], 'Certified permit issuer and gas tester.');
+        $this->seedStarterRoleIfMissing('Permit Receiver', false, [
+            'request-permit',
+            'view-permits',
+        ], 'Certified permit receiver — requests and tracks permits.');
 
         $this->pruneReadOnlyViolations();
 
@@ -127,6 +137,10 @@ final class RolePermissionSeeder extends Seeder
             'view-lsr',
             'log-lsr',
             'close-lsr',
+            'view-permits',
+            'request-permit',
+            'perform-gas-test',
+            'manage-worker-documents',
             'view-reports',
             'log-vehicle-violations',
         ];

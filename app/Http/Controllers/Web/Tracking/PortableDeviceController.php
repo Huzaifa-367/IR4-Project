@@ -29,7 +29,7 @@ final class PortableDeviceController extends BaseController
 
         $paginator = $query->paginate($this->perPage($request))->withQueryString();
 
-        return Inertia::render('tracking/portable-devices/index', [
+        return Inertia::render('workforce/portable-devices/index', [
             'devices' => [
                 'data' => $paginator->getCollection()->map(fn (PortableDevice $d) => [
                     'id' => $d->id,

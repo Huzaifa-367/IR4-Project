@@ -34,7 +34,7 @@ final class TagController extends BaseController
 
         $paginator = $query->paginate($this->perPage($request))->withQueryString();
 
-        return Inertia::render('tracking/tags/index', [
+        return Inertia::render('hardware/tags/index', [
             'tags' => [
                 'data' => $paginator->getCollection()->map(fn (RfidTag $tag) => [
                     'id' => $tag->id,

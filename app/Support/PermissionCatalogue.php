@@ -54,6 +54,15 @@ final class PermissionCatalogue
                 'log-lsr',
                 'close-lsr',
             ],
+            'Permit to Work' => [
+                'view-permits',
+                'request-permit',
+                'issue-permit',
+                'approve-permit',
+                'perform-gas-test',
+                'manage-permit-catalogue',
+                'manage-worker-documents',
+            ],
             'Reports' => [
                 'view-reports',
                 'generate-reports',

@@ -36,7 +36,7 @@ final class DeviceController extends BaseController
 
         $paginator = $query->paginate($this->perPage($request))->withQueryString();
 
-        return Inertia::render('settings/devices/index', [
+        return Inertia::render('hardware/devices/index', [
             'devices' => [
                 'data' => $paginator->getCollection()->map(fn (Device $device): array => [
                     'id' => $device->id,

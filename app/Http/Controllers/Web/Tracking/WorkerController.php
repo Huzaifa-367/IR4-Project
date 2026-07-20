@@ -16,11 +16,15 @@ use App\Models\LsrViolation;
 use App\Models\PortableDevice;
 use App\Models\RfidTag;
 use App\Models\Worker;
+use App\Models\WorkerDocument;
+use App\Models\WorkerDocumentType;
 use App\Models\WorkerImport;
+use App\Services\SignedStorageUrlService;
 use App\Services\WorkerService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\UploadedFile;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -68,7 +72,7 @@ final class WorkerController extends BaseController
 
         $paginator = $query->paginate($this->perPage($request))->withQueryString();
 
-        return Inertia::render('tracking/workers/index', [
+        return Inertia::render('workforce/workers/index', [
             'workers' => [
                 'data' => WorkerResource::collection($paginator->getCollection())->resolve($request),
                 'meta' => [
@@ -100,7 +104,7 @@ final class WorkerController extends BaseController
     {
         $this->authorize('create', Worker::class);
 
-        return Inertia::render('tracking/workers/create', [
+        return Inertia::render('workforce/workers/create', [
             'workerTypes' => collect(WorkerType::cases())->map(fn (WorkerType $type): array => [
                 'value' => $type->value,
                 'label' => $type->label(),
@@ -117,7 +121,7 @@ final class WorkerController extends BaseController
             ->with('flash', ['success' => 'Worker created.']);
     }
 
-    public function show(Request $request, Worker $worker): InertiaResponse
+    public function show(Request $request, Worker $worker, SignedStorageUrlService $signedUrls): InertiaResponse
     {
         $this->authorize('view', $worker);
 
@@ -126,8 +130,9 @@ final class WorkerController extends BaseController
         $canSeePortableDevices = $user?->can('manage-portable-devices') ?? false;
         $canSeeIncidents = $user?->can('view-incidents') ?? false;
         $canSeeLsr = $user?->can('view-lsr') ?? false;
+        $canManageDocuments = $user?->can('manage-worker-documents') ?? false;
 
-        return Inertia::render('tracking/workers/show', [
+        return Inertia::render('workforce/workers/show', [
             'worker' => (new WorkerResource($worker))->resolve($request),
             'canManage' => $user?->can('manage-workers') ?? false,
             'canSeeEntryExit' => $canSeeEntryExit,
@@ -209,6 +214,39 @@ final class WorkerController extends BaseController
                         'occurred_at' => $lsr->occurred_at?->toIso8601String(),
                     ])
                 : [],
+            'canManageDocuments' => $canManageDocuments,
+            'documents' => $canManageDocuments
+                ? $worker->documents()
+                    ->with('documentType:id,code,name,requires_file')
+                    ->orderByDesc('created_at')
+                    ->get()
+                    ->map(fn (WorkerDocument $document): array => [
+                        'id' => $document->id,
+                        'type_name' => $document->documentType?->name ?? '—',
+                        'document_number' => $document->document_number,
+                        'issuing_body' => $document->issuing_body,
+                        'issued_at' => $document->issued_at?->toDateString(),
+                        'expires_at' => $document->expires_at?->toDateString(),
+                        'verification_status' => $document->verification_status->value,
+                        'verification_status_label' => $document->verification_status->label(),
+                        'has_file' => $document->file_path !== null && $document->file_path !== '',
+                        'download_url' => ($document->file_path !== null && $document->file_path !== '')
+                            ? $signedUrls->temporaryUrl($document->file_path)
+                            : null,
+                    ])
+                : [],
+            'documentTypes' => $canManageDocuments
+                ? WorkerDocumentType::query()
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'code', 'requires_file'])
+                    ->map(fn (WorkerDocumentType $type): array => [
+                        'id' => $type->id,
+                        'name' => $type->name,
+                        'code' => $type->code,
+                        'requires_file' => $type->requires_file,
+                    ])
+                : [],
         ]);
     }
 
@@ -216,7 +254,7 @@ final class WorkerController extends BaseController
     {
         $this->authorize('update', $worker);
 
-        return Inertia::render('tracking/workers/edit', [
+        return Inertia::render('workforce/workers/edit', [
             'worker' => [
                 'id' => $worker->id,
                 'name' => $worker->name,
@@ -293,7 +331,7 @@ final class WorkerController extends BaseController
             ->latest('id')
             ->first();
 
-        return Inertia::render('tracking/workers/import', [
+        return Inertia::render('workforce/workers/import', [
             'latestImport' => $latest === null ? null : [
                 'id' => $latest->id,
                 'original_filename' => $latest->original_filename,
@@ -306,7 +344,7 @@ final class WorkerController extends BaseController
 
     public function import(ImportWorkersRequest $request, WorkerService $workers): RedirectResponse
     {
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var UploadedFile $file */
         $file = $request->file('file');
         $import = $workers->beginImport($file, (int) $request->user()->id);
 

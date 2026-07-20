@@ -9,9 +9,13 @@ use App\Http\Controllers\Web\EnvironmentController;
 use App\Http\Controllers\Web\Equipment\EquipmentController;
 use App\Http\Controllers\Web\ForcePasswordController;
 use App\Http\Controllers\Web\Gas\GasDashboardController;
-use App\Http\Controllers\Web\MapTileController;
 use App\Http\Controllers\Web\Hse\IncidentController;
 use App\Http\Controllers\Web\Hse\LsrController;
+use App\Http\Controllers\Web\MapTileController;
+use App\Http\Controllers\Web\Permit\CrewRoleController;
+use App\Http\Controllers\Web\Permit\PermitController;
+use App\Http\Controllers\Web\Permit\PermitTypeController;
+use App\Http\Controllers\Web\Permit\WorkerDocumentController;
 use App\Http\Controllers\Web\Ppe\LiveWallController;
 use App\Http\Controllers\Web\Ppe\PpeTrendsController;
 use App\Http\Controllers\Web\Ppe\PpeViolationController;
@@ -84,11 +88,14 @@ Route::middleware($authStack)->group(function () {
         Route::post('alarms/{alarm}/acknowledge', [GasDashboardController::class, 'acknowledge'])
             ->middleware('permission:acknowledge-alerts')
             ->name('alarms.acknowledge');
-        Route::get('thresholds', [GasDashboardController::class, 'thresholds'])->name('thresholds.index');
-        Route::put('thresholds', [GasDashboardController::class, 'updateThresholds'])
-            ->middleware('permission:manage-gas-thresholds')
-            ->name('thresholds.update');
     });
+
+    Route::get('settings/gas-thresholds', [GasDashboardController::class, 'thresholds'])
+        ->middleware('permission:view-gas')
+        ->name('gas.thresholds.index');
+    Route::put('settings/gas-thresholds', [GasDashboardController::class, 'updateThresholds'])
+        ->middleware('permission:manage-gas-thresholds')
+        ->name('gas.thresholds.update');
 
     Route::middleware('permission:view-live-cameras')->group(function () {
         Route::get('live', LiveWallController::class)->name('live.index');
@@ -118,20 +125,6 @@ Route::middleware($authStack)->group(function () {
         Route::get('api/headcount', [TrackingApiController::class, 'headcount'])->name('api.headcount');
         Route::get('api/positions', [TrackingApiController::class, 'positions'])->name('api.positions');
 
-        Route::get('tags', [TagController::class, 'index'])->name('tags.index');
-        Route::post('tags', [TagController::class, 'store'])
-            ->middleware('permission:manage-tags')
-            ->name('tags.store');
-        Route::post('tags/{tag}/assign', [TagController::class, 'assign'])
-            ->middleware('permission:manage-tags')
-            ->name('tags.assign');
-        Route::post('tags/{tag}/unassign', [TagController::class, 'unassign'])
-            ->middleware('permission:manage-tags')
-            ->name('tags.unassign');
-        Route::post('workers/{worker}/replace-tag', [TagController::class, 'replace'])
-            ->middleware('permission:manage-tags')
-            ->name('workers.replace-tag');
-
         Route::get('entry-exit', [EntryExitController::class, 'index'])
             ->middleware('permission:view-entry-exit')
             ->name('entry-exit.index');
@@ -141,16 +134,6 @@ Route::middleware($authStack)->group(function () {
         Route::post('entry-exit/corrections', [EntryExitController::class, 'correct'])
             ->middleware('permission:manage-workers')
             ->name('entry-exit.corrections');
-
-        Route::get('portable-devices', [PortableDeviceController::class, 'index'])
-            ->middleware('permission:manage-portable-devices')
-            ->name('portable-devices.index');
-        Route::post('portable-devices', [PortableDeviceController::class, 'store'])
-            ->middleware('permission:manage-portable-devices')
-            ->name('portable-devices.store');
-        Route::post('portable-devices/{portableDevice}/revoke', [PortableDeviceController::class, 'revoke'])
-            ->middleware('permission:manage-portable-devices')
-            ->name('portable-devices.revoke');
 
         Route::get('evacuation', [EvacuationController::class, 'index'])->name('evacuation.index');
         Route::post('evacuation', [EvacuationController::class, 'store'])
@@ -165,42 +148,134 @@ Route::middleware($authStack)->group(function () {
             ->name('evacuation.account');
         Route::get('evacuation/{evacuation}/download', [EvacuationController::class, 'download'])
             ->name('evacuation.download');
+    });
 
-        Route::get('workers', [WorkerController::class, 'index'])->name('workers.index');
-        Route::get('workers/create', [WorkerController::class, 'create'])
+    Route::middleware('permission:view-tracking')->prefix('hardware/tags')->name('tracking.tags.')->group(function () {
+        Route::get('/', [TagController::class, 'index'])->name('index');
+        Route::post('/', [TagController::class, 'store'])
+            ->middleware('permission:manage-tags')
+            ->name('store');
+        Route::post('{tag}/assign', [TagController::class, 'assign'])
+            ->middleware('permission:manage-tags')
+            ->name('assign');
+        Route::post('{tag}/unassign', [TagController::class, 'unassign'])
+            ->middleware('permission:manage-tags')
+            ->name('unassign');
+    });
+
+    Route::middleware('permission:view-tracking')->prefix('workforce/workers')->name('tracking.workers.')->group(function () {
+        Route::get('/', [WorkerController::class, 'index'])->name('index');
+        Route::get('create', [WorkerController::class, 'create'])
             ->middleware('permission:manage-workers')
-            ->name('workers.create');
-        Route::post('workers', [WorkerController::class, 'store'])
+            ->name('create');
+        Route::post('/', [WorkerController::class, 'store'])
             ->middleware('permission:manage-workers')
-            ->name('workers.store');
-        Route::get('workers/import', [WorkerController::class, 'importForm'])
+            ->name('store');
+        Route::get('import', [WorkerController::class, 'importForm'])
             ->middleware('permission:manage-workers')
-            ->name('workers.import');
-        Route::post('workers/import', [WorkerController::class, 'import'])
+            ->name('import');
+        Route::post('import', [WorkerController::class, 'import'])
             ->middleware('permission:manage-workers')
-            ->name('workers.import.store');
-        Route::get('workers/import/template', [WorkerController::class, 'template'])
+            ->name('import.store');
+        Route::get('import/template', [WorkerController::class, 'template'])
             ->middleware('permission:manage-workers')
-            ->name('workers.import.template');
-        Route::get('workers/{worker}', [WorkerController::class, 'show'])->name('workers.show');
-        Route::get('workers/{worker}/edit', [WorkerController::class, 'edit'])
+            ->name('import.template');
+        Route::get('{worker}', [WorkerController::class, 'show'])->name('show');
+        Route::get('{worker}/edit', [WorkerController::class, 'edit'])
             ->middleware('permission:manage-workers')
-            ->name('workers.edit');
-        Route::put('workers/{worker}', [WorkerController::class, 'update'])
+            ->name('edit');
+        Route::put('{worker}', [WorkerController::class, 'update'])
             ->middleware('permission:manage-workers')
-            ->name('workers.update');
-        Route::post('workers/{worker}/deactivate', [WorkerController::class, 'deactivate'])
+            ->name('update');
+        Route::post('{worker}/deactivate', [WorkerController::class, 'deactivate'])
             ->middleware('permission:manage-workers')
-            ->name('workers.deactivate');
-        Route::post('workers/{worker}/reactivate', [WorkerController::class, 'reactivate'])
+            ->name('deactivate');
+        Route::post('{worker}/reactivate', [WorkerController::class, 'reactivate'])
             ->middleware('permission:manage-workers')
-            ->name('workers.reactivate');
-        Route::post('workers/{worker}/offboard', [WorkerController::class, 'offboard'])
+            ->name('reactivate');
+        Route::post('{worker}/offboard', [WorkerController::class, 'offboard'])
             ->middleware('permission:manage-workers')
-            ->name('workers.offboard');
-        Route::delete('workers/{worker}', [WorkerController::class, 'destroy'])
+            ->name('offboard');
+        Route::delete('{worker}', [WorkerController::class, 'destroy'])
             ->middleware('permission:manage-workers')
-            ->name('workers.destroy');
+            ->name('destroy');
+        Route::post('{worker}/replace-tag', [TagController::class, 'replace'])
+            ->middleware('permission:manage-tags')
+            ->name('replace-tag');
+    });
+
+    Route::middleware('permission:manage-portable-devices')->prefix('workforce/portable-devices')->name('tracking.portable-devices.')->group(function () {
+        Route::get('/', [PortableDeviceController::class, 'index'])->name('index');
+        Route::post('/', [PortableDeviceController::class, 'store'])->name('store');
+        Route::post('{portableDevice}/revoke', [PortableDeviceController::class, 'revoke'])->name('revoke');
+    });
+
+    Route::middleware('permission:view-permits')->prefix('workforce/permits')->name('permits.')->group(function (): void {
+        Route::get('/', [PermitController::class, 'index'])->name('index');
+        Route::get('create', [PermitController::class, 'create'])
+            ->middleware('permission:request-permit')
+            ->name('create');
+        Route::post('/', [PermitController::class, 'store'])
+            ->middleware('permission:request-permit')
+            ->name('store');
+        Route::get('{permit}', [PermitController::class, 'show'])->name('show');
+        Route::post('{permit}/submit', [PermitController::class, 'submit'])
+            ->middleware('permission:request-permit')
+            ->name('submit');
+        Route::post('{permit}/inspection', [PermitController::class, 'inspect'])
+            ->middleware('permission:issue-permit')
+            ->name('inspect');
+        Route::post('{permit}/gas-tests', [PermitController::class, 'storeGasTest'])
+            ->middleware('permission:perform-gas-test')
+            ->name('gas-tests.store');
+        Route::get('{permit}/gas-suggestion', [PermitController::class, 'gasSuggestion'])
+            ->middleware('permission:perform-gas-test')
+            ->name('gas-suggestion');
+        Route::post('{permit}/approve', [PermitController::class, 'approve'])
+            ->middleware('permission:approve-permit')
+            ->name('approve');
+        Route::post('{permit}/issue', [PermitController::class, 'issue'])
+            ->middleware('permission:issue-permit')
+            ->name('issue');
+        Route::post('{permit}/suspend', [PermitController::class, 'suspend'])
+            ->middleware('permission:issue-permit')
+            ->name('suspend');
+        Route::post('{permit}/resume', [PermitController::class, 'resume'])
+            ->middleware('permission:issue-permit')
+            ->name('resume');
+        Route::post('{permit}/renew', [PermitController::class, 'renew'])
+            ->middleware('permission:issue-permit')
+            ->name('renew');
+        Route::post('{permit}/cancel', [PermitController::class, 'cancel'])
+            ->middleware('permission:issue-permit')
+            ->name('cancel');
+        Route::post('{permit}/close', [PermitController::class, 'close'])
+            ->middleware('permission:issue-permit')
+            ->name('close');
+        Route::post('{permit}/reject', [PermitController::class, 'reject'])
+            ->middleware('permission:issue-permit')
+            ->name('reject');
+    });
+
+    Route::middleware('permission:manage-permit-catalogue')->prefix('workforce/permit-types')->name('settings.permit-types.')->group(function (): void {
+        Route::get('/', [PermitTypeController::class, 'index'])->name('index');
+        Route::post('/', [PermitTypeController::class, 'store'])->name('store');
+        Route::get('{permitType}', [PermitTypeController::class, 'show'])->name('show');
+        Route::put('{permitType}', [PermitTypeController::class, 'update'])->name('update');
+    });
+
+    Route::middleware('permission:manage-permit-catalogue')->prefix('access/crew-roles')->name('settings.crew-roles.')->group(function (): void {
+        Route::get('/', [CrewRoleController::class, 'index'])->name('index');
+        Route::post('/', [CrewRoleController::class, 'store'])->name('store');
+        Route::put('{crewRole}', [CrewRoleController::class, 'update'])->name('update');
+        Route::delete('{crewRole}', [CrewRoleController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::middleware('permission:manage-worker-documents')->prefix('workforce/workers/{worker}/documents')->name('workers.documents.')->group(function (): void {
+        Route::get('/', [WorkerDocumentController::class, 'index'])->name('index');
+        Route::post('/', [WorkerDocumentController::class, 'store'])->name('store');
+        Route::post('{document}/verify', [WorkerDocumentController::class, 'verify'])->name('verify');
+        Route::delete('{document}', [WorkerDocumentController::class, 'destroy'])->name('destroy');
     });
 
     Route::middleware('permission:view-equipment')->prefix('equipment')->name('equipment.')->group(function (): void {

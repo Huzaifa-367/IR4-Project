@@ -34,7 +34,7 @@ final class AssetController extends BaseController
 
         $paginator = $query->paginate($this->perPage($request))->withQueryString();
 
-        return Inertia::render('settings/assets/index', [
+        return Inertia::render('hardware/assets/index', [
             'assets' => [
                 'data' => $paginator->getCollection()->map(fn (Asset $asset): array => [
                     'id' => $asset->id,
@@ -84,7 +84,7 @@ final class AssetController extends BaseController
 
         $asset->load(['cameras', 'devices']);
 
-        return Inertia::render('settings/assets/show', [
+        return Inertia::render('hardware/assets/show', [
             'asset' => [
                 'id' => $asset->id,
                 'name' => $asset->name,

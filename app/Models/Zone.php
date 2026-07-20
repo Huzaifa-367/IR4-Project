@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property ZoneType $zone_type
  * @property bool $requires_authorization
+ * @property bool $requires_permit
  * @property int|null $occupancy_limit
  * @property string|null $map_x
  * @property string|null $map_y
@@ -47,6 +48,7 @@ final class Zone extends Model
         return [
             'zone_type' => ZoneType::class,
             'requires_authorization' => 'boolean',
+            'requires_permit' => 'boolean',
             'is_active' => 'boolean',
             'map_x' => 'decimal:2',
             'map_y' => 'decimal:2',
@@ -113,5 +115,13 @@ final class Zone extends Model
     public function lsrViolations(): HasMany
     {
         return $this->hasMany(LsrViolation::class);
+    }
+
+    /**
+     * @return HasMany<Permit, $this>
+     */
+    public function permits(): HasMany
+    {
+        return $this->hasMany(Permit::class);
     }
 }

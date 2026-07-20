@@ -32,7 +32,7 @@ final class CameraController extends BaseController
 
         $paginator = $query->paginate($this->perPage($request))->withQueryString();
 
-        return Inertia::render('settings/cameras/index', [
+        return Inertia::render('hardware/cameras/index', [
             'cameras' => [
                 'data' => $paginator->getCollection()->map(fn (Camera $camera): array => [
                     'id' => $camera->id,

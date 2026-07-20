@@ -55,7 +55,7 @@ export default function LsrShow({ violation, canClose }: Props) {
                                 </dt>
                                 <dd className="mt-0.5">
                                     <Link
-                                        href={`/tracking/workers/${violation.worker_id}`}
+                                        href={`/workforce/workers/${violation.worker_id}`}
                                         className="text-[color:var(--accent)] hover:underline"
                                     >
                                         {violation.worker_label}

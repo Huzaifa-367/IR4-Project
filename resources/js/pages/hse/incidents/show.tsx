@@ -252,7 +252,7 @@ export default function IncidentShow({
                                     className="flex items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
                                 >
                                     <Link
-                                        href={`/tracking/workers/${row.worker_id}`}
+                                        href={`/workforce/workers/${row.worker_id}`}
                                         className="text-[color:var(--accent)] hover:underline"
                                     >
                                         {row.worker_label}

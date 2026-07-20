@@ -5,7 +5,7 @@ alwaysApply: true
 
 # IR4 Platform — Engineering Conventions
 
-> Authoritative source: `Docs/Doc 01` through `Doc 21`. This file distills the written docs into working rules. If code and the Docs folder disagree, the Docs folder wins — fix this file, don't silently override it.
+> Authoritative source: `Docs/Doc 01` through `Doc 22`. This file distills the written docs into working rules. If code and the Docs folder disagree, the Docs folder wins — fix this file, don't silently override it.
 >
 > Repeatable procedures live as skills in `.claude/skills/` (mirrored under `.cursor/skills/` for Cursor). Use those instead of re-deriving steps.
 
@@ -34,6 +34,7 @@ alwaysApply: true
 | 19 | Rollups, allow-listed pruning, encrypted backups, `ir4:export-all` / `ir4:secure-wipe` |
 | 20 | On-prem deploy/ops runbook: Dell R360, Supervisor, Nginx LAN fences, DB grants, ZT411, commissioning checklist |
 | 21 | Testing strategy: endpoint matrix, invariant guards, scenario catalogue, CI gates (Pint/PHPStan/TS/enum-sync/on-prem grep) |
+| 22 | Permit to Work: GI 2.100-aligned flow; dynamic types/tests/checklists; worker document packs; RFID/gas cross-detection |
 
 `[CONFIRM AT DESIGN]` items in docs: **implement the documented default** until the client confirms otherwise. Do not invent a third option.
 
@@ -84,6 +85,7 @@ Machine truth is immutable. Human judgment is always path ③. Alerts are path �
 - **Audit (DOC-17):** append-only; mask secrets; config/security models via `Auditable`; read-only roles get allow-listed `data_access`; no user create/update/delete of audit rows.
 - **Settings (DOC-18):** whitelist only via `SettingsRegistry`; per-key permissions; sensitive keys need confirm; printer/backup paths stay `.env`.
 - **Retention (DOC-19):** prune allow-list only; compliance never pruned; encrypted separate-volume backups; wipe requires verified export + confirm phrase.
+- **Permit to Work (DOC-22):** GI 2.100-aligned flow; **dynamic** types/tests/checklists/doc packs (not hardcoded enums); worker document gate; issuer/receiver certs; RFID/gas cross-detection suggests LSR (never auto-creates).
 
 ## 7. RBAC — never check role names
 

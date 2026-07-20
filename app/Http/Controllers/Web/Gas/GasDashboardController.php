@@ -27,6 +27,7 @@ final class GasDashboardController extends BaseController
         abort_unless($request->user()?->can('view-gas'), 403);
 
         [$range, $from, $to] = TrendRange::resolve($request);
+        $deviceId = $request->filled('device_id') ? $request->integer('device_id') : null;
 
         $thresholds = GasThreshold::query()
             ->where('is_active', true)
@@ -41,13 +42,18 @@ final class GasDashboardController extends BaseController
             ]);
 
         return Inertia::render('gas/index', [
-            'snapshot' => $gas->dashboardSnapshot($from, $to),
+            'snapshot' => $gas->dashboardSnapshot($from, $to, $deviceId),
             'panels' => $gas->livePanels(),
             'filters' => [
+                'device_id' => $deviceId !== null ? (string) $deviceId : '',
                 'range' => $range,
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
             ],
+            'devices' => Device::query()
+                ->whereIn('device_type', [DeviceType::GasDetector, DeviceType::Co2Sensor])
+                ->orderBy('name')
+                ->get(['id', 'name', 'reference']),
             'thresholds' => $thresholds,
             'canManageThresholds' => $request->user()?->can('manage-gas-thresholds') ?? false,
             'canAcknowledge' => $request->user()?->can('acknowledge-alerts') ?? false,
@@ -61,7 +67,7 @@ final class GasDashboardController extends BaseController
         return ApiResponse::ok(['panels' => $gas->livePanels()]);
     }
 
-    public function trends(Request $request, GasMonitoringService $gas): InertiaResponse|JsonResponse
+    public function trends(Request $request, GasMonitoringService $gas): JsonResponse|RedirectResponse
     {
         abort_unless($request->user()?->can('view-gas'), 403);
 
@@ -75,19 +81,12 @@ final class GasDashboardController extends BaseController
             return ApiResponse::ok($gas->trends($deviceId, $gasType, $from, $to));
         }
 
-        return Inertia::render('gas/trends/index', [
-            'snapshot' => $gas->dashboardSnapshot($from, $to, $deviceId),
-            'filters' => [
-                'device_id' => $deviceId !== null ? (string) $deviceId : '',
-                'range' => $range,
-                'from' => $from->toDateString(),
-                'to' => $to->toDateString(),
-            ],
-            'devices' => Device::query()
-                ->whereIn('device_type', [DeviceType::GasDetector, DeviceType::Co2Sensor])
-                ->orderBy('name')
-                ->get(['id', 'name', 'reference']),
-        ]);
+        return redirect()->route('gas.index', array_filter([
+            'device_id' => $deviceId,
+            'range' => $range,
+            'from' => $request->query('from'),
+            'to' => $request->query('to'),
+        ], static fn (mixed $value): bool => $value !== null && $value !== ''));
     }
 
     public function alarms(Request $request, GasMonitoringService $gas): InertiaResponse

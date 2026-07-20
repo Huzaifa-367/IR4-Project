@@ -23,19 +23,12 @@ createInertiaApp({
                 return AuthLayout;
             case name.startsWith('display/'):
                 return DisplayLayout;
-            case name.startsWith('settings/roles') ||
-                name.startsWith('settings/users') ||
-                name.startsWith('settings/assets') ||
-                name.startsWith('settings/cameras') ||
-                name.startsWith('settings/devices') ||
-                name.startsWith('settings/zones') ||
-                name.startsWith('settings/repositioning') ||
-                name.startsWith('settings/readers') ||
-                name.startsWith('settings/general') ||
-                name.startsWith('settings/audit-log'):
-                return AppLayout;
-            case name.startsWith('settings/'):
+            // Personal account settings keep the nested settings chrome.
+            case name === 'settings/profile' ||
+                name === 'settings/security' ||
+                name === 'settings/appearance':
                 return [AppLayout, SettingsLayout];
+            // Command-centre pages (including regrouped hardware/access/workforce).
             default:
                 return AppLayout;
         }

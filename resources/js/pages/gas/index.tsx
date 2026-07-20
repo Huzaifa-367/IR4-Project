@@ -11,6 +11,14 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import { gasInfo } from '@/lib/analytics-info';
@@ -18,16 +26,20 @@ import { buildTrendChartData, trendChartSeries } from '@/lib/trend-chart';
 import { GasTypeLabels } from '@/types/enums';
 import type { GasDashboardSnapshot, GasLivePanel, GasThreshold } from '@/types/gas';
 
+const ALL_DEVICES = 'all';
+
 type RangeValue = 'day' | 'week' | 'custom';
 
 type Props = {
     snapshot: GasDashboardSnapshot;
     panels: GasLivePanel[];
     filters: {
+        device_id: string;
         range: string;
         from: string;
         to: string;
     };
+    devices: Array<{ id: number; name: string; reference: string }>;
     thresholds: Record<string, GasThreshold>;
     canManageThresholds: boolean;
     canAcknowledge: boolean;
@@ -167,10 +179,14 @@ export default function GasDashboard({
     snapshot: initialSnapshot,
     panels: initialPanels,
     filters,
+    devices,
     thresholds,
     canManageThresholds,
 }: Props) {
     const [panels, setPanels] = useState(initialPanels);
+    const [deviceId, setDeviceId] = usePropSyncedState(
+        filters.device_id || ALL_DEVICES,
+    );
     const [range, setRange] = usePropSyncedState<RangeValue>(
         (filters.range as RangeValue) || 'day',
     );
@@ -218,6 +234,34 @@ export default function GasDashboard({
     const h2s = metricByKey.get('h2s');
     const o2 = metricByKey.get('o2');
 
+    const applyFilters = (
+        patch: Partial<{
+            device_id: string;
+            range: string;
+            from: string;
+            to: string;
+        }>,
+    ): void => {
+        const nextDevice = patch.device_id ?? deviceId;
+        const nextRange = (patch.range ?? range) as RangeValue;
+
+        router.get(
+            '/gas',
+            {
+                device_id:
+                    nextDevice === ALL_DEVICES ? undefined : nextDevice,
+                range: nextRange,
+                from: nextRange === 'custom' ? (patch.from ?? from) : undefined,
+                to: nextRange === 'custom' ? (patch.to ?? to) : undefined,
+            },
+            {
+                only: ['snapshot', 'filters'],
+                preserveState: true,
+                replace: true,
+            },
+        );
+    };
+
     const applyRange = (nextRange: RangeValue): void => {
         setRange(nextRange);
 
@@ -225,28 +269,18 @@ export default function GasDashboard({
             return;
         }
 
-        router.get(
-            '/gas',
-            { range: nextRange },
-            {
-                only: ['snapshot', 'filters'],
-                preserveState: true,
-                replace: true,
-            },
-        );
+        applyFilters({ range: nextRange });
     };
 
     const applyCustomRange = (): void => {
-        router.get(
-            '/gas',
-            { range: 'custom', from, to },
-            {
-                only: ['snapshot', 'filters'],
-                preserveState: true,
-                replace: true,
-            },
-        );
+        applyFilters({ range: 'custom', from, to });
     };
+
+    const deviceLabel =
+        deviceId === ALL_DEVICES
+            ? 'All devices'
+            : (devices.find((d) => String(d.id) === deviceId)?.name ??
+              'Selected device');
 
     return (
         <>
@@ -260,7 +294,7 @@ export default function GasDashboard({
                         </h1>
                         <p className="mt-1 text-sm text-text-dim">
                             {panels.length} detectors ·{' '}
-                            {snapshot.open_alarms} open alarms
+                            {snapshot.open_alarms} open alarms · {deviceLabel}
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -268,12 +302,11 @@ export default function GasDashboard({
                         <Button asChild size="sm" variant="secondary">
                             <Link href="/gas/alarms">Alarms</Link>
                         </Button>
-                        <Button asChild size="sm" variant="secondary">
-                            <Link href="/gas/trends">Trends</Link>
-                        </Button>
                         {canManageThresholds ? (
                             <Button asChild size="sm" variant="outline">
-                                <Link href="/gas/thresholds">Thresholds</Link>
+                                <Link href="/settings/gas-thresholds">
+                                    Thresholds
+                                </Link>
                             </Button>
                         ) : null}
                     </div>
@@ -361,6 +394,36 @@ export default function GasDashboard({
                                 }
                             >
                                 <div className="flex flex-wrap items-center gap-2">
+                                    <Select
+                                        value={deviceId}
+                                        onValueChange={(value) => {
+                                            setDeviceId(value);
+                                            applyFilters({
+                                                device_id: value,
+                                            });
+                                        }}
+                                    >
+                                        <SelectTrigger className="h-8 w-44">
+                                            <SelectValue placeholder="Device" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectGroup>
+                                                <SelectItem
+                                                    value={ALL_DEVICES}
+                                                >
+                                                    All devices
+                                                </SelectItem>
+                                                {devices.map((d) => (
+                                                    <SelectItem
+                                                        key={d.id}
+                                                        value={String(d.id)}
+                                                    >
+                                                        {d.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        </SelectContent>
+                                    </Select>
                                     <RangeToggle
                                         options={RANGE_OPTIONS}
                                         value={range}
@@ -414,11 +477,11 @@ export default function GasDashboard({
                             <CardHeading
                                 title="Range Statistics"
                                 info={gasInfo.rangeStats}
-                                description="Site-wide min, average, and max"
+                                description="Min, average, and max per channel"
                             />
                         </CardHeader>
                         <CardContent className="flex flex-col gap-5 px-4 md:px-5">
-                            {snapshot.metrics.slice(0, 4).map((metric) => (
+                            {snapshot.metrics.map((metric) => (
                                 <div
                                     key={metric.key}
                                     className="flex flex-col gap-2"

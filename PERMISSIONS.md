@@ -50,6 +50,16 @@
 - `log-lsr`
 - `close-lsr`
 
+### Permit to Work
+
+- `view-permits`
+- `request-permit`
+- `issue-permit`
+- `approve-permit`
+- `perform-gas-test`
+- `manage-permit-catalogue`
+- `manage-worker-documents`
+
 ### Reports
 
 - `view-reports`
@@ -76,6 +86,8 @@
 | Super Admin | system | _all_ |
 | Client Representative | read-only | _none_ |
 | Field Staff | — | _none_ |
+| Permit Issuer | — | `approve-permit`, `issue-permit`, `perform-gas-test`, `view-permits` |
+| Permit Receiver | — | `request-permit`, `view-permits` |
 | Project Manager | read-only | `view-dashboard`, `view-equipment`, `view-reports`, `view-tracking` |
-| SCC Operator | — | `acknowledge-alerts`, `close-lsr`, `configure-alerts`, `log-incidents`, `log-lsr`, `log-vehicle-violations`, `manage-equipment`, `manage-evacuation`, `manage-portable-devices`, `manage-tags`, `manage-workers`, `manage-zones`, `review-ppe`, `trigger-evacuation`, `view-dashboard`, `view-entry-exit`, `view-equipment`, `view-gas`, `view-incidents`, `view-live-cameras`, `view-lsr`, `view-ppe`, `view-reports`, `view-tracking`, `view-worker-identity` |
-| Safety Manager | — | `acknowledge-alerts`, `classify-incidents`, `close-lsr`, `configure-alerts`, `export-ppe-reports`, `generate-reports`, `log-incidents`, `log-lsr`, `log-vehicle-violations`, `manage-devices`, `manage-equipment`, `manage-evacuation`, `manage-gas-thresholds`, `manage-portable-devices`, `manage-settings`, `manage-tags`, `manage-users`, `manage-workers`, `manage-zones`, `publish-reports`, `review-ppe`, `trigger-evacuation`, `view-audit-log`, `view-dashboard`, `view-entry-exit`, `view-equipment`, `view-gas`, `view-incidents`, `view-live-cameras`, `view-lsr`, `view-ppe`, `view-reports`, `view-tracking`, `view-worker-identity` |
+| SCC Operator | — | `acknowledge-alerts`, `close-lsr`, `configure-alerts`, `log-incidents`, `log-lsr`, `log-vehicle-violations`, `manage-equipment`, `manage-evacuation`, `manage-portable-devices`, `manage-tags`, `manage-worker-documents`, `manage-workers`, `manage-zones`, `perform-gas-test`, `request-permit`, `review-ppe`, `trigger-evacuation`, `view-dashboard`, `view-entry-exit`, `view-equipment`, `view-gas`, `view-incidents`, `view-live-cameras`, `view-lsr`, `view-permits`, `view-ppe`, `view-reports`, `view-tracking`, `view-worker-identity` |
+| Safety Manager | — | `acknowledge-alerts`, `approve-permit`, `classify-incidents`, `close-lsr`, `configure-alerts`, `export-ppe-reports`, `generate-reports`, `issue-permit`, `log-incidents`, `log-lsr`, `log-vehicle-violations`, `manage-devices`, `manage-equipment`, `manage-evacuation`, `manage-gas-thresholds`, `manage-permit-catalogue`, `manage-portable-devices`, `manage-settings`, `manage-tags`, `manage-users`, `manage-worker-documents`, `manage-workers`, `manage-zones`, `perform-gas-test`, `publish-reports`, `request-permit`, `review-ppe`, `trigger-evacuation`, `view-audit-log`, `view-dashboard`, `view-entry-exit`, `view-equipment`, `view-gas`, `view-incidents`, `view-live-cameras`, `view-lsr`, `view-permits`, `view-ppe`, `view-reports`, `view-tracking`, `view-worker-identity` |

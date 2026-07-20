@@ -53,7 +53,7 @@ export const gasInfo = {
         summary: 'All gas channels plotted together for the selected range.',
         items: [
             'Series: LEL, H₂S, O₂, CO, CO₂.',
-            'Device filter (on Trends) scopes every channel to one detector.',
+            'Device filter scopes every channel to one detector.',
             'Falls back to hourly raw aggregation when rollups are missing.',
         ],
         source: 'gas_readings · gas_reading_rollups',
