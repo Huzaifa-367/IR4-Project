@@ -170,7 +170,168 @@ final class GasMonitoringService
             'device_id' => $r->device_id,
         ])->filter(fn (array $p): bool => $p['avg'] !== null)->values()->all();
 
-        return ['points' => $points, 'source' => 'rollup'];
+        if ($points !== []) {
+            return ['points' => $points, 'source' => 'rollup'];
+        }
+
+        return $this->trendsFromRawHourly($deviceId, $gasType, $from, $to);
+    }
+
+    /**
+     * Control-room snapshot: live panels plus multi-channel gas trends on one chart.
+     *
+     * @return array<string, mixed>
+     */
+    public function dashboardSnapshot(
+        \DateTimeInterface $from,
+        \DateTimeInterface $to,
+        ?int $deviceId = null,
+    ): array {
+        $panels = $this->livePanels();
+        if ($deviceId !== null) {
+            $panels = array_values(array_filter(
+                $panels,
+                fn (array $panel): bool => $panel['device_id'] === $deviceId,
+            ));
+        }
+        $metricDefs = [
+            ['key' => 'lel', 'gas_type' => GasType::Lel, 'label' => 'LEL', 'unit' => '%', 'column' => 'lel_pct'],
+            ['key' => 'h2s', 'gas_type' => GasType::H2s, 'label' => 'H₂S', 'unit' => 'ppm', 'column' => 'h2s_ppm'],
+            ['key' => 'o2', 'gas_type' => GasType::O2Low, 'label' => 'O₂', 'unit' => '%vol', 'column' => 'o2_pct'],
+            ['key' => 'co', 'gas_type' => GasType::Co, 'label' => 'CO', 'unit' => 'ppm', 'column' => 'co_ppm'],
+            ['key' => 'co2', 'gas_type' => GasType::Co2, 'label' => 'CO₂', 'unit' => 'ppm', 'column' => 'co2_ppm'],
+        ];
+        $trendSeries = collect($metricDefs)->map(function (array $metric) use ($from, $to, $deviceId): array {
+            $trend = $this->trends($deviceId, $metric['gas_type'], $from, $to);
+            $points = $this->aggregateTrendPoints($trend['points']);
+
+            return [
+                'key' => $metric['key'],
+                'label' => $metric['label'],
+                'unit' => $metric['unit'],
+                'source' => $trend['source'],
+                'points' => $points,
+            ];
+        })->all();
+        $metrics = collect($metricDefs)->map(function (array $metric) use ($trendSeries, $panels): array {
+            $series = collect($trendSeries)->firstWhere('key', $metric['key']);
+            $values = collect($series['points'] ?? [])
+                ->pluck('avg')
+                ->filter(fn (mixed $value): bool => is_numeric($value))
+                ->map(fn (mixed $value): float => (float) $value);
+            $current = collect($panels)
+                ->pluck($metric['column'])
+                ->filter(fn (mixed $value): bool => is_numeric($value))
+                ->map(fn (mixed $value): float => (float) $value);
+
+            return [
+                'key' => $metric['key'],
+                'label' => $metric['label'],
+                'unit' => $metric['unit'],
+                'current' => $current->isNotEmpty() ? round($current->avg(), 2) : null,
+                'min' => $values->isNotEmpty() ? round($values->min(), 2) : null,
+                'avg' => $values->isNotEmpty() ? round($values->avg(), 2) : null,
+                'max' => $values->isNotEmpty() ? round($values->max(), 2) : null,
+                'sparkline' => $values->take(-20)->values()->all(),
+            ];
+        })->all();
+        $openAlarms = collect($panels)->sum(fn (array $panel): int => count($panel['open_alarms']));
+
+        return [
+            'as_of' => now()->toIso8601String(),
+            'panel_health' => [
+                'total' => count($panels),
+                'current' => collect($panels)->where('is_stale', false)->count(),
+                'stale' => collect($panels)->where('is_stale', true)->count(),
+            ],
+            'open_alarms' => $openAlarms,
+            'metrics' => $metrics,
+            'trend' => [
+                'series' => $trendSeries,
+                'source' => collect($trendSeries)->contains(
+                    fn (array $series): bool => $series['source'] === 'rollup',
+                ) ? 'rollup' : 'raw',
+            ],
+        ];
+    }
+
+    /**
+     * @return array{points: list<array<string, mixed>>, source: string}
+     */
+    private function trendsFromRawHourly(
+        ?int $deviceId,
+        GasType $gasType,
+        Carbon $from,
+        Carbon $to,
+    ): array {
+        $column = $gasType->readingColumn();
+        $query = GasReading::query()
+            ->whereBetween('recorded_at', [$from, $to])
+            ->whereNotNull($column);
+        if ($deviceId !== null) {
+            $query->where('device_id', $deviceId);
+        }
+        $readings = $query->get();
+        if ($readings->isEmpty()) {
+            return ['points' => [], 'source' => 'raw-hourly'];
+        }
+
+        $points = $readings
+            ->groupBy(fn (GasReading $reading): string => $reading->device_id.'|'.$reading->recorded_at->copy()->startOfHour()->toIso8601String())
+            ->map(function ($group) use ($column): ?array {
+                /** @var GasReading $first */
+                $first = $group->first();
+                $values = $group
+                    ->pluck($column)
+                    ->filter(fn (mixed $value): bool => is_numeric($value))
+                    ->map(fn (mixed $value): float => (float) $value);
+                if ($values->isEmpty()) {
+                    return null;
+                }
+
+                return [
+                    'at' => $first->recorded_at->copy()->startOfHour()->toIso8601String(),
+                    'value' => (float) $values->avg(),
+                    'min' => (float) $values->min(),
+                    'avg' => (float) $values->avg(),
+                    'max' => (float) $values->max(),
+                    'device_id' => $first->device_id,
+                ];
+            })
+            ->filter()
+            ->sortBy('at')
+            ->values()
+            ->all();
+
+        return ['points' => array_values($points), 'source' => 'raw-hourly'];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $points
+     * @return list<array<string, mixed>>
+     */
+    private function aggregateTrendPoints(array $points): array
+    {
+        return collect($points)
+            ->groupBy('at')
+            ->map(function ($group, string $at): array {
+                $avgs = $group->pluck('avg')->filter(fn (mixed $value): bool => is_numeric($value));
+                $mins = $group->pluck('min')->filter(fn (mixed $value): bool => is_numeric($value));
+                $maxes = $group->pluck('max')->filter(fn (mixed $value): bool => is_numeric($value));
+                $avg = $avgs->isNotEmpty() ? round((float) $avgs->avg(), 2) : null;
+
+                return [
+                    'at' => $at,
+                    'value' => $avg,
+                    'min' => $mins->isNotEmpty() ? round((float) $mins->min(), 2) : null,
+                    'avg' => $avg,
+                    'max' => $maxes->isNotEmpty() ? round((float) $maxes->max(), 2) : null,
+                    'device_id' => null,
+                ];
+            })
+            ->sortKeys()
+            ->values()
+            ->all();
     }
 
     /**

@@ -1,14 +1,14 @@
 import { Head, usePage } from '@inertiajs/react';
 import { MoreHorizontal, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { RequirePermission } from '@/components/ir4/require-permission';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import {
     SettingsDataTable,
-    type SettingsColumn,
 } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import type { RoleOption, UserRow } from '@/types/settings-admin';
 
 type TemporaryPassword = {
@@ -67,15 +68,9 @@ export default function UsersIndex({
     const [lifecycleTarget, setLifecycleTarget] = useState<UserRow | null>(
         null,
     );
-    const [tempPassword, setTempPassword] = useState<TemporaryPassword | null>(
-        initialTemp,
-    );
+    const [tempPassword, setTempPassword] = usePropSyncedState(initialTemp);
     const [createRole, setCreateRole] = useState('');
     const [editRole, setEditRole] = useState('');
-
-    useEffect(() => {
-        setTempPassword(initialTemp);
-    }, [initialTemp]);
 
     const columns: SettingsColumn<UserRow>[] = [
         {
@@ -400,6 +395,7 @@ export default function UsersIndex({
                                 if (!tempPassword) {
                                     return;
                                 }
+
                                 await navigator.clipboard.writeText(
                                     tempPassword.password,
                                 );

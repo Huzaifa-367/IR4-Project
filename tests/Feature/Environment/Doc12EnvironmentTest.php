@@ -181,6 +181,45 @@ it('uses raw data for a day and rollups beyond 24 hours including extra paramete
         ->assertJsonPath('data.source', 'raw');
 });
 
+it('falls back to hourly raw aggregation when rollups are missing', function () {
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $device = Device::factory()->create([
+        'device_type' => DeviceType::EnvironmentalSensor,
+    ]);
+    $recordedAt = now()->subDays(3)->startOfHour()->addMinutes(15);
+
+    EnvironmentalReading::factory()->create([
+        'device_id' => $device->id,
+        'asset_id' => $device->asset_id,
+        'recorded_at' => $recordedAt,
+        'received_at' => $recordedAt,
+        'temperature_c' => 22,
+        'humidity_pct' => 50,
+        'wind_speed_ms' => 3,
+    ]);
+    EnvironmentalReading::factory()->create([
+        'device_id' => $device->id,
+        'asset_id' => $device->asset_id,
+        'recorded_at' => $recordedAt->copy()->addMinutes(30),
+        'received_at' => $recordedAt->copy()->addMinutes(30),
+        'temperature_c' => 26,
+        'humidity_pct' => 55,
+        'wind_speed_ms' => 4,
+    ]);
+
+    expect(EnvironmentalRollup::query()->count())->toBe(0);
+
+    $this->actingAs($admin)
+        ->getJson(route('environment.trends', [
+            'parameter' => 'temperature_c',
+            'device_id' => $device->id,
+            'range' => 'week',
+        ]))
+        ->assertOk()
+        ->assertJsonPath('data.source', 'raw-hourly')
+        ->assertJsonPath('data.points.0.avg', 24);
+});
+
 it('gates all environmental reads with view-dashboard and exposes no write route', function () {
     $user = User::factory()->withRole('Field Staff')->create();
     $viewer = User::factory()->withRole('Project Manager')->create();

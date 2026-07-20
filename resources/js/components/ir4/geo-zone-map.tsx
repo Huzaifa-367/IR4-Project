@@ -1,6 +1,7 @@
 import maplibregl, { setWorkerUrl } from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker.js?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { Protocol } from 'pmtiles';
 import { useEffect, useRef, useState } from 'react';
 import { circlePolygon } from '@/lib/geo';
 
@@ -17,74 +18,25 @@ const workerReady = fetch(maplibreWorkerUrl)
     })
     .catch(() => undefined);
 
-/** Gulf region basemap: local country outlines + city labels, no remote tiles or fonts (DOC-06 offline map). */
+let protocolRegistered = false;
+function ensurePmtilesProtocol(): void {
+    if (protocolRegistered) {
+        return;
+    }
+
+    protocolRegistered = true;
+    const protocol = new Protocol();
+    maplibregl.addProtocol('pmtiles', protocol.tile);
+}
+
+/**
+ * Offline Gulf basemap — real OpenStreetMap vector tiles (roads, places,
+ * water, boundaries) bundled locally as pmtiles, covering the whole Gulf
+ * region up to zoom 11, so any zone location has real map detail once
+ * zoomed in — not just one hardcoded facility. No live tile server (DOC-06).
+ */
 const GULF_CENTER: [number, number] = [48.5, 24.2];
-
-const BASE_STYLE: maplibregl.StyleSpecification = {
-    version: 8,
-    sources: {
-        countries: { type: 'geojson', data: '/maps/gulf-countries.geojson' },
-    },
-    layers: [
-        {
-            id: 'sea',
-            type: 'background',
-            paint: { 'background-color': '#0c2536' },
-        },
-        {
-            id: 'country-fill',
-            type: 'fill',
-            source: 'countries',
-            paint: { 'fill-color': '#d9c39a', 'fill-opacity': 0.95 },
-        },
-        {
-            id: 'country-outline',
-            type: 'line',
-            source: 'countries',
-            paint: {
-                'line-color': '#e0473f',
-                'line-width': 1.5,
-                'line-dasharray': [2, 1.5],
-            },
-        },
-    ],
-};
-
-type CityFeature = { name: string };
-
-async function loadCities(): Promise<
-    Array<{ name: string; lng: number; lat: number }>
-> {
-    const response = await fetch('/maps/gulf-cities.geojson');
-    const data = (await response.json()) as {
-        features: Array<{
-            properties: CityFeature;
-            geometry: { coordinates: [number, number] };
-        }>;
-    };
-
-    return data.features.map((feature) => ({
-        name: feature.properties.name,
-        lng: feature.geometry.coordinates[0],
-        lat: feature.geometry.coordinates[1],
-    }));
-}
-
-function cityLabelElement(name: string): HTMLDivElement {
-    const el = document.createElement('div');
-    el.className =
-        'pointer-events-none rounded-pill bg-[#0c2536]/70 px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap text-white shadow';
-    el.textContent = name;
-
-    return el;
-}
-
-function cityDotElement(): HTMLDivElement {
-    const el = document.createElement('div');
-    el.className = 'size-1.5 rounded-full bg-white/80';
-
-    return el;
-}
+const STYLE_URL = '/maptiles/style.json';
 
 /** Creates the offline Gulf basemap once and exposes the live instance via state. */
 function useBaseMap(
@@ -103,51 +55,52 @@ function useBaseMap(
         let instance: maplibregl.Map | null = null;
         let resizeObserver: ResizeObserver | null = null;
 
-        workerReady.then(() => {
-            if (cancelled || !containerRef.current) {
-                return;
-            }
+        ensurePmtilesProtocol();
 
-            instance = new maplibregl.Map({
-                container: containerRef.current,
-                style: BASE_STYLE,
-                center,
-                zoom,
-                attributionControl: false,
-                dragRotate: false,
-                pitchWithRotate: false,
-                touchPitch: false,
+        Promise.all([workerReady, fetch(STYLE_URL).then((r) => r.json())])
+            .then(([, style]: [unknown, maplibregl.StyleSpecification]) => {
+                if (cancelled || !containerRef.current) {
+                    return;
+                }
+
+                // MapLibre requires absolute sprite/glyphs URLs; the style
+                // file itself is static, so resolve them against our origin.
+                // (Plain concatenation, not the URL constructor — it would
+                // percent-encode the "{fontstack}"/"{range}" template tokens.)
+                if (style.sprite && typeof style.sprite === 'string') {
+                    style.sprite = window.location.origin + style.sprite;
+                }
+
+                if (style.glyphs) {
+                    style.glyphs = window.location.origin + style.glyphs;
+                }
+
+                instance = new maplibregl.Map({
+                    container: containerRef.current,
+                    style,
+                    center,
+                    zoom,
+                    attributionControl: false,
+                    dragRotate: false,
+                    pitchWithRotate: false,
+                    touchPitch: false,
+                });
+
+                instance.on('error', (event) => {
+                    console.error('Gulf basemap error', event.error);
+                });
+
+                // The container's real size (aspect-ratio/flex layout) isn't
+                // known synchronously at construction, so the canvas can init
+                // at a stale fallback size — keep it in sync as layout settles.
+                resizeObserver = new ResizeObserver(() => instance?.resize());
+                resizeObserver.observe(containerRef.current);
+
+                setMap(instance);
+            })
+            .catch((err: unknown) => {
+                console.error('Gulf basemap failed to initialize', err);
             });
-
-            instance.on('error', (event) => {
-                console.error('Gulf basemap error', event.error);
-            });
-
-            // The container's real size (aspect-ratio/flex layout) isn't known
-            // synchronously at construction, so the canvas can init at a stale
-            // fallback size — keep it in sync as layout settles.
-            resizeObserver = new ResizeObserver(() => instance?.resize());
-            resizeObserver.observe(containerRef.current);
-
-            loadCities()
-                .then((cities) => {
-                    cities.forEach((city) => {
-                        new maplibregl.Marker({ element: cityDotElement() })
-                            .setLngLat([city.lng, city.lat])
-                            .addTo(instance as maplibregl.Map);
-                        new maplibregl.Marker({
-                            element: cityLabelElement(city.name),
-                            anchor: 'left',
-                            offset: [6, 0],
-                        })
-                            .setLngLat([city.lng, city.lat])
-                            .addTo(instance as maplibregl.Map);
-                    });
-                })
-                .catch(() => undefined);
-
-            setMap(instance);
-        });
 
         return () => {
             cancelled = true;
@@ -170,8 +123,11 @@ type ViewZone = {
     radius_meters: string | number | null;
 };
 
+type ZoneOccupancy = { zone_id: number; count: number };
+
 type ZoneMapViewProps = {
     zones: ViewZone[];
+    occupancy?: ZoneOccupancy[];
     onSelect?: (zone: ViewZone) => void;
     className?: string;
 };
@@ -179,13 +135,15 @@ type ZoneMapViewProps = {
 /** Read-only Gulf map plotting every zone with a location as a geofence circle. */
 export function GeoZoneMapView({
     zones,
+    occupancy = [],
     onSelect,
     className = '',
 }: ZoneMapViewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const map = useBaseMap(containerRef, GULF_CENTER, 5);
     const located = zones.filter((z) => z.latitude && z.longitude);
-    const locatedKey = JSON.stringify(located);
+    const countByZone = new Map(occupancy.map((o) => [o.zone_id, o.count]));
+    const locatedKey = JSON.stringify(located) + JSON.stringify(occupancy);
 
     useEffect(() => {
         if (!map) {
@@ -242,11 +200,13 @@ export function GeoZoneMapView({
             }
 
             located.forEach((zone) => {
+                const count = countByZone.get(zone.id);
                 const el = document.createElement('button');
                 el.type = 'button';
                 el.className =
                     'rounded-pill border border-white/70 bg-[color:var(--accent)] px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-white shadow-[var(--shadow-pop)] hover:brightness-110';
-                el.textContent = zone.name;
+                el.textContent =
+                    count !== undefined ? `${zone.name} (${count})` : zone.name;
                 el.onclick = () => onSelect?.(zone);
                 const marker = new maplibregl.Marker({
                     element: el,

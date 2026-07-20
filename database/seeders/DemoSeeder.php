@@ -55,6 +55,7 @@ use App\Models\Worker;
 use App\Models\WorkerPosition;
 use App\Models\Zone;
 use App\Models\ZoneAccessListEntry;
+use App\Services\SensorRollupService;
 use App\Services\WeeklyReportService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
@@ -723,6 +724,8 @@ final class DemoSeeder extends Seeder
         if ($envRows !== []) {
             EnvironmentalReading::query()->insert($envRows);
         }
+
+        app(SensorRollupService::class)->rebuildEnvRange($this->from, $this->to);
     }
 
     private function seedPpeHistory(): void

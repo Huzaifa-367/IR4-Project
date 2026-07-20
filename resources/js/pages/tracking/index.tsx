@@ -1,16 +1,14 @@
-import { Head, Link } from '@inertiajs/react';
-import { useCallback, useEffect, useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
+import { useCallback, useState } from 'react';
 import Heading from '@/components/heading';
+import { GeoZoneMapView } from '@/components/ir4/geo-zone-map';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { StatCard } from '@/components/ir4/stat-card';
-import { ZoneMap } from '@/components/ir4/zone-map';
 import { Button } from '@/components/ui/button';
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
-import type {
-    HeadcountSnapshot,
-    TrackingPosition,
-    TrackingZone,
-} from '@/types/tracking';
+import { trackingInfo } from '@/lib/analytics-info';
+import type { HeadcountSnapshot, TrackingZone } from '@/types/tracking';
 
 type Props = {
     headcount: HeadcountSnapshot;
@@ -23,8 +21,7 @@ export default function TrackingIndex({
     canSeePositions,
     canTriggerEvacuation,
 }: Props) {
-    const [headcount, setHeadcount] = useState(initialHeadcount);
-    const [positions, setPositions] = useState<TrackingPosition[]>([]);
+    const [headcount, setHeadcount] = usePropSyncedState(initialHeadcount);
     const [zones, setZones] = useState<TrackingZone[]>([]);
 
     const loadSnapshots = useCallback(async (): Promise<void> => {
@@ -49,12 +46,11 @@ export default function TrackingIndex({
 
         if (posRes.ok) {
             const json = (await posRes.json()) as {
-                data: { positions: TrackingPosition[]; zones: TrackingZone[] };
+                data: { zones: TrackingZone[] };
             };
-            setPositions(json.data.positions);
             setZones(json.data.zones);
         }
-    }, [canSeePositions]);
+    }, [canSeePositions, setHeadcount]);
 
     const { status } = useReverbChannel({
         channel: 'tracking',
@@ -86,10 +82,6 @@ export default function TrackingIndex({
         },
         pollIntervalMs: 30_000,
     });
-
-    useEffect(() => {
-        void loadSnapshots();
-    }, [loadSnapshots]);
 
     return (
         <>
@@ -124,18 +116,26 @@ export default function TrackingIndex({
                     <StatCard
                         label="Total on site"
                         value={headcount.total_on_site}
+                        info={trackingInfo.onSite}
                     />
                     {headcount.by_zone.map((zone) => (
                         <StatCard
                             key={zone.zone_id}
                             label={zone.zone_name}
                             value={zone.count}
+                            info={trackingInfo.zone}
                         />
                     ))}
                 </div>
 
                 {canSeePositions ? (
-                    <ZoneMap zones={zones} positions={positions} />
+                    <GeoZoneMapView
+                        zones={zones}
+                        occupancy={headcount.by_zone}
+                        onSelect={(zone) =>
+                            router.visit(`/settings/zones/${zone.id}`)
+                        }
+                    />
                 ) : (
                     <p className="text-sm text-text-faint">
                         Headcount-only view — position map requires additional

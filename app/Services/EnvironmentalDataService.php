@@ -127,7 +127,74 @@ final class EnvironmentalDataService
             ->filter(fn (array $point): bool => $point['avg'] !== null)
             ->all());
 
-        return ['points' => $points, 'source' => 'rollup'];
+        if ($points !== []) {
+            return ['points' => $points, 'source' => 'rollup'];
+        }
+
+        return $this->trendsFromRawHourly($parameter, $deviceId, $from, $to);
+    }
+
+    /**
+     * Build hourly trend points from raw readings when rollups are missing
+     * (e.g. bulk backfill or demo seed before rollup rebuild).
+     *
+     * @return array{points: list<array<string, mixed>>, source: string}
+     */
+    private function trendsFromRawHourly(
+        string $parameter,
+        ?int $deviceId,
+        Carbon $from,
+        Carbon $to,
+    ): array {
+        $query = EnvironmentalReading::query()
+            ->whereBetween('recorded_at', [$from, $to]);
+        if ($deviceId !== null) {
+            $query->where('device_id', $deviceId);
+        }
+        $readings = $query->get();
+        if ($readings->isEmpty()) {
+            return ['points' => [], 'source' => 'rollup'];
+        }
+
+        $points = $readings
+            ->groupBy(fn (EnvironmentalReading $reading): string => $reading->device_id.'|'.$reading->recorded_at->copy()->startOfHour()->toIso8601String())
+            ->map(function ($group) use ($parameter): ?array {
+                /** @var EnvironmentalReading $first */
+                $first = $group->first();
+                $values = $group
+                    ->map(fn (EnvironmentalReading $reading): ?float => $this->metricValue($reading, $parameter))
+                    ->filter(fn (?float $value): bool => $value !== null);
+                if ($values->isEmpty()) {
+                    return null;
+                }
+
+                return [
+                    'at' => $first->recorded_at->copy()->startOfHour()->toIso8601String(),
+                    'value' => (float) $values->avg(),
+                    'min' => (float) $values->min(),
+                    'avg' => (float) $values->avg(),
+                    'max' => (float) $values->max(),
+                    'device_id' => $first->device_id,
+                ];
+            })
+            ->filter()
+            ->sortBy('at')
+            ->values()
+            ->all();
+
+        return ['points' => array_values($points), 'source' => 'raw-hourly'];
+    }
+
+    private function metricValue(EnvironmentalReading $reading, string $parameter): ?float
+    {
+        $column = match ($parameter) {
+            'temperature_c' => $reading->temperature_c,
+            'humidity_pct' => $reading->humidity_pct,
+            'wind_speed_ms' => $reading->wind_speed_ms,
+            default => $reading->extra[$parameter] ?? null,
+        };
+
+        return is_numeric($column) ? (float) $column : null;
     }
 
     /**
@@ -259,13 +326,7 @@ final class EnvironmentalDataService
     /** @return array<string, mixed> */
     private function rawPoint(EnvironmentalReading $reading, string $parameter): array
     {
-        $column = match ($parameter) {
-            'temperature_c' => $reading->temperature_c,
-            'humidity_pct' => $reading->humidity_pct,
-            'wind_speed_ms' => $reading->wind_speed_ms,
-            default => $reading->extra[$parameter] ?? null,
-        };
-        $value = is_numeric($column) ? (float) $column : null;
+        $value = $this->metricValue($reading, $parameter);
 
         return [
             'at' => $reading->recorded_at->toIso8601String(),

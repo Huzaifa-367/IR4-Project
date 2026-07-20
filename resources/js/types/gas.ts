@@ -53,7 +53,37 @@ export type GasTrendSeries = {
         min: number | null;
         avg: number | null;
         max: number | null;
-        device_id: number;
+        device_id: number | null;
     }>;
     source: string;
+};
+
+export type GasDashboardSnapshot = {
+    as_of: string;
+    panel_health: {
+        total: number;
+        current: number;
+        stale: number;
+    };
+    open_alarms: number;
+    metrics: Array<{
+        key: string;
+        label: string;
+        unit: string;
+        current: number | null;
+        min: number | null;
+        avg: number | null;
+        max: number | null;
+        sparkline: number[];
+    }>;
+    trend: {
+        source: string;
+        series: Array<{
+            key: string;
+            label: string;
+            unit: string;
+            source: string;
+            points: GasTrendSeries['points'];
+        }>;
+    };
 };

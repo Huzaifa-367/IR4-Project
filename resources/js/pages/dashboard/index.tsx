@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnalyticalChart } from '@/components/ir4/analytical-chart';
 import { DonutChart, RadialGauge } from '@/components/ir4/donut-chart';
 import { GasChannelGauges } from '@/components/ir4/gas-channel-gauges';
+import { GeoZoneMapView } from '@/components/ir4/geo-zone-map';
 import { HorizontalBars } from '@/components/ir4/horizontal-bars';
 import { LiveFeed } from '@/components/ir4/live-feed';
 import { MetricRow } from '@/components/ir4/metric-row';
@@ -13,24 +14,37 @@ import { PpeHeatmap } from '@/components/ir4/ppe-heatmap';
 import { RangeToggle } from '@/components/ir4/range-toggle';
 import { StatCard } from '@/components/ir4/stat-card';
 import { StatusPill } from '@/components/ir4/status-pill';
-import { ZoneMap } from '@/components/ir4/zone-map';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { usePermissions } from '@/hooks/use-permissions';
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
+import { dashboardInfo } from '@/lib/dashboard-info';
 import { dashboard } from '@/routes';
 import type {
     DashboardPermissions,
+    DashboardRange,
     DashboardSummary,
-    GasRange,
 } from '@/types/dashboard';
 import { systemHealthAssets } from '@/types/dashboard';
-import type { TrackingPosition, TrackingZone } from '@/types/tracking';
+import type { TrackingZone } from '@/types/tracking';
 
 type Props = {
     summary: DashboardSummary;
     permissions: DashboardPermissions;
-    gasRange?: GasRange;
+    filters?: {
+        range: string;
+        from: string;
+        to: string;
+    };
 };
+
+const RANGE_OPTIONS = [
+    { value: 'today' as const, label: 'Today' },
+    { value: 'yesterday' as const, label: 'Yesterday' },
+    { value: 'week' as const, label: '7d' },
+    { value: 'custom' as const, label: 'Custom' },
+];
 
 function unwrapSummary(payload: unknown): DashboardSummary {
     if (
@@ -59,35 +73,54 @@ function formatClock(iso?: string): string {
 export default function DashboardIndex({
     summary: initial,
     permissions,
-    gasRange: initialRange = 'shift',
+    filters,
 }: Props) {
-    const [summary, setSummary] = useState(initial);
-    const [gasRange, setGasRange] = useState<GasRange>(initialRange);
+    const [defaultDay] = useState(() => new Date().toISOString().slice(0, 10));
+    const [summary, setSummary] = usePropSyncedState(initial);
+    const [range, setRange] = usePropSyncedState<DashboardRange>(
+        (filters?.range as DashboardRange) || 'today',
+    );
+    const [from, setFrom] = usePropSyncedState(filters?.from ?? defaultDay);
+    const [to, setTo] = usePropSyncedState(filters?.to ?? defaultDay);
     const [alertFilter, setAlertFilter] = useState<'all' | 'crit'>('all');
     const [clock, setClock] = useState(() => formatClock(initial.meta?.as_of));
     const { can } = usePermissions();
 
     const onSnapshot = useCallback((payload: unknown) => {
         setSummary(unwrapSummary(payload));
-    }, []);
+    }, [setSummary]);
+
+    const summaryQuery = useCallback(
+        (nextRange: DashboardRange = range, nextFrom = from, nextTo = to) => {
+            const params = new URLSearchParams({ range: nextRange });
+
+            if (nextRange === 'custom') {
+                params.set('from', nextFrom);
+                params.set('to', nextTo);
+            }
+
+            return `/api/dashboard/summary?${params.toString()}`;
+        },
+        [range, from, to],
+    );
 
     const fetchSummary = useCallback(
-        (range: GasRange = gasRange) => {
-            void fetch(`/api/dashboard/summary?gas_range=${range}`, {
+        (nextRange: DashboardRange = range, nextFrom = from, nextTo = to) => {
+            void fetch(summaryQuery(nextRange, nextFrom, nextTo), {
                 headers: { Accept: 'application/json' },
                 credentials: 'same-origin',
             })
                 .then((r) => r.json())
                 .then(onSnapshot);
         },
-        [gasRange, onSnapshot],
+        [summaryQuery, range, from, to, onSnapshot],
     );
 
     useReverbChannel({
         channel: 'alerts',
         events: ['.alert.raised', '.alert.updated'],
         onEvent: () => fetchSummary(),
-        snapshotUrl: `/api/dashboard/summary?gas_range=${gasRange}`,
+        snapshotUrl: summaryQuery(),
         onSnapshot,
         pollIntervalMs: 60_000,
     });
@@ -114,13 +147,39 @@ export default function DashboardIndex({
         return () => window.clearInterval(id);
     }, []);
 
-    const onGasRange = (range: GasRange) => {
-        setGasRange(range);
-        fetchSummary(range);
+    const applyRange = (nextRange: DashboardRange): void => {
+        setRange(nextRange);
+
+        if (nextRange === 'custom') {
+            return;
+        }
+
+        router.get(
+            '/dashboard',
+            { range: nextRange },
+            {
+                only: ['summary', 'filters'],
+                preserveState: true,
+                replace: true,
+            },
+        );
     };
 
+    const applyCustomRange = (): void => {
+        router.get(
+            '/dashboard',
+            { range: 'custom', from, to },
+            {
+                only: ['summary', 'filters'],
+                preserveState: true,
+                replace: true,
+            },
+        );
+    };
+
+    const rangeLabel =
+        summary.meta?.range_label ?? 'Today';
     const zones = (summary.map?.zones ?? []) as TrackingZone[];
-    const positions = (summary.map?.positions ?? []) as TrackingPosition[];
     const showMap = permissions.view_tracking && can('view-tracking');
     const showGas = permissions.view_gas && can('view-gas');
     const healthAssets = systemHealthAssets(summary.system_health);
@@ -195,7 +254,7 @@ export default function DashboardIndex({
         });
     }, [summary.alerts?.latest, alertFilter]);
 
-    const deltaManpower = summary.headcount?.delta_vs_shift_start ?? 0;
+    const deltaManpower = summary.headcount?.delta_vs_range_start ?? 0;
     const openRecords = summary.open_records ?? [];
     const canEvacuate =
         permissions.trigger_evacuation || can('trigger-evacuation');
@@ -206,18 +265,53 @@ export default function DashboardIndex({
             <div className="flex flex-col gap-4 p-4 md:p-5">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
+                        <p className="eyebrow">Control room</p>
                         <h1 className="font-display text-xl font-semibold tracking-tight text-text md:text-2xl">
                             Site Safety Analytics
                         </h1>
                         <p className="mt-1 text-sm text-text-dim">
-                            Shift {summary.meta?.shift_label ?? '06:00–18:00'} ·
-                            live as of{' '}
+                            {rangeLabel} · live as of{' '}
                             <span className="font-mono tabular-nums">
                                 {clock}
                             </span>
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        <RangeToggle
+                            options={RANGE_OPTIONS}
+                            value={range}
+                            onChange={applyRange}
+                            aria-label="Dashboard range"
+                        />
+                        {range === 'custom' ? (
+                            <>
+                                <Input
+                                    type="date"
+                                    value={from}
+                                    onChange={(event) =>
+                                        setFrom(event.target.value)
+                                    }
+                                    className="h-8 w-[9.5rem]"
+                                    aria-label="From date"
+                                />
+                                <Input
+                                    type="date"
+                                    value={to}
+                                    onChange={(event) =>
+                                        setTo(event.target.value)
+                                    }
+                                    className="h-8 w-[9.5rem]"
+                                    aria-label="To date"
+                                />
+                                <Button
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={applyCustomRange}
+                                >
+                                    Apply
+                                </Button>
+                            </>
+                        ) : null}
                         <Button variant="outline" size="sm" asChild>
                             <Link href="/display">
                                 <Download className="size-3.5" />
@@ -251,7 +345,8 @@ export default function DashboardIndex({
                             label="Total Manpower"
                             value={summary.headcount.total_on_site}
                             href={showMap ? '/tracking' : undefined}
-                            delta={`${deltaManpower >= 0 ? '▲ +' : '▼ '}${Math.abs(deltaManpower)} vs shift start`}
+                            info={dashboardInfo.manpower}
+                            delta={`${deltaManpower >= 0 ? '▲ +' : '▼ '}${Math.abs(deltaManpower)} vs range start`}
                             deltaTone={deltaManpower >= 0 ? 'ok' : 'neutral'}
                             sparkline={summary.headcount.sparkline}
                         />
@@ -261,6 +356,7 @@ export default function DashboardIndex({
                             label="Open Alerts"
                             value={summary.alerts.open_critical}
                             href="/alerts"
+                            info={dashboardInfo.alerts}
                             pulseCrit={summary.alerts.open_critical > 0}
                             sparkline={summary.alerts.sparkline}
                             deltaTone={
@@ -286,7 +382,8 @@ export default function DashboardIndex({
                             label="PPE Compliance"
                             value={`${summary.ppe_today.compliance_pct ?? '—'}%`}
                             href="/ppe/violations"
-                            delta={`${(summary.ppe_today.compliance_delta ?? 0) >= 0 ? '▲ +' : '▼ '}${Math.abs(summary.ppe_today.compliance_delta ?? 0)}% vs yesterday`}
+                            info={dashboardInfo.ppeCompliance}
+                            delta={`${(summary.ppe_today.compliance_delta ?? 0) >= 0 ? '▲ +' : '▼ '}${Math.abs(summary.ppe_today.compliance_delta ?? 0)}% vs prior period`}
                             deltaTone={
                                 (summary.ppe_today.compliance_delta ?? 0) >= 0
                                     ? 'ok'
@@ -299,6 +396,7 @@ export default function DashboardIndex({
                         <StatCard
                             label="System Health"
                             value={`${healthMeta?.uptime_pct ?? (healthAssets.length ? Math.round((healthAssets.filter((a) => a.status === 'green').length / healthAssets.length) * 1000) / 10 : 100)}%`}
+                            info={dashboardInfo.systemHealth}
                             delta={`${healthMeta?.online ?? healthAssets.filter((a) => a.status === 'green').length}/${healthMeta?.total ?? healthAssets.length} online`}
                             deltaTone="ok"
                             sparkline={healthMeta?.sparkline}
@@ -306,11 +404,19 @@ export default function DashboardIndex({
                     ) : null}
                 </div>
 
+                <section className="flex flex-col gap-4">
+                    <div>
+                        <p className="eyebrow">Live operations</p>
+                        <h2 className="text-sm font-semibold text-text">
+                            Presence & alerts
+                        </h2>
+                    </div>
                 <div className="grid gap-4 xl:grid-cols-12">
                     {showMap ? (
                         <Panel
                             title="Live Zone Map"
-                            subtitle="RFID zone-level presence"
+                            subtitle="RFID zone-level presence · live"
+                            info={dashboardInfo.zoneMap}
                             className="xl:col-span-8"
                             action={
                                 <Link
@@ -322,10 +428,14 @@ export default function DashboardIndex({
                             }
                         >
                             <div className="relative">
-                                <ZoneMap
+                                <GeoZoneMapView
                                     zones={zones}
-                                    positions={positions}
                                     occupancy={summary.headcount?.by_zone}
+                                    onSelect={(zone) =>
+                                        router.visit(
+                                            `/settings/zones/${zone.id}`,
+                                        )
+                                    }
                                 />
                                 <div className="mt-3 grid grid-cols-3 gap-3 rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-2">
                                     <div>
@@ -374,6 +484,7 @@ export default function DashboardIndex({
                     <Panel
                         title="Alert Feed"
                         subtitle="Live · newest first"
+                        info={dashboardInfo.alertFeed}
                         className={showMap ? 'xl:col-span-4' : 'xl:col-span-12'}
                         action={
                             <RangeToggle
@@ -390,26 +501,23 @@ export default function DashboardIndex({
                         <LiveFeed items={alertItems} />
                     </Panel>
                 </div>
+                </section>
 
                 {(showGas || summary.gas) && (
+                    <section className="flex flex-col gap-4">
+                        <div>
+                            <p className="eyebrow">Gas & atmosphere</p>
+                            <h2 className="text-sm font-semibold text-text">
+                                Trends for {rangeLabel}
+                            </h2>
+                        </div>
                     <div className="grid gap-4 xl:grid-cols-12">
                         {showGas ? (
                             <Panel
-                                title="Gas Trend — H₂S (ppm)"
-                                subtitle={`warn ${summary.gas?.trend?.warn ?? 5} · alarm ${summary.gas?.trend?.alarm ?? 10} (DOC-11 thresholds)`}
+                                title="Gas Trend — all channels"
+                                subtitle={`${rangeLabel} · LEL · H₂S · O₂ · CO · CO₂`}
+                                info={dashboardInfo.gasTrend}
                                 className="xl:col-span-8"
-                                action={
-                                    <RangeToggle
-                                        value={gasRange}
-                                        onChange={onGasRange}
-                                        options={[
-                                            { value: 'shift', label: 'Shift' },
-                                            { value: 'day', label: 'Day' },
-                                            { value: 'week', label: 'Week' },
-                                        ]}
-                                        aria-label="Gas trend range"
-                                    />
-                                }
                             >
                                 <div className="mb-2 flex flex-wrap gap-3 text-xs text-text-dim">
                                     {(summary.gas?.trend?.series ?? []).map(
@@ -443,14 +551,14 @@ export default function DashboardIndex({
                                     data={gasChartData}
                                     series={gasSeries}
                                     height={250}
-                                    thresholdWarn={summary.gas?.trend?.warn}
-                                    thresholdCrit={summary.gas?.trend?.alarm}
+                                    emptyLabel="No gas readings in this range"
                                 />
                             </Panel>
                         ) : null}
                         <Panel
                             title="Live Gas Panels"
-                            subtitle={`${summary.gas?.channel_gauges?.length ?? 0} channels · vs thresholds`}
+                            subtitle={`${summary.gas?.channel_gauges?.length ?? 0} channels · live vs thresholds`}
+                            info={dashboardInfo.gasPanels}
                             className={
                                 showGas ? 'xl:col-span-4' : 'xl:col-span-12'
                             }
@@ -460,13 +568,22 @@ export default function DashboardIndex({
                             />
                         </Panel>
                     </div>
+                    </section>
                 )}
 
+                <section className="flex flex-col gap-4">
+                    <div>
+                        <p className="eyebrow">Compliance</p>
+                        <h2 className="text-sm font-semibold text-text">
+                            Safety score, PPE & LSR · {rangeLabel}
+                        </h2>
+                    </div>
                 <div className="grid gap-4 xl:grid-cols-12">
                     {summary.safety_score ? (
                         <Panel
                             title="Site Safety Score"
                             subtitle="composite"
+                            info={dashboardInfo.safetyScore}
                             className="xl:col-span-4"
                         >
                             <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
@@ -550,7 +667,8 @@ export default function DashboardIndex({
                     {permissions.view_ppe && summary.ppe_today?.heatmap ? (
                         <Panel
                             title="PPE Violations by Hour"
-                            subtitle="density heatmap · this shift"
+                            subtitle={`density heatmap · ${rangeLabel}`}
+                            info={dashboardInfo.ppeHeatmap}
                             className="xl:col-span-4"
                         >
                             <PpeHeatmap
@@ -564,7 +682,8 @@ export default function DashboardIndex({
                     {permissions.view_lsr && summary.lsr ? (
                         <Panel
                             title="LSR by Category"
-                            subtitle="this shift"
+                            subtitle={rangeLabel}
+                            info={dashboardInfo.lsrCategory}
                             className="xl:col-span-4"
                         >
                             <HorizontalBars
@@ -572,17 +691,26 @@ export default function DashboardIndex({
                                     label: row.label,
                                     value: row.total ?? row.open,
                                 }))}
-                                emptyLabel="No open LSR this shift"
+                                emptyLabel="No LSR in this range"
                             />
                         </Panel>
                     ) : null}
                 </div>
+                </section>
 
+                <section className="flex flex-col gap-4">
+                    <div>
+                        <p className="eyebrow">Workforce</p>
+                        <h2 className="text-sm font-semibold text-text">
+                            Headcount & readiness
+                        </h2>
+                    </div>
                 <div className="grid gap-4 xl:grid-cols-12">
                     {showMap && headcountFlowData.length > 0 ? (
                         <Panel
-                            title="Headcount & Flow — this shift"
-                            subtitle={`gate entries/exits · peak ${summary.headcount?.peak ?? '—'}`}
+                            title="Headcount & Flow"
+                            subtitle={`${rangeLabel} · peak ${summary.headcount?.peak ?? '—'}`}
+                            info={dashboardInfo.headcountFlow}
                             className="xl:col-span-5"
                         >
                             <AnalyticalChart
@@ -604,6 +732,7 @@ export default function DashboardIndex({
                         <Panel
                             title="Workers by Zone"
                             subtitle={`live distribution · ${summary.headcount?.total_on_site ?? 0} on site`}
+                            info={dashboardInfo.workersByZone}
                             className="xl:col-span-4"
                         >
                             <DonutChart
@@ -618,6 +747,7 @@ export default function DashboardIndex({
                         <Panel
                             title="Evacuation Readiness"
                             subtitle="last drill accounting"
+                            info={dashboardInfo.evacuation}
                             className="xl:col-span-3"
                         >
                             <div className="flex justify-center">
@@ -648,11 +778,13 @@ export default function DashboardIndex({
                         </Panel>
                     ) : null}
                 </div>
+                </section>
 
                 {openRecords.length > 0 ? (
                     <Panel
                         title="Open Incidents & LSR"
                         subtitle={`${openRecords.length} open · mandatory action-taken to close`}
+                        info={dashboardInfo.openRecords}
                         action={
                             <Button variant="outline" size="sm" asChild>
                                 <Link href="/incidents">View all ›</Link>

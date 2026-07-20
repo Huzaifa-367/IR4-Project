@@ -9,6 +9,7 @@ use App\Http\Controllers\Web\EnvironmentController;
 use App\Http\Controllers\Web\Equipment\EquipmentController;
 use App\Http\Controllers\Web\ForcePasswordController;
 use App\Http\Controllers\Web\Gas\GasDashboardController;
+use App\Http\Controllers\Web\MapTileController;
 use App\Http\Controllers\Web\Hse\IncidentController;
 use App\Http\Controllers\Web\Hse\LsrController;
 use App\Http\Controllers\Web\Ppe\LiveWallController;
@@ -32,6 +33,10 @@ use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
+
+Route::get('maps/{filename}', MapTileController::class)
+    ->where('filename', '[a-z0-9_-]+\.pmtiles')
+    ->name('maps.tiles');
 
 Route::middleware('throttle:equipment.public')->group(function (): void {
     Route::get('e/{qrToken}', [EquipmentPublicController::class, 'show'])

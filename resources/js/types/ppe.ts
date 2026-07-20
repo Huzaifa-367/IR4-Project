@@ -39,3 +39,43 @@ export type PpeSummary = {
     total: number;
     group_by?: string;
 };
+
+export type PpeTrendPoint = {
+    at: string;
+    value: number | null;
+    min: number | null;
+    avg: number | null;
+    max: number | null;
+    device_id: number | null;
+};
+
+export type PpeDashboardSnapshot = {
+    as_of: string;
+    total: number;
+    unreviewed_in_range: number;
+    false_positive_rate: number;
+    excluded_false_positives: number;
+    by_type: Record<string, number>;
+    by_camera: Array<{ camera_id: number; camera_ref: string; count: number }>;
+    by_hour: number[];
+    metrics: Array<{
+        key: string;
+        label: string;
+        unit: string;
+        current: number | null;
+        min: number | null;
+        avg: number | null;
+        max: number | null;
+        sparkline: number[];
+    }>;
+    trend: {
+        source: string;
+        series: Array<{
+            key: string;
+            label: string;
+            unit: string;
+            source: string;
+            points: PpeTrendPoint[];
+        }>;
+    };
+};

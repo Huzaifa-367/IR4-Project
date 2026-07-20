@@ -6,8 +6,8 @@ import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-di
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import {
     SettingsDataTable,
-    type SettingsColumn,
 } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +68,7 @@ export default function RolesIndex({ roles, catalogue }: Props) {
                     ? current
                     : [...current, permission];
             }
+
             return current.filter((item) => item !== permission);
         });
     };
@@ -240,6 +241,7 @@ export default function RolesIndex({ roles, catalogue }: Props) {
                                 disabled={form?.role?.is_system}
                                 onCheckedChange={(checked) => {
                                     setReadOnly(checked);
+
                                     if (checked) {
                                         setSelected((current) =>
                                             current.filter((item) =>
@@ -298,6 +300,7 @@ export default function RolesIndex({ roles, catalogue }: Props) {
                                                                 !permission.startsWith(
                                                                     'view-',
                                                                 );
+
                                                             return (
                                                                 <label
                                                                     key={

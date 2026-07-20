@@ -9,20 +9,21 @@ export type DashboardPermissions = {
     trigger_evacuation?: boolean;
 };
 
-export type GasRange = 'shift' | 'day' | 'week';
+export type DashboardRange = 'today' | 'yesterday' | 'week' | 'custom';
 
 export type DashboardSummary = {
     meta?: {
-        shift_start: string;
-        shift_end: string;
-        shift_label: string;
+        range?: DashboardRange | string;
+        from?: string;
+        to?: string;
+        range_label?: string;
         as_of: string;
     };
     headcount?: {
         total_on_site: number;
         by_zone: Array<{ zone_id: number; zone_name: string; count: number }>;
-        shift_start_count?: number;
-        delta_vs_shift_start?: number;
+        range_start_count?: number;
+        delta_vs_range_start?: number;
         peak?: number;
         sparkline?: number[];
         flow?: Array<{
@@ -68,7 +69,7 @@ export type DashboardSummary = {
         }>;
         thresholds?: { h2s_warn: number | null; h2s_alarm: number | null };
         trend?: {
-            range: GasRange;
+            range: string;
             labels: Array<Record<string, string | number | null>>;
             series: Array<{
                 key: string;
@@ -211,3 +212,4 @@ export function systemHealthAssets(
 
     return Array.isArray(health) ? health : health.assets;
 }
+

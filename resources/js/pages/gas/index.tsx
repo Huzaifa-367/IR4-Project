@@ -1,21 +1,43 @@
-import { Head, Link } from '@inertiajs/react';
-import { useState } from 'react';
-import Heading from '@/components/heading';
+import { Head, Link, router } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
+import { AnalyticalChart } from '@/components/ir4/analytical-chart';
+import { CardHeading } from '@/components/ir4/card-heading';
 import { GasChannelGauges } from '@/components/ir4/gas-channel-gauges';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
-import { Panel } from '@/components/ir4/panel';
+import { MetricRow } from '@/components/ir4/metric-row';
+import { RangeToggle } from '@/components/ir4/range-toggle';
+import { StatCard } from '@/components/ir4/stat-card';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
+import { gasInfo } from '@/lib/analytics-info';
+import { buildTrendChartData, trendChartSeries } from '@/lib/trend-chart';
 import { GasTypeLabels } from '@/types/enums';
-import type { GasLivePanel, GasThreshold } from '@/types/gas';
+import type { GasDashboardSnapshot, GasLivePanel, GasThreshold } from '@/types/gas';
+
+type RangeValue = 'day' | 'week' | 'custom';
 
 type Props = {
+    snapshot: GasDashboardSnapshot;
     panels: GasLivePanel[];
+    filters: {
+        range: string;
+        from: string;
+        to: string;
+    };
     thresholds: Record<string, GasThreshold>;
     canManageThresholds: boolean;
     canAcknowledge: boolean;
 };
+
+const RANGE_OPTIONS = [
+    { value: 'day' as const, label: '24h' },
+    { value: 'week' as const, label: '7d' },
+    { value: 'custom' as const, label: 'Custom' },
+];
 
 type ChannelStatus = 'ok' | 'warn' | 'crit';
 
@@ -72,15 +94,7 @@ function worstOf(a: ChannelStatus, b: ChannelStatus): ChannelStatus {
 function panelGauges(
     panel: GasLivePanel,
     thresholds: Record<string, GasThreshold>,
-): Array<{
-    label: string;
-    source: string;
-    value: number;
-    unit: string;
-    warn: number | null;
-    alarm: number | null;
-    status: ChannelStatus;
-}> {
+) {
     const gauges = [];
 
     if (panel.lel_pct !== null) {
@@ -150,11 +164,18 @@ function panelGauges(
 }
 
 export default function GasDashboard({
-    panels: initial,
+    snapshot: initialSnapshot,
+    panels: initialPanels,
+    filters,
     thresholds,
     canManageThresholds,
 }: Props) {
-    const [panels, setPanels] = useState(initial);
+    const [panels, setPanels] = useState(initialPanels);
+    const [range, setRange] = usePropSyncedState<RangeValue>(
+        (filters.range as RangeValue) || 'day',
+    );
+    const [from, setFrom] = usePropSyncedState(filters.from);
+    const [to, setTo] = usePropSyncedState(filters.to);
 
     const { status } = useReverbChannel({
         channel: 'gas',
@@ -170,6 +191,7 @@ export default function GasDashboard({
                     a.device_name.localeCompare(b.device_name),
                 );
             });
+            router.reload({ only: ['snapshot'] });
         },
         snapshotUrl: '/gas/api/live',
         onSnapshot: (data) => {
@@ -179,17 +201,68 @@ export default function GasDashboard({
         pollIntervalMs: 15_000,
     });
 
-    const openAlarmCount = panels.reduce((n, p) => n + p.open_alarms.length, 0);
+    const snapshot = initialSnapshot;
+    const chartData = useMemo(
+        () => buildTrendChartData(snapshot.trend.series, range),
+        [snapshot.trend.series, range],
+    );
+    const chartSeries = useMemo(
+        () => trendChartSeries(snapshot.trend.series),
+        [snapshot.trend.series],
+    );
+
+    const metricByKey = new Map(
+        snapshot.metrics.map((metric) => [metric.key, metric]),
+    );
+    const lel = metricByKey.get('lel');
+    const h2s = metricByKey.get('h2s');
+    const o2 = metricByKey.get('o2');
+
+    const applyRange = (nextRange: RangeValue): void => {
+        setRange(nextRange);
+
+        if (nextRange === 'custom') {
+            return;
+        }
+
+        router.get(
+            '/gas',
+            { range: nextRange },
+            {
+                only: ['snapshot', 'filters'],
+                preserveState: true,
+                replace: true,
+            },
+        );
+    };
+
+    const applyCustomRange = (): void => {
+        router.get(
+            '/gas',
+            { range: 'custom', from, to },
+            {
+                only: ['snapshot', 'filters'],
+                preserveState: true,
+                replace: true,
+            },
+        );
+    };
 
     return (
         <>
             <Head title="Gas & CO₂" />
             <div className="flex flex-col gap-4 p-4 md:p-5">
                 <div className="flex flex-wrap items-end justify-between gap-4">
-                    <Heading
-                        title="Gas & CO₂"
-                        description={`${panels.length} detectors · ${openAlarmCount} open alarms`}
-                    />
+                    <div>
+                        <p className="eyebrow">Control room</p>
+                        <h1 className="font-display text-xl font-semibold tracking-tight text-text md:text-2xl">
+                            Gas & CO₂
+                        </h1>
+                        <p className="mt-1 text-sm text-text-dim">
+                            {panels.length} detectors ·{' '}
+                            {snapshot.open_alarms} open alarms
+                        </p>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <LiveStatusPill status={status} />
                         <Button asChild size="sm" variant="secondary">
@@ -198,63 +271,260 @@ export default function GasDashboard({
                         <Button asChild size="sm" variant="secondary">
                             <Link href="/gas/trends">Trends</Link>
                         </Button>
-                        {canManageThresholds && (
+                        {canManageThresholds ? (
                             <Button asChild size="sm" variant="outline">
                                 <Link href="/gas/thresholds">Thresholds</Link>
                             </Button>
-                        )}
+                        ) : null}
                     </div>
                 </div>
 
-                {openAlarmCount > 0 && (
+                {snapshot.open_alarms > 0 ? (
                     <div className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-[color:var(--crit)]/40 bg-[color:var(--crit-bg)] px-4 py-3 text-sm text-[color:var(--crit)]">
-                        {openAlarmCount} open gas alarm
-                        {openAlarmCount === 1 ? '' : 's'} — check device panels
-                        below.
+                        {snapshot.open_alarms} open gas alarm
+                        {snapshot.open_alarms === 1 ? '' : 's'} — check device
+                        panels below.
                     </div>
-                )}
+                ) : null}
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {panels.map((panel) => (
-                        <Panel
-                            key={panel.device_id}
-                            title={panel.device_name}
-                            subtitle={
-                                panel.device_ref +
-                                (panel.asset_label
-                                    ? ` · ${panel.asset_label}`
-                                    : '')
-                            }
-                            action={
-                                <StatusPill
-                                    label={panel.is_stale ? 'Stale' : 'Live'}
-                                    tone={panel.is_stale ? 'warn' : 'ok'}
-                                />
-                            }
-                        >
-                            <GasChannelGauges
-                                gauges={panelGauges(panel, thresholds)}
-                            />
-                            {panel.open_alarms.length > 0 && (
-                                <ul className="mt-3 space-y-1 text-xs text-[color:var(--crit)]">
-                                    {panel.open_alarms.map((a) => (
-                                        <li key={`${a.gas_type}-${a.level}`}>
-                                            {GasTypeLabels[
-                                                a.gas_type as keyof typeof GasTypeLabels
-                                            ] ?? a.gas_type}{' '}
-                                            {a.level}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </Panel>
-                    ))}
-                    {panels.length === 0 && (
-                        <div className="col-span-full rounded-[var(--radius)] border border-dashed border-border p-8 text-center text-text-faint">
-                            No gas or CO₂ detectors registered
-                        </div>
-                    )}
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        label="LEL"
+                        value={
+                            lel?.current === null || lel?.current === undefined
+                                ? '—'
+                                : `${lel.current}%`
+                        }
+                        delta={
+                            lel !== undefined &&
+                            lel.min !== null &&
+                            lel.max !== null
+                                ? `${lel.min}–${lel.max}%`
+                                : 'No readings'
+                        }
+                        sparkline={lel?.sparkline}
+                        info={gasInfo.lel}
+                    />
+                    <StatCard
+                        label="H₂S"
+                        value={
+                            h2s?.current === null || h2s?.current === undefined
+                                ? '—'
+                                : `${h2s.current} ppm`
+                        }
+                        delta={
+                            h2s !== undefined && h2s.max !== null
+                                ? `${h2s.max} ppm range max`
+                                : 'No readings'
+                        }
+                        sparkline={h2s?.sparkline}
+                        info={gasInfo.h2s}
+                    />
+                    <StatCard
+                        label="O₂"
+                        value={
+                            o2?.current === null || o2?.current === undefined
+                                ? '—'
+                                : `${o2.current}%vol`
+                        }
+                        delta={
+                            o2?.avg != null
+                                ? `${o2.avg}%vol range avg`
+                                : 'No readings'
+                        }
+                        sparkline={o2?.sparkline}
+                        info={gasInfo.o2}
+                    />
+                    <StatCard
+                        label="Detector health"
+                        value={`${snapshot.panel_health.current}/${snapshot.panel_health.total}`}
+                        delta={`${snapshot.panel_health.stale} stale`}
+                        deltaTone={
+                            snapshot.panel_health.stale > 0 ? 'crit' : 'ok'
+                        }
+                        pulseCrit={snapshot.panel_health.stale > 0}
+                        info={gasInfo.health}
+                    />
                 </div>
+
+                <div className="grid gap-4 xl:grid-cols-12">
+                    <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)] xl:col-span-8">
+                        <CardHeader className="px-4 md:px-5">
+                            <CardHeading
+                                title="Gas Trend"
+                                info={gasInfo.trend}
+                                description={
+                                    <>
+                                        All channels · {snapshot.trend.source}{' '}
+                                        data · {chartData.length} points
+                                    </>
+                                }
+                            >
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <RangeToggle
+                                        options={RANGE_OPTIONS}
+                                        value={range}
+                                        onChange={applyRange}
+                                        aria-label="Trend duration"
+                                    />
+                                    {range === 'custom' ? (
+                                        <>
+                                            <Input
+                                                type="date"
+                                                value={from}
+                                                onChange={(event) =>
+                                                    setFrom(event.target.value)
+                                                }
+                                                className="h-8 w-[9.5rem]"
+                                                aria-label="From date"
+                                            />
+                                            <Input
+                                                type="date"
+                                                value={to}
+                                                onChange={(event) =>
+                                                    setTo(event.target.value)
+                                                }
+                                                className="h-8 w-[9.5rem]"
+                                                aria-label="To date"
+                                            />
+                                            <Button
+                                                size="sm"
+                                                className="h-8"
+                                                onClick={applyCustomRange}
+                                            >
+                                                Apply
+                                            </Button>
+                                        </>
+                                    ) : null}
+                                </div>
+                            </CardHeading>
+                        </CardHeader>
+                        <CardContent className="px-2 md:px-4">
+                            <AnalyticalChart
+                                data={chartData}
+                                series={chartSeries}
+                                height={320}
+                                emptyLabel="No readings in this range"
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)] xl:col-span-4">
+                        <CardHeader className="px-4 md:px-5">
+                            <CardHeading
+                                title="Range Statistics"
+                                info={gasInfo.rangeStats}
+                                description="Site-wide min, average, and max"
+                            />
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-5 px-4 md:px-5">
+                            {snapshot.metrics.slice(0, 4).map((metric) => (
+                                <div
+                                    key={metric.key}
+                                    className="flex flex-col gap-2"
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-sm font-medium">
+                                            {metric.label}
+                                        </span>
+                                        <span className="font-mono text-sm tabular-nums">
+                                            {metric.current ?? '—'}{' '}
+                                            {metric.current !== null
+                                                ? metric.unit
+                                                : ''}
+                                        </span>
+                                    </div>
+                                    <MetricRow
+                                        className="grid-cols-3"
+                                        items={[
+                                            {
+                                                label: 'Min',
+                                                value:
+                                                    metric.min === null
+                                                        ? '—'
+                                                        : `${metric.min}${metric.unit}`,
+                                            },
+                                            {
+                                                label: 'Average',
+                                                value:
+                                                    metric.avg === null
+                                                        ? '—'
+                                                        : `${metric.avg}${metric.unit}`,
+                                            },
+                                            {
+                                                label: 'Max',
+                                                value:
+                                                    metric.max === null
+                                                        ? '—'
+                                                        : `${metric.max}${metric.unit}`,
+                                            },
+                                        ]}
+                                    />
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)]">
+                    <CardHeader className="px-4 md:px-5">
+                        <CardHeading
+                            title="Live Detector Fleet"
+                            info={gasInfo.fleet}
+                            description="Latest readings per registered device"
+                        />
+                    </CardHeader>
+                    <CardContent className="grid gap-3 px-4 md:grid-cols-2 md:px-5 xl:grid-cols-3">
+                        {panels.map((panel) => (
+                            <div
+                                key={panel.device_id}
+                                className="flex flex-col gap-4 rounded-[var(--radius-sm)] border border-border bg-surface-2 p-4"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <h3 className="truncate text-sm font-semibold">
+                                            {panel.device_name}
+                                        </h3>
+                                        <p className="truncate font-mono text-[11px] text-text-faint">
+                                            {panel.device_ref}
+                                            {panel.asset_label
+                                                ? ` · ${panel.asset_label}`
+                                                : ''}
+                                        </p>
+                                    </div>
+                                    <StatusPill
+                                        label={
+                                            panel.is_stale ? 'Stale' : 'Live'
+                                        }
+                                        tone={panel.is_stale ? 'warn' : 'ok'}
+                                    />
+                                </div>
+                                <GasChannelGauges
+                                    gauges={panelGauges(panel, thresholds)}
+                                />
+                                {panel.open_alarms.length > 0 ? (
+                                    <ul className="space-y-1 text-xs text-[color:var(--crit)]">
+                                        {panel.open_alarms.map((a) => (
+                                            <li
+                                                key={`${a.gas_type}-${a.level}`}
+                                            >
+                                                {GasTypeLabels[
+                                                    a.gas_type as keyof typeof GasTypeLabels
+                                                ] ?? a.gas_type}{' '}
+                                                {a.level}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : null}
+                            </div>
+                        ))}
+                        {panels.length === 0 ? (
+                            <div className="col-span-full py-10 text-center text-sm text-text-faint">
+                                No gas or CO₂ detectors registered
+                            </div>
+                        ) : null}
+                    </CardContent>
+                </Card>
             </div>
         </>
     );

@@ -1,7 +1,6 @@
-import { Form, router } from '@inertiajs/react';
 import type { Method } from '@inertiajs/core';
+import { Form, router } from '@inertiajs/react';
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -11,6 +10,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 
 type Props = {
     open: boolean;

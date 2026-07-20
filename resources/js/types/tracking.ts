@@ -22,5 +22,8 @@ export type TrackingZone = {
     map_x: string | number | null;
     map_y: string | number | null;
     map_radius: string | number | null;
+    latitude: string | number | null;
+    longitude: string | number | null;
+    radius_meters: string | number | null;
     color: string | null;
 };

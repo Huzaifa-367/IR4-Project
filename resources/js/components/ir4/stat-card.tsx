@@ -5,6 +5,11 @@ import {
     ResponsiveContainer,
 } from 'recharts';
 import { LiveNumber } from '@/components/ir4/live-number';
+import {
+    SectionInfo
+    
+} from '@/components/ir4/section-info';
+import type {SectionInfoContent} from '@/components/ir4/section-info';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -16,6 +21,7 @@ type Props = {
     sparkline?: number[];
     className?: string;
     pulseCrit?: boolean;
+    info?: SectionInfoContent;
     children?: React.ReactNode;
 };
 
@@ -28,10 +34,10 @@ export function StatCard({
     sparkline,
     className,
     pulseCrit = false,
+    info,
     children,
 }: Props) {
-    const chartData =
-        sparkline?.map((v, i) => ({ i, v })) ?? [];
+    const chartData = sparkline?.map((v, i) => ({ i, v })) ?? [];
 
     const body = (
         <div
@@ -43,14 +49,20 @@ export function StatCard({
         >
             <div className="flex items-start justify-between gap-2">
                 <p className="eyebrow min-w-0 flex-1">{label}</p>
-                {href ? (
-                    <span className="shrink-0 text-text-faint" aria-hidden>
-                        ›
-                    </span>
-                ) : null}
+                <div className="flex shrink-0 items-center gap-1.5">
+                    {info ? <SectionInfo info={info} /> : null}
+                    {href ? (
+                        <span className="text-text-faint" aria-hidden>
+                            ›
+                        </span>
+                    ) : null}
+                </div>
             </div>
             <div className="flex flex-wrap items-end gap-2">
-                <LiveNumber value={value} className="text-4xl text-text md:text-5xl" />
+                <LiveNumber
+                    value={value}
+                    className="text-4xl text-text md:text-5xl"
+                />
                 {delta ? (
                     <span
                         className={cn(

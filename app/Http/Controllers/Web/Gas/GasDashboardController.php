@@ -12,6 +12,7 @@ use App\Models\GasThreshold;
 use App\Models\User;
 use App\Services\GasMonitoringService;
 use App\Support\ApiResponse;
+use App\Support\TrendRange;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,8 @@ final class GasDashboardController extends BaseController
     public function index(Request $request, GasMonitoringService $gas): InertiaResponse
     {
         abort_unless($request->user()?->can('view-gas'), 403);
+
+        [$range, $from, $to] = TrendRange::resolve($request);
 
         $thresholds = GasThreshold::query()
             ->where('is_active', true)
@@ -38,7 +41,13 @@ final class GasDashboardController extends BaseController
             ]);
 
         return Inertia::render('gas/index', [
+            'snapshot' => $gas->dashboardSnapshot($from, $to),
             'panels' => $gas->livePanels(),
+            'filters' => [
+                'range' => $range,
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+            ],
             'thresholds' => $thresholds,
             'canManageThresholds' => $request->user()?->can('manage-gas-thresholds') ?? false,
             'canAcknowledge' => $request->user()?->can('acknowledge-alerts') ?? false,
@@ -56,30 +65,19 @@ final class GasDashboardController extends BaseController
     {
         abort_unless($request->user()?->can('view-gas'), 403);
 
-        $range = $request->string('range', 'day')->toString();
-        $gasType = GasType::tryFrom($request->string('gas_type', 'h2s')->toString()) ?? GasType::H2s;
+        [$range, $from, $to] = TrendRange::resolve($request);
         $deviceId = $request->filled('device_id') ? $request->integer('device_id') : null;
 
-        [$from, $to] = match ($range) {
-            'shift' => [now()->subHours(12), now()],
-            'week' => [now()->subDays(7), now()],
-            'custom' => [
-                Carbon::parse($request->string('from')->toString()),
-                Carbon::parse($request->string('to')->toString()),
-            ],
-            default => [now()->subDay(), now()],
-        };
-
-        $series = $gas->trends($deviceId, $gasType, $from, $to);
-
+        // JSON API keeps optional single-channel series for tooling/tests.
         if ($request->wantsJson() || $request->boolean('json')) {
-            return ApiResponse::ok($series);
+            $gasType = GasType::tryFrom($request->string('gas_type', 'h2s')->toString()) ?? GasType::H2s;
+
+            return ApiResponse::ok($gas->trends($deviceId, $gasType, $from, $to));
         }
 
         return Inertia::render('gas/trends/index', [
-            'series' => $series,
+            'snapshot' => $gas->dashboardSnapshot($from, $to, $deviceId),
             'filters' => [
-                'gas_type' => $gasType->value,
                 'device_id' => $deviceId !== null ? (string) $deviceId : '',
                 'range' => $range,
                 'from' => $from->toDateString(),
@@ -89,10 +87,6 @@ final class GasDashboardController extends BaseController
                 ->whereIn('device_type', [DeviceType::GasDetector, DeviceType::Co2Sensor])
                 ->orderBy('name')
                 ->get(['id', 'name', 'reference']),
-            'gasTypes' => collect(GasType::cases())->map(fn (GasType $t) => [
-                'value' => $t->value,
-                'label' => $t->label(),
-            ]),
         ]);
     }
 

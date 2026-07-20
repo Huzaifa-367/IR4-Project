@@ -53,6 +53,7 @@ export function TokenRevealDialog({ token, onDismiss }: Props) {
                             if (!token) {
                                 return;
                             }
+
                             await navigator.clipboard.writeText(token.token);
                             toast.success('Token copied');
                         }}

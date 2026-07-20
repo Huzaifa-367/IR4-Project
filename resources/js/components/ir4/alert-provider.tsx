@@ -105,12 +105,10 @@ export function AlertProvider({
         [],
     );
 
-    useEffect(() => {
-        if (!isAuthenticated) {
-            setOpenAlerts([]);
-            setStatus('offline');
-        }
-    }, [isAuthenticated]);
+    if (!isAuthenticated && (openAlerts.length > 0 || status !== 'offline')) {
+        setOpenAlerts([]);
+        setStatus('offline');
+    }
 
     const bellCount = openAlerts.filter(
         (alert) => alert.status === 'open',

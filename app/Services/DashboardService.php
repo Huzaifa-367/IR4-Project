@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Enums\AlertSeverity;
 use App\Enums\AlertStatus;
-use App\Enums\DeviceType;
 use App\Enums\GasType;
 use App\Enums\IncidentStatus;
 use App\Enums\LsrCategory;
@@ -15,7 +14,6 @@ use App\Enums\ViolationType;
 use App\Enums\ZoneType;
 use App\Http\Resources\AlertResource;
 use App\Models\Alert;
-use App\Models\Device;
 use App\Models\GasThreshold;
 use App\Models\HseIncident;
 use App\Models\LsrViolation;
@@ -47,33 +45,44 @@ final class DashboardService
      *
      * @return array<string, mixed>
      */
-    public function summary(User $user, string $gasRange = 'shift'): array
-    {
+    public function summary(
+        User $user,
+        string $range = 'today',
+        ?\DateTimeInterface $from = null,
+        ?\DateTimeInterface $to = null,
+    ): array {
+        $from = Carbon::instance($from ?? now()->startOfDay());
+        $to = Carbon::instance($to ?? now());
         $ttl = max(1, (int) $this->settings->get('dashboard.cache_seconds', 8));
         $permKey = implode(',', $user->getAllPermissions()->pluck('name')->sort()->values()->all());
-        $cacheKey = 'dashboard.summary.'.$user->id.'.'.md5($permKey).'.'.$gasRange;
+        $cacheKey = 'dashboard.summary.'.$user->id.'.'.md5($permKey.'.'.$range.'.'.$from->timestamp.'.'.$to->timestamp);
 
-        return Cache::remember($cacheKey, $ttl, fn (): array => $this->buildSummary($user, $gasRange));
+        return Cache::remember(
+            $cacheKey,
+            $ttl,
+            fn (): array => $this->buildSummary($user, $range, $from, $to),
+        );
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function buildSummary(User $user, string $gasRange): array
+    private function buildSummary(User $user, string $range, Carbon $from, Carbon $to): array
     {
         $out = [];
         $readOnly = (bool) $user->primaryRole()?->is_read_only;
-        [$shiftStart, $shiftEnd] = $this->currentShiftWindow();
+        $windowEnd = $to->lessThan(now()) ? $to : now();
 
         if ($user->can('view-dashboard')) {
             $headcount = $this->tracking->headcountSnapshot();
-            $flow = $this->tracking->headcountFlow($shiftStart, min($shiftEnd, now()), 10);
+            $flow = $this->tracking->headcountFlow($from, $windowEnd, 10);
             $delta = $headcount['total_on_site'] - $flow['shift_start_count'];
 
             $out['meta'] = [
-                'shift_start' => $shiftStart->toIso8601String(),
-                'shift_end' => $shiftEnd->toIso8601String(),
-                'shift_label' => $shiftStart->format('H:i').'–'.$shiftEnd->format('H:i'),
+                'range' => $range,
+                'from' => $from->toIso8601String(),
+                'to' => $to->toIso8601String(),
+                'range_label' => $this->rangeLabel($range, $from, $to),
                 'as_of' => now()->toIso8601String(),
             ];
 
@@ -82,8 +91,8 @@ final class DashboardService
                 'by_zone' => ($user->can('view-tracking') && ! $readOnly)
                     ? $headcount['by_zone']
                     : [],
-                'shift_start_count' => $flow['shift_start_count'],
-                'delta_vs_shift_start' => $delta,
+                'range_start_count' => $flow['shift_start_count'],
+                'delta_vs_range_start' => $delta,
                 'peak' => $flow['peak'],
                 'sparkline' => $flow['sparkline'],
                 'flow' => $flow['points'],
@@ -105,11 +114,15 @@ final class DashboardService
         }
 
         if ($user->can('view-gas') && ! $readOnly) {
-            $out['gas'] = $this->gasBlock($gasRange, $shiftStart, $shiftEnd);
+            $out['gas'] = $this->gasBlock($range, $from, $windowEnd);
         }
 
         if ($user->can('view-ppe') && ! $readOnly) {
-            $out['ppe_today'] = $this->ppeTodayBlock($out['headcount']['total_on_site'] ?? 0, $shiftStart, $shiftEnd);
+            $out['ppe_today'] = $this->ppeTodayBlock(
+                $out['headcount']['total_on_site'] ?? 0,
+                $from,
+                $windowEnd,
+            );
         }
 
         if ($user->can('view-incidents')) {
@@ -121,10 +134,10 @@ final class DashboardService
 
         if ($user->can('view-lsr')) {
             $openAll = $this->lsr->summary();
-            $lsrShift = $this->lsr->summary($shiftStart, $shiftEnd);
+            $lsrWindow = $this->lsr->summary($from, $windowEnd);
             $out['lsr'] = [
                 'open' => $openAll['open'],
-                'by_category' => collect($lsrShift['by_category'])
+                'by_category' => collect($lsrWindow['by_category'])
                     ->map(fn (array $row): array => [
                         'category' => $row['category'],
                         'label' => $row['label'],
@@ -156,22 +169,15 @@ final class DashboardService
         return $out;
     }
 
-    /**
-     * Default day shift 06:00–18:00 local (mockup / [CONFIRM AT DESIGN]).
-     *
-     * @return array{0: Carbon, 1: Carbon}
-     */
-    private function currentShiftWindow(): array
+    private function rangeLabel(string $range, Carbon $from, Carbon $to): string
     {
-        $now = now();
-        $startToday = $now->copy()->startOfDay()->setTime(6, 0);
-        $endToday = $now->copy()->startOfDay()->setTime(18, 0);
-
-        if ($now->lt($startToday)) {
-            return [$startToday->copy()->subDay(), $endToday->copy()->subDay()];
-        }
-
-        return [$startToday, $endToday];
+        return match ($range) {
+            'today' => 'Today '.$from->format('H:i').'–'.$to->format('H:i'),
+            'yesterday' => 'Yesterday '.$from->format('Y-m-d'),
+            'week' => 'Last 7 days',
+            'custom' => $from->toDateString().' → '.$to->toDateString(),
+            default => $from->toDateString().' → '.$to->toDateString(),
+        };
     }
 
     /**
@@ -274,10 +280,10 @@ final class DashboardService
      *     trend: array<string, mixed>
      * }
      */
-    private function gasBlock(string $gasRange, \DateTimeInterface $shiftStart, \DateTimeInterface $shiftEnd): array
+    private function gasBlock(string $range, \DateTimeInterface $from, \DateTimeInterface $to): array
     {
-        $shiftStart = Carbon::instance($shiftStart);
-        $shiftEnd = Carbon::instance($shiftEnd);
+        $from = Carbon::instance($from);
+        $to = Carbon::instance($to);
         $thresholds = GasThreshold::query()
             ->where('is_active', true)
             ->get()
@@ -312,38 +318,31 @@ final class DashboardService
         })->values()->all();
 
         $channelGauges = $this->gasChannelGauges($panels, $thresholds);
+        $snapshot = $this->gas->dashboardSnapshot($from, $to);
 
-        [$from, $to] = match ($gasRange) {
-            'day' => [now()->subDay(), now()],
-            'week' => [now()->subDays(7), now()],
-            default => [$shiftStart, min($shiftEnd, now())],
-        };
-
-        $trendDevices = Device::query()
-            ->where('device_type', DeviceType::GasDetector)
-            ->orderBy('name')
-            ->limit(2)
-            ->get(['id', 'name']);
-
-        $series = [];
-        foreach ($trendDevices as $index => $device) {
-            $raw = $this->gas->trends($device->id, GasType::H2s, $from, $to);
-            $series[] = [
-                'key' => 'd'.$device->id,
-                'label' => $device->name,
-                'device_id' => $device->id,
-                'color' => $index === 0 ? 'var(--viz-1)' : 'var(--viz-6)',
-                'points' => collect($raw['points'])->map(fn (array $p): array => [
+        $series = collect($snapshot['trend']['series'] ?? [])->values()->map(function (array $row, int $index): array {
+            return [
+                'key' => $row['key'],
+                'label' => $row['label'].(isset($row['unit']) && $row['unit'] !== '' ? ' ('.$row['unit'].')' : ''),
+                'device_id' => 0,
+                'color' => match ($index) {
+                    0 => 'var(--viz-1)',
+                    1 => 'var(--viz-2)',
+                    2 => 'var(--viz-3)',
+                    3 => 'var(--viz-4)',
+                    default => 'var(--viz-5)',
+                },
+                'points' => collect($row['points'] ?? [])->map(fn (array $p): array => [
                     'at' => $p['at'],
                     'value' => $p['avg'] ?? $p['value'] ?? null,
                 ])->values()->all(),
-                'latest' => collect($raw['points'])->last()['avg']
-                    ?? collect($raw['points'])->last()['value']
+                'latest' => collect($row['points'] ?? [])->last()['avg']
+                    ?? collect($row['points'] ?? [])->last()['value']
                     ?? null,
             ];
-        }
+        })->all();
 
-        $labels = $this->mergeTrendLabels($series, $gasRange);
+        $labels = $this->mergeTrendLabels($series, $range);
 
         return [
             'panels' => $panels,
@@ -353,7 +352,7 @@ final class DashboardService
                 'h2s_alarm' => $h2s !== null ? (float) $h2s->alarm_level : 10.0,
             ],
             'trend' => [
-                'range' => in_array($gasRange, ['shift', 'day', 'week'], true) ? $gasRange : 'shift',
+                'range' => $range,
                 'labels' => $labels,
                 'series' => $series,
                 'warn' => $h2s !== null ? (float) $h2s->warning_level : 5.0,
@@ -414,14 +413,14 @@ final class DashboardService
      * @param  list<array<string, mixed>>  $series
      * @return list<array<string, mixed>>
      */
-    private function mergeTrendLabels(array $series, string $gasRange): array
+    private function mergeTrendLabels(array $series, string $range): array
     {
         $byAt = [];
         foreach ($series as $s) {
             foreach ($s['points'] as $point) {
                 $at = (string) $point['at'];
                 if (! isset($byAt[$at])) {
-                    $byAt[$at] = ['at' => $at, 'label' => $this->formatTrendLabel($at, $gasRange)];
+                    $byAt[$at] = ['at' => $at, 'label' => $this->formatTrendLabel($at, $range)];
                 }
                 $byAt[$at][$s['key']] = $point['value'];
             }
@@ -431,13 +430,13 @@ final class DashboardService
         return array_values($byAt);
     }
 
-    private function formatTrendLabel(string $iso, string $gasRange): string
+    private function formatTrendLabel(string $iso, string $range): string
     {
         $t = Carbon::parse($iso);
 
-        return match ($gasRange) {
-            'week' => $t->format('D'),
-            'day' => $t->format('H:00'),
+        return match ($range) {
+            'week', 'custom' => $t->format('D H:i'),
+            'yesterday', 'today' => $t->format('H:i'),
             default => $t->format('H:i'),
         };
     }
@@ -453,41 +452,44 @@ final class DashboardService
      *     heatmap: array{types: list<array{key: string, label: string}>, hours: list<int>, cells: list<list<int>>}
      * }
      */
-    private function ppeTodayBlock(int $headcount, \DateTimeInterface $shiftStart, \DateTimeInterface $shiftEnd): array
+    private function ppeTodayBlock(int $headcount, \DateTimeInterface $from, \DateTimeInterface $to): array
     {
-        $shiftStart = Carbon::instance($shiftStart);
-        $shiftEnd = Carbon::instance($shiftEnd);
-        $todayStart = now()->startOfDay();
-        $todayEnd = now()->endOfDay();
-        $yesterdayStart = now()->subDay()->startOfDay();
-        $yesterdayEnd = now()->subDay()->endOfDay();
+        $from = Carbon::instance($from);
+        $to = Carbon::instance($to);
+        $seconds = max(1, $from->diffInSeconds($to));
+        $prevTo = $from->copy()->subSecond();
+        $prevFrom = $prevTo->copy()->subSeconds($seconds);
 
-        $today = $this->ppe->summary($todayStart, $todayEnd);
-        $yesterdayTotal = PpeViolation::query()
-            ->whereBetween('detected_at', [$yesterdayStart, $yesterdayEnd])
+        $current = $this->ppe->summary($from, $to);
+        $previousTotal = PpeViolation::query()
+            ->whereBetween('detected_at', [$prevFrom, $prevTo])
             ->where('review_status', '!=', ReviewStatus::FalsePositive->value)
             ->count();
 
         // PPE events are anonymous (DOC-10) — use worker_count, never worker_id.
-        $affectedToday = (int) PpeViolation::query()
-            ->whereBetween('detected_at', [$todayStart, $todayEnd])
+        $affectedCurrent = (int) PpeViolation::query()
+            ->whereBetween('detected_at', [$from, $to])
             ->where('review_status', '!=', ReviewStatus::FalsePositive->value)
             ->sum('worker_count');
-        $affectedYesterday = (int) PpeViolation::query()
-            ->whereBetween('detected_at', [$yesterdayStart, $yesterdayEnd])
+        $affectedPrevious = (int) PpeViolation::query()
+            ->whereBetween('detected_at', [$prevFrom, $prevTo])
             ->where('review_status', '!=', ReviewStatus::FalsePositive->value)
             ->sum('worker_count');
 
         $denom = max(1, $headcount);
-        $compliance = round(max(0, min(100, (1 - min(1, $affectedToday / $denom)) * 100)), 1);
-        $complianceYesterday = round(max(0, min(100, (1 - min(1, $affectedYesterday / $denom)) * 100)), 1);
+        $compliance = round(max(0, min(100, (1 - min(1, $affectedCurrent / $denom)) * 100)), 1);
+        $compliancePrevious = round(max(0, min(100, (1 - min(1, $affectedPrevious / $denom)) * 100)), 1);
 
         $hours = [];
-        for ($h = (int) $shiftStart->format('G'); $h < (int) $shiftEnd->format('G'); $h++) {
-            $hours[] = $h;
+        if ($from->isSameDay($to)) {
+            for ($h = (int) $from->format('G'); $h <= (int) $to->format('G'); $h++) {
+                $hours[] = $h;
+            }
+        } else {
+            $hours = range(0, 23);
         }
         if ($hours === []) {
-            $hours = range(6, 17);
+            $hours = range(0, 23);
         }
 
         $types = [];
@@ -502,7 +504,7 @@ final class DashboardService
                 },
             ];
         }
-        $cells = $this->ppeHeatmap($types, $hours, $shiftStart, $shiftEnd);
+        $cells = $this->ppeHeatmap($types, $hours, $from, $to);
 
         $sparkline = [];
         for ($d = 9; $d >= 0; $d--) {
@@ -515,11 +517,11 @@ final class DashboardService
         }
 
         return [
-            'total' => (int) $today['total'],
-            'by_type' => $today['by_type'],
-            'trend_delta' => (int) $today['total'] - $yesterdayTotal,
+            'total' => (int) $current['total'],
+            'by_type' => $current['by_type'],
+            'trend_delta' => (int) $current['total'] - $previousTotal,
             'compliance_pct' => $compliance,
-            'compliance_delta' => round($compliance - $complianceYesterday, 1),
+            'compliance_delta' => round($compliance - $compliancePrevious, 1),
             'sparkline' => $sparkline,
             'heatmap' => [
                 'types' => $types,
@@ -717,7 +719,7 @@ final class DashboardService
         $canIdentity = $user->can('view-worker-identity');
         $zones = Zone::query()
             ->where('is_active', true)
-            ->get(['id', 'name', 'zone_type', 'map_x', 'map_y', 'map_radius', 'color'])
+            ->get(['id', 'name', 'zone_type', 'map_x', 'map_y', 'map_radius', 'latitude', 'longitude', 'radius_meters', 'color'])
             ->map(fn (Zone $zone): array => [
                 'id' => $zone->id,
                 'name' => $zone->name,
@@ -725,6 +727,9 @@ final class DashboardService
                 'map_x' => $zone->map_x,
                 'map_y' => $zone->map_y,
                 'map_radius' => $zone->map_radius,
+                'latitude' => $zone->latitude,
+                'longitude' => $zone->longitude,
+                'radius_meters' => $zone->radius_meters,
                 'color' => $zone->color,
             ])
             ->values()

@@ -6,8 +6,8 @@ use App\Enums\ReviewStatus;
 use App\Http\Controllers\Web\BaseController;
 use App\Models\PpeViolation;
 use App\Services\PpeViolationService;
+use App\Support\TrendRange;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -17,16 +17,12 @@ final class PpeTrendsController extends BaseController
     {
         $this->authorize('viewAny', PpeViolation::class);
 
-        $from = $request->filled('from')
-            ? Carbon::parse($request->string('from')->toString())->startOfDay()
-            : now()->startOfWeek();
-        $to = $request->filled('to')
-            ? Carbon::parse($request->string('to')->toString())->endOfDay()
-            : now()->endOfWeek();
+        [$range, $from, $to] = TrendRange::resolve($request);
 
         return Inertia::render('ppe/trends/index', [
-            'summary' => $ppe->summary($from, $to),
+            'snapshot' => $ppe->dashboardSnapshot($from, $to),
             'filters' => [
+                'range' => $range,
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
             ],

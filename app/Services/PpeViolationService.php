@@ -212,6 +212,92 @@ final class PpeViolationService
     }
 
     /**
+     * Control-room snapshot for PPE trends: counts over time plus summary breakdowns.
+     *
+     * @return array<string, mixed>
+     */
+    public function dashboardSnapshot(\DateTimeInterface $from, \DateTimeInterface $to): array
+    {
+        $from = Carbon::instance($from);
+        $to = Carbon::instance($to);
+        $summary = $this->summary($from, $to);
+        $points = $this->violationTrendPoints($from, $to);
+        $values = collect($points)
+            ->pluck('avg')
+            ->filter(fn (mixed $value): bool => is_numeric($value))
+            ->map(fn (mixed $value): float => (float) $value);
+        $unreviewedInRange = PpeViolation::query()
+            ->whereBetween('detected_at', [$from, $to])
+            ->where('review_status', ReviewStatus::Unreviewed)
+            ->count();
+
+        return [
+            'as_of' => now()->toIso8601String(),
+            'total' => $summary['total'],
+            'unreviewed_in_range' => $unreviewedInRange,
+            'false_positive_rate' => $summary['false_positive_rate'],
+            'excluded_false_positives' => $summary['excluded_false_positives'],
+            'by_type' => $summary['by_type'],
+            'by_camera' => $summary['by_camera'],
+            'by_hour' => $summary['by_hour'],
+            'metrics' => [[
+                'key' => 'violations',
+                'label' => 'Violations',
+                'unit' => '',
+                'current' => $summary['total'],
+                'min' => $values->isNotEmpty() ? (int) $values->min() : null,
+                'avg' => $values->isNotEmpty() ? round($values->avg(), 1) : null,
+                'max' => $values->isNotEmpty() ? (int) $values->max() : null,
+                'sparkline' => $values->take(-20)->values()->all(),
+            ]],
+            'trend' => [
+                'series' => [[
+                    'key' => 'violations',
+                    'label' => 'Violations',
+                    'unit' => '',
+                    'source' => 'raw',
+                    'points' => $points,
+                ]],
+                'source' => 'raw',
+            ],
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function violationTrendPoints(Carbon $from, Carbon $to): array
+    {
+        $useDaily = $from->diffInHours($to) > 24;
+        $buckets = [];
+
+        PpeViolation::query()
+            ->whereBetween('detected_at', [$from, $to])
+            ->where('review_status', '!=', ReviewStatus::FalsePositive)
+            ->orderBy('detected_at')
+            ->get(['detected_at'])
+            ->each(function (PpeViolation $violation) use (&$buckets, $useDaily): void {
+                $at = $useDaily
+                    ? $violation->detected_at->copy()->startOfDay()->toIso8601String()
+                    : $violation->detected_at->copy()->startOfHour()->toIso8601String();
+                $buckets[$at] = ($buckets[$at] ?? 0) + 1;
+            });
+
+        return collect($buckets)
+            ->map(fn (int $count, string $at): array => [
+                'at' => $at,
+                'value' => $count,
+                'min' => $count,
+                'avg' => $count,
+                'max' => $count,
+                'device_id' => null,
+            ])
+            ->sortKeys()
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return StreamedResponse|\Illuminate\Http\Response
      */
     public function export(string $format, \DateTimeInterface $from, \DateTimeInterface $to)

@@ -1,12 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { MoreHorizontal, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import {
     SettingsDataTable,
-    type SettingsColumn,
 } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { TokenRevealDialog } from '@/components/ir4/settings/token-reveal-dialog';
 import { StatusPill } from '@/components/ir4/status-pill';
@@ -27,6 +27,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import type {
     DeviceRow,
     HardwareOption,
@@ -51,12 +52,15 @@ function hardwareTone(status: string): 'ok' | 'warn' | 'crit' | 'neutral' {
     if (status === 'online') {
         return 'ok';
     }
+
     if (status === 'maintenance' || status === 'degraded') {
         return 'warn';
     }
+
     if (status === 'retired' || status === 'fault' || status === 'offline') {
         return 'crit';
     }
+
     return 'neutral';
 }
 
@@ -72,17 +76,13 @@ export default function DevicesIndex({
     const [tokenConfirm, setTokenConfirm] = useState<DeviceRow | null>(null);
     const [retireTarget, setRetireTarget] = useState<DeviceRow | null>(null);
     const [statusTarget, setStatusTarget] = useState<DeviceRow | null>(null);
-    const [plainToken, setPlainToken] = useState(initialToken);
+    const [plainToken, setPlainToken] = usePropSyncedState(initialToken);
     const [q, setQ] = useState(filters.q);
     const [deviceType, setDeviceType] = useState(filters.device_type || 'all');
     const [status, setStatus] = useState(filters.status || 'all');
     const [assetId, setAssetId] = useState('');
     const [typeValue, setTypeValue] = useState('rfid_reader');
     const [nextStatus, setNextStatus] = useState('maintenance');
-
-    useEffect(() => {
-        setPlainToken(initialToken);
-    }, [initialToken]);
 
     const applyFilters = (): void => {
         router.get(

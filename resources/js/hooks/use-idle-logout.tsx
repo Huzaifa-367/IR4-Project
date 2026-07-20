@@ -50,7 +50,7 @@ export function useIdleLogout(options: Options = {}): React.ReactNode {
     const timeoutMs = timeoutMinutes * 60 * 1000;
     const warningMs = 60_000;
     const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
-    const lastActivity = useRef(Date.now());
+    const lastActivity = useRef(0);
 
     const staySignedIn = useCallback((): void => {
         void postHeartbeat().then(() => {
@@ -60,6 +60,8 @@ export function useIdleLogout(options: Options = {}): React.ReactNode {
     }, []);
 
     useEffect(() => {
+        lastActivity.current = Date.now();
+
         const mark = (): void => {
             lastActivity.current = Date.now();
             setSecondsLeft(null);
@@ -70,10 +72,13 @@ export function useIdleLogout(options: Options = {}): React.ReactNode {
             if (options.keepAlive) {
                 return;
             }
+
             const now = Date.now();
+
             if (now < throttleUntil) {
                 return;
             }
+
             throttleUntil = now + 1000;
             mark();
         };
@@ -88,6 +93,7 @@ export function useIdleLogout(options: Options = {}): React.ReactNode {
                     void postHeartbeat().then(() => {
                         lastActivity.current = Date.now();
                     });
+
                     return;
                 }
 
@@ -96,6 +102,7 @@ export function useIdleLogout(options: Options = {}): React.ReactNode {
 
                 if (remaining <= 0) {
                     router.get('/login?timeout=1');
+
                     return;
                 }
 
@@ -110,6 +117,7 @@ export function useIdleLogout(options: Options = {}): React.ReactNode {
             for (const event of ACTIVITY_EVENTS) {
                 window.removeEventListener(event, onActivity);
             }
+
             window.clearInterval(tick);
         };
     }, [options.keepAlive, timeoutMs]);

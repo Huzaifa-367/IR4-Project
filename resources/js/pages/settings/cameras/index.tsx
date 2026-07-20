@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import {
-    SettingsDataTable,
-    type SettingsColumn,
+    SettingsDataTable
+    
 } from '@/components/ir4/settings/settings-data-table';
+import type {SettingsColumn} from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
@@ -49,12 +50,15 @@ function hardwareTone(status: string): 'ok' | 'warn' | 'crit' | 'neutral' {
     if (status === 'online') {
         return 'ok';
     }
+
     if (status === 'maintenance' || status === 'degraded') {
         return 'warn';
     }
+
     if (status === 'retired' || status === 'fault' || status === 'offline') {
         return 'crit';
     }
+
     return 'neutral';
 }
 

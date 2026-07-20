@@ -1,65 +1,104 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useMemo } from 'react';
-import Heading from '@/components/heading';
-import { BarChart } from '@/components/ir4/bar-chart';
+import { AnalyticalChart } from '@/components/ir4/analytical-chart';
+import { CardHeading } from '@/components/ir4/card-heading';
 import { HorizontalBars } from '@/components/ir4/horizontal-bars';
-import { Panel } from '@/components/ir4/panel';
+import { MetricRow } from '@/components/ir4/metric-row';
+import { RangeToggle } from '@/components/ir4/range-toggle';
 import { StatCard } from '@/components/ir4/stat-card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
+import { ppeInfo } from '@/lib/analytics-info';
+import { buildTrendChartData, trendChartSeries } from '@/lib/trend-chart';
 import { ViolationTypeLabels } from '@/types/enums';
-import type { PpeSummary } from '@/types/ppe';
+import type { PpeDashboardSnapshot } from '@/types/ppe';
+
+type RangeValue = 'day' | 'week' | 'custom';
 
 type Props = {
-    summary: PpeSummary;
-    filters: { from: string; to: string };
+    snapshot: PpeDashboardSnapshot;
+    filters: {
+        range: string;
+        from: string;
+        to: string;
+    };
     unreviewedCount: number;
     canExport: boolean;
 };
 
+const RANGE_OPTIONS = [
+    { value: 'day' as const, label: '24h' },
+    { value: 'week' as const, label: '7d' },
+    { value: 'custom' as const, label: 'Custom' },
+];
+
 export default function PpeTrendsIndex({
-    summary,
+    snapshot,
     filters,
     unreviewedCount,
     canExport,
 }: Props) {
+    const [range, setRange] = usePropSyncedState<RangeValue>(
+        (filters.range as RangeValue) || 'day',
+    );
+    const [from, setFrom] = usePropSyncedState(filters.from);
+    const [to, setTo] = usePropSyncedState(filters.to);
+
+    const chartData = useMemo(
+        () => buildTrendChartData(snapshot.trend.series, range),
+        [snapshot.trend.series, range],
+    );
+    const chartSeries = useMemo(
+        () => trendChartSeries(snapshot.trend.series),
+        [snapshot.trend.series],
+    );
+
     const byType = useMemo(
         () =>
-            Object.entries(summary.by_type).map(([type, count]) => ({
+            Object.entries(snapshot.by_type).map(([type, count]) => ({
                 label:
                     ViolationTypeLabels[
                         type as keyof typeof ViolationTypeLabels
                     ] ?? type,
                 value: count,
             })),
-        [summary.by_type],
-    );
-
-    const byHour = useMemo(
-        () =>
-            summary.by_hour.map((count, hour) => ({
-                label: `${hour}:00`,
-                value: count,
-            })),
-        [summary.by_hour],
+        [snapshot.by_type],
     );
 
     const byCamera = useMemo(
         () =>
-            summary.by_camera.map((row) => ({
+            snapshot.by_camera.map((row) => ({
                 label: row.camera_ref || `Camera #${row.camera_id}`,
                 value: row.count,
             })),
-        [summary.by_camera],
+        [snapshot.by_camera],
     );
 
-    function applyFilters(patch: Partial<Props['filters']>): void {
+    const applyRange = (nextRange: RangeValue): void => {
+        setRange(nextRange);
+
+        if (nextRange === 'custom') {
+            return;
+        }
+
         router.get(
             '/ppe/trends',
-            { from: patch.from ?? filters.from, to: patch.to ?? filters.to },
-            { preserveState: true, replace: true },
+            { range: nextRange },
+            { only: ['snapshot', 'filters'], preserveState: true, replace: true },
         );
-    }
+    };
+
+    const applyCustomRange = (): void => {
+        router.get(
+            '/ppe/trends',
+            { range: 'custom', from, to },
+            { only: ['snapshot', 'filters'], preserveState: true, replace: true },
+        );
+    };
+
+    const violationMetric = snapshot.metrics[0];
 
     return (
         <>
@@ -67,22 +106,28 @@ export default function PpeTrendsIndex({
             <div className="flex flex-col gap-4 p-4 md:p-5">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
-                        <Heading
-                            title="PPE Trends"
-                            description="Density heatmap, false-positive rate, and per-camera breakdown."
-                        />
+                        <p className="eyebrow">Control room</p>
+                        <h1 className="font-display text-xl font-semibold tracking-tight text-text md:text-2xl">
+                            PPE Trends
+                        </h1>
+                        <p className="mt-1 text-sm text-text-dim">
+                            Violation density, false-positive rate, and
+                            per-camera breakdown
+                        </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <Button asChild variant="secondary" size="sm">
                             <Link href="/ppe/violations">Violations</Link>
                         </Button>
-                        {canExport && (
+                        {canExport ? (
                             <>
                                 <Button
                                     type="button"
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => submitExport('csv', filters)}
+                                    onClick={() =>
+                                        submitExport('csv', filters)
+                                    }
                                 >
                                     CSV
                                 </Button>
@@ -90,76 +135,190 @@ export default function PpeTrendsIndex({
                                     type="button"
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => submitExport('pdf', filters)}
+                                    onClick={() =>
+                                        submitExport('pdf', filters)
+                                    }
                                 >
                                     PDF
                                 </Button>
                             </>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap items-end gap-3">
-                    <div className="grid gap-1">
-                        <label
-                            className="text-xs text-text-faint"
-                            htmlFor="from"
-                        >
-                            From
-                        </label>
-                        <Input
-                            id="from"
-                            type="date"
-                            defaultValue={filters.from}
-                            onChange={(event) =>
-                                applyFilters({ from: event.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="grid gap-1">
-                        <label className="text-xs text-text-faint" htmlFor="to">
-                            To
-                        </label>
-                        <Input
-                            id="to"
-                            type="date"
-                            defaultValue={filters.to}
-                            onChange={(event) =>
-                                applyFilters({ to: event.target.value })
-                            }
-                        />
+                        ) : null}
                     </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-3">
-                    <StatCard label="Total violations" value={summary.total} />
-                    <StatCard label="Unreviewed" value={unreviewedCount} />
+                    <StatCard
+                        label="Total violations"
+                        value={snapshot.total}
+                        delta={`${snapshot.excluded_false_positives} false positives excluded`}
+                        sparkline={violationMetric?.sparkline}
+                        info={ppeInfo.total}
+                    />
+                    <StatCard
+                        label="Unreviewed"
+                        value={snapshot.unreviewed_in_range}
+                        delta={`${unreviewedCount} open overall`}
+                        deltaTone={
+                            snapshot.unreviewed_in_range > 0 ? 'crit' : 'ok'
+                        }
+                        info={ppeInfo.unreviewed}
+                    />
                     <StatCard
                         label="False-positive rate"
-                        value={`${(summary.false_positive_rate * 100).toFixed(1)}%`}
+                        value={`${(snapshot.false_positive_rate * 100).toFixed(1)}%`}
+                        delta="within selected range"
+                        info={ppeInfo.falsePositive}
                     />
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-12">
-                    <Panel
-                        title="Violations by type"
-                        subtitle={`${summary.excluded_false_positives} false positives excluded`}
-                        className="xl:col-span-5"
-                    >
-                        <HorizontalBars items={byType} />
-                    </Panel>
-                    <Panel
-                        title="Violations by hour"
-                        subtitle="density across the day"
-                        className="xl:col-span-7"
-                    >
-                        <BarChart data={byHour} height={200} />
-                    </Panel>
+                    <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)] xl:col-span-8">
+                        <CardHeader className="px-4 md:px-5">
+                            <CardHeading
+                                title="Violation Trend"
+                                info={ppeInfo.trend}
+                                description={
+                                    <>
+                                        {snapshot.trend.source} data ·{' '}
+                                        {chartData.length} points
+                                    </>
+                                }
+                            >
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <RangeToggle
+                                        options={RANGE_OPTIONS}
+                                        value={range}
+                                        onChange={applyRange}
+                                        aria-label="Trend duration"
+                                    />
+                                    {range === 'custom' ? (
+                                        <>
+                                            <Input
+                                                type="date"
+                                                value={from}
+                                                onChange={(event) =>
+                                                    setFrom(event.target.value)
+                                                }
+                                                className="h-8 w-[9.5rem]"
+                                                aria-label="From date"
+                                            />
+                                            <Input
+                                                type="date"
+                                                value={to}
+                                                onChange={(event) =>
+                                                    setTo(event.target.value)
+                                                }
+                                                className="h-8 w-[9.5rem]"
+                                                aria-label="To date"
+                                            />
+                                            <Button
+                                                size="sm"
+                                                className="h-8"
+                                                onClick={applyCustomRange}
+                                            >
+                                                Apply
+                                            </Button>
+                                        </>
+                                    ) : null}
+                                </div>
+                            </CardHeading>
+                        </CardHeader>
+                        <CardContent className="px-2 md:px-4">
+                            <AnalyticalChart
+                                data={chartData}
+                                series={chartSeries}
+                                height={320}
+                                emptyLabel="No violations in this range"
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)] xl:col-span-4">
+                        <CardHeader className="px-4 md:px-5">
+                            <CardHeading
+                                title="Range Statistics"
+                                info={ppeInfo.rangeStats}
+                                description="Bucket min, average, and max"
+                            />
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-5 px-4 md:px-5">
+                            {snapshot.metrics.map((metric) => (
+                                <div
+                                    key={metric.key}
+                                    className="flex flex-col gap-2"
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-sm font-medium">
+                                            {metric.label}
+                                        </span>
+                                        <span className="font-mono text-sm tabular-nums">
+                                            {metric.current ?? '—'}
+                                        </span>
+                                    </div>
+                                    <MetricRow
+                                        className="grid-cols-3"
+                                        items={[
+                                            {
+                                                label: 'Min',
+                                                value:
+                                                    metric.min === null
+                                                        ? '—'
+                                                        : `${metric.min}`,
+                                            },
+                                            {
+                                                label: 'Average',
+                                                value:
+                                                    metric.avg === null
+                                                        ? '—'
+                                                        : `${metric.avg}`,
+                                            },
+                                            {
+                                                label: 'Max',
+                                                value:
+                                                    metric.max === null
+                                                        ? '—'
+                                                        : `${metric.max}`,
+                                            },
+                                        ]}
+                                    />
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
                 </div>
 
-                <Panel title="Violations by camera" subtitle="this range">
-                    <HorizontalBars items={byCamera} />
-                </Panel>
+                <div className="grid gap-4 xl:grid-cols-2">
+                    <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)]">
+                        <CardHeader className="px-4 md:px-5">
+                            <CardHeading
+                                title="Violations by type"
+                                info={ppeInfo.byType}
+                                description={
+                                    <>
+                                        {snapshot.excluded_false_positives} false
+                                        positives excluded
+                                    </>
+                                }
+                            />
+                        </CardHeader>
+                        <CardContent className="px-4 md:px-5">
+                            <HorizontalBars items={byType} />
+                        </CardContent>
+                    </Card>
+
+                    <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)]">
+                        <CardHeader className="px-4 md:px-5">
+                            <CardHeading
+                                title="Violations by camera"
+                                info={ppeInfo.byCamera}
+                                description="this range"
+                            />
+                        </CardHeader>
+                        <CardContent className="px-4 md:px-5">
+                            <HorizontalBars items={byCamera} />
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </>
     );

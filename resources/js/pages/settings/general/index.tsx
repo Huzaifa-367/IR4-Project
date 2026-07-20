@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { SensitiveSettingConfirm } from '@/components/ir4/settings/sensitive-setting-confirm';
 import { SettingGroup } from '@/components/ir4/settings/setting-group';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
@@ -23,54 +23,66 @@ export default function GeneralSettingsPage({
 
     const initialValues = useMemo(() => {
         const values: Record<string, string | number | boolean | null> = {};
+
         for (const group of groups) {
             for (const setting of group.settings) {
                 values[setting.key] = setting.value;
             }
         }
+
         return values;
     }, [groups]);
 
     const [values, setValues] = useState(initialValues);
     const [confirmedKeys, setConfirmedKeys] = useState<string[]>([]);
+    const [prevInitialValues, setPrevInitialValues] = useState(initialValues);
     const [pendingConfirm, setPendingConfirm] = useState<{
         setting: SettingSchema;
         value: string | number | boolean;
     } | null>(null);
     const [processing, setProcessing] = useState(false);
 
-    useEffect(() => {
+    if (initialValues !== prevInitialValues) {
+        setPrevInitialValues(initialValues);
         setValues(initialValues);
         setConfirmedKeys([]);
-    }, [initialValues]);
+    }
 
     const settingIndex = useMemo(() => {
         const map = new Map<string, SettingSchema>();
+
         for (const group of groups) {
             for (const setting of group.settings) {
                 map.set(setting.key, setting);
             }
         }
+
         return map;
     }, [groups]);
 
     const dirtyKeys = Object.keys(values).filter((key) => {
         const setting = settingIndex.get(key);
+
         if (!setting || !setting.editable) {
             return false;
         }
+
         return values[key] !== setting.value;
     });
 
     const handleChange = (key: string, value: string | number | boolean) => {
         const setting = settingIndex.get(key);
+
         if (!setting || !setting.editable) {
             return;
         }
+
         if (setting.requires_confirm && value !== setting.value) {
             setPendingConfirm({ setting, value });
+
             return;
         }
+
         setValues((current) => ({ ...current, [key]: value }));
         setConfirmedKeys((current) => current.filter((item) => item !== key));
     };
@@ -84,11 +96,14 @@ export default function GeneralSettingsPage({
         if (dirtyKeys.length === 0) {
             return;
         }
+
         const payloadSettings: Record<string, string | number | boolean | null> =
             {};
+
         for (const key of dirtyKeys) {
             payloadSettings[key] = values[key];
         }
+
         setProcessing(true);
         router.put(
             '/settings/general',
@@ -172,6 +187,7 @@ export default function GeneralSettingsPage({
                     if (pendingConfirm === null) {
                         return;
                     }
+
                     setValues((current) => ({
                         ...current,
                         [pendingConfirm.setting.key]: pendingConfirm.value,

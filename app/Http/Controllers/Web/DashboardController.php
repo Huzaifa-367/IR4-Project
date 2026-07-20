@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Services\DashboardService;
 use App\Services\SettingsService;
 use App\Support\ApiResponse;
+use App\Support\TrendRange;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,11 +22,15 @@ final class DashboardController extends BaseController
         $user = $request->user();
         assert($user !== null);
 
-        $gasRange = $this->resolveGasRange($request);
+        [$range, $from, $to] = TrendRange::resolveDashboard($request);
 
         return Inertia::render('dashboard/index', [
-            'summary' => $dashboard->summary($user, $gasRange),
-            'gasRange' => $gasRange,
+            'summary' => $dashboard->summary($user, $range, $from, $to),
+            'filters' => [
+                'range' => $range,
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+            ],
             'cycleSeconds' => (int) $settings->get('display.cycle_seconds', 20),
             'permissions' => [
                 'view_tracking' => $user->can('view-tracking'),
@@ -46,13 +51,8 @@ final class DashboardController extends BaseController
         $user = $request->user();
         assert($user !== null);
 
-        return ApiResponse::ok($dashboard->summary($user, $this->resolveGasRange($request)));
-    }
+        [$range, $from, $to] = TrendRange::resolveDashboard($request);
 
-    private function resolveGasRange(Request $request): string
-    {
-        $range = $request->string('gas_range', 'shift')->toString();
-
-        return in_array($range, ['shift', 'day', 'week'], true) ? $range : 'shift';
+        return ApiResponse::ok($dashboard->summary($user, $range, $from, $to));
     }
 }

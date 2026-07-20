@@ -1,5 +1,5 @@
 import { useEcho, useConnectionStatus } from '@laravel/echo-react';
-import { useCallback, useEffect, useEffectEvent, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useAuth, useSharedSettings } from '@/hooks/use-auth';
 
 export type ReverbLiveStatus = 'live' | 'reconnecting' | 'offline';
@@ -56,13 +56,14 @@ export function useReverbChannel<TPayload = unknown>({
         ? mapConnectionStatus(connection)
         : 'offline';
     const prevStatus = useRef<ReverbLiveStatus>(status);
+    const onEventRef = useRef(onEvent);
 
-    const handleEvent = useEffectEvent((payload: TPayload): void => {
-        onEvent(payload);
+    useEffect(() => {
+        onEventRef.current = onEvent;
     });
 
     useEcho(channel, events, (payload: TPayload) => {
-        handleEvent(payload);
+        onEventRef.current(payload);
     });
 
     const refresh = useCallback(async (): Promise<void> => {

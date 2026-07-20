@@ -120,6 +120,17 @@ final class SensorRollupService
         return $pairs->count();
     }
 
+    /**
+     * Rebuild environmental hourly rollups for every bucket that has raw readings in range.
+     */
+    public function rebuildEnvRange(\DateTimeInterface $from, \DateTimeInterface $to): int
+    {
+        $from = Carbon::instance($from)->startOfHour();
+        $to = Carbon::instance($to)->copy()->endOfHour()->addSecond();
+
+        return $this->rebuildEnvWindow($from, $to);
+    }
+
     private function rebuildEnvWindow(\DateTimeInterface $from, \DateTimeInterface $horizon): int
     {
         $pairs = EnvironmentalReading::query()

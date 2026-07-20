@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import {
-    SettingsDataTable,
-    type SettingsColumn,
+    SettingsDataTable
+    
 } from '@/components/ir4/settings/settings-data-table';
+import type {SettingsColumn} from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
@@ -44,9 +45,11 @@ function statusTone(status: string): 'ok' | 'warn' | 'crit' | 'neutral' {
     if (status === 'active') {
         return 'ok';
     }
+
     if (status === 'maintenance') {
         return 'warn';
     }
+
     return 'crit';
 }
 

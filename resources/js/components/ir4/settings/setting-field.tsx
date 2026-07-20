@@ -96,8 +96,10 @@ export function SettingField({ setting, value, error, onChange }: Props) {
                                     ? 0
                                     : Number.parseInt(next, 10) || 0,
                             );
+
                             return;
                         }
+
                         if (setting.type === 'float') {
                             const next = event.target.value;
                             onChange(
@@ -105,8 +107,10 @@ export function SettingField({ setting, value, error, onChange }: Props) {
                                     ? 0
                                     : Number.parseFloat(next) || 0,
                             );
+
                             return;
                         }
+
                         onChange(event.target.value);
                     }}
                 />

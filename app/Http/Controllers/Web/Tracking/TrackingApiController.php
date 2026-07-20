@@ -58,7 +58,7 @@ final class TrackingApiController extends BaseController
 
         $zones = Zone::query()
             ->where('is_active', true)
-            ->get(['id', 'name', 'zone_type', 'map_x', 'map_y', 'map_radius', 'color'])
+            ->get(['id', 'name', 'zone_type', 'map_x', 'map_y', 'map_radius', 'latitude', 'longitude', 'radius_meters', 'color'])
             ->map(fn (Zone $z) => [
                 'id' => $z->id,
                 'name' => $z->name,
@@ -66,6 +66,9 @@ final class TrackingApiController extends BaseController
                 'map_x' => $z->map_x,
                 'map_y' => $z->map_y,
                 'map_radius' => $z->map_radius,
+                'latitude' => $z->latitude,
+                'longitude' => $z->longitude,
+                'radius_meters' => $z->radius_meters,
                 'color' => $z->color,
             ]);
 

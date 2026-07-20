@@ -1,9 +1,16 @@
 import type { ReactNode } from 'react';
+import {
+    SectionInfo,
+    
+    withInfoAction
+} from '@/components/ir4/section-info';
+import type {SectionInfoContent} from '@/components/ir4/section-info';
 import { cn } from '@/lib/utils';
 
 type Props = {
     title: string;
     subtitle?: string;
+    info?: SectionInfoContent;
     action?: ReactNode;
     children: ReactNode;
     className?: string;
@@ -13,6 +20,7 @@ type Props = {
 export function Panel({
     title,
     subtitle,
+    info,
     action,
     children,
     className = '',
@@ -26,16 +34,19 @@ export function Panel({
         >
             <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <h2 className="text-sm font-semibold tracking-tight text-text">
-                        {title}
-                    </h2>
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-semibold tracking-tight text-text">
+                            {title}
+                        </h2>
+                        {info && !action ? <SectionInfo info={info} /> : null}
+                    </div>
                     {subtitle ? (
                         <p className="mt-0.5 text-xs text-text-faint">
                             {subtitle}
                         </p>
                     ) : null}
                 </div>
-                {action}
+                {withInfoAction(info && action ? info : undefined, action)}
             </div>
             {children}
         </section>

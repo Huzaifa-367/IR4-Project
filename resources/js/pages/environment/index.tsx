@@ -2,21 +2,18 @@ import { Head, router } from '@inertiajs/react';
 import { CloudSun, Droplets, Radio, Wind } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { AnalyticalChart } from '@/components/ir4/analytical-chart';
+import { CardHeading } from '@/components/ir4/card-heading';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { MetricRow } from '@/components/ir4/metric-row';
 import { RangeToggle } from '@/components/ir4/range-toggle';
 import { StatCard } from '@/components/ir4/stat-card';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
+import { environmentInfo } from '@/lib/analytics-info';
 import { dashboard } from '@/routes';
 import type {
     EnvironmentDashboardSnapshot,
@@ -47,11 +44,11 @@ export default function EnvironmentTrends({
     const [liveSensors, setLiveSensors] = useState<EnvironmentSensor[] | null>(
         null,
     );
-    const [range, setRange] = useState<RangeValue>(
+    const [range, setRange] = usePropSyncedState<RangeValue>(
         (filters.range as RangeValue) || 'day',
     );
-    const [from, setFrom] = useState(filters.from);
-    const [to, setTo] = useState(filters.to);
+    const [from, setFrom] = usePropSyncedState(filters.from);
+    const [to, setTo] = usePropSyncedState(filters.to);
 
     const snapshot = {
         ...initialSnapshot,
@@ -149,13 +146,15 @@ export default function EnvironmentTrends({
 
     const applyRange = (nextRange: RangeValue): void => {
         setRange(nextRange);
+
         if (nextRange === 'custom') {
             return;
         }
+
         router.get(
             '/environment',
             { range: nextRange },
-            { preserveState: true, replace: true },
+            { only: ['snapshot', 'filters'], preserveState: true, replace: true },
         );
     };
 
@@ -163,7 +162,7 @@ export default function EnvironmentTrends({
         router.get(
             '/environment',
             { range: 'custom', from, to },
-            { preserveState: true, replace: true },
+            { only: ['snapshot', 'filters'], preserveState: true, replace: true },
         );
     };
 
@@ -202,6 +201,7 @@ export default function EnvironmentTrends({
                                 : 'No readings'
                         }
                         sparkline={temperature?.sparkline}
+                        info={environmentInfo.temperature}
                     />
                     <StatCard
                         label="Humidity"
@@ -217,6 +217,7 @@ export default function EnvironmentTrends({
                                 : 'No readings'
                         }
                         sparkline={humidity?.sparkline}
+                        info={environmentInfo.humidity}
                     />
                     <StatCard
                         label="Wind Speed"
@@ -232,6 +233,7 @@ export default function EnvironmentTrends({
                                 : 'No readings'
                         }
                         sparkline={wind?.sparkline}
+                        info={environmentInfo.wind}
                     />
                     <StatCard
                         label="Sensor Health"
@@ -245,22 +247,23 @@ export default function EnvironmentTrends({
                         pulseCrit={snapshot.sensors.some(
                             (sensor) => sensor.is_stale,
                         )}
+                        info={environmentInfo.sensorHealth}
                     />
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-12">
                     <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)] xl:col-span-8">
                         <CardHeader className="px-4 md:px-5">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="flex flex-col gap-1">
-                                    <CardTitle className="text-sm">
-                                        Environmental Trend
-                                    </CardTitle>
-                                    <CardDescription>
+                            <CardHeading
+                                title="Environmental Trend"
+                                info={environmentInfo.trend}
+                                description={
+                                    <>
                                         All metrics · {snapshot.trend.source}{' '}
                                         data · {chartData.length} points
-                                    </CardDescription>
-                                </div>
+                                    </>
+                                }
+                            >
                                 <div className="flex flex-wrap items-center gap-2">
                                     <RangeToggle
                                         options={RANGE_OPTIONS}
@@ -298,7 +301,7 @@ export default function EnvironmentTrends({
                                         </>
                                     ) : null}
                                 </div>
-                            </div>
+                            </CardHeading>
                         </CardHeader>
                         <CardContent className="px-2 md:px-4">
                             <AnalyticalChart
@@ -312,12 +315,11 @@ export default function EnvironmentTrends({
 
                     <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)] xl:col-span-4">
                         <CardHeader className="px-4 md:px-5">
-                            <CardTitle className="text-sm">
-                                Range Statistics
-                            </CardTitle>
-                            <CardDescription>
-                                Minimum, average, and maximum
-                            </CardDescription>
+                            <CardHeading
+                                title="Range Statistics"
+                                info={environmentInfo.rangeStats}
+                                description="Minimum, average, and maximum"
+                            />
                         </CardHeader>
                         <CardContent className="flex flex-col gap-5 px-4 md:px-5">
                             {snapshot.metrics.map((metric) => (
@@ -371,12 +373,11 @@ export default function EnvironmentTrends({
                 {snapshot.extra_metrics.length > 0 ? (
                     <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)]">
                         <CardHeader className="px-4 md:px-5">
-                            <CardTitle className="text-sm">
-                                Air Quality & Additional Parameters
-                            </CardTitle>
-                            <CardDescription>
-                                Dynamically reported sensor metrics
-                            </CardDescription>
+                            <CardHeading
+                                title="Air Quality & Additional Parameters"
+                                info={environmentInfo.extra}
+                                description="Dynamically reported sensor metrics"
+                            />
                         </CardHeader>
                         <CardContent className="grid gap-3 px-4 sm:grid-cols-2 md:px-5 xl:grid-cols-4">
                             {snapshot.extra_metrics.map((metric) => (
@@ -400,13 +401,11 @@ export default function EnvironmentTrends({
 
                 <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)]">
                     <CardHeader className="px-4 md:px-5">
-                        <CardTitle className="text-sm">
-                            Live Sensor Fleet
-                        </CardTitle>
-                        <CardDescription>
-                            Latest readings and data freshness per registered
-                            device
-                        </CardDescription>
+                        <CardHeading
+                            title="Live Sensor Fleet"
+                            info={environmentInfo.fleet}
+                            description="Latest readings and data freshness per registered device"
+                        />
                     </CardHeader>
                     <CardContent className="grid gap-3 px-4 md:grid-cols-2 md:px-5 xl:grid-cols-3">
                         {snapshot.sensors.map((sensor) => (
