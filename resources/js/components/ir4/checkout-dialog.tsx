@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type {
     EquipmentByToken,
     EquipmentWorkerRef,
@@ -54,25 +55,17 @@ export function CheckoutDialog({
                         <>
                             <div className="grid gap-2">
                                 <Label htmlFor="worker_id">Worker</Label>
-                                <select
+                                <SearchableSelect
                                     id="worker_id"
                                     name="worker_id"
                                     required
-                                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                                     defaultValue=""
-                                >
-                                    <option value="" disabled>
-                                        Select worker…
-                                    </option>
-                                    {workers.map((worker) => (
-                                        <option
-                                            key={worker.id}
-                                            value={worker.id}
-                                        >
-                                            {worker.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    placeholder="Select worker…"
+                                    options={workers.map((worker) => ({
+                                        value: String(worker.id),
+                                        label: worker.name,
+                                    }))}
+                                />
                                 {errors.worker_id && (
                                     <p className="text-sm text-destructive">
                                         {errors.worker_id}
@@ -89,19 +82,18 @@ export function CheckoutDialog({
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="zone_id">Zone (optional)</Label>
-                                <select
+                                <SearchableSelect
                                     id="zone_id"
                                     name="zone_id"
-                                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                                     defaultValue=""
-                                >
-                                    <option value="">None</option>
-                                    {zones.map((zone) => (
-                                        <option key={zone.id} value={zone.id}>
-                                            {zone.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    allowClear
+                                    clearLabel="None"
+                                    placeholder="None"
+                                    options={zones.map((zone) => ({
+                                        value: String(zone.id),
+                                        label: zone.name,
+                                    }))}
+                                />
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="expected_return_at">

@@ -38,7 +38,7 @@ export function SettingsPageShell({
                 ) : null}
             </div>
             {filters ? (
-                <div className="flex flex-wrap items-center gap-2 [&_button]:h-8 [&_button]:px-3 [&_button]:text-xs [&_input]:h-8 [&_input]:text-xs [&_[data-slot=select-trigger]]:h-8 [&_[data-slot=select-trigger]]:text-xs">
+                <div className="flex flex-wrap items-center gap-2 [&_button]:h-8 [&_button]:px-3 [&_button]:text-xs [&_input]:h-8 [&_input]:text-xs [&_[role=combobox]]:h-8 [&_[role=combobox]]:text-xs [&_[data-slot=select-trigger]]:h-8 [&_[data-slot=select-trigger]]:text-xs">
                     {filters}
                 </div>
             ) : null}

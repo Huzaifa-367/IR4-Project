@@ -10,14 +10,7 @@ import { WorkerIdentityCell } from '@/components/ir4/worker-identity-cell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
     FILTER_SEARCH_DEBOUNCE_MS,
@@ -214,33 +207,23 @@ export default function WorkersIndex({
                             className="w-40"
                             aria-label="Filter by contractor"
                         />
-                        <Select
+                        <SearchableSelect
                             value={workerType}
                             onValueChange={(value) => {
                                 setWorkerType(value);
                                 cancelDebounce();
                                 applyFilters({ worker_type: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value="all">
-                                        All types
-                                    </SelectItem>
-                                    {workerTypes.map((type) => (
-                                        <SelectItem
-                                            key={type.value}
-                                            value={type.value}
-                                        >
-                                            {type.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Type"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: 'all', label: 'All types' },
+                                ...workerTypes.map((type) => ({
+                                    value: type.value,
+                                    label: type.label,
+                                })),
+                            ]}
+                        />
                     </>
                 }
             >
@@ -320,26 +303,14 @@ export default function WorkersIndex({
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Worker type</Label>
-                            <Select
+                            <SearchableSelect
                                 value={editType}
                                 onValueChange={setEditType}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {workerTypes.map((type) => (
-                                            <SelectItem
-                                                key={type.value}
-                                                value={type.value}
-                                            >
-                                                {type.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                options={workerTypes.map((type) => ({
+                                    value: type.value,
+                                    label: type.label,
+                                }))}
+                            />
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="worker-role">Role title</Label>

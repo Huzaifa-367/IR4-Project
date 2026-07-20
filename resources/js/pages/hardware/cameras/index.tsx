@@ -18,14 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Switch } from '@/components/ui/switch';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
@@ -230,35 +223,23 @@ export default function CamerasIndex({
                             placeholder="Search…"
                             className="w-full sm:w-56"
                         />
-                        <Select
+                        <SearchableSelect
                             value={status}
                             onValueChange={(value) => {
                                 setStatus(value);
                                 cancelDebounce();
                                 applyFilters({ status: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value="all">
-                                        All statuses
-                                    </SelectItem>
-                                    <SelectItem value="online">Online</SelectItem>
-                                    <SelectItem value="offline">
-                                        Offline
-                                    </SelectItem>
-                                    <SelectItem value="maintenance">
-                                        Maintenance
-                                    </SelectItem>
-                                    <SelectItem value="retired">
-                                        Retired
-                                    </SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Status"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: 'all', label: 'All statuses' },
+                                { value: 'online', label: 'Online' },
+                                { value: 'offline', label: 'Offline' },
+                                { value: 'maintenance', label: 'Maintenance' },
+                                { value: 'retired', label: 'Retired' },
+                            ]}
+                        />
                     </>
                 }
             >
@@ -304,23 +285,15 @@ export default function CamerasIndex({
                     <>
                         <div className="flex flex-col gap-2">
                             <Label>Asset</Label>
-                            <Select value={assetId} onValueChange={setAssetId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select asset" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {assets.map((asset) => (
-                                            <SelectItem
-                                                key={asset.id}
-                                                value={String(asset.id)}
-                                            >
-                                                {asset.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                            <SearchableSelect
+                                value={assetId}
+                                onValueChange={setAssetId}
+                                placeholder="Select asset"
+                                options={assets.map((asset) => ({
+                                    value: String(asset.id),
+                                    label: asset.name,
+                                }))}
+                            />
                             {errors.asset_id ? (
                                 <p className="text-destructive text-sm">
                                     {errors.asset_id}
@@ -360,26 +333,14 @@ export default function CamerasIndex({
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Type</Label>
-                            <Select
+                            <SearchableSelect
                                 value={typeValue}
                                 onValueChange={setTypeValue}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {cameraTypes.map((type) => (
-                                            <SelectItem
-                                                key={type.value}
-                                                value={type.value}
-                                            >
-                                                {type.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                options={cameraTypes.map((type) => ({
+                                    value: type.value,
+                                    label: type.label,
+                                }))}
+                            />
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="camera-stream">Stream URL</Label>

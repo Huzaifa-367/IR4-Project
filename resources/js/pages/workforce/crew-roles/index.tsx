@@ -8,6 +8,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 type PermitTypeOption = {
     id: number;
@@ -161,22 +162,17 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="grid gap-1 sm:col-span-2">
                             <Label htmlFor="permit_type_id">Permit type</Label>
-                            <select
+                            <SearchableSelect
                                 id="permit_type_id"
                                 name="permit_type_id"
                                 required
                                 defaultValue=""
-                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none"
-                            >
-                                <option value="" disabled>
-                                    Select type
-                                </option>
-                                {permitTypes.map((type) => (
-                                    <option key={type.id} value={type.id}>
-                                        {type.name}
-                                    </option>
-                                ))}
-                            </select>
+                                placeholder="Select type"
+                                options={permitTypes.map((type) => ({
+                                    value: String(type.id),
+                                    label: type.name,
+                                }))}
+                            />
                         </div>
                         <div className="grid gap-1">
                             <Label htmlFor="role_code">Code</Label>

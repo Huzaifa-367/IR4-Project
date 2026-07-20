@@ -11,14 +11,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import { gasInfo } from '@/lib/analytics-info';
@@ -391,7 +384,7 @@ export default function GasDashboard({
                                 }
                             >
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <Select
+                                    <SearchableSelect
                                         value={deviceId}
                                         onValueChange={(value) => {
                                             setDeviceId(value);
@@ -399,28 +392,19 @@ export default function GasDashboard({
                                                 device_id: value,
                                             });
                                         }}
-                                    >
-                                        <SelectTrigger className="h-8 w-44">
-                                            <SelectValue placeholder="Device" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectGroup>
-                                                <SelectItem
-                                                    value={ALL_DEVICES}
-                                                >
-                                                    All devices
-                                                </SelectItem>
-                                                {devices.map((d) => (
-                                                    <SelectItem
-                                                        key={d.id}
-                                                        value={String(d.id)}
-                                                    >
-                                                        {d.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectGroup>
-                                        </SelectContent>
-                                    </Select>
+                                        placeholder="Device"
+                                        triggerClassName="h-8 w-44"
+                                        options={[
+                                            {
+                                                value: ALL_DEVICES,
+                                                label: 'All devices',
+                                            },
+                                            ...devices.map((d) => ({
+                                                value: String(d.id),
+                                                label: d.name,
+                                            })),
+                                        ]}
+                                    />
                                     <RangeToggle
                                         options={RANGE_OPTIONS}
                                         value={range}

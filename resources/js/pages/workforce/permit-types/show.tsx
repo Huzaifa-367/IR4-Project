@@ -9,6 +9,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 type Option = { id: number; code: string; name: string };
 
@@ -979,7 +980,7 @@ export default function PermitTypeShow({
                     <>
                     <div className="grid gap-3">
                         <Field label="Conflicts with" htmlFor="conflict_type">
-                            <select
+                            <SearchableSelect
                                 id="conflict_type"
                                 name="conflicts_with_type_id"
                                 required
@@ -991,18 +992,17 @@ export default function PermitTypeShow({
                                           )
                                         : ''
                                 }
-                                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                            >
-                                <option value="">Select type…</option>
-                                {otherTypes.map((type) => (
-                                    <option key={type.id} value={type.id}>
-                                        {type.name} ({type.code})
-                                    </option>
-                                ))}
-                            </select>
+                                allowClear
+                                clearLabel="Select type…"
+                                placeholder="Select type…"
+                                options={otherTypes.map((type) => ({
+                                    value: String(type.id),
+                                    label: `${type.name} (${type.code})`,
+                                }))}
+                            />
                         </Field>
                         <Field label="Scope" htmlFor="conflict_scope">
-                            <select
+                            <SearchableSelect
                                 id="conflict_scope"
                                 name="scope"
                                 required
@@ -1011,16 +1011,20 @@ export default function PermitTypeShow({
                                         ? dialog.conflict.scope
                                         : 'same_zone'
                                 }
-                                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                            >
-                                <option value="same_zone">Same zone</option>
-                                <option value="adjacent_zone">
-                                    Adjacent zone
-                                </option>
-                            </select>
+                                options={[
+                                    {
+                                        value: 'same_zone',
+                                        label: 'Same zone',
+                                    },
+                                    {
+                                        value: 'adjacent_zone',
+                                        label: 'Adjacent zone',
+                                    },
+                                ]}
+                            />
                         </Field>
                         <Field label="Severity" htmlFor="conflict_severity">
-                            <select
+                            <SearchableSelect
                                 id="conflict_severity"
                                 name="severity"
                                 required
@@ -1029,11 +1033,11 @@ export default function PermitTypeShow({
                                         ? dialog.conflict.severity
                                         : 'warn'
                                 }
-                                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                            >
-                                <option value="warn">Warn</option>
-                                <option value="block">Block</option>
-                            </select>
+                                options={[
+                                    { value: 'warn', label: 'Warn' },
+                                    { value: 'block', label: 'Block' },
+                                ]}
+                            />
                         </Field>
                         <Field label="Note" htmlFor="conflict_note">
                             <Input
@@ -1078,7 +1082,7 @@ export default function PermitTypeShow({
                     <>
                     <div className="grid gap-3">
                         <Field label="Document type" htmlFor="doc_type">
-                            <select
+                            <SearchableSelect
                                 id="doc_type"
                                 name="worker_document_type_id"
                                 required
@@ -1090,37 +1094,32 @@ export default function PermitTypeShow({
                                           )
                                         : ''
                                 }
-                                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                            >
-                                <option value="">Select document…</option>
-                                {documentTypes.map((type) => (
-                                    <option key={type.id} value={type.id}>
-                                        {type.name} ({type.code})
-                                    </option>
-                                ))}
-                            </select>
+                                allowClear
+                                clearLabel="Select document…"
+                                placeholder="Select document…"
+                                options={documentTypes.map((type) => ({
+                                    value: String(type.id),
+                                    label: `${type.name} (${type.code})`,
+                                }))}
+                            />
                         </Field>
                         <Field label="Role code (optional)" htmlFor="doc_role">
-                            <select
+                            <SearchableSelect
                                 id="doc_role"
                                 name="role_code"
-                                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                                 defaultValue={
                                     dialog?.kind === 'edit-doc-req'
                                         ? (dialog.requirement.role_code ?? '')
                                         : ''
                                 }
-                            >
-                                <option value="">Any role</option>
-                                {permitType.roles.map((role) => (
-                                    <option
-                                        key={role.role_code}
-                                        value={role.role_code}
-                                    >
-                                        {role.label} ({role.role_code})
-                                    </option>
-                                ))}
-                            </select>
+                                allowClear
+                                clearLabel="Any role"
+                                placeholder="Any role"
+                                options={permitType.roles.map((role) => ({
+                                    value: role.role_code,
+                                    label: `${role.label} (${role.role_code})`,
+                                }))}
+                            />
                         </Field>
                         <FlagCheckbox
                             name="is_mandatory"

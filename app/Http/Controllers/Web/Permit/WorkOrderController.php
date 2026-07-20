@@ -57,20 +57,19 @@ final class WorkOrderController extends BaseController
                 'sort' => $request->string('sort')->toString() ?: 'created_at',
                 'direction' => $request->string('direction')->toString() ?: 'desc',
             ],
-            'canCreate' => $request->user()?->can('request-permit') ?? false,
-        ]);
-    }
-
-    public function create(Request $request): InertiaResponse
-    {
-        abort_unless($request->user()?->can('request-permit'), 403);
-
-        return Inertia::render('workforce/work-orders/create', [
             'zones' => Zone::query()
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'canCreate' => $request->user()?->can('request-permit') ?? false,
         ]);
+    }
+
+    public function create(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('request-permit'), 403);
+
+        return redirect()->route('work-orders.index');
     }
 
     public function store(Request $request): RedirectResponse

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 type DocumentTypeRow = {
     id: number;
@@ -222,19 +223,16 @@ export default function WorkerDocumentTypesIndex({
 
                         <div className="grid gap-1">
                             <Label htmlFor="category">Category</Label>
-                            <select
+                            <SearchableSelect
                                 id="category"
                                 name="category"
                                 required
                                 defaultValue={editing?.category ?? 'competence'}
-                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none"
-                            >
-                                {categories.map((category) => (
-                                    <option key={category} value={category}>
-                                        {categoryLabel(category)}
-                                    </option>
-                                ))}
-                            </select>
+                                options={categories.map((category) => ({
+                                    value: category,
+                                    label: categoryLabel(category),
+                                }))}
+                            />
                             {errors.category ? (
                                 <p className="text-sm text-destructive">
                                     {errors.category}

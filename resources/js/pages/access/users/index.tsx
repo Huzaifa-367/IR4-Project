@@ -28,14 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import type { RoleOption, UserRow } from '@/types/settings-admin';
 
@@ -222,26 +215,15 @@ export default function UsersIndex({
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Role</Label>
-                            <Select
+                            <SearchableSelect
                                 value={createRole}
                                 onValueChange={setCreateRole}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {roles.map((role) => (
-                                            <SelectItem
-                                                key={role.id}
-                                                value={role.name}
-                                            >
-                                                {role.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                placeholder="Select role"
+                                options={roles.map((role) => ({
+                                    value: role.name,
+                                    label: role.name,
+                                }))}
+                            />
                             {errors.role ? (
                                 <p className="text-destructive text-sm">
                                     {errors.role}
@@ -292,26 +274,15 @@ export default function UsersIndex({
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Role</Label>
-                            <Select
+                            <SearchableSelect
                                 value={editRole}
                                 onValueChange={setEditRole}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {roles.map((role) => (
-                                            <SelectItem
-                                                key={role.id}
-                                                value={role.name}
-                                            >
-                                                {role.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                placeholder="Select role"
+                                options={roles.map((role) => ({
+                                    value: role.name,
+                                    label: role.name,
+                                }))}
+                            />
                             {errors.role ? (
                                 <p className="text-destructive text-sm">
                                     {errors.role}

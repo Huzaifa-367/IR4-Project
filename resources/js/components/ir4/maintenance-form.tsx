@@ -2,6 +2,7 @@ import { Form } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MaintenanceType, MaintenanceTypeLabels } from '@/types/enums';
 
 type Props = {
@@ -37,19 +38,18 @@ export function MaintenanceForm({ equipmentId, onSuccess }: Props) {
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="maintenance_type">Type</Label>
-                        <select
+                        <SearchableSelect
                             id="maintenance_type"
                             name="maintenance_type"
                             required
                             defaultValue={MaintenanceType.Preventive}
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                        >
-                            {Object.values(MaintenanceType).map((value) => (
-                                <option key={value} value={value}>
-                                    {MaintenanceTypeLabels[value]}
-                                </option>
-                            ))}
-                        </select>
+                            options={Object.values(MaintenanceType).map(
+                                (value) => ({
+                                    value,
+                                    label: MaintenanceTypeLabels[value],
+                                }),
+                            )}
+                        />
                         {errors.maintenance_type && (
                             <p className="text-sm text-destructive">
                                 {errors.maintenance_type}

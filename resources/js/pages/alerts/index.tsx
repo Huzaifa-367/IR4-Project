@@ -9,14 +9,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
     FILTER_SEARCH_DEBOUNCE_MS,
@@ -241,87 +234,57 @@ export default function AlertsIndex({
                             className="w-full sm:w-56"
                             aria-label="Search alerts"
                         />
-                        <Select
+                        <SearchableSelect
                             value={statusFilter}
                             onValueChange={(value) => {
                                 setStatusFilter(value);
                                 cancelDebounce();
                                 applyFilters({ status: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        Open + ack
-                                    </SelectItem>
-                                    {statuses.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Status"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: ALL, label: 'Open + ack' },
+                                ...statuses.map((option) => ({
+                                    value: option.value,
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={severity}
                             onValueChange={(value) => {
                                 setSeverity(value);
                                 cancelDebounce();
                                 applyFilters({ severity: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Severity" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All severities
-                                    </SelectItem>
-                                    {severities.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Severity"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: ALL, label: 'All severities' },
+                                ...severities.map((option) => ({
+                                    value: option.value,
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={alertType}
                             onValueChange={(value) => {
                                 setAlertType(value);
                                 cancelDebounce();
                                 applyFilters({ alert_type: value });
                             }}
-                        >
-                            <SelectTrigger className="w-44">
-                                <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All types
-                                    </SelectItem>
-                                    {alertTypes.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Type"
+                            triggerClassName="w-44"
+                            options={[
+                                { value: ALL, label: 'All types' },
+                                ...alertTypes.map((option) => ({
+                                    value: option.value,
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
                     </>
                 }
             >

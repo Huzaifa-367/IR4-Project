@@ -3,6 +3,7 @@ import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 type ReaderCard = {
     id: number;
@@ -115,25 +116,18 @@ export default function RepositioningPage({ readers, zones, flash }: Props) {
                                             >
                                                 New zone
                                             </Label>
-                                            <select
+                                            <SearchableSelect
                                                 id={`zone-${reader.id}`}
                                                 name="zone_id"
                                                 required
-                                                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                                            >
-                                                <option value="">
-                                                    Select zone
-                                                </option>
-                                                {zones.map((zone) => (
-                                                    <option
-                                                        key={zone.id}
-                                                        value={zone.id}
-                                                    >
-                                                        {zone.name} (
-                                                        {zone.zone_type_label})
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                allowClear
+                                                clearLabel="Select zone"
+                                                placeholder="Select zone"
+                                                options={zones.map((zone) => ({
+                                                    value: String(zone.id),
+                                                    label: `${zone.name} (${zone.zone_type_label})`,
+                                                }))}
+                                            />
                                         </div>
                                         <div className="grid gap-1">
                                             <Label

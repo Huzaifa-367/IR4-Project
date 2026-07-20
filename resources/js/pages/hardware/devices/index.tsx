@@ -19,14 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import {
@@ -256,58 +249,40 @@ export default function DevicesIndex({
                             placeholder="Search…"
                             className="w-full sm:w-56"
                         />
-                        <Select
+                        <SearchableSelect
                             value={deviceType}
                             onValueChange={(value) => {
                                 setDeviceType(value);
                                 cancelDebounce();
                                 applyFilters({ device_type: value });
                             }}
-                        >
-                            <SelectTrigger className="w-44">
-                                <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value="all">All types</SelectItem>
-                                    {deviceTypes.map((type) => (
-                                        <SelectItem
-                                            key={type.value}
-                                            value={type.value}
-                                        >
-                                            {type.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Type"
+                            triggerClassName="w-44"
+                            options={[
+                                { value: 'all', label: 'All types' },
+                                ...deviceTypes.map((type) => ({
+                                    value: type.value,
+                                    label: type.label,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={status}
                             onValueChange={(value) => {
                                 setStatus(value);
                                 cancelDebounce();
                                 applyFilters({ status: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value="all">
-                                        All statuses
-                                    </SelectItem>
-                                    {statuses.map((item) => (
-                                        <SelectItem
-                                            key={item.value}
-                                            value={item.value}
-                                        >
-                                            {item.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Status"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: 'all', label: 'All statuses' },
+                                ...statuses.map((item) => ({
+                                    value: item.value,
+                                    label: item.label,
+                                })),
+                            ]}
+                        />
                     </>
                 }
             >
@@ -352,23 +327,15 @@ export default function DevicesIndex({
                     <>
                         <div className="flex flex-col gap-2">
                             <Label>Asset</Label>
-                            <Select value={assetId} onValueChange={setAssetId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select asset" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {assets.map((asset) => (
-                                            <SelectItem
-                                                key={asset.id}
-                                                value={String(asset.id)}
-                                            >
-                                                {asset.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                            <SearchableSelect
+                                value={assetId}
+                                onValueChange={setAssetId}
+                                placeholder="Select asset"
+                                options={assets.map((asset) => ({
+                                    value: String(asset.id),
+                                    label: asset.name,
+                                }))}
+                            />
                             {errors.asset_id ? (
                                 <p className="text-destructive text-sm">
                                     {errors.asset_id}
@@ -415,26 +382,14 @@ export default function DevicesIndex({
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Type</Label>
-                            <Select
+                            <SearchableSelect
                                 value={typeValue}
                                 onValueChange={setTypeValue}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {deviceTypes.map((type) => (
-                                            <SelectItem
-                                                key={type.value}
-                                                value={type.value}
-                                            >
-                                                {type.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                options={deviceTypes.map((type) => ({
+                                    value: type.value,
+                                    label: type.label,
+                                }))}
+                            />
                         </div>
                     </>
                 )}
@@ -510,30 +465,16 @@ export default function DevicesIndex({
                 {() => (
                     <div className="flex flex-col gap-2">
                         <Label>Status</Label>
-                        <Select
+                        <SearchableSelect
                             value={nextStatus}
                             onValueChange={setNextStatus}
-                        >
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    {statuses
-                                        .filter(
-                                            (item) => item.value !== 'retired',
-                                        )
-                                        .map((item) => (
-                                            <SelectItem
-                                                key={item.value}
-                                                value={item.value}
-                                            >
-                                                {item.label}
-                                            </SelectItem>
-                                        ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            options={statuses
+                                .filter((item) => item.value !== 'retired')
+                                .map((item) => ({
+                                    value: item.value,
+                                    label: item.label,
+                                }))}
+                        />
                     </div>
                 )}
             </CrudFormDialog>

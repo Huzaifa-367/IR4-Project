@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { ReturnStatus, ReturnStatusLabels } from '@/types/enums';
 import type { EquipmentCheckout } from '@/types/equipment';
 
@@ -61,23 +62,18 @@ export function ReturnDialog({
                                 <Label htmlFor="return_status">
                                     Return status
                                 </Label>
-                                <select
+                                <SearchableSelect
                                     id="return_status"
                                     name="return_status"
-                                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                                     value={returnStatus}
-                                    onChange={(event) =>
-                                        setReturnStatus(event.target.value)
-                                    }
-                                >
-                                    {Object.values(ReturnStatus).map(
-                                        (value) => (
-                                            <option key={value} value={value}>
-                                                {ReturnStatusLabels[value]}
-                                            </option>
-                                        ),
+                                    onValueChange={setReturnStatus}
+                                    options={Object.values(ReturnStatus).map(
+                                        (value) => ({
+                                            value,
+                                            label: ReturnStatusLabels[value],
+                                        }),
                                     )}
-                                </select>
+                                />
                                 {errors.return_status && (
                                     <p className="text-sm text-destructive">
                                         {errors.return_status}

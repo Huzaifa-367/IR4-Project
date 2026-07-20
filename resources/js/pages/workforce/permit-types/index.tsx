@@ -6,6 +6,14 @@ import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { PermitTypeCatalogueRow } from '@/types/permit';
@@ -15,7 +23,8 @@ type Props = {
 };
 
 export default function PermitTypesIndex({ permitTypes }: Props) {
-    const [showCreate, setShowCreate] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     const columns: SettingsColumn<PermitTypeCatalogueRow>[] = [
         {
@@ -102,24 +111,48 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
                 title="Permit types"
                 description="Open a type to manage its crew roles, checklist, gas pack, SIMOPS conflicts, and document requirements."
                 actions={
-                    <Button type="button" onClick={() => setShowCreate((v) => !v)}>
-                        {showCreate ? 'Cancel' : 'Add type'}
+                    <Button type="button" onClick={() => setCreateOpen(true)}>
+                        Add type
                     </Button>
                 }
             >
-                {showCreate && (
+                <SettingsDataTable
+                    columns={columns}
+                    rows={permitTypes}
+                    rowKey={(row) => row.id}
+                    emptyTitle="No permit types"
+                    emptyDescription="Seed the catalogue or add a type."
+                />
+            </SettingsPageShell>
+
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Add permit type</DialogTitle>
+                        <DialogDescription>
+                            Create a catalogue entry, then configure roles and
+                            checklist on its detail page.
+                        </DialogDescription>
+                    </DialogHeader>
                     <form
-                        className="mb-6 grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2"
+                        className="grid gap-3 sm:grid-cols-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             const form = event.currentTarget;
                             const data = new FormData(form);
-                            router.post('/workforce/permit-types', Object.fromEntries(data), {
-                                onSuccess: () => {
-                                    setShowCreate(false);
-                                    form.reset();
+                            setSubmitting(true);
+                            router.post(
+                                '/workforce/permit-types',
+                                Object.fromEntries(data),
+                                {
+                                    preserveScroll: true,
+                                    onFinish: () => setSubmitting(false),
+                                    onSuccess: () => {
+                                        setCreateOpen(false);
+                                        form.reset();
+                                    },
                                 },
-                            });
+                            );
                         }}
                     >
                         <div className="grid gap-1">
@@ -139,22 +172,28 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
                             Requires gas test
                         </label>
                         <label className="flex items-center gap-2 text-sm">
-                            <Checkbox name="requires_joint_inspection" value="1" defaultChecked />
+                            <Checkbox
+                                name="requires_joint_inspection"
+                                value="1"
+                                defaultChecked
+                            />
                             Requires joint inspection
                         </label>
-                        <div className="sm:col-span-2">
-                            <Button type="submit">Create type</Button>
-                        </div>
+                        <DialogFooter className="sm:col-span-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setCreateOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={submitting}>
+                                Create type
+                            </Button>
+                        </DialogFooter>
                     </form>
-                )}
-                <SettingsDataTable
-                    columns={columns}
-                    rows={permitTypes}
-                    rowKey={(row) => row.id}
-                    emptyTitle="No permit types"
-                    emptyDescription="Seed the catalogue or add a type."
-                />
-            </SettingsPageShell>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

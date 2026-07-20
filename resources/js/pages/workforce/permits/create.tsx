@@ -5,6 +5,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type {
     PermitTypeSummary,
     WorkerOption,
@@ -184,13 +185,11 @@ export default function PermitCreate({
                                         <Label htmlFor="work_order_id">
                                             Work order
                                         </Label>
-                                        <select
+                                        <SearchableSelect
                                             id="work_order_id"
                                             name="work_order_id"
                                             value={workOrderId}
-                                            onChange={(event) => {
-                                                const nextId =
-                                                    event.target.value;
+                                            onValueChange={(nextId) => {
                                                 setWorkOrderId(nextId);
                                                 const order = workOrders.find(
                                                     (item) =>
@@ -204,23 +203,18 @@ export default function PermitCreate({
                                                     );
                                                 }
                                             }}
-                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                        >
-                                            <option value="">
-                                                Standalone (no work order)
-                                            </option>
-                                            {workOrders.map((order) => (
-                                                <option
-                                                    key={order.id}
-                                                    value={order.id}
-                                                >
-                                                    {order.reference}
-                                                    {order.zone
+                                            allowClear
+                                            clearLabel="Standalone (no work order)"
+                                            placeholder="Standalone (no work order)"
+                                            options={workOrders.map((order) => ({
+                                                value: String(order.id),
+                                                label: `${order.reference}${
+                                                    order.zone
                                                         ? ` · ${order.zone.name}`
-                                                        : ''}
-                                                </option>
-                                            ))}
-                                        </select>
+                                                        : ''
+                                                }`,
+                                            }))}
+                                        />
                                         <p className="text-xs text-muted-foreground">
                                             Optional. Use a work order to group
                                             related permits for one job package.
@@ -232,14 +226,12 @@ export default function PermitCreate({
                                     <Label htmlFor="permit_type_id">
                                         Permit type
                                     </Label>
-                                    <select
+                                    <SearchableSelect
                                         id="permit_type_id"
                                         name="permit_type_id"
                                         value={permitTypeId}
-                                        onChange={(event) => {
-                                            setPermitTypeId(
-                                                event.target.value,
-                                            );
+                                        onValueChange={(value) => {
+                                            setPermitTypeId(value);
                                             setPersonnel([
                                                 {
                                                     worker_id: '',
@@ -247,18 +239,12 @@ export default function PermitCreate({
                                                 },
                                             ]);
                                         }}
-                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
                                         required
-                                    >
-                                        {permitTypes.map((type) => (
-                                            <option
-                                                key={type.id}
-                                                value={type.id}
-                                            >
-                                                {type.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        options={permitTypes.map((type) => ({
+                                            value: String(type.id),
+                                            label: type.name,
+                                        }))}
+                                    />
                                     {errors.permit_type_id && (
                                         <p className="text-sm text-destructive">
                                             {errors.permit_type_id}
@@ -268,28 +254,23 @@ export default function PermitCreate({
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="zone_id">Zone</Label>
-                                    <select
+                                    <SearchableSelect
                                         id="zone_id"
                                         name="zone_id"
                                         value={zoneId}
-                                        onChange={(event) =>
-                                            setZoneId(event.target.value)
-                                        }
-                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                    >
-                                        <option value="">—</option>
-                                        {zones.map((zone) => (
-                                            <option
-                                                key={zone.id}
-                                                value={zone.id}
-                                            >
-                                                {zone.name}
-                                                {zone.requires_permit
+                                        onValueChange={setZoneId}
+                                        allowClear
+                                        clearLabel="—"
+                                        placeholder="—"
+                                        options={zones.map((zone) => ({
+                                            value: String(zone.id),
+                                            label: `${zone.name}${
+                                                zone.requires_permit
                                                     ? ' (permit required)'
-                                                    : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                                    : ''
+                                            }`,
+                                        }))}
+                                    />
                                 </div>
 
                                 <div className="grid gap-2">
@@ -387,17 +368,16 @@ export default function PermitCreate({
                                         >
                                             <div className="grid gap-1">
                                                 <Label>Role</Label>
-                                                <select
+                                                <SearchableSelect
                                                     name={`personnel[${index}][role_code]`}
                                                     value={row.role_code}
-                                                    onChange={(event) =>
+                                                    onValueChange={(value) =>
                                                         updatePersonnelRow(
                                                             index,
                                                             'role_code',
-                                                            event.target.value,
+                                                            value,
                                                         )
                                                     }
-                                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
                                                     disabled={
                                                         (selectedType?.roles
                                                             .length ?? 0) === 0
@@ -405,62 +385,63 @@ export default function PermitCreate({
                                                     required={
                                                         row.worker_id !== ''
                                                     }
-                                                >
-                                                    <option value="">
-                                                        Select role
-                                                    </option>
-                                                    {(
+                                                    allowClear
+                                                    clearLabel="Select role"
+                                                    placeholder="Select role"
+                                                    options={(
                                                         selectedType?.roles ??
                                                         []
-                                                    ).map((role) => (
-                                                        <option
-                                                            key={role.role_code}
-                                                            value={
-                                                                role.role_code
-                                                            }
-                                                        >
-                                                            {role.label}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                    ).map((role) => ({
+                                                        value: role.role_code,
+                                                        label: role.label,
+                                                    }))}
+                                                />
                                             </div>
                                             <div className="grid gap-1">
                                                 <Label>Worker</Label>
-                                                <select
+                                                <SearchableSelect
                                                     name={`personnel[${index}][worker_id]`}
                                                     value={row.worker_id}
-                                                    onChange={(event) =>
+                                                    onValueChange={(value) =>
                                                         updatePersonnelRow(
                                                             index,
                                                             'worker_id',
-                                                            event.target.value,
+                                                            value,
                                                         )
                                                     }
-                                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
                                                     disabled={
                                                         row.role_code === ''
                                                     }
-                                                >
-                                                    <option value="">
-                                                        {row.role_code === ''
+                                                    allowClear
+                                                    clearLabel={
+                                                        row.role_code === ''
                                                             ? 'Pick role first'
                                                             : roleWorkers.length ===
                                                                 0
                                                               ? 'No ready workers'
-                                                              : 'Select worker'}
-                                                    </option>
-                                                    {roleWorkers.map((item) => (
-                                                        <option
-                                                            key={item.id}
-                                                            value={item.id}
-                                                        >
-                                                            {item.label}
-                                                            {item.reference
-                                                                ? ` (${item.reference})`
-                                                                : ''}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                              : 'Select worker'
+                                                    }
+                                                    placeholder={
+                                                        row.role_code === ''
+                                                            ? 'Pick role first'
+                                                            : roleWorkers.length ===
+                                                                0
+                                                              ? 'No ready workers'
+                                                              : 'Select worker'
+                                                    }
+                                                    options={roleWorkers.map(
+                                                        (item) => ({
+                                                            value: String(
+                                                                item.id,
+                                                            ),
+                                                            label: `${item.label}${
+                                                                item.reference
+                                                                    ? ` (${item.reference})`
+                                                                    : ''
+                                                            }`,
+                                                        }),
+                                                    )}
+                                                />
                                             </div>
                                             <div className="flex flex-col items-start gap-1 self-end">
                                                 {row.worker_id &&

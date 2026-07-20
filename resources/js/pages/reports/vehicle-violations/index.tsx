@@ -15,14 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
     FILTER_SEARCH_DEBOUNCE_MS,
@@ -213,29 +206,20 @@ export default function VehicleViolationsIndex({
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Type</Label>
-                            <Select
+                            <SearchableSelect
                                 value={form.data.violation_type}
                                 onValueChange={(value) =>
                                     form.setData('violation_type', value)
                                 }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {violationTypes.map((type) => (
-                                            <SelectItem key={type} value={type}>
-                                                {type}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                options={violationTypes.map((type) => ({
+                                    value: type,
+                                    label: type,
+                                }))}
+                            />
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Camera (optional)</Label>
-                            <Select
+                            <SearchableSelect
                                 value={form.data.camera_id || 'none'}
                                 onValueChange={(value) =>
                                     form.setData(
@@ -243,27 +227,15 @@ export default function VehicleViolationsIndex({
                                         value === 'none' ? '' : value,
                                     )
                                 }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectItem value="none">
-                                            None
-                                        </SelectItem>
-                                        {cameras.map((camera) => (
-                                            <SelectItem
-                                                key={camera.id}
-                                                value={String(camera.id)}
-                                            >
-                                                {camera.name ||
-                                                    camera.reference}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                options={[
+                                    { value: 'none', label: 'None' },
+                                    ...cameras.map((camera) => ({
+                                        value: String(camera.id),
+                                        label:
+                                            camera.name || camera.reference,
+                                    })),
+                                ]}
+                            />
                         </div>
                         <div className="flex flex-col gap-2 sm:col-span-2">
                             <Label htmlFor="description">Description</Label>

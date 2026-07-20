@@ -8,14 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { HardwareOption } from '@/types/hardware';
 
 type AssetDetail = {
@@ -244,49 +237,25 @@ export default function AssetShow({
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Type</Label>
-                            <Select
+                            <SearchableSelect
                                 value={editType}
                                 onValueChange={setEditType}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {assetTypes.map((type) => (
-                                            <SelectItem
-                                                key={type.value}
-                                                value={type.value}
-                                            >
-                                                {type.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                options={assetTypes.map((type) => ({
+                                    value: type.value,
+                                    label: type.label,
+                                }))}
+                            />
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Status</Label>
-                            <Select
+                            <SearchableSelect
                                 value={editStatus}
                                 onValueChange={setEditStatus}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {statuses.map((item) => (
-                                            <SelectItem
-                                                key={item.value}
-                                                value={item.value}
-                                            >
-                                                {item.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                options={statuses.map((item) => ({
+                                    value: item.value,
+                                    label: item.label,
+                                }))}
+                            />
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="asset-show-location">

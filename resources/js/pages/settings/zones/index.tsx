@@ -13,14 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { HardwareOption, Paginated } from '@/types/hardware';
 
 type ZoneRow = {
@@ -268,26 +261,14 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Type</Label>
-                            <Select
+                            <SearchableSelect
                                 value={editType}
                                 onValueChange={setEditType}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {zoneTypes.map((type) => (
-                                            <SelectItem
-                                                key={type.value}
-                                                value={type.value}
-                                            >
-                                                {type.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                options={zoneTypes.map((type) => ({
+                                    value: type.value,
+                                    label: type.label,
+                                }))}
+                            />
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="zone-occupancy">

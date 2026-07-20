@@ -16,14 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
     FILTER_SEARCH_DEBOUNCE_MS,
@@ -216,114 +209,74 @@ export default function IncidentsIndex({
                             className="w-full sm:w-56"
                             aria-label="Search incidents"
                         />
-                        <Select
+                        <SearchableSelect
                             value={status}
                             onValueChange={(value) => {
                                 setStatus(value);
                                 cancelDebounce();
                                 applyFilters({ status: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All statuses
-                                    </SelectItem>
-                                    {statusOptions.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Status"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: ALL, label: 'All statuses' },
+                                ...statusOptions.map((option) => ({
+                                    value: option.value,
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={source}
                             onValueChange={(value) => {
                                 setSource(value);
                                 cancelDebounce();
                                 applyFilters({ source: value });
                             }}
-                        >
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Source" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All sources
-                                    </SelectItem>
-                                    {sourceOptions.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Source"
+                            triggerClassName="w-36"
+                            options={[
+                                { value: ALL, label: 'All sources' },
+                                ...sourceOptions.map((option) => ({
+                                    value: option.value,
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={incidentType}
                             onValueChange={(value) => {
                                 setIncidentType(value);
                                 cancelDebounce();
                                 applyFilters({ incident_type: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All types
-                                    </SelectItem>
-                                    {typeOptions.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Type"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: ALL, label: 'All types' },
+                                ...typeOptions.map((option) => ({
+                                    value: option.value,
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={severity}
                             onValueChange={(value) => {
                                 setSeverity(value);
                                 cancelDebounce();
                                 applyFilters({ severity: value });
                             }}
-                        >
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Severity" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All severities
-                                    </SelectItem>
-                                    {severityOptions.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Severity"
+                            triggerClassName="w-36"
+                            options={[
+                                { value: ALL, label: 'All severities' },
+                                ...severityOptions.map((option) => ({
+                                    value: option.value,
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
                     </>
                 }
             >
@@ -413,22 +366,22 @@ export default function IncidentsIndex({
                                     <Label htmlFor="incident-zone_id">
                                         Zone
                                     </Label>
-                                    <select
+                                    <SearchableSelect
                                         id="incident-zone_id"
                                         name="zone_id"
-                                        defaultValue={prefill?.zone_id ?? ''}
-                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                    >
-                                        <option value="">—</option>
-                                        {zones.map((zone) => (
-                                            <option
-                                                key={zone.id}
-                                                value={zone.id}
-                                            >
-                                                {zone.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        defaultValue={
+                                            prefill?.zone_id
+                                                ? String(prefill.zone_id)
+                                                : ''
+                                        }
+                                        allowClear
+                                        clearLabel="—"
+                                        placeholder="—"
+                                        options={zones.map((zone) => ({
+                                            value: String(zone.id),
+                                            label: zone.name,
+                                        }))}
+                                    />
                                 </div>
 
                                 <div className="grid gap-2">

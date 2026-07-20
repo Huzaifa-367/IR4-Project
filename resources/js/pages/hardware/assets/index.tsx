@@ -19,14 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
     FILTER_SEARCH_DEBOUNCE_MS,
@@ -215,58 +208,40 @@ export default function AssetsIndex({
                             className="w-full sm:w-56"
                             aria-label="Search assets"
                         />
-                        <Select
+                        <SearchableSelect
                             value={assetType}
                             onValueChange={(value) => {
                                 setAssetType(value);
                                 cancelDebounce();
                                 applyFilters({ asset_type: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value="all">All types</SelectItem>
-                                    {assetTypes.map((type) => (
-                                        <SelectItem
-                                            key={type.value}
-                                            value={type.value}
-                                        >
-                                            {type.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Type"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: 'all', label: 'All types' },
+                                ...assetTypes.map((type) => ({
+                                    value: type.value,
+                                    label: type.label,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={status}
                             onValueChange={(value) => {
                                 setStatus(value);
                                 cancelDebounce();
                                 applyFilters({ status: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value="all">
-                                        All statuses
-                                    </SelectItem>
-                                    {statuses.map((item) => (
-                                        <SelectItem
-                                            key={item.value}
-                                            value={item.value}
-                                        >
-                                            {item.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Status"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: 'all', label: 'All statuses' },
+                                ...statuses.map((item) => ({
+                                    value: item.value,
+                                    label: item.label,
+                                })),
+                            ]}
+                        />
                     </>
                 }
             >
@@ -339,47 +314,26 @@ export default function AssetsIndex({
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Type</Label>
-                            <Select value={editType} onValueChange={setEditType}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {assetTypes.map((type) => (
-                                            <SelectItem
-                                                key={type.value}
-                                                value={type.value}
-                                            >
-                                                {type.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                            <SearchableSelect
+                                value={editType}
+                                onValueChange={setEditType}
+                                options={assetTypes.map((type) => ({
+                                    value: type.value,
+                                    label: type.label,
+                                }))}
+                            />
                         </div>
                         {form?.mode === 'edit' ? (
                             <div className="flex flex-col gap-2">
                                 <Label>Status</Label>
-                                <Select
+                                <SearchableSelect
                                     value={editStatus}
                                     onValueChange={setEditStatus}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectGroup>
-                                            {statuses.map((item) => (
-                                                <SelectItem
-                                                    key={item.value}
-                                                    value={item.value}
-                                                >
-                                                    {item.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectGroup>
-                                    </SelectContent>
-                                </Select>
+                                    options={statuses.map((item) => ({
+                                        value: item.value,
+                                        label: item.label,
+                                    }))}
+                                />
                             </div>
                         ) : null}
                         <div className="flex flex-col gap-2">

@@ -10,14 +10,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { PaginatedMeta } from '@/types/hardware';
 
 type DeviceRow = {
@@ -140,26 +133,15 @@ export default function PortableDevicesIndex({ devices, workers }: Props) {
                     <>
                         <div className="flex flex-col gap-2">
                             <Label>Worker</Label>
-                            <Select
+                            <SearchableSelect
                                 value={addWorker}
                                 onValueChange={setAddWorker}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Choose a worker…" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {workers.map((w) => (
-                                            <SelectItem
-                                                key={w.id}
-                                                value={String(w.id)}
-                                            >
-                                                {w.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                placeholder="Choose a worker…"
+                                options={workers.map((w) => ({
+                                    value: String(w.id),
+                                    label: w.name,
+                                }))}
+                            />
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="device-type">Device type</Label>

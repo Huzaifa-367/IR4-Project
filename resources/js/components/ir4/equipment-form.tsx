@@ -2,6 +2,7 @@ import { Form } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { EquipmentStatus, EquipmentStatusLabels } from '@/types/enums';
 import type { Equipment } from '@/types/equipment';
 
@@ -110,20 +111,19 @@ export function EquipmentForm({
                     {allowStatus && (
                         <div className="grid gap-2">
                             <Label htmlFor="status">Status</Label>
-                            <select
+                            <SearchableSelect
                                 id="status"
                                 name="status"
                                 defaultValue={
                                     defaults.status ?? EquipmentStatus.InService
                                 }
-                                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                            >
-                                {Object.values(EquipmentStatus).map((value) => (
-                                    <option key={value} value={value}>
-                                        {EquipmentStatusLabels[value]}
-                                    </option>
-                                ))}
-                            </select>
+                                options={Object.values(EquipmentStatus).map(
+                                    (value) => ({
+                                        value,
+                                        label: EquipmentStatusLabels[value],
+                                    }),
+                                )}
+                            />
                             {errors.status && (
                                 <p className="text-sm text-destructive">
                                     {errors.status}

@@ -24,14 +24,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
     FILTER_SEARCH_DEBOUNCE_MS,
@@ -295,104 +288,74 @@ export default function EquipmentIndex({
                             className="w-full sm:w-56"
                             aria-label="Search equipment"
                         />
-                        <Select
+                        <SearchableSelect
                             value={equipmentType}
                             onValueChange={(value) => {
                                 setEquipmentType(value);
                                 cancelDebounce();
                                 applyFilters({ equipment_type: value });
                             }}
-                        >
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All types
-                                    </SelectItem>
-                                    {typeOptions.map((type) => (
-                                        <SelectItem key={type} value={type}>
-                                            {type}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Type"
+                            triggerClassName="w-36"
+                            options={[
+                                { value: ALL, label: 'All types' },
+                                ...typeOptions.map((type) => ({
+                                    value: type,
+                                    label: type,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={status}
                             onValueChange={(value) => {
                                 setStatus(value);
                                 cancelDebounce();
                                 applyFilters({ status: value });
                             }}
-                        >
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All statuses
-                                    </SelectItem>
-                                    {statuses.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Status"
+                            triggerClassName="w-36"
+                            options={[
+                                { value: ALL, label: 'All statuses' },
+                                ...statuses.map((option) => ({
+                                    value: option.value,
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={checkoutState}
                             onValueChange={(value) => {
                                 setCheckoutState(value);
                                 cancelDebounce();
                                 applyFilters({ checkout_state: value });
                             }}
-                        >
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Custody" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>All</SelectItem>
-                                    <SelectItem value="available">
-                                        Available
-                                    </SelectItem>
-                                    <SelectItem value="checked_out">
-                                        Checked out
-                                    </SelectItem>
-                                    <SelectItem value="overdue_return">
-                                        Overdue return
-                                    </SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Custody"
+                            triggerClassName="w-36"
+                            options={[
+                                { value: ALL, label: 'All' },
+                                { value: 'available', label: 'Available' },
+                                { value: 'checked_out', label: 'Checked out' },
+                                {
+                                    value: 'overdue_return',
+                                    label: 'Overdue return',
+                                },
+                            ]}
+                        />
+                        <SearchableSelect
                             value={overdue}
                             onValueChange={(value) => {
                                 setOverdue(value);
                                 cancelDebounce();
                                 applyFilters({ overdue: value });
                             }}
-                        >
-                            <SelectTrigger className="w-32">
-                                <SelectValue placeholder="Due" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>Any</SelectItem>
-                                    <SelectItem value="1">Overdue</SelectItem>
-                                    <SelectItem value="0">
-                                        Not overdue
-                                    </SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Due"
+                            triggerClassName="w-32"
+                            options={[
+                                { value: ALL, label: 'Any' },
+                                { value: '1', label: 'Overdue' },
+                                { value: '0', label: 'Not overdue' },
+                            ]}
+                        />
                     </>
                 }
             >

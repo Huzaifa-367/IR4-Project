@@ -2,6 +2,7 @@ import { Form } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { InspectionOutcome, InspectionOutcomeLabels } from '@/types/enums';
 
 type Props = {
@@ -37,19 +38,18 @@ export function InspectionForm({ equipmentId, onSuccess }: Props) {
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="outcome">Outcome</Label>
-                        <select
+                        <SearchableSelect
                             id="outcome"
                             name="outcome"
                             required
                             defaultValue={InspectionOutcome.Pass}
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                        >
-                            {Object.values(InspectionOutcome).map((value) => (
-                                <option key={value} value={value}>
-                                    {InspectionOutcomeLabels[value]}
-                                </option>
-                            ))}
-                        </select>
+                            options={Object.values(InspectionOutcome).map(
+                                (value) => ({
+                                    value,
+                                    label: InspectionOutcomeLabels[value],
+                                }),
+                            )}
+                        />
                         {errors.outcome && (
                             <p className="text-sm text-destructive">
                                 {errors.outcome}

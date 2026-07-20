@@ -9,14 +9,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { visitFilters } from '@/lib/visit-filters';
 import type { PaginatedMeta } from '@/types/hardware';
 
@@ -139,79 +132,54 @@ export default function EntryExitIndex({
                 }
                 filters={
                     <>
-                        <Select
+                        <SearchableSelect
                             value={direction}
                             onValueChange={(value) => {
                                 setDirection(value);
                                 applyFilters({ direction: value });
                             }}
-                        >
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Direction" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All directions
-                                    </SelectItem>
-                                    <SelectItem value="in">In</SelectItem>
-                                    <SelectItem value="out">Out</SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Direction"
+                            triggerClassName="w-36"
+                            options={[
+                                { value: ALL, label: 'All directions' },
+                                { value: 'in', label: 'In' },
+                                { value: 'out', label: 'Out' },
+                            ]}
+                        />
+                        <SearchableSelect
                             value={source}
                             onValueChange={(value) => {
                                 setSource(value);
                                 applyFilters({ source: value });
                             }}
-                        >
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Source" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All sources
-                                    </SelectItem>
-                                    <SelectItem value="gate_reader">
-                                        Gate
-                                    </SelectItem>
-                                    <SelectItem value="manual_correction">
-                                        Manual
-                                    </SelectItem>
-                                    <SelectItem value="auto_sweep">
-                                        Auto sweep
-                                    </SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Source"
+                            triggerClassName="w-36"
+                            options={[
+                                { value: ALL, label: 'All sources' },
+                                { value: 'gate_reader', label: 'Gate' },
+                                {
+                                    value: 'manual_correction',
+                                    label: 'Manual',
+                                },
+                                { value: 'auto_sweep', label: 'Auto sweep' },
+                            ]}
+                        />
+                        <SearchableSelect
                             value={workerId}
                             onValueChange={(value) => {
                                 setWorkerId(value);
                                 applyFilters({ worker_id: value });
                             }}
-                        >
-                            <SelectTrigger className="w-48">
-                                <SelectValue placeholder="Worker" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All workers
-                                    </SelectItem>
-                                    {workers.map((w) => (
-                                        <SelectItem
-                                            key={w.id}
-                                            value={String(w.id)}
-                                        >
-                                            {w.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Worker"
+                            triggerClassName="w-48"
+                            options={[
+                                { value: ALL, label: 'All workers' },
+                                ...workers.map((w) => ({
+                                    value: String(w.id),
+                                    label: w.name,
+                                })),
+                            ]}
+                        />
                     </>
                 }
             >
@@ -253,43 +221,26 @@ export default function EntryExitIndex({
                     <>
                         <div className="flex flex-col gap-2">
                             <Label>Worker</Label>
-                            <Select
+                            <SearchableSelect
                                 value={correctionWorker}
                                 onValueChange={setCorrectionWorker}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Choose a worker…" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {workers.map((w) => (
-                                            <SelectItem
-                                                key={w.id}
-                                                value={String(w.id)}
-                                            >
-                                                {w.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                placeholder="Choose a worker…"
+                                options={workers.map((w) => ({
+                                    value: String(w.id),
+                                    label: w.name,
+                                }))}
+                            />
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Direction</Label>
-                            <Select
+                            <SearchableSelect
                                 value={correctionDirection}
                                 onValueChange={setCorrectionDirection}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectItem value="in">In</SelectItem>
-                                        <SelectItem value="out">Out</SelectItem>
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                options={[
+                                    { value: 'in', label: 'In' },
+                                    { value: 'out', label: 'Out' },
+                                ]}
+                            />
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="occurred_at">Occurred at</Label>

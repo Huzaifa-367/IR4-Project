@@ -11,14 +11,7 @@ import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
     FILTER_SEARCH_DEBOUNCE_MS,
@@ -169,33 +162,23 @@ export default function TagsIndex({
                             className="w-full sm:w-56"
                             aria-label="Search tags"
                         />
-                        <Select
+                        <SearchableSelect
                             value={status}
                             onValueChange={(value) => {
                                 setStatus(value);
                                 cancelDebounce();
                                 applyFilters({ status: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value="all">
-                                        All statuses
-                                    </SelectItem>
-                                    {statuses.map((s) => (
-                                        <SelectItem
-                                            key={s.value}
-                                            value={s.value}
-                                        >
-                                            {s.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Status"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: 'all', label: 'All statuses' },
+                                ...statuses.map((s) => ({
+                                    value: s.value,
+                                    label: s.label,
+                                })),
+                            ]}
+                        />
                     </>
                 }
             >
@@ -274,26 +257,15 @@ export default function TagsIndex({
                 {() => (
                     <div className="flex flex-col gap-2">
                         <Label>Worker</Label>
-                        <Select
+                        <SearchableSelect
                             value={assignWorker}
                             onValueChange={setAssignWorker}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Choose a worker…" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    {workers.map((w) => (
-                                        <SelectItem
-                                            key={w.id}
-                                            value={String(w.id)}
-                                        >
-                                            {w.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Choose a worker…"
+                            options={workers.map((w) => ({
+                                value: String(w.id),
+                                label: w.name,
+                            }))}
+                        />
                     </div>
                 )}
             </CrudFormDialog>

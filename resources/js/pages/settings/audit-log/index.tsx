@@ -8,14 +8,7 @@ import { RequirePermission } from '@/components/ir4/require-permission';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
     FILTER_SEARCH_DEBOUNCE_MS,
@@ -125,87 +118,57 @@ export default function AuditLogIndex({
                             className="w-full sm:w-52"
                             aria-label="Search description"
                         />
-                        <Select
+                        <SearchableSelect
                             value={event}
                             onValueChange={(value) => {
                                 setEvent(value);
                                 cancelDebounce();
                                 applyFilters({ event: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Event" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All events
-                                    </SelectItem>
-                                    {events.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Event"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: ALL, label: 'All events' },
+                                ...events.map((option) => ({
+                                    value: option.value,
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={userId}
                             onValueChange={(value) => {
                                 setUserId(value);
                                 cancelDebounce();
                                 applyFilters({ user_id: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="User" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All users
-                                    </SelectItem>
-                                    {users.map((user) => (
-                                        <SelectItem
-                                            key={user.id}
-                                            value={String(user.id)}
-                                        >
-                                            {user.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="User"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: ALL, label: 'All users' },
+                                ...users.map((user) => ({
+                                    value: String(user.id),
+                                    label: user.name,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={auditableType}
                             onValueChange={(value) => {
                                 setAuditableType(value);
                                 cancelDebounce();
                                 applyFilters({ auditable_type: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Model" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All models
-                                    </SelectItem>
-                                    {models.map((model) => (
-                                        <SelectItem
-                                            key={model.value}
-                                            value={model.value}
-                                        >
-                                            {model.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Model"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: ALL, label: 'All models' },
+                                ...models.map((model) => ({
+                                    value: model.value,
+                                    label: model.label,
+                                })),
+                            ]}
+                        />
                         <Input
                             type="date"
                             value={from}

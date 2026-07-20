@@ -7,6 +7,7 @@ import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type {
     PermitDetail,
     PermitOption,
@@ -783,22 +784,22 @@ export default function PermitShow({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="zone_id">Zone</Label>
-                                        <select
+                                        <SearchableSelect
                                             id="zone_id"
                                             name="zone_id"
-                                            defaultValue={permit.zone?.id ?? ''}
-                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                        >
-                                            <option value="">—</option>
-                                            {zones.map((zone) => (
-                                                <option
-                                                    key={zone.id}
-                                                    value={zone.id}
-                                                >
-                                                    {zone.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            defaultValue={
+                                                permit.zone?.id
+                                                    ? String(permit.zone.id)
+                                                    : ''
+                                            }
+                                            allowClear
+                                            clearLabel="—"
+                                            placeholder="—"
+                                            options={zones.map((zone) => ({
+                                                value: String(zone.id),
+                                                label: zone.name,
+                                            }))}
+                                        />
                                     </div>
 
                                     <div className="grid gap-2">
@@ -889,86 +890,76 @@ export default function PermitShow({
                                             >
                                                 <div className="grid gap-1">
                                                     <Label>Role</Label>
-                                                    <select
+                                                    <SearchableSelect
                                                         name={`personnel[${index}][role_code]`}
                                                         value={row.role_code}
-                                                        onChange={(event) =>
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
                                                             updatePersonnelRow(
                                                                 index,
                                                                 'role_code',
-                                                                event.target
-                                                                    .value,
+                                                                value,
                                                             )
                                                         }
-                                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                                    >
-                                                        <option value="">
-                                                            —
-                                                        </option>
-                                                        {typeRoles.map(
-                                                            (role) => (
-                                                                <option
-                                                                    key={
-                                                                        role.role_code
-                                                                    }
-                                                                    value={
-                                                                        role.role_code
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        role.label
-                                                                    }
-                                                                    {role.is_mandatory
+                                                        allowClear
+                                                        clearLabel="—"
+                                                        placeholder="—"
+                                                        options={typeRoles.map(
+                                                            (role) => ({
+                                                                value: role.role_code,
+                                                                label: `${role.label}${
+                                                                    role.is_mandatory
                                                                         ? ' *'
-                                                                        : ''}
-                                                                </option>
-                                                            ),
+                                                                        : ''
+                                                                }`,
+                                                            }),
                                                         )}
-                                                    </select>
+                                                    />
                                                 </div>
                                                 <div className="grid gap-1">
                                                     <Label>Worker</Label>
-                                                    <select
+                                                    <SearchableSelect
                                                         name={`personnel[${index}][worker_id]`}
                                                         value={row.worker_id}
                                                         disabled={
                                                             !row.role_code
                                                         }
-                                                        onChange={(event) =>
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
                                                             updatePersonnelRow(
                                                                 index,
                                                                 'worker_id',
-                                                                event.target
-                                                                    .value,
+                                                                value,
                                                             )
                                                         }
-                                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm disabled:opacity-50"
-                                                    >
-                                                        <option value="">
-                                                            {row.role_code
+                                                        allowClear
+                                                        clearLabel={
+                                                            row.role_code
                                                                 ? readyWorkers.length ===
                                                                   0
                                                                     ? 'No ready workers'
                                                                     : 'Select worker'
-                                                                : 'Pick role first'}
-                                                        </option>
-                                                        {readyWorkers.map(
-                                                            (worker) => (
-                                                                <option
-                                                                    key={
-                                                                        worker.id
-                                                                    }
-                                                                    value={
-                                                                        worker.id
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        worker.label
-                                                                    }
-                                                                </option>
-                                                            ),
+                                                                : 'Pick role first'
+                                                        }
+                                                        placeholder={
+                                                            row.role_code
+                                                                ? readyWorkers.length ===
+                                                                  0
+                                                                    ? 'No ready workers'
+                                                                    : 'Select worker'
+                                                                : 'Pick role first'
+                                                        }
+                                                        options={readyWorkers.map(
+                                                            (worker) => ({
+                                                                value: String(
+                                                                    worker.id,
+                                                                ),
+                                                                label: worker.label,
+                                                            }),
                                                         )}
-                                                    </select>
+                                                    />
                                                     {eligibility &&
                                                         !eligibility.ready && (
                                                             <p className="text-xs text-destructive">
@@ -1278,23 +1269,12 @@ export default function PermitShow({
                         )}
                         <div className="mt-3 grid gap-2 sm:max-w-xs">
                             <Label htmlFor="gas-phase">Phase</Label>
-                            <select
+                            <SearchableSelect
                                 id="gas-phase"
                                 value={gasPhase}
-                                onChange={(event) =>
-                                    setGasPhase(event.target.value)
-                                }
-                                className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                            >
-                                {gasPhaseOptions.map((option) => (
-                                    <option
-                                        key={option.value}
-                                        value={option.value}
-                                    >
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
+                                onValueChange={setGasPhase}
+                                options={gasPhaseOptions}
+                            />
                         </div>
                         <Button
                             type="button"

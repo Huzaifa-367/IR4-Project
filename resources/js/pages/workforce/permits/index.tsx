@@ -7,6 +7,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
     FILTER_SEARCH_DEBOUNCE_MS,
@@ -178,7 +179,7 @@ export default function PermitsIndex({
                     ) : undefined
                 }
                 filters={
-                    <div className="flex flex-wrap items-center gap-2">
+                    <>
                         <Input
                             value={search}
                             onChange={(event) => {
@@ -190,28 +191,21 @@ export default function PermitsIndex({
                             className="w-full sm:w-56"
                             aria-label="Search permits"
                         />
-                        <select
+                        <SearchableSelect
                             value={status}
-                            onChange={(event) => {
-                                const value = event.target.value;
+                            onValueChange={(value) => {
                                 setStatus(value);
                                 cancelDebounce();
                                 applyFilters({ status: value });
                             }}
-                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                            aria-label="Filter by status"
-                        >
-                            <option value={ALL}>All statuses</option>
-                            {statusOptions.map((option) => (
-                                <option
-                                    key={option.value}
-                                    value={option.value}
-                                >
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                            triggerClassName="w-44"
+                            placeholder="All statuses"
+                            options={[
+                                { value: ALL, label: 'All statuses' },
+                                ...statusOptions,
+                            ]}
+                        />
+                    </>
                 }
             >
                 <SettingsDataTable

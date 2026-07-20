@@ -3,6 +3,7 @@ import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { ReportSettings } from '@/types/report';
 
 type Props = {
@@ -41,18 +42,15 @@ export default function ReportSettingsPage({ settings }: Props) {
                 >
                     <div>
                         <Label htmlFor="generation_day">Generation day</Label>
-                        <select
+                        <SearchableSelect
                             id="generation_day"
                             name="generation_day"
                             defaultValue={settings.generation_day}
-                            className="w-full rounded-md border px-3 py-2 text-sm"
-                        >
-                            {days.map((day) => (
-                                <option key={day} value={day}>
-                                    {day}
-                                </option>
-                            ))}
-                        </select>
+                            options={days.map((day) => ({
+                                value: day,
+                                label: day,
+                            }))}
+                        />
                     </div>
                     <div>
                         <Label htmlFor="generation_time">Generation time</Label>

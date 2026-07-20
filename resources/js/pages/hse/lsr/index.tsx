@@ -15,14 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
     FILTER_SEARCH_DEBOUNCE_MS,
@@ -221,33 +214,23 @@ export default function LsrIndex({
                                 </Button>
                             ))}
                         </div>
-                        <Select
+                        <SearchableSelect
                             value={category}
                             onValueChange={(value) => {
                                 setCategory(value);
                                 cancelDebounce();
                                 applyFilters({ category: value });
                             }}
-                        >
-                            <SelectTrigger className="w-48">
-                                <SelectValue placeholder="Category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All categories
-                                    </SelectItem>
-                                    {categoryOptions.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Category"
+                            triggerClassName="w-48"
+                            options={[
+                                { value: ALL, label: 'All categories' },
+                                ...categoryOptions.map((option) => ({
+                                    value: option.value,
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
                     </>
                 }
             >
@@ -321,22 +304,13 @@ export default function LsrIndex({
                                     <Label htmlFor="log-category">
                                         Category
                                     </Label>
-                                    <select
+                                    <SearchableSelect
                                         id="log-category"
                                         name="category"
                                         required
                                         defaultValue={prefill?.category ?? ''}
-                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                    >
-                                        {categoryOptions.map((option) => (
-                                            <option
-                                                key={option.value}
-                                                value={option.value}
-                                            >
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        options={categoryOptions}
+                                    />
                                 </div>
 
                                 <div className="grid gap-2">
@@ -359,22 +333,22 @@ export default function LsrIndex({
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="log-zone_id">Zone</Label>
-                                    <select
+                                    <SearchableSelect
                                         id="log-zone_id"
                                         name="zone_id"
-                                        defaultValue={prefill?.zone_id ?? ''}
-                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                    >
-                                        <option value="">—</option>
-                                        {zones.map((zone) => (
-                                            <option
-                                                key={zone.id}
-                                                value={zone.id}
-                                            >
-                                                {zone.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        defaultValue={
+                                            prefill?.zone_id
+                                                ? String(prefill.zone_id)
+                                                : ''
+                                        }
+                                        allowClear
+                                        clearLabel="—"
+                                        placeholder="—"
+                                        options={zones.map((zone) => ({
+                                            value: String(zone.id),
+                                            label: zone.name,
+                                        }))}
+                                    />
                                 </div>
 
                                 {!isPpeLinked && (
@@ -382,24 +356,22 @@ export default function LsrIndex({
                                         <Label htmlFor="log-worker_id">
                                             Worker
                                         </Label>
-                                        <select
+                                        <SearchableSelect
                                             id="log-worker_id"
                                             name="worker_id"
                                             defaultValue={
-                                                prefill?.worker_id ?? ''
+                                                prefill?.worker_id
+                                                    ? String(prefill.worker_id)
+                                                    : ''
                                             }
-                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                        >
-                                            <option value="">—</option>
-                                            {workers.map((worker) => (
-                                                <option
-                                                    key={worker.id}
-                                                    value={worker.id}
-                                                >
-                                                    {worker.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            allowClear
+                                            clearLabel="—"
+                                            placeholder="—"
+                                            options={workers.map((worker) => ({
+                                                value: String(worker.id),
+                                                label: worker.name,
+                                            }))}
+                                        />
                                     </div>
                                 )}
 

@@ -4,6 +4,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { HseIncident, HseOption } from '@/types/hse';
 
 type WorkerOption = { id: number; name: string };
@@ -361,41 +362,29 @@ export default function IncidentShow({
                                         <Label htmlFor="incident_type">
                                             Type
                                         </Label>
-                                        <select
+                                        <SearchableSelect
                                             id="incident_type"
                                             name="incident_type"
                                             required
-                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                        >
-                                            {typeOptions.map((option) => (
-                                                <option
-                                                    key={option.value}
-                                                    value={option.value}
-                                                >
-                                                    {option.label}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            defaultValue={
+                                                typeOptions[0]?.value ?? ''
+                                            }
+                                            options={typeOptions}
+                                        />
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="severity">
                                             Severity
                                         </Label>
-                                        <select
+                                        <SearchableSelect
                                             id="severity"
                                             name="severity"
                                             required
-                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                                        >
-                                            {severityOptions.map((option) => (
-                                                <option
-                                                    key={option.value}
-                                                    value={option.value}
-                                                >
-                                                    {option.label}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            defaultValue={
+                                                severityOptions[0]?.value ?? ''
+                                            }
+                                            options={severityOptions}
+                                        />
                                     </div>
                                     {(
                                         [
@@ -437,21 +426,17 @@ export default function IncidentShow({
                                     ))}
                                     <div className="grid gap-2">
                                         <Label>Involved worker (optional)</Label>
-                                        <select
+                                        <SearchableSelect
                                             name="personnel[0][worker_id]"
-                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
                                             defaultValue=""
-                                        >
-                                            <option value="">—</option>
-                                            {workers.map((worker) => (
-                                                <option
-                                                    key={worker.id}
-                                                    value={worker.id}
-                                                >
-                                                    {worker.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            allowClear
+                                            clearLabel="—"
+                                            placeholder="—"
+                                            options={workers.map((worker) => ({
+                                                value: String(worker.id),
+                                                label: worker.name,
+                                            }))}
+                                        />
                                         <input
                                             type="hidden"
                                             name="personnel[0][involvement]"

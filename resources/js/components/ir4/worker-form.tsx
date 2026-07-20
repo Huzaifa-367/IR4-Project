@@ -2,6 +2,7 @@ import { Form } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 type WorkerTypeOption = { value: string; label: string };
 
@@ -73,19 +74,13 @@ export function WorkerForm({
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="worker_type">Worker type</Label>
-                        <select
+                        <SearchableSelect
                             id="worker_type"
                             name="worker_type"
                             required
                             defaultValue={defaults.worker_type ?? 'contractor'}
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                        >
-                            {workerTypes.map((type) => (
-                                <option key={type.value} value={type.value}>
-                                    {type.label}
-                                </option>
-                            ))}
-                        </select>
+                            options={workerTypes}
+                        />
                         {errors.worker_type && (
                             <p className="text-sm text-destructive">
                                 {errors.worker_type}

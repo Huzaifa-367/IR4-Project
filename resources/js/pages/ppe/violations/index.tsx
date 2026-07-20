@@ -8,14 +8,7 @@ import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { visitFilters } from '@/lib/visit-filters';
 import { ViolationTypeLabels } from '@/types/enums';
 import type { PaginatedMeta } from '@/types/hardware';
@@ -225,84 +218,54 @@ export default function PpeViolationsIndex({
                 }
                 filters={
                     <>
-                        <Select
+                        <SearchableSelect
                             value={violationType}
                             onValueChange={(value) => {
                                 setViolationType(value);
                                 applyFilters({ violation_type: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All types
-                                    </SelectItem>
-                                    {violationTypes.map((type) => (
-                                        <SelectItem
-                                            key={type.value}
-                                            value={type.value}
-                                        >
-                                            {type.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Type"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: ALL, label: 'All types' },
+                                ...violationTypes.map((type) => ({
+                                    value: type.value,
+                                    label: type.label,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={cameraId}
                             onValueChange={(value) => {
                                 setCameraId(value);
                                 applyFilters({ camera_id: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Camera" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All cameras
-                                    </SelectItem>
-                                    {cameras.map((camera) => (
-                                        <SelectItem
-                                            key={camera.id}
-                                            value={String(camera.id)}
-                                        >
-                                            {camera.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Camera"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: ALL, label: 'All cameras' },
+                                ...cameras.map((camera) => ({
+                                    value: String(camera.id),
+                                    label: camera.name,
+                                })),
+                            ]}
+                        />
+                        <SearchableSelect
                             value={reviewStatus}
                             onValueChange={(value) => {
                                 setReviewStatus(value);
                                 applyFilters({ review_status: value });
                             }}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All statuses
-                                    </SelectItem>
-                                    {reviewStatuses.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Status"
+                            triggerClassName="w-40"
+                            options={[
+                                { value: ALL, label: 'All statuses' },
+                                ...reviewStatuses.map((option) => ({
+                                    value: option.value,
+                                    label: option.label,
+                                })),
+                            ]}
+                        />
                         <Input
                             type="date"
                             value={from}

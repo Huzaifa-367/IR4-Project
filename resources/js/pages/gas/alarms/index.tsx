@@ -5,14 +5,7 @@ import type { SettingsColumn } from '@/components/ir4/settings/settings-data-tab
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { visitFilters } from '@/lib/visit-filters';
 import { GasTypeLabels } from '@/types/enums';
 import type { GasAlarm } from '@/types/gas';
@@ -149,76 +142,52 @@ export default function GasAlarmsIndex({
                 }
                 filters={
                     <>
-                        <Select
+                        <SearchableSelect
                             value={resolved}
                             onValueChange={(value) => {
                                 setResolved(value);
                                 applyFilters({ resolved: value });
                             }}
-                        >
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>All</SelectItem>
-                                    <SelectItem value="open">Open</SelectItem>
-                                    <SelectItem value="resolved">
-                                        Resolved
-                                    </SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Status"
+                            triggerClassName="w-36"
+                            options={[
+                                { value: ALL, label: 'All' },
+                                { value: 'open', label: 'Open' },
+                                { value: 'resolved', label: 'Resolved' },
+                            ]}
+                        />
+                        <SearchableSelect
                             value={level}
                             onValueChange={(value) => {
                                 setLevel(value);
                                 applyFilters({ level: value });
                             }}
-                        >
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Level" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All levels
-                                    </SelectItem>
-                                    <SelectItem value="warning">
-                                        Warning
-                                    </SelectItem>
-                                    <SelectItem value="alarm">Alarm</SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                        <Select
+                            placeholder="Level"
+                            triggerClassName="w-36"
+                            options={[
+                                { value: ALL, label: 'All levels' },
+                                { value: 'warning', label: 'Warning' },
+                                { value: 'alarm', label: 'Alarm' },
+                            ]}
+                        />
+                        <SearchableSelect
                             value={gasType}
                             onValueChange={(value) => {
                                 setGasType(value);
                                 applyFilters({ gas_type: value });
                             }}
-                        >
-                            <SelectTrigger className="w-32">
-                                <SelectValue placeholder="Gas" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value={ALL}>
-                                        All gases
-                                    </SelectItem>
-                                    {Object.entries(GasTypeLabels).map(
-                                        ([value, label]) => (
-                                            <SelectItem
-                                                key={value}
-                                                value={value}
-                                            >
-                                                {label}
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Gas"
+                            triggerClassName="w-32"
+                            options={[
+                                { value: ALL, label: 'All gases' },
+                                ...Object.entries(GasTypeLabels).map(
+                                    ([value, label]) => ({
+                                        value,
+                                        label,
+                                    }),
+                                ),
+                            ]}
+                        />
                     </>
                 }
             >

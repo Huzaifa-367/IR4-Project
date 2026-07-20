@@ -1,13 +1,6 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Switch } from '@/components/ui/switch';
 import type { SettingSchema } from '@/types/settings';
 
@@ -117,24 +110,17 @@ export function SettingField({ setting, value, error, onChange }: Props) {
             )}
 
             {setting.type === 'enum' && setting.options ? (
-                <Select
+                <SearchableSelect
+                    id={id}
                     value={String(value ?? '')}
                     disabled={disabled}
                     onValueChange={(next) => onChange(next)}
-                >
-                    <SelectTrigger id={id}>
-                        <SelectValue placeholder="Select…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectGroup>
-                            {setting.options.map((option) => (
-                                <SelectItem key={option} value={option}>
-                                    {option}
-                                </SelectItem>
-                            ))}
-                        </SelectGroup>
-                    </SelectContent>
-                </Select>
+                    placeholder="Select…"
+                    options={setting.options.map((option) => ({
+                        value: option,
+                        label: option,
+                    }))}
+                />
             ) : null}
 
             {setting.updated_at ? (
