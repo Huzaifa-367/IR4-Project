@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 import { ScheduleType, ScheduleTypeLabels } from '@/types/enums';
 import type { MaintenanceSchedule } from '@/types/equipment';
 
@@ -84,55 +85,68 @@ export function ScheduleEditor({ equipmentId, schedules }: Props) {
 
     return (
         <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="rounded-md border border-[color:var(--accent)]/25 bg-[color:var(--accent-dim)] px-3 py-2 text-sm text-text-dim">
                 Interval days drive next-due recompute after inspections and
                 services. Leave a type blank to omit it from the save (existing
                 omitted types are removed).
             </p>
-            {rows.map((row, index) => (
-                <fieldset
-                    key={row.schedule_type}
-                    className="space-y-2 rounded-md border border-border p-3"
-                >
-                    <legend className="px-1 text-sm font-medium">
-                        {ScheduleTypeLabels[row.schedule_type]}
-                    </legend>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                        <div className="grid gap-1">
-                            <Label htmlFor={`interval-${row.schedule_type}`}>
-                                Interval (days)
-                            </Label>
-                            <Input
-                                id={`interval-${row.schedule_type}`}
-                                type="number"
-                                min={1}
-                                value={row.interval_days}
-                                onChange={(event) =>
-                                    updateRow(index, {
-                                        interval_days: event.target.value,
-                                    })
-                                }
-                            />
+            <div className="grid gap-3 sm:grid-cols-2">
+                {rows.map((row, index) => (
+                    <fieldset
+                        key={row.schedule_type}
+                        className={cn(
+                            'space-y-2 rounded-[var(--radius)] border border-border bg-surface-2/30 p-3',
+                            row.interval_days.trim() !== '' &&
+                                'border-[color:var(--accent)]/35 bg-[color:var(--accent-dim)]/40',
+                        )}
+                    >
+                        <legend className="px-1 text-sm font-semibold text-text">
+                            {ScheduleTypeLabels[row.schedule_type]}
+                        </legend>
+                        <div className="grid gap-2">
+                            <div className="grid gap-1">
+                                <Label
+                                    htmlFor={`interval-${row.schedule_type}`}
+                                >
+                                    Interval (days)
+                                </Label>
+                                <Input
+                                    id={`interval-${row.schedule_type}`}
+                                    type="number"
+                                    min={1}
+                                    value={row.interval_days}
+                                    onChange={(event) =>
+                                        updateRow(index, {
+                                            interval_days: event.target.value,
+                                        })
+                                    }
+                                    className="bg-surface"
+                                    placeholder="e.g. 90"
+                                />
+                            </div>
+                            <div className="grid gap-1">
+                                <Label htmlFor={`notes-${row.schedule_type}`}>
+                                    Notes
+                                </Label>
+                                <Input
+                                    id={`notes-${row.schedule_type}`}
+                                    maxLength={150}
+                                    value={row.notes}
+                                    onChange={(event) =>
+                                        updateRow(index, {
+                                            notes: event.target.value,
+                                        })
+                                    }
+                                    className="bg-surface"
+                                />
+                            </div>
                         </div>
-                        <div className="grid gap-1">
-                            <Label htmlFor={`notes-${row.schedule_type}`}>
-                                Notes
-                            </Label>
-                            <Input
-                                id={`notes-${row.schedule_type}`}
-                                maxLength={150}
-                                value={row.notes}
-                                onChange={(event) =>
-                                    updateRow(index, {
-                                        notes: event.target.value,
-                                    })
-                                }
-                            />
-                        </div>
-                    </div>
-                </fieldset>
-            ))}
-            {error && <p className="text-sm text-destructive">{error}</p>}
+                    </fieldset>
+                ))}
+            </div>
+            {error ? (
+                <p className="text-sm text-destructive">{error}</p>
+            ) : null}
             <Button type="button" disabled={processing} onClick={submit}>
                 Save schedules
             </Button>

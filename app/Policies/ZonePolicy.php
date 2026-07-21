@@ -9,26 +9,26 @@ final class ZonePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can('manage-zones');
+        return $user->can('view-zones');
     }
 
     public function view(User $user, Zone $zone): bool
     {
-        return $user->can('manage-zones');
+        return $user->can('view-zones');
     }
 
     public function create(User $user): bool
     {
-        return $user->can('manage-zones');
+        return $user->can('create-zones');
     }
 
     public function update(User $user, Zone $zone): bool
     {
-        return $user->can('manage-zones');
+        return $user->can('update-zones');
     }
 
     public function delete(User $user, Zone $zone): bool
     {
-        return $user->can('manage-zones');
+        return $user->can('delete-zones');
     }
 }

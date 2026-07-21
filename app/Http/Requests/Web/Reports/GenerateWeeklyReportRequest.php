@@ -8,7 +8,7 @@ final class GenerateWeeklyReportRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('generate-reports') ?? false;
+        return $this->user()?->can('create-reports') ?? false;
     }
 
     /**

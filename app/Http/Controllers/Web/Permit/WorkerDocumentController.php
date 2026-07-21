@@ -24,7 +24,7 @@ final class WorkerDocumentController extends BaseController
 
     public function store(Request $request, Worker $worker): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-worker-documents') ?? false, 403);
+        abort_unless($request->user()?->can('create-worker-documents') ?? false, 403);
 
         $validated = $request->validate([
             'worker_document_type_id' => ['required', 'integer', Rule::exists('worker_document_types', 'id')->where('is_active', true)],
@@ -130,7 +130,7 @@ final class WorkerDocumentController extends BaseController
 
     public function update(Request $request, Worker $worker, WorkerDocument $document): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-worker-documents') ?? false, 403);
+        abort_unless($request->user()?->can('update-worker-documents') ?? false, 403);
         abort_unless($document->worker_id === $worker->id, 404);
 
         $document->loadMissing('documentType');
@@ -194,7 +194,7 @@ final class WorkerDocumentController extends BaseController
 
     public function verify(Request $request, Worker $worker, WorkerDocument $document): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-worker-documents') ?? false, 403);
+        abort_unless($request->user()?->can('update-worker-documents') ?? false, 403);
         abort_unless($document->worker_id === $worker->id, 404);
 
         $document->loadMissing('documentType');
@@ -216,7 +216,7 @@ final class WorkerDocumentController extends BaseController
 
     public function reject(Request $request, Worker $worker, WorkerDocument $document): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-worker-documents') ?? false, 403);
+        abort_unless($request->user()?->can('update-worker-documents') ?? false, 403);
         abort_unless($document->worker_id === $worker->id, 404);
 
         $document->update([
@@ -230,7 +230,7 @@ final class WorkerDocumentController extends BaseController
 
     public function destroy(Request $request, Worker $worker, WorkerDocument $document): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-worker-documents') ?? false, 403);
+        abort_unless($request->user()?->can('delete-worker-documents') ?? false, 403);
         abort_unless($document->worker_id === $worker->id, 404);
 
         if ($document->file_path !== null && $document->file_path !== '') {

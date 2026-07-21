@@ -40,13 +40,12 @@ final class RolePermissionSeeder extends Seeder
         $this->seedStarterRoleIfMissing('Client Representative', true, [], 'Configurable read-only client window.');
         $this->seedStarterRoleIfMissing('Field Staff', false, [], 'No platform login — public QR page only.');
         $this->seedStarterRoleIfMissing('Permit Issuer', false, [
-            'issue-permit',
-            'perform-gas-test',
+            'update-permits',
+            'create-permit-gas-tests',
             'view-permits',
-            'approve-permit',
         ], 'Certified permit issuer and gas tester.');
         $this->seedStarterRoleIfMissing('Permit Receiver', false, [
-            'request-permit',
+            'create-permits',
             'view-permits',
         ], 'Certified permit receiver — requests and tracks permits.');
 
@@ -104,7 +103,12 @@ final class RolePermissionSeeder extends Seeder
     {
         return array_values(array_diff(
             PermissionCatalogue::all(),
-            ['manage-roles'],
+            [
+                'view-roles',
+                'create-roles',
+                'update-roles',
+                'delete-roles',
+            ],
         ));
     }
 
@@ -117,32 +121,47 @@ final class RolePermissionSeeder extends Seeder
             'view-dashboard',
             'view-live-cameras',
             'view-ppe',
-            'review-ppe',
+            'update-ppe-violations',
             'view-tracking',
             'view-worker-identity',
-            'manage-workers',
-            'manage-tags',
-            'manage-zones',
+            'create-workers',
+            'update-workers',
+            'delete-workers',
+            'create-tags',
+            'update-tags',
+            'view-zones',
+            'create-zones',
+            'update-zones',
+            'delete-zones',
             'view-entry-exit',
-            'manage-portable-devices',
-            'trigger-evacuation',
-            'manage-evacuation',
+            'view-portable-devices',
+            'create-portable-devices',
+            'update-portable-devices',
+            'create-evacuation',
+            'update-evacuation',
             'view-gas',
             'acknowledge-alerts',
-            'configure-alerts',
+            'resolve-alerts',
             'view-equipment',
-            'manage-equipment',
+            'create-equipment',
+            'update-equipment',
+            'delete-equipment',
             'view-incidents',
-            'log-incidents',
+            'create-incidents',
             'view-lsr',
-            'log-lsr',
-            'close-lsr',
+            'create-lsr',
+            'update-lsr',
             'view-permits',
-            'request-permit',
-            'perform-gas-test',
-            'manage-worker-documents',
+            'create-permits',
+            'create-permit-gas-tests',
+            'view-worker-documents',
+            'create-worker-documents',
+            'update-worker-documents',
+            'delete-worker-documents',
             'view-reports',
-            'log-vehicle-violations',
+            'view-vehicle-violations',
+            'create-vehicle-violations',
+            'delete-vehicle-violations',
         ];
     }
 

@@ -14,23 +14,34 @@ export function EquipmentStatusBadge({ status, className }: StatusBadgeProps) {
 
     const tone =
         status === 'in_service'
-            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100'
+            ? 'bg-[color:var(--ok-bg)] text-[color:var(--ok)]'
             : status === 'out_of_service'
-              ? 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100'
+              ? 'bg-[color:var(--warn-bg)] text-[color:var(--warn)]'
               : status === 'under_maintenance'
-                ? 'bg-sky-100 text-sky-950 dark:bg-sky-950 dark:text-sky-100'
+                ? 'bg-[color:var(--accent-dim)] text-[color:var(--accent)]'
                 : status === 'retired'
-                  ? 'bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100'
-                  : 'bg-muted text-muted-foreground';
+                  ? 'bg-surface-3 text-text-dim'
+                  : 'bg-surface-3 text-text-dim';
 
     return (
         <span
             className={cn(
-                'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize',
+                'inline-flex items-center gap-1.5 rounded-pill px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase',
                 tone,
                 className,
             )}
         >
+            <span
+                className={cn(
+                    'size-1.5 rounded-full',
+                    status === 'in_service' && 'bg-[color:var(--ok)]',
+                    status === 'out_of_service' && 'bg-[color:var(--warn)]',
+                    status === 'under_maintenance' &&
+                        'bg-[color:var(--accent)]',
+                    status === 'retired' && 'bg-text-faint',
+                )}
+                aria-hidden
+            />
             {label}
         </span>
     );
@@ -57,19 +68,28 @@ export function CustodyBadge({
 
     const tone =
         state === 'available'
-            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100'
+            ? 'bg-[color:var(--ok-bg)] text-[color:var(--ok)]'
             : state === 'overdue_return'
-              ? 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100'
-              : 'bg-violet-100 text-violet-950 dark:bg-violet-950 dark:text-violet-100';
+              ? 'bg-[color:var(--crit-bg)] text-[color:var(--crit)]'
+              : 'bg-[color:var(--accent-dim)] text-[color:var(--accent)]';
 
     return (
         <span
             className={cn(
-                'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium',
+                'inline-flex items-center gap-1.5 rounded-pill px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase',
                 tone,
                 className,
             )}
         >
+            <span
+                className={cn(
+                    'size-1.5 rounded-full',
+                    state === 'available' && 'bg-[color:var(--ok)]',
+                    state === 'overdue_return' && 'bg-[color:var(--crit)]',
+                    state === 'checked_out' && 'bg-[color:var(--accent)]',
+                )}
+                aria-hidden
+            />
             {detail}
         </span>
     );
@@ -94,10 +114,14 @@ export function OverdueBadge({
         return (
             <span
                 className={cn(
-                    'inline-flex items-center rounded-md bg-red-100 px-2 py-0.5 text-xs font-medium text-red-900 dark:bg-red-950 dark:text-red-100',
+                    'inline-flex items-center gap-1.5 rounded-pill bg-[color:var(--crit-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase text-[color:var(--crit)]',
                     className,
                 )}
             >
+                <span
+                    className="size-1.5 rounded-full bg-[color:var(--crit)]"
+                    aria-hidden
+                />
                 Overdue return
             </span>
         );
@@ -117,10 +141,14 @@ export function OverdueBadge({
         return (
             <span
                 className={cn(
-                    'inline-flex items-center rounded-md bg-red-100 px-2 py-0.5 text-xs font-medium text-red-900 dark:bg-red-950 dark:text-red-100',
+                    'inline-flex items-center gap-1.5 rounded-pill bg-[color:var(--crit-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase text-[color:var(--crit)]',
                     className,
                 )}
             >
+                <span
+                    className="size-1.5 rounded-full bg-[color:var(--crit)]"
+                    aria-hidden
+                />
                 Overdue {parts.join(' + ')}
             </span>
         );
@@ -130,10 +158,14 @@ export function OverdueBadge({
         return (
             <span
                 className={cn(
-                    'inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-950 dark:bg-amber-950 dark:text-amber-100',
+                    'inline-flex items-center gap-1.5 rounded-pill bg-[color:var(--warn-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase text-[color:var(--warn)]',
                     className,
                 )}
             >
+                <span
+                    className="size-1.5 rounded-full bg-[color:var(--warn)]"
+                    aria-hidden
+                />
                 Due within 7 days
             </span>
         );

@@ -318,7 +318,7 @@ export default function PermitCreate({
                                             Only workers ready for the role
                                             (documents verified).{' '}
                                             <Link
-                                                href="/workforce/workers/create"
+                                                href="/workforce/workers?create=1"
                                                 className="underline"
                                             >
                                                 Add worker

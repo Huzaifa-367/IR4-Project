@@ -84,7 +84,7 @@ final class AlertController extends BaseController
                 'label' => $s->label(),
             ]),
             'canAcknowledge' => $request->user()?->can('acknowledge-alerts') ?? false,
-            'canResolve' => $request->user()?->can('configure-alerts') ?? false,
+            'canResolve' => $request->user()?->can('resolve-alerts') ?? false,
             'audibleEnabled' => (bool) app(\App\Services\SettingsService::class)->get('alert.audible_enabled', true),
         ]);
     }

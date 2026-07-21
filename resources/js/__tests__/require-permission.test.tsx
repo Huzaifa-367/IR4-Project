@@ -2,52 +2,42 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { RequirePermission } from '@/components/ir4/require-permission';
 
-vi.mock('@/hooks/use-permissions', () => ({
-    usePermissions: vi.fn(),
+vi.mock('@/hooks/use-auth', () => ({
+    useAuth: () => ({
+        user: { permissions: ['create-equipment'] },
+    }),
 }));
 
-import { usePermissions } from '@/hooks/use-permissions';
-
-const mockedUsePermissions = vi.mocked(usePermissions);
+vi.mock('@/hooks/use-permissions', () => ({
+    usePermissions: () => ({
+        permissions: ['create-equipment'],
+        can: (permission: string) => permission === 'create-equipment',
+        canAny: (list: string[]) => list.includes('create-equipment'),
+    }),
+}));
 
 describe('RequirePermission', () => {
     it('renders children when the user has the permission', () => {
-        mockedUsePermissions.mockReturnValue({
-            permissions: ['manage-equipment'],
-            can: (permission) => permission === 'manage-equipment',
-            canAny: (list) => list.includes('manage-equipment'),
-        });
-
         render(
-            <RequirePermission permission="manage-equipment">
-                <button type="button">Add equipment</button>
+            <RequirePermission permission="create-equipment">
+                <span>Allowed</span>
             </RequirePermission>,
         );
 
-        expect(
-            screen.getByRole('button', { name: 'Add equipment' }),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Allowed')).toBeInTheDocument();
     });
 
     it('renders fallback when the user lacks the permission', () => {
-        mockedUsePermissions.mockReturnValue({
-            permissions: [],
-            can: () => false,
-            canAny: () => false,
-        });
-
         render(
             <RequirePermission
-                permission="manage-equipment"
-                fallback={<p>Access denied</p>}
+                permission="delete-equipment"
+                fallback={<span>Denied</span>}
             >
-                <button type="button">Add equipment</button>
+                <span>Allowed</span>
             </RequirePermission>,
         );
 
-        expect(screen.getByText('Access denied')).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Add equipment' }),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Allowed')).not.toBeInTheDocument();
+        expect(screen.getByText('Denied')).toBeInTheDocument();
     });
 });

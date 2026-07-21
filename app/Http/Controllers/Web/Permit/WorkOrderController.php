@@ -61,20 +61,20 @@ final class WorkOrderController extends BaseController
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),
-            'canCreate' => $request->user()?->can('request-permit') ?? false,
+            'canCreate' => $request->user()?->can('create-permits') ?? false,
         ]);
     }
 
     public function create(Request $request): RedirectResponse
     {
-        abort_unless($request->user()?->can('request-permit'), 403);
+        abort_unless($request->user()?->can('create-permits'), 403);
 
         return redirect()->route('work-orders.index');
     }
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()?->can('request-permit'), 403);
+        abort_unless($request->user()?->can('create-permits'), 403);
 
         $validated = $request->validate([
             'reference' => ['required', 'string', 'max:64', Rule::unique('work_orders', 'reference')],
@@ -120,7 +120,7 @@ final class WorkOrderController extends BaseController
                 'created_at' => $workOrder->created_at?->toIso8601String(),
             ],
             'clearance' => $clearance,
-            'canCreatePermit' => $request->user()?->can('request-permit') ?? false,
+            'canCreatePermit' => $request->user()?->can('create-permits') ?? false,
         ]);
     }
 }

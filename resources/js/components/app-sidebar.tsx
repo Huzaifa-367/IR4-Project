@@ -130,7 +130,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('trigger-evacuation') || can('manage-evacuation')
+        ...(can('create-evacuation') || can('update-evacuation')
             ? [
                   {
                       title: 'Evacuation',
@@ -183,7 +183,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('log-vehicle-violations')
+        ...(can('view-vehicle-violations') || can('create-vehicle-violations')
             ? [
                   {
                       title: 'Vehicle Violations',
@@ -244,7 +244,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('manage-portable-devices')
+        ...(can('view-portable-devices') || can('create-portable-devices') || can('update-portable-devices')
             ? [
                   {
                       title: 'Portable Devices',
@@ -272,7 +272,7 @@ export function AppSidebar() {
 
     // Catalogue / values to configure — bottom of nav.
     const catalogueChildren: NavItem[] = [
-        ...(can('manage-permit-catalogue')
+        ...(can('view-permit-catalogue') || can('create-permit-catalogue') || can('update-permit-catalogue') || can('delete-permit-catalogue')
             ? [
                   {
                       title: 'Permit types',
@@ -309,7 +309,7 @@ export function AppSidebar() {
             : [];
 
     const hardwareChildren: NavItem[] = [
-        ...(can('manage-devices')
+        ...(can('view-devices') || can('create-devices') || can('update-devices') || can('delete-devices')
             ? [
                   {
                       title: 'Assets',
@@ -328,7 +328,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('view-tracking') || can('manage-tags')
+        ...(can('view-tracking') || can('create-tags') || can('update-tags')
             ? [
                   {
                       title: 'Tags',
@@ -340,7 +340,7 @@ export function AppSidebar() {
     ];
 
     const accessChildren: NavItem[] = [
-        ...(can('manage-users')
+        ...(can('view-users') || can('create-users') || can('update-users')
             ? [
                   {
                       title: 'Users',
@@ -349,7 +349,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('manage-roles')
+        ...(can('view-roles')
             ? [
                   {
                       title: 'User roles',
@@ -370,19 +370,10 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('manage-settings')
-            ? [
-                  {
-                      title: 'Report Settings',
-                      href: '/reports/settings',
-                      icon: Settings2,
-                  } satisfies NavItem,
-              ]
-            : []),
     ];
 
     const settingsChildren: NavItem[] = [
-        ...(can('manage-settings') || can('configure-alerts')
+        ...(can('view-settings') || can('update-settings') || can('update-alert-settings') || can('view-gas-thresholds') || can('update-gas-thresholds')
             ? [
                   {
                       title: 'General',
@@ -391,7 +382,16 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('manage-zones')
+        ...(can('view-settings') || can('update-settings')
+            ? [
+                  {
+                      title: 'Report settings',
+                      href: '/settings/reports',
+                      icon: FileBarChart,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('view-zones') || can('create-zones') || can('update-zones') || can('delete-zones')
             ? [
                   {
                       title: 'Zones & Map',
@@ -405,7 +405,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('view-gas') || can('manage-gas-thresholds')
+        ...(can('view-gas-thresholds') || can('update-gas-thresholds')
             ? [
                   {
                       title: 'Gas thresholds',

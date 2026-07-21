@@ -19,11 +19,11 @@ final class PpeViolationPolicy
 
     public function review(User $user, PpeViolation $ppeViolation): bool
     {
-        return $user->can('review-ppe');
+        return $user->can('update-ppe-violations');
     }
 
     public function export(User $user): bool
     {
-        return $user->can('export-ppe-reports');
+        return $user->can('export-ppe-violations');
     }
 }

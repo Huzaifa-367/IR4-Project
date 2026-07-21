@@ -29,7 +29,7 @@ final class PpeTrendsController extends BaseController
             'unreviewedCount' => PpeViolation::query()
                 ->where('review_status', ReviewStatus::Unreviewed)
                 ->count(),
-            'canExport' => $request->user()?->can('export-ppe-reports') ?? false,
+            'canExport' => $request->user()?->can('export-ppe-violations') ?? false,
         ]);
     }
 }

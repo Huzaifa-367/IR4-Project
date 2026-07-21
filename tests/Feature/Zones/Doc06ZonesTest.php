@@ -11,7 +11,7 @@ use App\Services\ZoneService;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
-it('creates zones and lists them for manage-zones', function () {
+it('creates zones and lists them for view-zones', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
 
     $this->actingAs($admin)
@@ -141,7 +141,7 @@ it('exposes coverage for view-tracking users', function () {
         ->assertJsonPath('data.0.zone.id', $zone->id);
 });
 
-it('forbids zone settings without manage-zones', function () {
+it('forbids zone settings without view-zones', function () {
     $user = User::factory()->withRole('Project Manager')->create();
 
     $this->actingAs($user)

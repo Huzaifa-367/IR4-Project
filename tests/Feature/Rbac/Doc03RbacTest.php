@@ -49,7 +49,7 @@ it('rejects non view-* permissions on read-only roles', function () {
     $service = app(RoleService::class);
     $role = Role::query()->where('name', 'Client Representative')->firstOrFail();
 
-    expect(fn () => $service->syncPermissions($role, ['manage-users']))
+    expect(fn () => $service->syncPermissions($role, ['create-users']))
         ->toThrow(ValidationException::class);
 });
 
@@ -96,7 +96,7 @@ it('allows dashboard access for SCC Operator', function () {
         ->assertOk();
 });
 
-it('gates roles settings behind manage-roles', function () {
+it('gates roles settings behind view-roles', function () {
     $operator = User::factory()->create();
     $admin = User::factory()->withRole('Super Admin')->create();
 
@@ -107,6 +107,41 @@ it('gates roles settings behind manage-roles', function () {
     $this->actingAs($admin)
         ->get(route('settings.roles.index'))
         ->assertOk();
+});
+
+it('gates role mutations behind create update and delete permissions', function () {
+    $viewer = User::factory()->create();
+    $viewer->givePermissionTo(['view-roles']);
+
+    $this->actingAs($viewer)
+        ->post(route('settings.roles.store'), [
+            'name' => 'Should Fail',
+            'permissions' => ['view-dashboard'],
+        ])
+        ->assertForbidden();
+
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $role = Role::query()->create([
+        'name' => 'Temp Role',
+        'guard_name' => 'web',
+        'is_system' => false,
+        'is_read_only' => false,
+    ]);
+
+    $this->actingAs($viewer)
+        ->put(route('settings.roles.update', $role), [
+            'name' => 'Temp Role',
+            'permissions' => ['view-dashboard'],
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($viewer)
+        ->delete(route('settings.roles.destroy', $role))
+        ->assertForbidden();
+
+    $this->actingAs($admin)
+        ->delete(route('settings.roles.destroy', $role))
+        ->assertRedirect(route('settings.roles.index'));
 });
 
 it('creates updates and deletes a custom role', function () {

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import { permitTypeDotClass } from '@/lib/permit-colours';
 import {
     FILTER_SEARCH_DEBOUNCE_MS,
     visitFilters,
@@ -32,16 +33,6 @@ type Props = {
 };
 
 const ALL = 'all';
-
-const TYPE_COLOUR_CLASS: Record<string, string> = {
-    red: 'bg-red-500',
-    blue: 'bg-blue-500',
-    green: 'bg-green-500',
-    yellow: 'bg-yellow-500',
-    orange: 'bg-orange-500',
-    purple: 'bg-purple-500',
-    cyan: 'bg-cyan-500',
-};
 
 const STATUS_TONE: Record<string, StatusPillTone> = {
     draft: 'neutral',
@@ -124,7 +115,7 @@ export default function PermitsIndex({
                 <span className="inline-flex items-center gap-2">
                     {row.type?.colour_token ? (
                         <span
-                            className={`h-2 w-2 shrink-0 rounded-full ${TYPE_COLOUR_CLASS[row.type.colour_token] ?? 'bg-muted-foreground'}`}
+                            className={`h-2 w-2 shrink-0 rounded-full ${permitTypeDotClass(row.type.colour_token)}`}
                             aria-hidden
                         />
                     ) : null}

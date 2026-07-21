@@ -93,7 +93,7 @@ class FortifyServiceProvider extends ServiceProvider
 
             if (
                 (bool) app(SettingsService::class)->get('auth.require_2fa_for_admins', false)
-                && $user->can('manage-users')
+                && $user->can('view-users')
                 && $user->two_factor_confirmed_at === null
             ) {
                 app(AuditService::class)->record(

@@ -40,7 +40,7 @@ final class DashboardController extends BaseController
                 'view_lsr' => $user->can('view-lsr'),
                 'view_equipment' => $user->can('view-equipment'),
                 'view_reports' => $user->can('view-reports'),
-                'trigger_evacuation' => $user->can('trigger-evacuation'),
+                'trigger_evacuation' => $user->can('create-evacuation'),
             ],
         ]);
     }

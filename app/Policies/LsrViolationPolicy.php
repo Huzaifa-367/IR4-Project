@@ -19,11 +19,11 @@ final class LsrViolationPolicy
 
     public function create(User $user): bool
     {
-        return $user->can('log-lsr');
+        return $user->can('create-lsr');
     }
 
     public function close(User $user, ?LsrViolation $lsr = null): bool
     {
-        return $user->can('close-lsr');
+        return $user->can('update-lsr');
     }
 }

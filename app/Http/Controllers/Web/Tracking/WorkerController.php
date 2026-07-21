@@ -96,21 +96,17 @@ final class WorkerController extends BaseController
                 'value' => $type->value,
                 'label' => $type->label(),
             ]),
-            'canManage' => $request->user()?->can('manage-workers') ?? false,
+            'canManage' => ($request->user()?->can('create-workers') || $request->user()?->can('update-workers') || $request->user()?->can('delete-workers')) ?? false,
             'canSeeIdentity' => $canSeeIdentity,
+            'openCreate' => $request->boolean('create'),
         ]);
     }
 
-    public function create(): InertiaResponse
+    public function create(): RedirectResponse
     {
         $this->authorize('create', Worker::class);
 
-        return Inertia::render('workforce/workers/create', [
-            'workerTypes' => collect(WorkerType::cases())->map(fn (WorkerType $type): array => [
-                'value' => $type->value,
-                'label' => $type->label(),
-            ]),
-        ]);
+        return redirect()->route('tracking.workers.index', ['create' => 1]);
     }
 
     public function store(StoreWorkerRequest $request, WorkerService $workers): RedirectResponse
@@ -135,15 +131,16 @@ final class WorkerController extends BaseController
 
         $user = $request->user();
         $canSeeEntryExit = $user?->can('view-entry-exit') ?? false;
-        $canSeePortableDevices = $user?->can('manage-portable-devices') ?? false;
+        $canSeePortableDevices = $user?->can('view-portable-devices') ?? false;
         $canSeeIncidents = $user?->can('view-incidents') ?? false;
         $canSeeLsr = $user?->can('view-lsr') ?? false;
-        $canManageDocuments = $user?->can('manage-worker-documents') ?? false;
+        $canManageDocuments = ($user?->can('view-worker-documents') || $user?->can('create-worker-documents') || $user?->can('update-worker-documents')) ?? false;
 
         return Inertia::render('workforce/workers/show', [
             'worker' => (new WorkerResource($worker))->resolve($request),
             'onboarding' => $request->boolean('onboarding'),
-            'canManage' => $user?->can('manage-workers') ?? false,
+            'openEdit' => $request->boolean('edit'),
+            'canManage' => ($user?->can('create-workers') || $user?->can('update-workers') || $user?->can('delete-workers')) ?? false,
             'canSeeEntryExit' => $canSeeEntryExit,
             'canSeePortableDevices' => $canSeePortableDevices,
             'canSeeIncidents' => $canSeeIncidents,
@@ -264,29 +261,20 @@ final class WorkerController extends BaseController
                         'category' => $type->category,
                     ])
                 : [],
-        ]);
-    }
-
-    public function edit(Request $request, Worker $worker): InertiaResponse
-    {
-        $this->authorize('update', $worker);
-
-        return Inertia::render('workforce/workers/edit', [
-            'worker' => [
-                'id' => $worker->id,
-                'name' => $worker->name,
-                'contractor' => $worker->contractor,
-                'worker_type' => $worker->worker_type->value,
-                'role_title' => $worker->role_title,
-                'badge_number' => $worker->badge_number,
-                'employee_code' => $worker->employee_code,
-                'phone' => $worker->phone,
-                'notes' => $worker->notes,
-            ],
             'workerTypes' => collect(WorkerType::cases())->map(fn (WorkerType $type): array => [
                 'value' => $type->value,
                 'label' => $type->label(),
             ]),
+        ]);
+    }
+
+    public function edit(Worker $worker): RedirectResponse
+    {
+        $this->authorize('update', $worker);
+
+        return redirect()->route('tracking.workers.show', [
+            'worker' => $worker,
+            'edit' => 1,
         ]);
     }
 

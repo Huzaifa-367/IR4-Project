@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { usePermissions } from '@/hooks/use-permissions';
 import type { RoleRow } from '@/types/settings-admin';
 
 type Props = {
@@ -36,10 +37,15 @@ type RoleFormState = {
 };
 
 export default function RolesIndex({ roles, catalogue }: Props) {
+    const { can } = usePermissions();
     const [form, setForm] = useState<RoleFormState | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<RoleRow | null>(null);
     const [readOnly, setReadOnly] = useState(false);
     const [selected, setSelected] = useState<string[]>([]);
+
+    const canCreate = can('create-roles');
+    const canUpdate = can('update-roles');
+    const canDelete = can('delete-roles');
 
     const openCreate = (): void => {
         setReadOnly(false);
@@ -125,43 +131,65 @@ export default function RolesIndex({ roles, catalogue }: Props) {
             key: 'actions',
             header: '',
             className: 'w-12 text-right',
-            cell: (role) => (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" aria-label="Actions">
-                            <MoreHorizontal />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(role)}>
-                            {role.is_system ? 'View' : 'Edit'}
-                        </DropdownMenuItem>
-                        {!role.is_system ? (
-                            <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => setDeleteTarget(role)}
+            cell: (role) => {
+                const canOpen =
+                    role.is_system || canUpdate || can('view-roles');
+                const showDelete = !role.is_system && canDelete;
+
+                if (!canOpen && !showDelete) {
+                    return null;
+                }
+
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label="Actions"
                             >
-                                Delete
-                            </DropdownMenuItem>
-                        ) : null}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            ),
+                                <MoreHorizontal />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {canOpen ? (
+                                <DropdownMenuItem
+                                    onClick={() => openEdit(role)}
+                                >
+                                    {role.is_system || !canUpdate
+                                        ? 'View'
+                                        : 'Edit'}
+                                </DropdownMenuItem>
+                            ) : null}
+                            {showDelete ? (
+                                <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => setDeleteTarget(role)}
+                                >
+                                    Delete
+                                </DropdownMenuItem>
+                            ) : null}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
         },
     ];
 
     return (
-        <RequirePermission permission="manage-roles">
+        <RequirePermission permission="view-roles">
             <Head title="Roles" />
             <SettingsPageShell
                 eyebrow="Access"
                 title="Roles"
                 description="Compose roles from the permission catalogue. Super Admin is locked."
                 actions={
-                    <Button type="button" onClick={openCreate}>
-                        <Plus data-icon="inline-start" />
-                        Create role
-                    </Button>
+                    canCreate ? (
+                        <Button type="button" onClick={openCreate}>
+                            <Plus data-icon="inline-start" />
+                            Create role
+                        </Button>
+                    ) : null
                 }
             >
                 <SettingsDataTable
@@ -195,7 +223,11 @@ export default function RolesIndex({ roles, catalogue }: Props) {
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
                 submitLabel={form?.mode === 'edit' ? 'Save role' : 'Create role'}
-                disableSubmit={form?.role?.is_system === true}
+                disableSubmit={
+                    form?.role?.is_system === true ||
+                    (form?.mode === 'create' && !canCreate) ||
+                    (form?.mode === 'edit' && !canUpdate)
+                }
                 transform={(data) => ({
                     ...data,
                     is_read_only: readOnly ? '1' : '0',

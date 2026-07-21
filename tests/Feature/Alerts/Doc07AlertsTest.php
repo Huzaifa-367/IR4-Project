@@ -67,7 +67,7 @@ it('does not auto-create incident or lsr rows when raising suggested_action aler
         ->and(\App\Models\LsrViolation::query()->count())->toBe(0);
 });
 
-it('acknowledges and resolves alerts and forbids resolve without configure-alerts', function () {
+it('acknowledges and resolves alerts and forbids resolve without resolve-alerts', function () {
     $operator = User::factory()->withRole('SCC Operator')->create();
     $pm = User::factory()->withRole('Project Manager')->create();
     $alert = Alert::factory()->create();

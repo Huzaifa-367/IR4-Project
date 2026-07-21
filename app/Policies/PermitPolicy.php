@@ -20,12 +20,12 @@ final class PermitPolicy
 
     public function create(User $user): bool
     {
-        return $user->can('request-permit');
+        return $user->can('create-permits');
     }
 
     public function update(User $user, Permit $permit): bool
     {
-        if (! $user->can('request-permit')) {
+        if (! $user->can('create-permits')) {
             return false;
         }
 
@@ -34,47 +34,47 @@ final class PermitPolicy
 
     public function issue(User $user, Permit $permit): bool
     {
-        return $user->can('issue-permit');
+        return $user->can('update-permits');
     }
 
     public function suspend(User $user, Permit $permit): bool
     {
-        return $user->can('issue-permit');
+        return $user->can('update-permits');
     }
 
     public function resume(User $user, Permit $permit): bool
     {
-        return $user->can('issue-permit');
+        return $user->can('update-permits');
     }
 
     public function cancel(User $user, Permit $permit): bool
     {
-        return $user->can('issue-permit');
+        return $user->can('update-permits');
     }
 
     public function close(User $user, Permit $permit): bool
     {
-        return $user->can('issue-permit');
+        return $user->can('update-permits');
     }
 
     public function reject(User $user, Permit $permit): bool
     {
-        return $user->can('issue-permit');
+        return $user->can('update-permits');
     }
 
     public function inspect(User $user, Permit $permit): bool
     {
         // Issuer and receiver both co-sign the joint site inspection (GI 2.100).
-        return $user->can('issue-permit') || $user->can('request-permit');
+        return $user->can('update-permits') || $user->can('create-permits');
     }
 
     public function approve(User $user, Permit $permit): bool
     {
-        return $user->can('approve-permit');
+        return $user->can('update-permits');
     }
 
     public function gasTest(User $user, Permit $permit): bool
     {
-        return $user->can('perform-gas-test');
+        return $user->can('create-permit-gas-tests');
     }
 }

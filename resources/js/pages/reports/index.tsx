@@ -148,7 +148,7 @@ export default function ReportsIndex({
                         )}
                         {canManageSettings && (
                             <Button variant="outline" asChild>
-                                <Link href="/reports/settings">Settings</Link>
+                                <Link href="/settings/reports">Settings</Link>
                             </Button>
                         )}
                         {canGenerate && (

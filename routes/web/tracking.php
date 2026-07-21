@@ -7,11 +7,19 @@ use App\Http\Controllers\Web\Tracking\TrackingApiController;
 use App\Http\Controllers\Web\Tracking\TrackingDashboardController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('permission:view-tracking')->prefix('tracking')->name('tracking.')->group(function (): void {
-    Route::get('/', TrackingDashboardController::class)->name('index');
-    Route::get('coverage', CoverageController::class)->name('coverage');
-    Route::get('api/headcount', [TrackingApiController::class, 'headcount'])->name('api.headcount');
-    Route::get('api/positions', [TrackingApiController::class, 'positions'])->name('api.positions');
+Route::prefix('tracking')->name('tracking.')->group(function (): void {
+    Route::get('/', TrackingDashboardController::class)
+        ->middleware('permission:view-tracking')
+        ->name('index');
+    Route::get('coverage', CoverageController::class)
+        ->middleware('permission:view-tracking')
+        ->name('coverage');
+    Route::get('api/headcount', [TrackingApiController::class, 'headcount'])
+        ->middleware('permission:view-tracking')
+        ->name('api.headcount');
+    Route::get('api/positions', [TrackingApiController::class, 'positions'])
+        ->middleware('permission:view-tracking')
+        ->name('api.positions');
 
     Route::get('entry-exit', [EntryExitController::class, 'index'])
         ->middleware('permission:view-entry-exit')
@@ -20,20 +28,25 @@ Route::middleware('permission:view-tracking')->prefix('tracking')->name('trackin
         ->middleware('permission:view-entry-exit')
         ->name('entry-exit.export');
     Route::post('entry-exit/corrections', [EntryExitController::class, 'correct'])
-        ->middleware('permission:manage-workers')
+        ->middleware('permission:update-workers')
         ->name('entry-exit.corrections');
 
-    Route::get('evacuation', [EvacuationController::class, 'index'])->name('evacuation.index');
+    Route::get('evacuation', [EvacuationController::class, 'index'])
+        ->middleware('permission:create-evacuation|update-evacuation')
+        ->name('evacuation.index');
     Route::post('evacuation', [EvacuationController::class, 'store'])
-        ->middleware('permission:trigger-evacuation')
+        ->middleware('permission:create-evacuation')
         ->name('evacuation.store');
-    Route::get('evacuation/{evacuation}', [EvacuationController::class, 'show'])->name('evacuation.show');
+    Route::get('evacuation/{evacuation}', [EvacuationController::class, 'show'])
+        ->middleware('permission:create-evacuation|update-evacuation')
+        ->name('evacuation.show');
     Route::post('evacuation/{evacuation}/close', [EvacuationController::class, 'close'])
-        ->middleware('permission:manage-evacuation')
+        ->middleware('permission:update-evacuation')
         ->name('evacuation.close');
     Route::post('evacuation/{evacuation}/entries/{entry}', [EvacuationController::class, 'account'])
-        ->middleware('permission:manage-evacuation')
+        ->middleware('permission:update-evacuation')
         ->name('evacuation.account');
     Route::get('evacuation/{evacuation}/download', [EvacuationController::class, 'download'])
+        ->middleware('permission:create-evacuation|update-evacuation')
         ->name('evacuation.download');
 });

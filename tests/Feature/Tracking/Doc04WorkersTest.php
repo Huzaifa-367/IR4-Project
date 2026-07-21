@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
-it('creates and lists workers for manage-workers users', function () {
+it('creates and lists workers for create-workers users', function () {
     $user = User::factory()->withRole('SCC Operator')->create();
 
     $response = $this->actingAs($user)

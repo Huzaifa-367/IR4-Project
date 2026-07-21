@@ -87,8 +87,8 @@ final class PpeViolationController extends BaseController
                 'value' => $s->value,
                 'label' => $s->label(),
             ]),
-            'canReview' => $request->user()?->can('review-ppe') ?? false,
-            'canExport' => $request->user()?->can('export-ppe-reports') ?? false,
+            'canReview' => $request->user()?->can('update-ppe-violations') ?? false,
+            'canExport' => $request->user()?->can('export-ppe-violations') ?? false,
         ]);
     }
 

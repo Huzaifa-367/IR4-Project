@@ -23,6 +23,8 @@ type Props = {
     workerTypes: WorkerTypeOption[];
     defaults?: WorkerFormValues;
     submitLabel: string;
+    className?: string;
+    onSuccess?: () => void;
 };
 
 export function WorkerForm({
@@ -31,14 +33,17 @@ export function WorkerForm({
     workerTypes,
     defaults = {},
     submitLabel,
+    className,
+    onSuccess,
 }: Props) {
     return (
         <Form
             action={action}
             method={method}
             encType="multipart/form-data"
-            className="max-w-xl space-y-4"
+            className={className ?? 'max-w-xl space-y-4'}
             options={{ preserveScroll: true }}
+            onSuccess={onSuccess}
         >
             {({ processing, errors }) => (
                 <>

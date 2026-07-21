@@ -62,10 +62,10 @@ final class WeeklyReportController extends BaseController
                 'value' => $s->value,
                 'label' => $s->label(),
             ]),
-            'canGenerate' => $request->user()?->can('generate-reports') ?? false,
-            'canPublish' => $request->user()?->can('publish-reports') ?? false,
-            'canManageSettings' => $request->user()?->can('manage-settings') ?? false,
-            'canLogVehicles' => $request->user()?->can('log-vehicle-violations') ?? false,
+            'canGenerate' => $request->user()?->can('create-reports') ?? false,
+            'canPublish' => $request->user()?->can('update-reports') ?? false,
+            'canManageSettings' => $request->user()?->can('update-settings') ?? false,
+            'canLogVehicles' => $request->user()?->can('create-vehicle-violations') ?? false,
         ]);
     }
 
@@ -76,7 +76,7 @@ final class WeeklyReportController extends BaseController
         return Inertia::render('reports/show', [
             'report' => $reports->toArray($report),
             'badges' => $reports->automationBadges(),
-            'canPublish' => request()->user()?->can('publish-reports') ?? false,
+            'canPublish' => request()->user()?->can('update-reports') ?? false,
         ]);
     }
 
@@ -142,9 +142,9 @@ final class WeeklyReportController extends BaseController
 
     public function settings(SettingsService $settings): InertiaResponse
     {
-        abort_unless(request()->user()?->can('manage-settings'), 403);
+        abort_unless(request()->user()?->can('update-settings'), 403);
 
-        return Inertia::render('reports/settings', [
+        return Inertia::render('settings/reports', [
             'settings' => [
                 'generation_day' => (string) $settings->get('report.generation_day', 'sunday'),
                 'generation_time' => (string) $settings->get('report.generation_time', '06:00'),
@@ -171,6 +171,6 @@ final class WeeklyReportController extends BaseController
             'message' => 'Report settings saved.',
         ]);
 
-        return back();
+        return redirect()->route('settings.reports.edit');
     }
 }

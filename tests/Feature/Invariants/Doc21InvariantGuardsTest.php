@@ -210,7 +210,7 @@ it('invariant: read-only roles cannot gain write permissions', function () {
     $service = app(RoleService::class);
     $role = Role::query()->where('name', 'Client Representative')->firstOrFail();
 
-    expect(fn () => $service->syncPermissions($role, ['manage-users']))
+    expect(fn () => $service->syncPermissions($role, ['create-users']))
         ->toThrow(ValidationException::class);
 });
 

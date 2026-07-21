@@ -68,13 +68,13 @@ final class EntryExitController extends BaseController
                 'worker_id' => $request->string('worker_id')->toString(),
             ],
             'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'canCorrect' => $request->user()?->can('manage-workers') ?? false,
+            'canCorrect' => $request->user()?->can('update-workers') ?? false,
         ]);
     }
 
     public function correct(Request $request, TrackingService $tracking): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-workers'), 403);
+        abort_unless($request->user()?->can('update-workers'), 403);
 
         $data = $request->validate([
             'worker_id' => ['required', 'integer', 'exists:workers,id'],

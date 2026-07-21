@@ -28,11 +28,11 @@ final class WeeklyReportPolicy
 
     public function generate(User $user): bool
     {
-        return $user->can('generate-reports');
+        return $user->can('create-reports');
     }
 
     public function publish(User $user, WeeklyReport $report): bool
     {
-        return $user->can('publish-reports');
+        return $user->can('update-reports');
     }
 }

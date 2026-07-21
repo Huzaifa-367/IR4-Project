@@ -4,6 +4,9 @@ namespace App\Support;
 
 /**
  * Canonical permission catalogue (DOC-03 §3). Single source of truth for seeding + TS export.
+ *
+ * Groups are module-based (one DOC / domain surface per group). Route middleware
+ * declares the specific permission on each route — never a whole-module gate.
  */
 final class PermissionCatalogue
 {
@@ -15,69 +18,97 @@ final class PermissionCatalogue
     public static function grouped(): array
     {
         return [
+            'Dashboard' => [
+                'view-dashboard',
+            ],
             'Live view & cameras' => [
                 'view-live-cameras',
             ],
+            'Alerts' => [
+                'acknowledge-alerts',
+                'resolve-alerts',
+            ],
             'PPE' => [
                 'view-ppe',
-                'review-ppe',
-                'export-ppe-reports',
+                'update-ppe-violations',
+                'export-ppe-violations',
             ],
             'Tracking / RFID' => [
                 'view-tracking',
                 'view-worker-identity',
-                'manage-workers',
-                'manage-tags',
-                'manage-zones',
+                'create-workers',
+                'update-workers',
+                'delete-workers',
+                'create-tags',
+                'update-tags',
+                'view-zones',
+                'create-zones',
+                'update-zones',
+                'delete-zones',
                 'view-entry-exit',
-                'manage-portable-devices',
-                'trigger-evacuation',
-                'manage-evacuation',
+                'view-portable-devices',
+                'create-portable-devices',
+                'update-portable-devices',
+                'create-evacuation',
+                'update-evacuation',
             ],
             'Gas & CO₂' => [
                 'view-gas',
-                'manage-gas-thresholds',
-            ],
-            'Alerts' => [
-                'acknowledge-alerts',
-                'configure-alerts',
+                'view-gas-thresholds',
+                'update-gas-thresholds',
             ],
             'Equipment / QR' => [
                 'view-equipment',
-                'manage-equipment',
+                'create-equipment',
+                'update-equipment',
+                'delete-equipment',
             ],
             'HSE incidents & LSR' => [
                 'view-incidents',
-                'log-incidents',
-                'classify-incidents',
+                'create-incidents',
+                'update-incidents',
                 'view-lsr',
-                'log-lsr',
-                'close-lsr',
+                'create-lsr',
+                'update-lsr',
             ],
             'Permit to Work' => [
                 'view-permits',
-                'request-permit',
-                'issue-permit',
-                'approve-permit',
-                'perform-gas-test',
-                'manage-permit-catalogue',
-                'manage-worker-documents',
+                'create-permits',
+                'update-permits',
+                'create-permit-gas-tests',
+                'view-permit-catalogue',
+                'create-permit-catalogue',
+                'update-permit-catalogue',
+                'delete-permit-catalogue',
+                'view-worker-documents',
+                'create-worker-documents',
+                'update-worker-documents',
+                'delete-worker-documents',
             ],
             'Reports' => [
                 'view-reports',
-                'generate-reports',
-                'publish-reports',
-                'log-vehicle-violations',
-            ],
-            'Dashboard' => [
-                'view-dashboard',
+                'create-reports',
+                'update-reports',
+                'view-vehicle-violations',
+                'create-vehicle-violations',
+                'delete-vehicle-violations',
             ],
             'Administration' => [
                 'view-audit-log',
-                'manage-users',
-                'manage-roles',
-                'manage-devices',
-                'manage-settings',
+                'view-users',
+                'create-users',
+                'update-users',
+                'view-roles',
+                'create-roles',
+                'update-roles',
+                'delete-roles',
+                'view-devices',
+                'create-devices',
+                'update-devices',
+                'delete-devices',
+                'view-settings',
+                'update-settings',
+                'update-alert-settings',
             ],
         ];
     }

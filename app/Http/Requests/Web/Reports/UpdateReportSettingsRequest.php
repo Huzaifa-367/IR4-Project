@@ -9,7 +9,7 @@ final class UpdateReportSettingsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('manage-settings') ?? false;
+        return $this->user()?->can('update-settings') ?? false;
     }
 
     protected function prepareForValidation(): void

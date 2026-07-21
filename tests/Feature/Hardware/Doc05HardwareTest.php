@@ -113,7 +113,7 @@ it('skips maintenance devices in markStale', function () {
     expect($device->fresh()->status)->toBe(HardwareStatus::Maintenance);
 });
 
-it('forbids hardware settings without manage-devices', function () {
+it('forbids hardware settings without view-devices', function () {
     $user = User::factory()->withRole('SCC Operator')->create();
 
     $this->actingAs($user)

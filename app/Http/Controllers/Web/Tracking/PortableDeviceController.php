@@ -15,9 +15,7 @@ final class PortableDeviceController extends BaseController
 {
     public function index(Request $request): Response
     {
-        abort_unless($request->user()?->can('manage-portable-devices'), 403);
-
-        $query = PortableDevice::query()->with('worker');
+        abort_unless($request->user()?->can('view-portable-devices'), 403);->with('worker');
         $this->applyListQuery(
             $query,
             $request,
@@ -54,10 +52,7 @@ final class PortableDeviceController extends BaseController
 
     public function store(Request $request, PortableDeviceService $service): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-portable-devices'), 403);
-
-        $data = $request->validate([
-            'worker_id' => ['required', 'integer', 'exists:workers,id'],
+        abort_unless($request->user()?->can('create-portable-devices'), 403); ['required', 'integer', 'exists:workers,id'],
             'device_type' => ['required', 'string', 'max:150'],
             'make_model' => ['nullable', 'string', 'max:150'],
             'serial_number' => ['nullable', 'string', 'max:150'],
@@ -75,10 +70,7 @@ final class PortableDeviceController extends BaseController
 
     public function revoke(Request $request, PortableDevice $portableDevice, PortableDeviceService $service): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-portable-devices'), 403);
-
-        $data = $request->validate([
-            'revoke_reason' => ['required', 'string', 'min:10', 'max:5000'],
+        abort_unless($request->user()?->can('update-portable-devices'), 403); ['required', 'string', 'min:10', 'max:5000'],
         ]);
 
         $service->revoke($portableDevice, $data['revoke_reason'], $request->user());

@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
@@ -27,6 +27,7 @@ type Props = {
     workerTypes: Array<{ value: string; label: string }>;
     canManage: boolean;
     canSeeIdentity: boolean;
+    openCreate?: boolean;
 };
 
 type FormState = { mode: 'create' } | { mode: 'edit'; worker: Worker };
@@ -37,12 +38,20 @@ export default function WorkersIndex({
     workerTypes,
     canManage,
     canSeeIdentity,
+    openCreate = false,
 }: Props) {
     const [search, setSearch] = useState(filters.search);
     const [contractor, setContractor] = useState(filters.contractor);
     const [workerType, setWorkerType] = useState(filters.worker_type || 'all');
     const [form, setForm] = useState<FormState | null>(null);
     const [editType, setEditType] = useState('contractor');
+
+    useEffect(() => {
+        if (openCreate && canManage) {
+            setEditType('contractor');
+            setForm({ mode: 'create' });
+        }
+    }, [openCreate, canManage]);
 
     const applyFilters = (
         patch: Partial<{

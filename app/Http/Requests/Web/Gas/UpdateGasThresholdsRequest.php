@@ -10,7 +10,7 @@ final class UpdateGasThresholdsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('manage-gas-thresholds') ?? false;
+        return $this->user()?->can('update-gas-thresholds') ?? false;
     }
 
     /**

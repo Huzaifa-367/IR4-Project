@@ -83,7 +83,7 @@ final class PermitController extends BaseController
                 'value' => $status->value,
                 'label' => $status->label(),
             ]),
-            'canRequest' => $request->user()?->can('request-permit') ?? false,
+            'canRequest' => $request->user()?->can('create-permits') ?? false,
         ]);
     }
 
@@ -295,7 +295,7 @@ final class PermitController extends BaseController
                 'value' => $phase->value,
                 'label' => $phase->label(),
             ]),
-            'canRequest' => $user?->can('request-permit') ?? false,
+            'canRequest' => $user?->can('create-permits') ?? false,
             'canUpdate' => $canUpdate,
             'canIssue' => $user?->can('issue', $permit) ?? false,
             'canApprove' => $user?->can('approve', $permit) ?? false,

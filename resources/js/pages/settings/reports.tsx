@@ -1,5 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import Heading from '@/components/heading';
+import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,23 +24,22 @@ export default function ReportSettingsPage({ settings }: Props) {
     return (
         <>
             <Head title="Report settings" />
-            <div className="mx-auto flex max-w-xl flex-col gap-6 p-6">
-                <div className="flex items-start justify-between gap-4">
-                    <Heading
-                        title="Report settings"
-                        description="Schedule and completeness threshold"
-                    />
+            <SettingsPageShell
+                eyebrow="Settings"
+                title="Report settings"
+                description="Weekly report schedule and completeness threshold."
+                actions={
                     <Button variant="outline" asChild>
-                        <Link href="/reports">Back</Link>
+                        <Link href="/reports">Weekly reports</Link>
                     </Button>
-                </div>
-
+                }
+            >
                 <Form
                     method="put"
-                    action="/reports/settings"
-                    className="grid gap-4 rounded-lg border p-4"
+                    action="/settings/reports"
+                    className="mx-auto grid max-w-xl gap-4 rounded-[var(--radius)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] md:p-5"
                 >
-                    <div>
+                    <div className="grid gap-2">
                         <Label htmlFor="generation_day">Generation day</Label>
                         <SearchableSelect
                             id="generation_day"
@@ -52,7 +51,7 @@ export default function ReportSettingsPage({ settings }: Props) {
                             }))}
                         />
                     </div>
-                    <div>
+                    <div className="grid gap-2">
                         <Label htmlFor="generation_time">Generation time</Label>
                         <Input
                             id="generation_time"
@@ -62,17 +61,18 @@ export default function ReportSettingsPage({ settings }: Props) {
                             required
                         />
                     </div>
-                    <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 rounded-md border border-border bg-surface-2/30 px-3 py-2 text-sm">
                         <input
                             id="auto_publish"
                             name="auto_publish"
                             type="checkbox"
                             value="1"
                             defaultChecked={settings.auto_publish}
+                            className="size-4 rounded border"
                         />
-                        <Label htmlFor="auto_publish">Auto-publish</Label>
-                    </div>
-                    <div>
+                        Auto-publish
+                    </label>
+                    <div className="grid gap-2">
                         <Label htmlFor="completeness_threshold_pct">
                             Completeness threshold (%)
                         </Label>
@@ -87,16 +87,18 @@ export default function ReportSettingsPage({ settings }: Props) {
                             required
                         />
                     </div>
-                    <Button type="submit">Save settings</Button>
+                    <div className="flex justify-end">
+                        <Button type="submit">Save settings</Button>
+                    </div>
                 </Form>
-            </div>
+            </SettingsPageShell>
         </>
     );
 }
 
 ReportSettingsPage.layout = {
     breadcrumbs: [
-        { title: 'Reports', href: '/reports' },
-        { title: 'Settings', href: '/reports/settings' },
+        { title: 'Settings', href: '/settings/general' },
+        { title: 'Report settings', href: '/settings/reports' },
     ],
 };

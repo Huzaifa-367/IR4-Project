@@ -12,9 +12,9 @@ final class UpdateGeneralSettingsRequest extends FormRequest
         $user = $this->user();
 
         return $user !== null && (
-            $user->can('manage-settings')
-            || $user->can('configure-alerts')
-            || $user->can('manage-gas-thresholds')
+            $user->can('update-settings')
+            || $user->can('update-alert-settings')
+            || $user->can('update-gas-thresholds')
         );
     }
 

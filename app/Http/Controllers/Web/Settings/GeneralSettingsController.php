@@ -18,9 +18,11 @@ final class GeneralSettingsController extends BaseController
         $user = $request->user();
         abort_unless(
             $user !== null && (
-                $user->can('manage-settings')
-                || $user->can('configure-alerts')
-                || $user->can('manage-gas-thresholds')
+                $user->can('view-settings')
+                || $user->can('update-settings')
+                || $user->can('update-alert-settings')
+                || $user->can('view-gas-thresholds')
+                || $user->can('update-gas-thresholds')
             ),
             403,
         );

@@ -8,7 +8,7 @@ final class ExportPpeViolationsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('export-ppe-reports') ?? false;
+        return $this->user()?->can('export-ppe-violations') ?? false;
     }
 
     /**

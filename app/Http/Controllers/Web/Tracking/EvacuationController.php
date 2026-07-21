@@ -21,8 +21,8 @@ final class EvacuationController extends BaseController
     public function index(Request $request): Response
     {
         abort_unless(
-            $request->user()?->can('trigger-evacuation')
-            || $request->user()?->can('manage-evacuation'),
+            $request->user()?->can('create-evacuation')
+            || $request->user()?->can('update-evacuation'),
             403,
         );
 
@@ -40,16 +40,16 @@ final class EvacuationController extends BaseController
         return Inertia::render('tracking/evacuation/index', [
             'openReport' => $open ? $this->serializeReport($open) : null,
             'history' => $history,
-            'canTrigger' => $request->user()?->can('trigger-evacuation') ?? false,
-            'canManage' => $request->user()?->can('manage-evacuation') ?? false,
+            'canTrigger' => $request->user()?->can('create-evacuation') ?? false,
+            'canManage' => $request->user()?->can('update-evacuation') ?? false,
         ]);
     }
 
     public function show(Request $request, EvacuationReport $evacuation): Response
     {
         abort_unless(
-            $request->user()?->can('trigger-evacuation')
-            || $request->user()?->can('manage-evacuation'),
+            $request->user()?->can('create-evacuation')
+            || $request->user()?->can('update-evacuation'),
             403,
         );
 
@@ -57,13 +57,13 @@ final class EvacuationController extends BaseController
 
         return Inertia::render('tracking/evacuation/show', [
             'report' => $this->serializeReport($evacuation),
-            'canManage' => $request->user()?->can('manage-evacuation') ?? false,
+            'canManage' => $request->user()?->can('update-evacuation') ?? false,
         ]);
     }
 
     public function store(Request $request, EvacuationService $evac): RedirectResponse
     {
-        abort_unless($request->user()?->can('trigger-evacuation'), 403);
+        abort_unless($request->user()?->can('create-evacuation'), 403);
         $report = $evac->trigger($request->user());
 
         return redirect()->route('tracking.evacuation.show', $report);
@@ -75,7 +75,7 @@ final class EvacuationController extends BaseController
         EvacuationReportEntry $entry,
         EvacuationService $evac,
     ): RedirectResponse {
-        abort_unless($request->user()?->can('manage-evacuation'), 403);
+        abort_unless($request->user()?->can('update-evacuation'), 403);
         abort_unless($entry->evacuation_report_id === $evacuation->id, 404);
 
         $evac->accountManual($entry, $request->user());
@@ -85,7 +85,7 @@ final class EvacuationController extends BaseController
 
     public function close(Request $request, EvacuationReport $evacuation, EvacuationService $evac): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-evacuation'), 403);
+        abort_unless($request->user()?->can('update-evacuation'), 403);
 
         $data = $request->validate([
             'force' => ['sometimes', 'boolean'],
@@ -109,8 +109,8 @@ final class EvacuationController extends BaseController
     ): SymfonyResponse
     {
         abort_unless(
-            request()->user()?->can('manage-evacuation')
-            || request()->user()?->can('trigger-evacuation'),
+            request()->user()?->can('update-evacuation')
+            || request()->user()?->can('create-evacuation'),
             403,
         );
 

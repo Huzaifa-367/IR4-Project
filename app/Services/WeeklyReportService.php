@@ -120,7 +120,7 @@ final class WeeklyReportService
 
             $autoPublish = (bool) $this->settings->get('report.auto_publish', false);
             if ($auto && $autoPublish) {
-                $publisher = $by ?? User::permission('publish-reports')->first();
+                $publisher = $by ?? User::permission('update-reports')->first();
                 if ($publisher !== null) {
                     return $this->publish($report, $publisher);
                 }
@@ -872,7 +872,7 @@ final class WeeklyReportService
 
     private function notifyPublishHolders(WeeklyReport $report): void
     {
-        User::permission('publish-reports')
+        User::permission('update-reports')
             ->where('is_active', true)
             ->get()
             ->each(fn (User $user) => $user->notify(new WeeklyReportReadyNotification($report)));

@@ -133,7 +133,7 @@ export default function UsersIndex({
     ];
 
     return (
-        <RequirePermission permission="manage-users">
+        <RequirePermission permission="view-users">
             <Head title="Users" />
             <SettingsPageShell
                 eyebrow="Access"

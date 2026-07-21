@@ -17,8 +17,8 @@ final class TrackingDashboardController extends BaseController
         return Inertia::render('tracking/index', [
             'headcount' => $tracking->headcountSnapshot(),
             'canSeePositions' => $request->user()->can('view-worker-identity')
-                || $request->user()->can('manage-tags'),
-            'canTriggerEvacuation' => $request->user()->can('trigger-evacuation'),
+                || $request->user()->can('update-tags'),
+            'canTriggerEvacuation' => $request->user()->can('create-evacuation'),
         ]);
     }
 }

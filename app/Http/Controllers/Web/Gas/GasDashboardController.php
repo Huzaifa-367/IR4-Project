@@ -55,7 +55,7 @@ final class GasDashboardController extends BaseController
                 ->orderBy('name')
                 ->get(['id', 'name', 'reference']),
             'thresholds' => $thresholds,
-            'canManageThresholds' => $request->user()?->can('manage-gas-thresholds') ?? false,
+            'canManageThresholds' => $request->user()?->can('update-gas-thresholds') ?? false,
             'canAcknowledge' => $request->user()?->can('acknowledge-alerts') ?? false,
         ]);
     }
@@ -175,7 +175,7 @@ final class GasDashboardController extends BaseController
                 'updated_by_name' => $t->updater?->name,
                 'updated_at' => $t->updated_at?->toIso8601String(),
             ]),
-            'canManage' => $request->user()?->can('manage-gas-thresholds') ?? false,
+            'canManage' => $request->user()?->can('update-gas-thresholds') ?? false,
         ]);
     }
 

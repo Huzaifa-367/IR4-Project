@@ -9,16 +9,16 @@ final class VehicleViolationPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can('log-vehicle-violations') || $user->can('view-reports');
+        return $user->can('view-vehicle-violations') || $user->can('view-reports');
     }
 
     public function create(User $user): bool
     {
-        return $user->can('log-vehicle-violations');
+        return $user->can('create-vehicle-violations');
     }
 
-    public function delete(User $user, VehicleViolation $violation): bool
+    public function delete(User $user, VehicleViolation $vehicleViolation): bool
     {
-        return $user->can('log-vehicle-violations');
+        return $user->can('delete-vehicle-violations');
     }
 }

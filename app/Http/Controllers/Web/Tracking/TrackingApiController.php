@@ -23,7 +23,7 @@ final class TrackingApiController extends BaseController
         $user = $request->user();
         abort_unless(
             $user?->can('view-tracking')
-            && ($user->can('view-worker-identity') || $user->can('manage-tags')),
+            && ($user->can('view-worker-identity') || $user->can('update-tags')),
             403,
         );
 

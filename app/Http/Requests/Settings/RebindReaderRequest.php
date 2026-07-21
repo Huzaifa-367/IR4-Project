@@ -8,7 +8,7 @@ final class RebindReaderRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('manage-zones') ?? false;
+        return $this->user()?->can('update-zones') ?? false;
     }
 
     /**

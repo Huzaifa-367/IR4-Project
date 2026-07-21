@@ -41,57 +41,94 @@ Permissions are lower-kebab strings, grouped by domain. This is the **complete, 
 **Live view & cameras**
 - `view-live-cameras`
 
+**Alerts (DOC-07)**
+- `acknowledge-alerts`
+- `resolve-alerts`
+
 **PPE (DOC-10)**
 - `view-ppe`
-- `review-ppe` (confirm / false-positive)
-- `export-ppe-reports`
+- `update-ppe-violations`
+- `export-ppe-violations`
 
 **Tracking / RFID (DOC-09)**
 - `view-tracking`
 - `view-worker-identity` (see names/identity on the map & positions; without it, data is anonymized)
-- `manage-workers`
-- `manage-tags`
-- `manage-zones`
+- `create-workers`
+- `update-workers`
+- `delete-workers`
+- `create-tags`
+- `update-tags`
+- `view-zones`
+- `create-zones`
+- `update-zones`
+- `delete-zones`
 - `view-entry-exit`
-- `manage-portable-devices`
-- `trigger-evacuation`
-- `manage-evacuation` (account entries, force-close)
+- `view-portable-devices`
+- `create-portable-devices`
+- `update-portable-devices`
+- `create-evacuation`
+- `update-evacuation`
 
 **Gas & CO₂ (DOC-11)**
 - `view-gas`
-- `manage-gas-thresholds`
-
-**Alerts (DOC-07)**
-- `acknowledge-alerts`
-- `configure-alerts` (resolve manually, alert settings)
+- `view-gas-thresholds`
+- `update-gas-thresholds`
 
 **Equipment / QR (DOC-13)**
 - `view-equipment`
-- `manage-equipment`
+- `create-equipment`
+- `update-equipment`
+- `delete-equipment`
 
 **HSE incidents & LSR (DOC-14)**
 - `view-incidents`
-- `log-incidents`
-- `classify-incidents`
+- `create-incidents`
+- `update-incidents`
 - `view-lsr`
-- `log-lsr`
-- `close-lsr`
+- `create-lsr`
+- `update-lsr`
+
+**Permit to Work (DOC-22)**
+- `view-permits`
+- `create-permits`
+- `update-permits`
+- `create-permit-gas-tests`
+- `view-permit-catalogue`
+- `create-permit-catalogue`
+- `update-permit-catalogue`
+- `delete-permit-catalogue`
+- `view-worker-documents`
+- `create-worker-documents`
+- `update-worker-documents`
+- `delete-worker-documents`
 
 **Reports (DOC-15)**
 - `view-reports`
-- `generate-reports`
-- `publish-reports`
-- `log-vehicle-violations`
+- `create-reports`
+- `update-reports`
+- `view-vehicle-violations`
+- `create-vehicle-violations`
+- `delete-vehicle-violations`
 
 **Dashboard (DOC-16)**
 - `view-dashboard`
 
 **Administration**
 - `view-audit-log`
-- `manage-users`
-- `manage-roles`
-- `manage-devices`
-- `manage-settings`
+- `view-users`
+- `create-users`
+- `update-users`
+- `view-roles` (list role editor)
+- `create-roles`
+- `update-roles`
+- `delete-roles`
+- `view-devices`
+- `create-devices`
+- `update-devices`
+- `delete-devices`
+- `view-settings`
+- `update-settings`
+- `update-alert-settings`
 
 **Enum mirror:** these are also emitted as a `Permission` TS union in `resources/js/types/enums.ts` (DOC-01 §6) so `usePermissions()` (frontend) type-checks against the same list. The exporter includes permissions alongside enums.
 
@@ -120,16 +157,16 @@ The installer seeds a practical starting set so the platform is usable on day on
 
 The seeded permission sets for the non-system roles are the recommended defaults in §5; because they are editable, §5 is a *starting configuration*, not a locked contract (only the Super Admin row is guaranteed permanent).
 
-### 4.3 Role management (admin, permission `manage-roles`)
-A new permission **`manage-roles`** governs the role editor at **`/settings/roles`**:
-- **List** roles with holder counts and read-only/system badges.
-- **Create** a role: name, description, `is_read_only` flag, pick permissions from the catalogue (§3). If `is_read_only`, the picker shows only `view-*` permissions and the server enforces it (§6).
-- **Edit** a role: rename, retune permissions, toggle `is_read_only` — **except** the `Super Admin` row, which is fully locked (all controls disabled; API rejects edits with 403 `FORBIDDEN`).
-- **Delete** a role: allowed only if `is_system=false` and it has zero assigned users (else 409 `CONFLICT` — reassign users first).
+### 4.3 Role management (admin, per-route permissions)
+The role editor at **`/access/roles`** is gated per action (DOC-03 four-layer enforcement):
+- **`view-roles`** — list roles with holder counts and read-only/system badges.
+- **`create-roles`** — create a role: name, description, `is_read_only` flag, pick permissions from the catalogue (§3). If `is_read_only`, the picker shows only `view-*` permissions and the server enforces it (§6).
+- **`update-roles`** — rename, retune permissions, toggle `is_read_only` — **except** the `Super Admin` row, which is fully locked (all controls disabled; API rejects edits with 403 `FORBIDDEN`).
+- **`delete-roles`** — delete a role: allowed only if `is_system=false` and it has zero assigned users (else 409 `CONFLICT` — reassign users first).
 - Every create/edit/delete/permission-sync writes a `config_changed` audit row with before/after permission sets.
 
 ### 4.4 Assignment model
-- Users hold **exactly one role** (single-role model — §7.3). Assignment happens in the user editor (`manage-users`).
+- Users hold **exactly one role** (single-role model — §7.3). Assignment happens in the user editor (`view-users` / `create-users` / `update-users`).
 - **No direct per-user permissions.** All authority flows through the role, so a role's permission set fully describes what its users can do, and `PERMISSIONS.md` is complete.
 - `[CONFIRM AT DESIGN]` multi-role per user — deferred; single-role keeps audit and reasoning simple.
 
@@ -146,43 +183,74 @@ This is the **default permission set the installer seeds** for each starter role
 | view-dashboard | all | ✅ | ✅ | ✅ | cfg |
 | view-live-cameras | all | ✅ | ✅ |  | cfg |
 | view-ppe | all | ✅ | ✅ |  | cfg |
-| review-ppe | all | ✅ | ✅ |  |  |
-| export-ppe-reports | all | ✅ |  |  |  |
+| update-ppe-violations | all | ✅ | ✅ |  |  |
+| export-ppe-violations | all | ✅ |  |  |  |
 | view-tracking | all | ✅ | ✅ | ✅ (headcount only, DOC-09) | cfg |
 | view-worker-identity | all | ✅ | ✅ |  |  |
-| manage-workers | all | ✅ | ✅ |  |  |
-| manage-tags | all | ✅ | ✅ |  |  |
-| manage-zones | all | ✅ | ✅ |  |  |
+| create-workers | all | ✅ | ✅ |  |  |
+| update-workers | all | ✅ | ✅ |  |  |
+| delete-workers | all | ✅ | ✅ |  |  |
+| create-tags | all | ✅ | ✅ |  |  |
+| update-tags | all | ✅ | ✅ |  |  |
+| view-zones | all | ✅ | ✅ |  |  |
+| create-zones | all | ✅ | ✅ |  |  |
+| update-zones | all | ✅ | ✅ |  |  |
+| delete-zones | all | ✅ | ✅ |  |  |
 | view-entry-exit | all | ✅ | ✅ |  | cfg |
-| manage-portable-devices | all | ✅ | ✅ |  |  |
-| trigger-evacuation | all | ✅ | ✅ |  |  |
-| manage-evacuation | all | ✅ | ✅ |  |  |
+| view-portable-devices | all | ✅ | ✅ |  |  |
+| create-portable-devices | all | ✅ | ✅ |  |  |
+| update-portable-devices | all | ✅ | ✅ |  |  |
+| create-evacuation | all | ✅ | ✅ |  |  |
+| update-evacuation | all | ✅ | ✅ |  |  |
 | view-gas | all | ✅ | ✅ |  | cfg |
-| manage-gas-thresholds | all | ✅ |  |  |  |
+| view-gas-thresholds | all | ✅ |  |  |  |
+| update-gas-thresholds | all | ✅ |  |  |  |
 | acknowledge-alerts | all | ✅ | ✅ |  |  |
-| configure-alerts | all | ✅ | ✅ |  |  |
+| resolve-alerts | all | ✅ | ✅ |  |  |
 | view-equipment | all | ✅ | ✅ | ✅ | cfg |
-| manage-equipment | all | ✅ | ✅ |  |  |
+| create-equipment | all | ✅ | ✅ |  |  |
+| update-equipment | all | ✅ | ✅ |  |  |
+| delete-equipment | all | ✅ | ✅ |  |  |
 | view-incidents | all | ✅ | ✅ |  | cfg |
-| log-incidents | all | ✅ | ✅ |  |  |
-| classify-incidents | all | ✅ |  |  |  |
+| create-incidents | all | ✅ | ✅ |  |  |
+| update-incidents | all | ✅ |  |  |  |
 | view-lsr | all | ✅ | ✅ |  | cfg |
-| log-lsr | all | ✅ | ✅ |  |  |
-| close-lsr | all | ✅ | ✅ |  |  |
+| create-lsr | all | ✅ | ✅ |  |  |
+| update-lsr | all | ✅ | ✅ |  |  |
+| view-permits | all | ✅ | ✅ |  | cfg |
+| create-permits | all | ✅ | ✅ |  |  |
+| update-permits | all | ✅ |  |  |  |
+| create-permit-gas-tests | all | ✅ | ✅ |  |  |
+| view-worker-documents | all | ✅ | ✅ |  |  |
+| create-worker-documents | all | ✅ | ✅ |  |  |
+| update-worker-documents | all | ✅ | ✅ |  |  |
+| delete-worker-documents | all | ✅ | ✅ |  |  |
 | view-reports | all | ✅ | ✅ | ✅ (published only, DOC-15) | cfg |
-| generate-reports | all | ✅ |  |  |  |
-| publish-reports | all | ✅ |  |  |  |
-| log-vehicle-violations | all | ✅ | ✅ |  |  |
+| create-reports | all | ✅ |  |  |  |
+| update-reports | all | ✅ |  |  |  |
+| view-vehicle-violations | all | ✅ | ✅ |  |  |
+| create-vehicle-violations | all | ✅ | ✅ |  |  |
+| delete-vehicle-violations | all | ✅ | ✅ |  |  |
 | view-audit-log | all | ✅ |  |  |  |
-| manage-users | all | ✅ |  |  |  |
-| manage-roles | all |  |  |  |  |
-| manage-devices | all | ✅ |  |  |  |
-| manage-settings | all | ✅ |  |  |  |
+| view-users | all | ✅ |  |  |  |
+| create-users | all | ✅ |  |  |  |
+| update-users | all | ✅ |  |  |  |
+| view-roles | all |  |  |  |  |
+| create-roles | all |  |  |  |  |
+| update-roles | all |  |  |  |  |
+| delete-roles | all |  |  |  |  |
+| view-devices | all | ✅ |  |  |  |
+| create-devices | all | ✅ |  |  |  |
+| update-devices | all | ✅ |  |  |  |
+| delete-devices | all | ✅ |  |  |  |
+| view-settings | all | ✅ |  |  |  |
+| update-settings | all | ✅ |  |  |  |
+| update-alert-settings | all | ✅ |  |  |  |
 
 **Deliberate boundaries in the seeded defaults (an admin may change any of these):**
-- **`manage-roles` seeds to Super Admin only.** Editing roles is the most powerful capability (a role editor could grant itself anything), so by default only Super Admin manages roles. An admin may extend it to Safety Manager if desired — a documented, audited choice.
-- **Operator vs Manager:** the seeded Operator runs operations but cannot **classify incidents**, **publish reports**, **change gas thresholds**, **manage users/devices/settings**, **export PPE reports**, or **view the audit log**.
-- **Operator seeds with `close-lsr` and `configure-alerts`** — closing an LSR with an action-taken and resolving alerts are operational.
+- **Role-editor permissions (`view-roles` / `create-roles` / `update-roles` / `delete-roles`) seed to Super Admin only.** Editing roles is the most powerful capability (a role editor could grant itself anything), so by default only Super Admin manages roles. An admin may extend any of these to Safety Manager if desired — a documented, audited choice.
+- **Operator vs Manager:** the seeded Operator runs operations but cannot **update incidents**, **update reports**, **change gas thresholds**, **manage users/devices/settings**, **export PPE violations**, or **view the audit log**.
+- **Operator seeds with `update-lsr` and `resolve-alerts`** — closing an LSR with an action-taken and resolving alerts are operational.
 - **Project Manager is read-only** and narrow: dashboard KPIs, headcount total (not identity, not live-map detail — DOC-09), equipment view, and **published** reports (DOC-15).
 - **Client Representative** seeds with **nothing** enabled; an admin opts specific `view-*` permissions in (§6). Its read-only flag makes non-view permissions impossible regardless.
 
@@ -193,7 +261,7 @@ This is the **default permission set the installer seeds** for each starter role
 Any role can be flagged `is_read_only` (§4.1). The seeded **Client Representative** is the canonical example — a client's on-site representative needs a read-only window whose breadth the safety team controls, with every access traceable — but the mechanism is generic and applies to any read-only role an admin creates.
 
 ### 6.1 Runtime configuration
-- Read-only roles are edited in the same role editor (`/settings/roles`, permission `manage-roles`). When a role has `is_read_only=true`, its permission picker shows **only the `view-*` permissions**.
+- Read-only roles are edited in the same role editor (`/access/roles`, permissions `view-roles` + `update-roles`). When a role has `is_read_only=true`, its permission picker shows **only the `view-*` permissions**.
 - Toggling permissions syncs them onto the role immediately (`syncPermissions`) and flushes the spatie cache; all users holding that role inherit the change on their next request (no re-login).
 - The Client Representative seeds with an **empty** permission set (sees nothing until an admin enables specific views) — enabling is a conscious act. A recommended starter set is documented, not defaulted.
 
@@ -231,13 +299,13 @@ When a module introduces a permission, it is added to the catalogue and the seed
 - `php artisan ir4:install` creates the initial **Super Admin** user (prompts name/email/password; dev seed uses a default with `must_change_password=true`, DOC-02). This is the only account before any human logs in; it can then create roles and provision everyone else through the UI.
 - The installer guarantees the Super Admin role exists and is assigned to this first user.
 
-### 7.4 User provisioning UI (`manage-users`)
+### 7.4 User provisioning UI (`view-users` / `create-users` / `update-users`)
 - **`/settings/users`** — list, create, edit, deactivate users; assign **exactly one role** (single-role model — §4.4). The role dropdown lists all roles (seeded + admin-created).
 - Creating a user: name, email, initial password (or generate), role → sets `must_change_password=true`.
 - Editing: change role (audited), toggle `is_active`, trigger password reset (DOC-02 §6.3).
 - **Lockout guards (409):** cannot delete/deactivate oneself; **cannot remove the last active user holding the `Super Admin` role** (there must always be at least one active Super Admin); cannot change the last Super Admin's role away from Super Admin.
 - Every user/role mutation writes an audit row.
-- `manage-users` lets an admin assign roles but **not edit role definitions** — that requires `manage-roles` (§4.3). Separating the two means a user-manager can place people into roles without being able to redefine what those roles can do.
+- User provisioning permissions let an admin assign roles but **not edit role definitions** — that requires the role-editor permissions (§4.3). Separating the two means a user-manager can place people into roles without being able to redefine what those roles can do.
 
 ---
 
@@ -248,7 +316,7 @@ Authorization is enforced defensively at every layer. The frontend layer is **UX
 ### 8.1 Route middleware (coarse gate)
 Routes are grouped by the permission they require, using spatie's middleware:
 ```php
-Route::middleware(['auth', 'verified.active', 'permission:manage-gas-thresholds'])
+Route::middleware(['auth', 'verified.active', 'permission:update-gas-thresholds'])
     ->group(function () { /* threshold routes */ });
 ```
 Coarse gate: blocks whole route groups. Fine-grained record checks still go through policies (§8.2). `verified.active` = our middleware rejecting `is_active=false` mid-session (DOC-02).
@@ -294,12 +362,12 @@ Beyond spatie's default tables, no new domain tables. We add:
 ## 11. Real-life scenarios
 
 - **New operator onboarded:** an admin creates the user with role SCC Operator → temp password handed over → operator logs in, forced to change password → sidebar shows only their permitted modules → they can acknowledge alerts and log incidents but the "Classify" button and Thresholds screen are absent (frontend) and would 403 if hit directly (backend).
-- **Admin creates a custom role:** a `manage-roles` holder opens `/settings/roles`, creates "Night Supervisor" with `view-*` + `acknowledge-alerts` + `log-incidents`, saves → assignable immediately in the user editor; the change is audited; no deploy.
+- **Admin creates a custom role:** a `create-roles` holder opens `/access/roles`, creates "Night Supervisor" with `view-*` + `acknowledge-alerts` + `create-incidents`, saves → assignable immediately in the user editor; the change is audited; no deploy.
 - **Client rep arrives for an audit week:** an admin edits the read-only "Client Representative" role, enables `view-dashboard`, `view-reports`, `view-incidents`, `view-lsr` → the rep logs in and can read those, nothing else; every page they open writes a `data_access` audit row; when the week ends the admin clears those permissions and the rep sees nothing.
-- **Attempted privilege bug:** a malformed request tries to add `publish-reports` to a read-only role → `RoleService::syncPermissions` rejects it (not a `view-*` permission) with 422, audit unchanged. A request to edit the Super Admin role's permissions → 403.
+- **Attempted privilege bug:** a malformed request tries to add `update-reports` to a read-only role → `RoleService::syncPermissions` rejects it (not a `view-*` permission) with 422, audit unchanged. A request to edit the Super Admin role's permissions → 403.
 - **Lockout prevented:** an admin tries to change the only Super Admin's role to Operator → 409 (there must always be an active Super Admin).
 - **PM checks status:** Project Manager opens the dashboard → sees KPI cards + total headcount + published reports; the live camera wall, gas panels, and the identity-level map are not in their nav and 403 on direct access.
-- **Threshold change:** only roles holding `manage-gas-thresholds` see `/gas/thresholds`; changing a value writes a `config_changed` audit row with before/after (DOC-11 + DOC-17).
+- **Threshold change:** only roles holding `update-gas-thresholds` can change threshold values; the editor page is visible with `view-gas-thresholds`. Changing a value writes a `config_changed` audit row with before/after (DOC-11 + DOC-17).
 
 ---
 
@@ -313,7 +381,7 @@ Beyond spatie's default tables, no new domain tables. We add:
 - `view-worker-identity`: resource returns real names with the permission, anonymized tokens without — proven at the **API/resource** level, not just UI.
 - PM `view-tracking` returns headcount-only (no identity, no positions); PM `view-reports` returns only published reports.
 - **Read-only role guard:** enabling a `view-*` permission grants read access immediately (cache flush works); attempting a non-view permission via `syncPermissions` on a read-only role → 422; every request by a read-only-role user writes a `data_access` row; a write attempt by such a user → 403.
-- `manage-users` vs `manage-roles` separation: a user-manager can assign roles but cannot edit role definitions (403 on the role editor).
+- User provisioning vs role-editor permissions separation: a user-manager can assign roles but cannot edit role definitions (403 on the role editor).
 - No `Gate::before` super-admin bypass exists (Super Admin's access comes only from explicitly holding every permission).
 - `ir4:export-permissions` produces a `PERMISSIONS.md` reflecting current DB roles; Super Admin shows all-access.
 - Frontend: `usePermissions().can()` matches server truth for a sampled user; nav hides denied items; `RequirePermission` blocks a section the user lacks.
@@ -325,9 +393,9 @@ Beyond spatie's default tables, no new domain tables. We add:
 | # | Decision | Default | Confirm in |
 |---|---|---|---|
 | 1 | Single-role vs multi-role per user | single-role | this doc |
-| 2 | Who holds `manage-roles` by default | Super Admin only | this doc / DOC-18 |
+| 2 | Who holds role-editor permissions by default | Super Admin only | this doc / DOC-18 |
 | 3 | Client Representative recommended starter permissions | empty (enable consciously) | DOC-18 |
-| 4 | Mandatory 2FA for `manage-roles`/`manage-users` holders | off (from DOC-02) | DOC-18 |
+| 4 | Mandatory 2FA for user-provisioning / role-editor holders | off (from DOC-02) | DOC-18 |
 
 The role system is fully dynamic: admins compose any number of roles from the permission catalogue, flag any of them read-only (inheriting the view-only guard + access logging), and assign one role per user. The lone fixed point is `Super Admin` — always all-access, never editable, never deletable, always held by at least one active user — which guarantees the system can never be locked out of its own administration.
 

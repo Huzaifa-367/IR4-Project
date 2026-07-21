@@ -10,7 +10,7 @@ final class StoreVehicleViolationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('log-vehicle-violations') ?? false;
+        return $this->user()?->can('create-vehicle-violations') ?? false;
     }
 
     /**

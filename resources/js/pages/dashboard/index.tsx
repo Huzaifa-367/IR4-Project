@@ -250,7 +250,7 @@ export default function DashboardIndex({
     const deltaManpower = summary.headcount?.delta_vs_range_start ?? 0;
     const openRecords = summary.open_records ?? [];
     const canEvacuate =
-        permissions.trigger_evacuation || can('trigger-evacuation');
+        permissions.trigger_evacuation || can('create-evacuation');
 
     return (
         <>

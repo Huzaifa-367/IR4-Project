@@ -54,7 +54,7 @@ final class ReaderBindingController extends BaseController
 
     public function history(Device $device): Response
     {
-        abort_unless(request()->user()?->can('manage-zones'), 403);
+        abort_unless(request()->user()?->can('update-zones'), 403);
 
         $history = ReaderZoneBinding::query()
             ->where('device_id', $device->id)

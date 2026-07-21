@@ -250,7 +250,7 @@ export default function EquipmentIndex({
                 description="QR registry, inspections, maintenance, and custody."
                 actions={
                     <>
-                        <RequirePermission permission="manage-equipment">
+                        <RequirePermission permission="create-equipment">
                             <EquipmentScanEntry
                                 workers={workers}
                                 zones={zones}

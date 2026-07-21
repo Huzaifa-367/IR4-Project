@@ -5,6 +5,7 @@ import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 export type DocumentChecklistItem = {
     id: number;
@@ -276,7 +277,7 @@ export function WorkerDocumentsPanel({
     return (
         <div className="space-y-4" id="worker-documents">
             {onboarding ? (
-                <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                <div className="rounded-[var(--radius)] border-l-4 border-[color:var(--accent)] bg-[color:var(--accent-dim)] px-4 py-3">
                     <p className="text-sm font-medium text-text">
                         Upload certificates next
                     </p>
@@ -291,28 +292,55 @@ export function WorkerDocumentsPanel({
             ) : null}
 
             {summary ? (
-                <p className="text-sm text-text-dim">
-                    <span className="text-text">{summary.verified_docs}</span>{' '}
-                    verified ·{' '}
-                    <span className="text-text">{summary.pending_docs}</span>{' '}
-                    pending ·{' '}
-                    <span className="text-text">
-                        {summary.missing_recommended}
-                    </span>{' '}
-                    still needed ·{' '}
-                    <span className="text-text">{summary.ready_roles}</span>{' '}
-                    roles ready
-                </p>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-md border border-[color:var(--ok)]/30 bg-[color:var(--ok-bg)] px-3 py-2">
+                        <p className="eyebrow">Verified</p>
+                        <p className="mt-0.5 font-display text-xl font-semibold tabular-nums text-[color:var(--ok)]">
+                            {summary.verified_docs}
+                        </p>
+                    </div>
+                    <div className="rounded-md border border-[color:var(--warn)]/30 bg-[color:var(--warn-bg)] px-3 py-2">
+                        <p className="eyebrow">Pending</p>
+                        <p className="mt-0.5 font-display text-xl font-semibold tabular-nums text-[color:var(--warn)]">
+                            {summary.pending_docs}
+                        </p>
+                    </div>
+                    <div className="rounded-md border border-[color:var(--crit)]/30 bg-[color:var(--crit-bg)] px-3 py-2">
+                        <p className="eyebrow">Still needed</p>
+                        <p className="mt-0.5 font-display text-xl font-semibold tabular-nums text-[color:var(--crit)]">
+                            {summary.missing_recommended}
+                        </p>
+                    </div>
+                    <div className="rounded-md border border-[color:var(--accent)]/30 bg-[color:var(--accent-dim)] px-3 py-2">
+                        <p className="eyebrow">Roles ready</p>
+                        <p className="mt-0.5 font-display text-xl font-semibold tabular-nums text-[color:var(--accent)]">
+                            {summary.ready_roles}
+                        </p>
+                    </div>
+                </div>
             ) : null}
 
-            <ul className="divide-y divide-border rounded-lg border border-border">
+            <ul className="divide-y divide-border overflow-hidden rounded-[var(--radius)] border border-border">
                 {rows.map((item) => {
                     const typeDocs = documentsByType.get(item.id) ?? [];
                     const creating =
                         editor?.kind === 'create' && editor.typeId === item.id;
 
                     return (
-                        <li key={item.id} className="px-4 py-3">
+                        <li
+                            key={item.id}
+                            className={cn(
+                                'px-4 py-3',
+                                item.status === 'verified' &&
+                                    'bg-[color:var(--ok-bg)]/40',
+                                item.status === 'pending' &&
+                                    'bg-[color:var(--warn-bg)]/40',
+                                item.status === 'missing' && 'bg-surface',
+                                (item.status === 'rejected' ||
+                                    item.status === 'expired') &&
+                                    'bg-[color:var(--crit-bg)]/40',
+                            )}
+                        >
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                     <p className="text-sm font-medium text-text">
@@ -549,18 +577,25 @@ export function WorkerDocumentsPanel({
                 ) : null}
             </ul>
 
-            <div className="rounded-lg border border-border">
+            <div className="overflow-hidden rounded-[var(--radius)] border border-border">
                 <button
                     type="button"
-                    className="flex w-full items-center justify-between px-4 py-3 text-left text-sm"
+                    className="flex w-full items-center justify-between bg-surface-2/40 px-4 py-3 text-left text-sm"
                     onClick={() => setShowRoles((value) => !value)}
                 >
                     <span className="font-medium text-text">
                         Permit roles this worker can fill
                     </span>
                     <span className="text-text-faint">
-                        {readyRoles.length} ready · {blockedRoles.length}{' '}
-                        blocked · {showRoles ? 'Hide' : 'Show'}
+                        <span className="text-[color:var(--ok)]">
+                            {readyRoles.length} ready
+                        </span>
+                        {' · '}
+                        <span className="text-[color:var(--crit)]">
+                            {blockedRoles.length} blocked
+                        </span>
+                        {' · '}
+                        {showRoles ? 'Hide' : 'Show'}
                     </span>
                 </button>
                 {showRoles ? (
@@ -568,7 +603,12 @@ export function WorkerDocumentsPanel({
                         {[...readyRoles, ...blockedRoles].map((row) => (
                             <li
                                 key={`${row.permit_type_id}:${row.role_code}`}
-                                className="flex flex-wrap items-start justify-between gap-2 px-4 py-2 text-sm"
+                                className={cn(
+                                    'flex flex-wrap items-start justify-between gap-2 px-4 py-2 text-sm',
+                                    row.ready
+                                        ? 'bg-[color:var(--ok-bg)]/50'
+                                        : 'bg-[color:var(--crit-bg)]/40',
+                                )}
                             >
                                 <div>
                                     <p className="text-text">

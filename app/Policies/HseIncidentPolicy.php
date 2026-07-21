@@ -19,26 +19,26 @@ final class HseIncidentPolicy
 
     public function create(User $user): bool
     {
-        return $user->can('log-incidents');
+        return $user->can('create-incidents');
     }
 
     public function classify(User $user, HseIncident $incident): bool
     {
-        return $user->can('classify-incidents');
+        return $user->can('update-incidents');
     }
 
     public function reopen(User $user, HseIncident $incident): bool
     {
-        return $user->can('classify-incidents');
+        return $user->can('update-incidents');
     }
 
     public function close(User $user, HseIncident $incident): bool
     {
-        return $user->can('classify-incidents');
+        return $user->can('update-incidents');
     }
 
     public function addEvidence(User $user, HseIncident $incident): bool
     {
-        return $user->can('log-incidents');
+        return $user->can('create-incidents');
     }
 }

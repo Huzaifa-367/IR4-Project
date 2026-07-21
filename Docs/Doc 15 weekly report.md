@@ -188,7 +188,7 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 | Publish | POST `/weekly-reports/{report}/publish` | publish-reports |
 | Download | GET `/weekly-reports/{report}/download?format=` | view-reports |
 | Vehicle violations CRUD | `/reports/vehicle-violations…` | log-vehicle-violations |
-| Report settings | GET/PUT `/reports/settings` | manage-settings |
+| Report settings | GET/PUT `/settings/reports` | manage-settings |
 
 **Read-only-role & PM note:** Project Manager and read-only Client Representative roles (DOC-03) get **published reports only** — the list/detail controllers filter to `status=published` for those roles, and drafts/generated reports are invisible to them.
 
@@ -199,7 +199,7 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 - **`pages/reports/index.tsx`** — WeeklyReportListPage: history (period, status chips, supersede badges), **Generate Now** (period picker), download buttons.
 - **`pages/reports/show.tsx`** — WeeklyReportDetailPage: rendered sections i–x with automation badges, completeness notes, publish button (when generated), supersede banner, downloads.
 - **`pages/reports/vehicle-violations/index.tsx`** — list + LogVehicleViolationModal (with required action-taken).
-- **`pages/reports/settings.tsx`** — schedule config (day/time/auto-publish).
+- **`pages/settings/reports.tsx`** — schedule config (day/time/auto-publish).
 - **Components:** `AutomationBadge`, `ReportSectionRenderer` (one per item type), `CompletenessNote`, `SupersedeBanner`.
 - **Types (`types/report.ts`):** `WeeklyReport`, `ReportStatus`, `WeeklyReportData` (fully typed to the §4.3 contract), `VehicleViolation`, `ReportSettings`.
 

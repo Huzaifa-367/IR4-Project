@@ -12,5 +12,5 @@ Route::post('alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge'
     ->middleware('permission:acknowledge-alerts')
     ->name('alerts.acknowledge');
 Route::post('alerts/{alert}/resolve', [AlertController::class, 'resolve'])
-    ->middleware('permission:configure-alerts')
+    ->middleware('permission:resolve-alerts')
     ->name('alerts.resolve');

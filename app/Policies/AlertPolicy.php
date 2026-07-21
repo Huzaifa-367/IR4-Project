@@ -24,6 +24,6 @@ final class AlertPolicy
 
     public function resolve(User $user, Alert $alert): bool
     {
-        return $user->can('configure-alerts');
+        return $user->can('resolve-alerts');
     }
 }

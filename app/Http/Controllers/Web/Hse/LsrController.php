@@ -73,13 +73,13 @@ final class LsrController extends BaseController
                 'value' => $c->value,
                 'label' => $c->label(),
             ]),
-            'canLog' => $request->user()?->can('log-lsr') ?? false,
-            'canClose' => $request->user()?->can('close-lsr') ?? false,
+            'canLog' => $request->user()?->can('create-lsr') ?? false,
+            'canClose' => $request->user()?->can('update-lsr') ?? false,
             'prefill' => $this->resolvePrefill($request, $lsr),
-            'zones' => ($request->user()?->can('log-lsr') ?? false)
+            'zones' => ($request->user()?->can('create-lsr') ?? false)
                 ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])
                 : [],
-            'workers' => ($request->user()?->can('log-lsr') ?? false)
+            'workers' => ($request->user()?->can('create-lsr') ?? false)
                 ? Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])->map(
                     fn (Worker $worker): array => [
                         'id' => $worker->id,
@@ -106,7 +106,7 @@ final class LsrController extends BaseController
 
         return Inertia::render('hse/lsr/show', [
             'violation' => $service->toArray($lsr, $canSeeIdentity),
-            'canClose' => $request->user()?->can('close-lsr') ?? false,
+            'canClose' => $request->user()?->can('update-lsr') ?? false,
         ]);
     }
 

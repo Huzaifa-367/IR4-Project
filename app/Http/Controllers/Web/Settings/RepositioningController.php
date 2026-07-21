@@ -15,7 +15,7 @@ final class RepositioningController extends BaseController
 {
     public function index(Request $request): Response
     {
-        abort_unless($request->user()?->can('manage-zones'), 403);
+        abort_unless($request->user()?->can('view-zones'), 403);
 
         $readers = Device::query()
             ->where('device_type', DeviceType::RfidReader)

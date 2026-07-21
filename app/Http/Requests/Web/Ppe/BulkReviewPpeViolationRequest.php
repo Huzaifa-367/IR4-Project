@@ -10,7 +10,7 @@ final class BulkReviewPpeViolationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('review-ppe') ?? false;
+        return $this->user()?->can('update-ppe-violations') ?? false;
     }
 
     /**

@@ -64,13 +64,13 @@ final class TagController extends BaseController
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'spareCount' => RfidTag::query()->where('status', TagStatus::InStock)->count(),
-            'canManage' => $request->user()?->can('manage-tags') ?? false,
+            'canManage' => ($request->user()?->can('create-tags') || $request->user()?->can('update-tags')) ?? false,
         ]);
     }
 
     public function store(Request $request, TagService $tags): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-tags'), 403);
+        abort_unless($request->user()?->can('create-tags'), 403);
 
         $data = $request->validate([
             'tag_uid' => ['required', 'string', 'max:150', 'unique:rfid_tags,tag_uid'],
@@ -84,7 +84,7 @@ final class TagController extends BaseController
 
     public function assign(Request $request, RfidTag $tag, TagService $tags): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-tags'), 403);
+        abort_unless($request->user()?->can('update-tags'), 403);
 
         $data = $request->validate([
             'worker_id' => ['required', 'integer', 'exists:workers,id'],
@@ -97,7 +97,7 @@ final class TagController extends BaseController
 
     public function unassign(Request $request, RfidTag $tag, TagService $tags): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-tags'), 403);
+        abort_unless($request->user()?->can('update-tags'), 403);
         $tags->unassign($tag, $request->user());
 
         return redirect()->back();
@@ -105,7 +105,7 @@ final class TagController extends BaseController
 
     public function replace(Request $request, Worker $worker, TagService $tags): RedirectResponse
     {
-        abort_unless($request->user()?->can('manage-tags'), 403);
+        abort_unless($request->user()?->can('update-tags'), 403);
 
         $data = $request->validate([
             'new_tag_id' => ['required', 'integer', 'exists:rfid_tags,id'],

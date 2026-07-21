@@ -19,21 +19,21 @@ final class WorkerPolicy
 
     public function create(User $user): bool
     {
-        return $user->can('manage-workers');
+        return $user->can('create-workers');
     }
 
     public function update(User $user, Worker $worker): bool
     {
-        return $user->can('manage-workers');
+        return $user->can('update-workers');
     }
 
     public function delete(User $user, Worker $worker): bool
     {
-        return $user->can('manage-workers');
+        return $user->can('delete-workers');
     }
 
     public function import(User $user): bool
     {
-        return $user->can('manage-workers');
+        return $user->can('create-workers');
     }
 }

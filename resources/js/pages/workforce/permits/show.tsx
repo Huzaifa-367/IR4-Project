@@ -8,6 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import {
+    permitTypeBarClass,
+    permitTypeSoftClass,
+} from '@/lib/permit-colours';
+import { cn } from '@/lib/utils';
 import type {
     PermitDetail,
     PermitOption,
@@ -72,8 +77,81 @@ function docTone(status: string): StatusPillTone {
     return 'crit';
 }
 
+const ACTION_TONE_CLASS: Record<
+    'ok' | 'warn' | 'crit' | 'accent' | 'neutral',
+    string
+> = {
+    ok: 'border-[color:var(--ok)] bg-[color:var(--ok-bg)]',
+    warn: 'border-[color:var(--warn)] bg-[color:var(--warn-bg)]',
+    crit: 'border-[color:var(--crit)] bg-[color:var(--crit-bg)]',
+    accent: 'border-[color:var(--accent)] bg-[color:var(--accent-dim)]',
+    neutral: 'border-border bg-surface-2',
+};
+
+const ACTION_TITLE_CLASS: Record<
+    'ok' | 'warn' | 'crit' | 'accent' | 'neutral',
+    string
+> = {
+    ok: 'text-[color:var(--ok)]',
+    warn: 'text-[color:var(--warn)]',
+    crit: 'text-[color:var(--crit)]',
+    accent: 'text-[color:var(--accent)]',
+    neutral: 'text-text',
+};
+
 function formatDate(value: string | null): string {
     return value ? new Date(value).toLocaleString() : '—';
+}
+
+function FactTile({
+    label,
+    value,
+    tone = 'neutral',
+}: {
+    label: string;
+    value: string;
+    tone?: 'ok' | 'warn' | 'crit' | 'accent' | 'neutral';
+}) {
+    return (
+        <div
+            className={cn(
+                'rounded-[var(--radius)] border border-border bg-surface px-3 py-2.5 shadow-[var(--shadow-card)]',
+                tone === 'ok' && 'border-[color:var(--ok)]/35',
+                tone === 'warn' && 'border-[color:var(--warn)]/35',
+                tone === 'crit' && 'border-[color:var(--crit)]/35',
+                tone === 'accent' && 'border-[color:var(--accent)]/35',
+            )}
+        >
+            <p className="eyebrow">{label}</p>
+            <p className="mt-1 truncate text-sm font-semibold text-text">
+                {value}
+            </p>
+        </div>
+    );
+}
+
+function SectionBadge({
+    step,
+    tone = 'accent',
+}: {
+    step: number;
+    tone?: 'ok' | 'warn' | 'accent';
+}) {
+    return (
+        <span
+            className={cn(
+                'inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
+                tone === 'accent' &&
+                    'bg-[color:var(--accent-dim)] text-[color:var(--accent)]',
+                tone === 'ok' &&
+                    'bg-[color:var(--ok-bg)] text-[color:var(--ok)]',
+                tone === 'warn' &&
+                    'bg-[color:var(--warn-bg)] text-[color:var(--warn)]',
+            )}
+        >
+            {step}
+        </span>
+    );
 }
 
 function checklistAnswered(
@@ -473,94 +551,216 @@ export default function PermitShow({
     return (
         <>
             <Head title={permit.permit_number} />
-            <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:p-5">
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <p className="eyebrow">{permit.type?.name ?? 'Permit'}</p>
-                        <h1 className="font-display text-xl font-semibold tracking-tight text-text md:text-2xl">
-                            {permit.permit_number}
-                        </h1>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                            <StatusPill
-                                label={permit.status_label}
-                                tone={STATUS_TONE[permit.status] ?? 'neutral'}
-                            />
-                            {permit.gas_test_required && (
-                                <StatusPill label="Gas test required" tone="warn" />
-                            )}
-                            {permit.is_extended && (
-                                <StatusPill label="Extended" tone="accent" />
-                            )}
-                            {permit.type?.sa_form_code && (
+            <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4 md:p-5">
+                <header className="overflow-hidden rounded-[var(--radius)] border border-border bg-surface shadow-[var(--shadow-card)]">
+                    <div
+                        className={cn(
+                            'h-1.5 w-full',
+                            permitTypeBarClass(permit.type?.colour_token),
+                        )}
+                        aria-hidden
+                    />
+                    <div className="flex flex-wrap items-start justify-between gap-4 p-4 md:p-5">
+                        <div className="min-w-0 space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                    className={cn(
+                                        'inline-flex items-center rounded-pill px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase',
+                                        permitTypeSoftClass(
+                                            permit.type?.colour_token,
+                                        ),
+                                    )}
+                                >
+                                    {permit.type?.name ?? 'Permit'}
+                                </span>
+                                {permit.type?.sa_form_code ? (
+                                    <span className="font-mono text-[11px] text-text-faint">
+                                        {permit.type.sa_form_code}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <h1 className="font-display text-2xl font-semibold tracking-tight text-text md:text-3xl">
+                                {permit.permit_number}
+                            </h1>
+                            <div className="flex flex-wrap gap-1.5">
                                 <StatusPill
-                                    label={permit.type.sa_form_code}
-                                    tone="neutral"
+                                    label={permit.status_label}
+                                    tone={
+                                        STATUS_TONE[permit.status] ?? 'neutral'
+                                    }
                                 />
-                            )}
+                                {permit.gas_test_required ? (
+                                    <StatusPill
+                                        label="Gas test required"
+                                        tone="warn"
+                                    />
+                                ) : null}
+                                {permit.is_extended ? (
+                                    <StatusPill
+                                        label="Extended"
+                                        tone="accent"
+                                    />
+                                ) : null}
+                            </div>
+                            <p className="text-sm text-text-dim">
+                                {permit.zone?.name ?? 'No zone'}
+                                {permit.work_order ? (
+                                    <>
+                                        {' · '}
+                                        <Link
+                                            href={`/workforce/work-orders/${permit.work_order.id}`}
+                                            className="text-[color:var(--accent)] underline-offset-2 hover:underline"
+                                        >
+                                            {permit.work_order.reference}
+                                        </Link>
+                                    </>
+                                ) : null}
+                            </p>
                         </div>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                            {permit.zone?.name ?? 'No zone'}
-                            {permit.work_order ? (
-                                <>
-                                    {' · '}
-                                    <Link
-                                        href={`/workforce/work-orders/${permit.work_order.id}`}
-                                        className="underline-offset-2 hover:underline"
-                                    >
-                                        {permit.work_order.reference}
-                                    </Link>
-                                </>
-                            ) : null}
-                        </p>
+                        <Button asChild variant="outline">
+                            <Link href="/workforce/permits">All permits</Link>
+                        </Button>
                     </div>
-                    <Button asChild variant="outline">
-                        <Link href="/workforce/permits">All permits</Link>
-                    </Button>
+
+                    <nav
+                        aria-label="Permit progress"
+                        className="border-t border-border bg-surface-2/60 px-4 py-4 md:px-5"
+                    >
+                        <ol className="flex flex-wrap items-center gap-y-3">
+                            {flowSteps.map((step, index) => (
+                                <li
+                                    key={step.id}
+                                    className="flex min-w-0 items-center"
+                                >
+                                    {index > 0 ? (
+                                        <span
+                                            className={cn(
+                                                'mx-1.5 h-0.5 w-4 shrink-0 rounded-full sm:mx-2 sm:w-6',
+                                                step.status === 'done' ||
+                                                    step.status === 'current'
+                                                    ? 'bg-[color:var(--ok)]'
+                                                    : 'bg-border',
+                                            )}
+                                            aria-hidden
+                                        />
+                                    ) : null}
+                                    <div className="flex items-center gap-2">
+                                        <span
+                                            className={cn(
+                                                'flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
+                                                step.status === 'current' &&
+                                                    'bg-[color:var(--accent)] text-white shadow-[0_0_0_3px_var(--accent-dim)]',
+                                                step.status === 'done' &&
+                                                    'bg-[color:var(--ok)] text-[#0b0f14]',
+                                                step.status === 'upcoming' &&
+                                                    'border border-border bg-surface text-text-dim',
+                                                step.status === 'skipped' &&
+                                                    'border border-dashed border-border bg-transparent text-text-faint',
+                                            )}
+                                        >
+                                            {step.status === 'done'
+                                                ? '✓'
+                                                : index + 1}
+                                        </span>
+                                        <span
+                                            className={cn(
+                                                'text-xs font-semibold',
+                                                step.status === 'current' &&
+                                                    'text-[color:var(--accent)]',
+                                                step.status === 'done' &&
+                                                    'text-[color:var(--ok)]',
+                                                step.status === 'upcoming' &&
+                                                    'text-text-dim',
+                                                step.status === 'skipped' &&
+                                                    'text-text-faint line-through',
+                                            )}
+                                        >
+                                            {step.label}
+                                        </span>
+                                    </div>
+                                </li>
+                            ))}
+                        </ol>
+                    </nav>
+                </header>
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <FactTile
+                        label="Zone"
+                        value={permit.zone?.name ?? '—'}
+                        tone="accent"
+                    />
+                    <FactTile
+                        label="Valid to"
+                        value={formatDate(permit.valid_to)}
+                        tone={
+                            permit.status === 'active'
+                                ? 'ok'
+                                : permit.status === 'suspended'
+                                  ? 'crit'
+                                  : 'neutral'
+                        }
+                    />
+                    <FactTile
+                        label="Crew"
+                        value={`${isEditable ? personnel.filter((row) => row.worker_id).length : permit.personnel.length} assigned`}
+                        tone={
+                            roleShortfalls.length > 0 ||
+                            documentBlockers.length > 0
+                                ? 'warn'
+                                : 'ok'
+                        }
+                    />
+                    <FactTile
+                        label="Gas pack"
+                        value={
+                            permit.gas_test_required
+                                ? `${permit.gas_tests.length} test${permit.gas_tests.length === 1 ? '' : 's'}`
+                                : 'Not required'
+                        }
+                        tone={
+                            permit.gas_test_required
+                                ? permit.gas_tests.some(
+                                      (test) => test.result === 'pass',
+                                  )
+                                    ? 'ok'
+                                    : 'warn'
+                                : 'neutral'
+                        }
+                    />
                 </div>
 
-                <nav
-                    aria-label="Permit progress"
-                    className="flex flex-wrap gap-2 rounded-lg border border-border bg-muted/30 p-3"
+                <section
+                    className={cn(
+                        'rounded-[var(--radius)] border-l-4 p-4 shadow-[var(--shadow-card)] md:p-5',
+                        ACTION_TONE_CLASS[nextAction.tone],
+                    )}
                 >
-                    {flowSteps.map((step) => (
-                        <div
-                            key={step.id}
-                            className={[
-                                'rounded-md px-2.5 py-1 text-xs font-medium',
-                                step.status === 'current' &&
-                                    'bg-primary text-primary-foreground',
-                                step.status === 'done' &&
-                                    'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-                                step.status === 'upcoming' &&
-                                    'bg-background text-muted-foreground',
-                                step.status === 'skipped' &&
-                                    'bg-transparent text-muted-foreground/50 line-through',
-                            ]
-                                .filter(Boolean)
-                                .join(' ')}
-                        >
-                            {step.label}
-                        </div>
-                    ))}
-                </nav>
-
-                <Panel title={nextAction.title}>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="eyebrow">Next action</p>
+                    <h2
+                        className={cn(
+                            'mt-1 font-display text-lg font-semibold tracking-tight',
+                            ACTION_TITLE_CLASS[nextAction.tone],
+                        )}
+                    >
+                        {nextAction.title}
+                    </h2>
+                    <p className="mt-1 text-sm text-text-dim">
                         {nextAction.detail}
                     </p>
 
-                    {blockers.length > 0 && (
+                    {blockers.length > 0 ? (
                         <ul className="mt-3 space-y-1.5 text-sm">
                             {blockers.map((blocker) => (
                                 <li
                                     key={blocker}
-                                    className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-amber-900 dark:text-amber-100"
+                                    className="rounded-md border border-[color:var(--warn)]/35 bg-surface/70 px-3 py-2 text-text"
                                 >
                                     {blocker}
                                 </li>
                             ))}
                         </ul>
-                    )}
+                    ) : null}
 
                     <div className="mt-4 flex flex-wrap gap-2">
                         {canSubmit && (
@@ -759,10 +959,11 @@ export default function PermitShow({
                                 value={note}
                                 onChange={(event) => setNote(event.target.value)}
                                 placeholder="Optional note for approve / issue / close…"
+                                className="bg-surface"
                             />
                         </div>
                     )}
-                </Panel>
+                </section>
 
                 {isEditable ? (
                     <Form
@@ -772,14 +973,15 @@ export default function PermitShow({
                     >
                         {({ processing, errors }) => (
                             <>
-                                <section className="space-y-4 rounded-lg border border-border p-4">
-                                    <div>
-                                        <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
-                                            1 · Job
-                                        </p>
-                                        <h2 className="text-sm font-semibold text-text">
-                                            Task & location
-                                        </h2>
+                                <section className="space-y-4 rounded-[var(--radius)] border border-border border-l-[3px] border-l-[color:var(--accent)] bg-surface p-4 shadow-[var(--shadow-card)]">
+                                    <div className="flex items-center gap-2.5">
+                                        <SectionBadge step={1} tone="accent" />
+                                        <div>
+                                            <p className="eyebrow">Job</p>
+                                            <h2 className="text-sm font-semibold text-text">
+                                                Task & location
+                                            </h2>
+                                        </div>
                                     </div>
 
                                     <div className="grid gap-2">
@@ -840,15 +1042,17 @@ export default function PermitShow({
                                     )}
                                 </section>
 
-                                <section className="space-y-4 rounded-lg border border-border p-4">
+                                <section className="space-y-4 rounded-[var(--radius)] border border-border border-l-[3px] border-l-[color:var(--warn)] bg-surface p-4 shadow-[var(--shadow-card)]">
                                     <div className="flex items-start justify-between gap-2">
-                                        <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
-                                                2 · Crew
-                                            </p>
-                                            <h2 className="text-sm font-semibold text-text">
-                                                Roles first, then ready workers
-                                            </h2>
+                                        <div className="flex items-center gap-2.5">
+                                            <SectionBadge step={2} tone="warn" />
+                                            <div>
+                                                <p className="eyebrow">Crew</p>
+                                                <h2 className="text-sm font-semibold text-text">
+                                                    Roles first, then ready
+                                                    workers
+                                                </h2>
+                                            </div>
                                         </div>
                                         <Button
                                             type="button"
@@ -861,7 +1065,7 @@ export default function PermitShow({
                                     </div>
 
                                     {typeRoles.length === 0 && (
-                                        <p className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
+                                        <p className="rounded-md border border-[color:var(--warn)]/35 bg-[color:var(--warn-bg)] px-3 py-2 text-sm">
                                             No crew roles configured for this
                                             permit type. Add them under
                                             Catalogue → Crew roles.
@@ -886,7 +1090,7 @@ export default function PermitShow({
                                         return (
                                             <div
                                                 key={index}
-                                                className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_1fr_auto]"
+                                                className="grid gap-2 rounded-md border border-border bg-surface-2/40 p-3 sm:grid-cols-[1fr_1fr_auto]"
                                             >
                                                 <div className="grid gap-1">
                                                     <Label>Role</Label>
@@ -996,20 +1200,29 @@ export default function PermitShow({
                                 </section>
 
                                 {checklistItems.length > 0 && (
-                                    <section className="space-y-4 rounded-lg border border-border p-4">
-                                        <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
-                                                3 · Checklist / JSA
-                                            </p>
-                                            <h2 className="text-sm font-semibold text-text">
-                                                Confirm hazards & precautions
-                                            </h2>
+                                    <section className="space-y-4 rounded-[var(--radius)] border border-border border-l-[3px] border-l-[color:var(--ok)] bg-surface p-4 shadow-[var(--shadow-card)]">
+                                        <div className="flex items-center gap-2.5">
+                                            <SectionBadge step={3} tone="ok" />
+                                            <div>
+                                                <p className="eyebrow">
+                                                    Checklist / JSA
+                                                </p>
+                                                <h2 className="text-sm font-semibold text-text">
+                                                    Confirm hazards &
+                                                    precautions
+                                                </h2>
+                                            </div>
                                         </div>
                                         <ul className="space-y-2">
                                             {checklistItems.map((item) => (
                                                 <li
                                                     key={item.code}
-                                                    className="flex items-start gap-2 rounded-md border border-border px-3 py-2 text-sm"
+                                                    className={cn(
+                                                        'flex items-start gap-2 rounded-md border px-3 py-2 text-sm transition-colors',
+                                                        checklist[item.code]
+                                                            ? 'border-[color:var(--ok)]/35 bg-[color:var(--ok-bg)]'
+                                                            : 'border-border bg-surface-2/30',
+                                                    )}
                                                 >
                                                     <input
                                                         type="checkbox"
@@ -1066,39 +1279,39 @@ export default function PermitShow({
                     </Form>
                 ) : (
                     <div className="grid gap-4 lg:grid-cols-2">
-                        <Panel title="Task">
-                            <p className="text-sm text-text">
+                        <Panel title="Task" subtitle="Work scope and signatories">
+                            <p className="rounded-md border border-border bg-surface-2/40 px-3 py-2.5 text-sm leading-relaxed text-text">
                                 {permit.task_description}
                             </p>
-                            <dl className="mt-4 grid gap-2 text-sm">
-                                <div className="flex justify-between gap-4">
-                                    <dt className="text-muted-foreground">
-                                        Zone
-                                    </dt>
-                                    <dd>{permit.zone?.name ?? '—'}</dd>
+                            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                                <div className="rounded-md border border-border/80 bg-surface-2/20 px-3 py-2">
+                                    <dt className="eyebrow">Zone</dt>
+                                    <dd className="mt-1 font-medium">
+                                        {permit.zone?.name ?? '—'}
+                                    </dd>
                                 </div>
-                                <div className="flex justify-between gap-4">
-                                    <dt className="text-muted-foreground">
-                                        Receiver
-                                    </dt>
-                                    <dd>{permit.receiver?.name ?? '—'}</dd>
+                                <div className="rounded-md border border-border/80 bg-surface-2/20 px-3 py-2">
+                                    <dt className="eyebrow">Valid to</dt>
+                                    <dd className="mt-1 font-medium tabular-nums">
+                                        {formatDate(permit.valid_to)}
+                                    </dd>
                                 </div>
-                                <div className="flex justify-between gap-4">
-                                    <dt className="text-muted-foreground">
-                                        Issuer
-                                    </dt>
-                                    <dd>{permit.issuer?.name ?? '—'}</dd>
+                                <div className="rounded-md border border-border/80 bg-surface-2/20 px-3 py-2">
+                                    <dt className="eyebrow">Receiver</dt>
+                                    <dd className="mt-1 font-medium">
+                                        {permit.receiver?.name ?? '—'}
+                                    </dd>
                                 </div>
-                                <div className="flex justify-between gap-4">
-                                    <dt className="text-muted-foreground">
-                                        Valid to
-                                    </dt>
-                                    <dd>{formatDate(permit.valid_to)}</dd>
+                                <div className="rounded-md border border-border/80 bg-surface-2/20 px-3 py-2">
+                                    <dt className="eyebrow">Issuer</dt>
+                                    <dd className="mt-1 font-medium">
+                                        {permit.issuer?.name ?? '—'}
+                                    </dd>
                                 </div>
                             </dl>
                         </Panel>
 
-                        <Panel title="Crew">
+                        <Panel title="Crew" subtitle="Assigned roles and document readiness">
                             {permit.personnel.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
                                     No personnel assigned.
@@ -1108,13 +1321,28 @@ export default function PermitShow({
                                     {permit.personnel.map((person) => (
                                         <li
                                             key={person.id}
-                                            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+                                            className={cn(
+                                                'flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2.5 text-sm',
+                                                person.document_status
+                                                    .status === 'green' &&
+                                                    'border-[color:var(--ok)]/30 bg-[color:var(--ok-bg)]',
+                                                person.document_status
+                                                    .status === 'amber' &&
+                                                    'border-[color:var(--warn)]/30 bg-[color:var(--warn-bg)]',
+                                                person.document_status
+                                                    .status === 'red' &&
+                                                    'border-[color:var(--crit)]/30 bg-[color:var(--crit-bg)]',
+                                            )}
                                         >
-                                            <span>
-                                                {person.worker_label ??
-                                                    `#${person.worker_id}`}{' '}
-                                                · {person.role_code}
-                                            </span>
+                                            <div>
+                                                <p className="font-medium text-text">
+                                                    {person.worker_label ??
+                                                        `#${person.worker_id}`}
+                                                </p>
+                                                <p className="text-xs text-text-dim">
+                                                    {person.role_code}
+                                                </p>
+                                            </div>
                                             <StatusPill
                                                 label={
                                                     person.document_status
@@ -1134,7 +1362,7 @@ export default function PermitShow({
                 )}
 
                 {checklistItems.length > 0 && !isEditable && (
-                    <Panel title="Checklist / JSA">
+                    <Panel title="Checklist / JSA" subtitle="Hazards and precautions">
                         <ul className="space-y-2 text-sm">
                             {checklistItems.map((item) => {
                                 const answered = checklistAnswered(
@@ -1146,7 +1374,12 @@ export default function PermitShow({
                                 return (
                                     <li
                                         key={item.code}
-                                        className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+                                        className={cn(
+                                            'flex items-center justify-between gap-2 rounded-md border px-3 py-2',
+                                            answered
+                                                ? 'border-[color:var(--ok)]/30 bg-[color:var(--ok-bg)]'
+                                                : 'border-[color:var(--warn)]/30 bg-[color:var(--warn-bg)]',
+                                        )}
                                     >
                                         <span>
                                             {item.label}
@@ -1166,49 +1399,73 @@ export default function PermitShow({
                 )}
 
                 {permit.status === 'pending_inspection' && (
-                    <Panel title="Joint inspection">
-                        <div className="grid gap-2 sm:grid-cols-2">
-                            <div className="rounded-md border border-border px-3 py-2 text-sm">
-                                <p className="text-muted-foreground">Issuer</p>
-                                <StatusPill
-                                    label={
-                                        permit.joint_inspection?.issuer_signed
-                                            ? 'Signed'
-                                            : 'Awaiting signature'
-                                    }
-                                    tone={
-                                        permit.joint_inspection?.issuer_signed
-                                            ? 'ok'
-                                            : 'warn'
-                                    }
-                                />
+                    <Panel
+                        title="Joint inspection"
+                        subtitle="Issuer and receiver must both sign"
+                    >
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div
+                                className={cn(
+                                    'rounded-md border px-3 py-3 text-sm',
+                                    permit.joint_inspection?.issuer_signed
+                                        ? 'border-[color:var(--ok)]/35 bg-[color:var(--ok-bg)]'
+                                        : 'border-[color:var(--warn)]/35 bg-[color:var(--warn-bg)]',
+                                )}
+                            >
+                                <p className="eyebrow">Issuer</p>
+                                <div className="mt-2">
+                                    <StatusPill
+                                        label={
+                                            permit.joint_inspection
+                                                ?.issuer_signed
+                                                ? 'Signed'
+                                                : 'Awaiting signature'
+                                        }
+                                        tone={
+                                            permit.joint_inspection
+                                                ?.issuer_signed
+                                                ? 'ok'
+                                                : 'warn'
+                                        }
+                                    />
+                                </div>
                             </div>
-                            <div className="rounded-md border border-border px-3 py-2 text-sm">
-                                <p className="text-muted-foreground">
-                                    Receiver
-                                </p>
-                                <StatusPill
-                                    label={
-                                        permit.joint_inspection
-                                            ?.receiver_signed
-                                            ? 'Signed'
-                                            : 'Awaiting signature'
-                                    }
-                                    tone={
-                                        permit.joint_inspection
-                                            ?.receiver_signed
-                                            ? 'ok'
-                                            : 'warn'
-                                    }
-                                />
+                            <div
+                                className={cn(
+                                    'rounded-md border px-3 py-3 text-sm',
+                                    permit.joint_inspection?.receiver_signed
+                                        ? 'border-[color:var(--ok)]/35 bg-[color:var(--ok-bg)]'
+                                        : 'border-[color:var(--warn)]/35 bg-[color:var(--warn-bg)]',
+                                )}
+                            >
+                                <p className="eyebrow">Receiver</p>
+                                <div className="mt-2">
+                                    <StatusPill
+                                        label={
+                                            permit.joint_inspection
+                                                ?.receiver_signed
+                                                ? 'Signed'
+                                                : 'Awaiting signature'
+                                        }
+                                        tone={
+                                            permit.joint_inspection
+                                                ?.receiver_signed
+                                                ? 'ok'
+                                                : 'warn'
+                                        }
+                                    />
+                                </div>
                             </div>
                         </div>
                     </Panel>
                 )}
 
                 {canGasTest && permit.status === 'pending_gas_test' && (
-                    <Panel title="Record gas test">
-                        <div className="mb-3 flex flex-wrap gap-2">
+                    <Panel
+                        title="Record gas test"
+                        subtitle="Enter channel readings or prefill from live sensors"
+                        className="border-[color:var(--warn)]/40"
+                    >                        <div className="mb-3 flex flex-wrap gap-2">
                             <Button
                                 type="button"
                                 variant="outline"
@@ -1222,7 +1479,7 @@ export default function PermitShow({
                             {gasChannels.map((channel) => (
                                 <div
                                     key={channel.channel_code}
-                                    className="grid gap-1"
+                                    className="grid gap-1 rounded-md border border-border bg-surface-2/30 p-3"
                                 >
                                     <Label
                                         htmlFor={`gas-${channel.channel_code}`}
@@ -1298,7 +1555,7 @@ export default function PermitShow({
 
                 {(permit.gas_tests.length > 0 ||
                     permit.gas_test_required) && (
-                    <Panel title="Gas tests">
+                    <Panel title="Gas tests" subtitle="Atmospheric test history">
                         {permit.gas_tests.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
                                 No gas tests recorded yet.
@@ -1308,7 +1565,12 @@ export default function PermitShow({
                                 {permit.gas_tests.map((test) => (
                                     <li
                                         key={test.id}
-                                        className="rounded-md border border-border px-3 py-2"
+                                        className={cn(
+                                            'rounded-md border px-3 py-2.5',
+                                            test.result === 'pass'
+                                                ? 'border-[color:var(--ok)]/30 bg-[color:var(--ok-bg)]'
+                                                : 'border-[color:var(--crit)]/30 bg-[color:var(--crit-bg)]',
+                                        )}
                                     >
                                         <div className="flex flex-wrap items-center gap-2">
                                             <StatusPill
@@ -1356,7 +1618,7 @@ export default function PermitShow({
                 )}
 
                 <div className="grid gap-4 lg:grid-cols-2">
-                    <Panel title="Approvals">
+                    <Panel title="Approvals" subtitle="Sign-off trail">
                         {permit.approvals.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
                                 No approvals yet.
@@ -1364,14 +1626,19 @@ export default function PermitShow({
                         ) : (
                             <ul className="space-y-2 text-sm">
                                 {permit.approvals.map((approval) => (
-                                    <li key={approval.id}>
-                                        <span className="font-medium">
+                                    <li
+                                        key={approval.id}
+                                        className="rounded-md border border-border bg-surface-2/30 px-3 py-2"
+                                    >
+                                        <span className="font-medium text-[color:var(--accent)]">
                                             {approval.action_label}
                                         </span>{' '}
                                         · {approval.user_name ?? 'System'} ·{' '}
-                                        {formatDate(approval.signed_at)}
+                                        <span className="tabular-nums text-text-dim">
+                                            {formatDate(approval.signed_at)}
+                                        </span>
                                         {approval.note ? (
-                                            <p className="text-muted-foreground">
+                                            <p className="mt-1 text-muted-foreground">
                                                 {approval.note}
                                             </p>
                                         ) : null}
@@ -1381,20 +1648,31 @@ export default function PermitShow({
                         )}
                     </Panel>
 
-                    <Panel title="Events">
+                    <Panel title="Events" subtitle="Lifecycle log">
                         {permit.events.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
                                 No events logged.
                             </p>
                         ) : (
-                            <ul className="space-y-2 text-sm">
+                            <ul className="relative space-y-0 text-sm before:absolute before:top-2 before:bottom-2 before:left-[7px] before:w-px before:bg-border">
                                 {permit.events.map((event) => (
-                                    <li key={event.id}>
-                                        <span className="font-medium">
-                                            {event.event}
-                                        </span>{' '}
-                                        · {event.user_name ?? 'System'} ·{' '}
-                                        {formatDate(event.occurred_at)}
+                                    <li
+                                        key={event.id}
+                                        className="relative flex gap-3 py-2 pl-5"
+                                    >
+                                        <span
+                                            className="absolute top-3 left-0 size-3.5 rounded-full border-2 border-[color:var(--accent)] bg-surface"
+                                            aria-hidden
+                                        />
+                                        <div>
+                                            <span className="font-medium">
+                                                {event.event}
+                                            </span>{' '}
+                                            · {event.user_name ?? 'System'}
+                                            <p className="text-xs tabular-nums text-text-dim">
+                                                {formatDate(event.occurred_at)}
+                                            </p>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>

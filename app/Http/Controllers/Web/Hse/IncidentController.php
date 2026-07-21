@@ -92,10 +92,10 @@ final class IncidentController extends BaseController
                 'value' => $c->value,
                 'label' => $c->label(),
             ]),
-            'canLog' => $request->user()?->can('log-incidents') ?? false,
-            'canClassify' => $request->user()?->can('classify-incidents') ?? false,
+            'canLog' => $request->user()?->can('create-incidents') ?? false,
+            'canClassify' => $request->user()?->can('update-incidents') ?? false,
             'prefill' => $this->resolvePrefill($request, $incidents),
-            'zones' => ($request->user()?->can('log-incidents') ?? false)
+            'zones' => ($request->user()?->can('create-incidents') ?? false)
                 ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])
                 : [],
         ]);
@@ -139,8 +139,8 @@ final class IncidentController extends BaseController
                 'value' => $c->value,
                 'label' => $c->label(),
             ]),
-            'canLog' => $request->user()?->can('log-incidents') ?? false,
-            'canClassify' => $request->user()?->can('classify-incidents') ?? false,
+            'canLog' => $request->user()?->can('create-incidents') ?? false,
+            'canClassify' => $request->user()?->can('update-incidents') ?? false,
         ]);
     }
 

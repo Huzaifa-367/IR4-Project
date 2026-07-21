@@ -19,32 +19,32 @@ final class EquipmentPolicy
 
     public function create(User $user): bool
     {
-        return $user->can('manage-equipment');
+        return $user->can('create-equipment');
     }
 
     public function update(User $user, Equipment $equipment): bool
     {
-        return $user->can('manage-equipment');
+        return $user->can('update-equipment');
     }
 
     public function delete(User $user, Equipment $equipment): bool
     {
-        return $user->can('manage-equipment');
+        return $user->can('delete-equipment');
     }
 
     public function manage(User $user, ?Equipment $equipment = null): bool
     {
-        return $user->can('manage-equipment');
+        return $user->can('update-equipment');
     }
 
     public function import(User $user): bool
     {
-        return $user->can('manage-equipment');
+        return $user->can('create-equipment');
     }
 
     public function checkout(User $user, Equipment $equipment): bool
     {
-        return $user->can('manage-equipment');
+        return $user->can('update-equipment');
     }
 
     public function print(User $user, ?Equipment $equipment = null): bool
@@ -54,6 +54,6 @@ final class EquipmentPolicy
 
     public function printBulk(User $user): bool
     {
-        return $user->can('manage-equipment');
+        return $user->can('update-equipment');
     }
 }

@@ -116,7 +116,7 @@ final class EquipmentController extends BaseController
                 ],
             )->values()->all(),
             'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'canManage' => $request->user()?->can('manage-equipment') ?? false,
+            'canManage' => ($request->user()?->can('create-equipment') || $request->user()?->can('update-equipment') || $request->user()?->can('delete-equipment')) ?? false,
         ]);
     }
 
@@ -151,7 +151,7 @@ final class EquipmentController extends BaseController
                 ],
             )->values()->all(),
             'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'canManage' => $request->user()?->can('manage-equipment') ?? false,
+            'canManage' => ($request->user()?->can('create-equipment') || $request->user()?->can('update-equipment') || $request->user()?->can('delete-equipment')) ?? false,
         ]);
     }
 
@@ -303,7 +303,7 @@ final class EquipmentController extends BaseController
                 'value' => $c->value,
                 'label' => $c->label(),
             ])->values()->all(),
-            'canManage' => $request->user()?->can('manage-equipment') ?? false,
+            'canManage' => ($request->user()?->can('create-equipment') || $request->user()?->can('update-equipment') || $request->user()?->can('delete-equipment')) ?? false,
         ]);
     }
 
