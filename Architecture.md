@@ -125,7 +125,7 @@ Docs/                      # Specs DOC-01…21 (authoritative, complete set)
 | 08 | Ingest + Reverb | B backbone |
 | 09 | RFID tracking | A, B |
 | 10 | PPE | A, B |
-| 11 | Gas / CO₂ | A, B |
+| 11 | Gas | A, B |
 | 12 | Environmental | A, B |
 | 13 | Equipment + public QR | A, C |
 | 14 | HSE + LSR | A |
@@ -141,7 +141,7 @@ Docs/                      # Specs DOC-01…21 (authoritative, complete set)
 
 ## Shared reporting, composition & audit
 
-- **Weekly reports:** a queued `WeeklyReportService` reads module summaries, freezes all 10 items into one JSON snapshot, and writes PDF/zipped-CSV artifacts to private storage. Publication locks the snapshot; amendments create a linked superseding report.
+- **Weekly reports:** a queued `WeeklyReportService` reads module summaries, freezes all 9 items into one JSON snapshot, and writes PDF/zipped-CSV artifacts to private storage. Publication locks the snapshot; amendments create a linked superseding report.
 - **Dashboard/display:** one cached, permission-filtered `GET /api/dashboard/summary` composes module read services. Inertia supplies the screen, Reverb patches live deltas, and a 60 s summary poll reconciles both the role-aware dashboard and authenticated display.
 - **Audit:** observers record masked diffs for configured security/configuration models; middleware records allow-listed meaningful access by read-only roles; domain actions emit explicit publish/acknowledge/export events. `audit_logs` is append-only and excluded from pruning, with only a permission-gated read/export surface.
 - **Settings (DOC-18):** `SettingsRegistry` + `SettingsService` whitelist every runtime key; deploy-fixed values stay in `.env`/`config`.

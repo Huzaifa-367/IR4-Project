@@ -60,7 +60,7 @@
 ## Retention / backup boundaries (DOC-19)
 
 - Prune only the explicit raw allow-list (`tag_readings`, `gas_readings`, `environmental_readings`); never compliance tables.
-- Gas/env raw rows prune only after their hour rollup exists; tag rows prune after the retention window (no tag rollup in v1).
+- Gas raw rows prune after the retention window (no gas rollup); env raw rows prune only after their hour rollup exists; tag rows prune after the retention window (no tag rollup in v1).
 - Daily backups are encrypted on the separate `backups` disk; `ir4:secure-wipe` requires a verified export marker and confirmation phrase.
 
 ## Deploy & test boundaries (DOC-20 / DOC-21)

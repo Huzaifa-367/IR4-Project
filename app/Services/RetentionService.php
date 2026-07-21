@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\EnvironmentalReading;
 use App\Models\EnvironmentalRollup;
 use App\Models\GasReading;
-use App\Models\GasReadingRollup;
 use App\Models\TagReading;
 use App\Models\WeeklyReport;
 use Illuminate\Support\Carbon;
@@ -152,25 +151,14 @@ final class RetentionService
 
     private function pruneGasReadings(\DateTimeInterface $before): int
     {
+        // Gas history is raw-only (no rollup table). Prune by retention window like tag readings.
         $deleted = 0;
         GasReading::query()
             ->where('recorded_at', '<', Carbon::instance($before))
             ->orderBy('id')
             ->chunkById(self::CHUNK, function ($rows) use (&$deleted): void {
-                $ids = [];
-                foreach ($rows as $row) {
-                    $bucket = $row->recorded_at->copy()->startOfHour();
-                    $hasRollup = GasReadingRollup::query()
-                        ->where('device_id', $row->device_id)
-                        ->where('bucket_start', $bucket)
-                        ->exists();
-                    if ($hasRollup) {
-                        $ids[] = $row->id;
-                    }
-                }
-                if ($ids !== []) {
-                    $deleted += GasReading::query()->whereIn('id', $ids)->delete();
-                }
+                $ids = $rows->pluck('id');
+                $deleted += GasReading::query()->whereIn('id', $ids)->delete();
             });
 
         return $deleted;

@@ -54,9 +54,9 @@ export const gasInfo = {
         items: [
             'Series: LEL, H₂S, O₂, CO, CO₂.',
             'Device filter scopes every channel to one detector.',
-            'Falls back to hourly raw aggregation when rollups are missing.',
+            'Falls back to hourly SQL aggregation over raw readings for windows longer than 24 hours.',
         ],
-        source: 'gas_readings · gas_reading_rollups',
+        source: 'gas_readings',
     },
     rangeStats: {
         summary: 'Min / average / max for each gas channel in the selected window.',

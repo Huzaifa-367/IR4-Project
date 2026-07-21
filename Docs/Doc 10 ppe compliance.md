@@ -174,4 +174,4 @@ Per the confirmed model (DOC-07 §8): a PPE violation is **evidence a user can a
 ---
 
 ### Next document
-**DOC-11 — Gas & CO₂ Monitoring:** the readings stream (shared `gas-readings` endpoint carrying gas channels + CO₂), configurable thresholds, alarm evaluation with hysteresis auto-resolve, the backfill-creates-no-alarms rule, live per-device panels, trends, and the weekly-report gas/CO₂ items.
+**DOC-11 — Gas Monitoring:** the readings stream (shared `gas-readings` endpoint carrying LEL/H₂S/O₂/CO/CO₂), configurable thresholds, alarm evaluation with hysteresis auto-resolve, the backfill-creates-no-alarms rule, live per-device panels, trends, and the weekly-report gas item (ix).

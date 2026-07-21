@@ -1,8 +1,8 @@
 # DOC-15 — Weekly Report (UDPM-GM-0058 §6.5)
 
-> **Depends on:** DOC-01 (conventions, files, queues, scheduler), DOC-03 (`view-reports`, `generate-reports`, `publish-reports`, `log-vehicle-violations`), DOC-05 (asset counts for vehicles-monitored), DOC-09 (manpower), DOC-10 (PPE safety observations), DOC-11 (gas + CO₂), DOC-12 (weather + environmental), DOC-14 (incidents + LSR, retained + auto-included), DOC-17 (publish/config audited), DOC-18 (schedule settings), DOC-19 (rollups feed trends/report). **Feeds:** DOC-16 (last-report dashboard card).
+> **Depends on:** DOC-01 (conventions, files, queues, scheduler), DOC-03 (`view-reports`, `create-reports`, `update-reports`, vehicle-violation permissions), DOC-05 (asset counts for vehicles-monitored), DOC-09 (manpower), DOC-10 (PPE safety observations), DOC-11 (gas monitoring — five channels incl. CO₂), DOC-12 (weather + environmental), DOC-14 (incidents + LSR, retained + auto-included), DOC-17 (publish/config audited), DOC-18 (schedule settings), DOC-19 (retention; env rollups feed weather/environmental items). **Feeds:** DOC-16 (last-report dashboard card).
 >
-> **Scope:** the **Section 6.5 weekly report** — scheduled auto-generation of all **10 items** from module data plus the one manually-entered item (vehicle violations), the **frozen-data contract**, **PDF/CSV** export with per-item **automation badges**, **publish-lock** + **supersede-don't-edit** amendments, and **data-completeness (outage) honesty** notes. **Out of scope:** the module data itself (owned by DOC-09–14) — this doc assembles it.
+> **Scope:** the **Section 6.5 weekly report** — scheduled auto-generation of all **9 items** from module data plus the one manually-entered item (vehicle violations), the **frozen-data contract**, **PDF/CSV** export with per-item **automation badges**, **publish-lock** + **supersede-don't-edit** amendments, and **data-completeness (outage) honesty** notes. **Out of scope:** the module data itself (owned by DOC-09–14) — this doc assembles it.
 
 ---
 
@@ -16,13 +16,13 @@ The weekly report is the primary deliverable a client and Saudi Aramco reviewers
 
 ## 2. Data origin
 
-- **② system:** assembles the automated items (i–vi, viii–x) from module data, renders PDF/CSV, runs the schedule, computes completeness notes.
+- **② system:** assembles the automated items (i–vi, viii–ix) from module data, renders PDF/CSV, runs the schedule, computes completeness notes.
 - **③ user:** the one manual item — **vehicle violations** (item vii) — plus generate-now, publish, and schedule settings.
 - **① device:** none directly (module data came from devices upstream).
 
 ---
 
-## 3. The 10 items (Section 6.5)
+## 3. The 9 items (Section 6.5)
 
 Each item, its source module, and its automation classification (the badge shown in the PDF):
 
@@ -36,10 +36,9 @@ Each item, its source module, and its automation classification (the badge shown
 | vi | Total Vehicles/Units Monitored | count of active field-unit assets (DOC-05) | **Automated (partial)** — see §4.6 |
 | vii | Vehicle Violations & Actions Taken | manual `vehicle_violations` (§5) | **Manual** |
 | viii | Environmental Data | environmental weekly stats incl. air-quality (DOC-12) | **Automated** |
-| ix | Gas Monitoring (LEL/H₂S/O₂/CO) | gas weekly stats + alarm events (DOC-11) | **Automated** |
-| x | CO₂ Monitoring | CO₂ weekly stats + alarm events (DOC-11) | **Automated** |
+| ix | Gas Monitoring (LEL / H₂S / O₂ / CO / CO₂) | all five gas channels weekly stats + alarm events (DOC-11) | **Automated** |
 
-The badge wording mirrors the proposal's §6.5 table (as in the LSR image: "Manual Workflow (Included)", "Actions Taken → All entries"). Items ii and iii explicitly show the **action-taken** content per entry (DOC-14's mandatory field).
+The badge wording mirrors the proposal's §6.5 table (as in the LSR image: "Manual Workflow (Included)", "Actions Taken → All entries"). Items ii and iii explicitly show the **action-taken** content per entry (DOC-14's mandatory field). CO₂ is **not** a separate report item — it is channel five of item ix.
 
 ---
 
@@ -112,13 +111,16 @@ Schema::create('vehicle_violations', function (Blueprint $table) {
                                "description":"…", "action_taken":"…", "logged_by":"…" } ],
   "viii_environmental": { "per_day": [ { "date":"…", "…air_quality_params…" } ] },
   "ix_gas": {
-    "per_gas_per_day": [ { "date":"…", "gas":"h2s", "min":0.1, "avg":0.4, "max":3.2 } ],
+    "per_day": [
+      { "date":"…",
+        "lel": { "min":0.9, "avg":3.2, "max":20.1 },
+        "h2s": { "min":0.1, "avg":0.4, "max":3.2 },
+        "o2":  { "min":20.4, "avg":20.7, "max":20.9 },
+        "co":  { "min":2.0, "avg":8.1, "max":25.0 },
+        "co2": { "min":420, "avg":610, "max":880 } }
+    ],
     "alarm_events": [ { "triggered_at":"…", "device":"Pole 2 – gas", "gas":"h2s", "level":"alarm",
                         "peak":12.0, "duration_s":95, "acknowledged_by":"…", "during_outage":false } ]
-  },
-  "x_co2": {
-    "per_day": [ { "date":"…", "min":420, "avg":610, "max":880 } ],
-    "alarm_events": [ … ]
   },
   "completeness": { "notes": [ { "item":"ix_gas", "message":"Gas telemetry offline 22% of the period (Pole 2, 2 outages)." } ] }
 }
@@ -126,9 +128,9 @@ Schema::create('vehicle_violations', function (Blueprint $table) {
 Identity in item iii entries is rendered per the **report author's** `view-worker-identity` at generation `[CONFIRM AT DESIGN]` (default: reports are compliance documents for managers who typically hold identity; a redacted variant can be generated for read-only-role recipients).
 
 ### 4.4 `WeeklyReportService::generate(Carbon $start, Carbon $end, bool $auto): WeeklyReport`
-- Collects all 10 datasets from the module services (`PpeViolationService::summarize`, `IncidentService`/LSR queries, `EnvironmentalDataService::weeklyStats`, manpower from entry/exit, `GasMonitoringService::weeklyStats`, `vehicle_violations` query, asset count).
+- Collects all 9 datasets from the module services (`PpeViolationService::summarize`, `IncidentService`/LSR queries, `EnvironmentalDataService::weeklyStats`, manpower from entry/exit, gas weekly stats for all five channels, `vehicle_violations` query, asset count).
 - Freezes them into `data`, computes `completeness` notes (§4.5), renders PDF + CSV (§6), stores paths, sets `status=generated`, `generated_at/by`.
-- Runs on the **`reports` queue** (slow PDF) — the request returns immediately with a "generating…" state.
+- **Manual generate** (`POST /weekly-reports/generate`) runs **in-request** and redirects to the new report. **Scheduled auto-generate** still uses the `GenerateWeeklyReport` job on the **`reports` queue**.
 
 ### 4.5 Completeness (outage honesty)
 For each sensor-backed item, compute the fraction of the period its devices were offline (from `device_offline` alert durations, DOC-05/07). If **> 20%** (`report.completeness_threshold_pct`, DOC-18), attach a `completeness.notes` entry naming the item, the percentage, and the device — and the PDF prints it prominently in that section. Gaps are **declared, never hidden**.
@@ -147,12 +149,13 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 
 ## 6. Rendering (PDF + CSV)
 
-### 6.1 PDF (dompdf, `reports` queue)
-- Branded template: cover (report_number, period, generated_at, status, supersedes banner if amending); one **section per item i–x**, each headed with its **automation badge** (matching §3, mirroring the proposal §6.5 wording); charts for iv/v/ix/x (rendered server-side or as embedded images `[CONFIRM AT DESIGN]`); appendix listing incident + LSR + vehicle-violation entries with their **action-taken** text; completeness notes printed in affected sections.
+### 6.1 PDF (dompdf)
+- Branded template: cover (report_number, period, generated_at, status, supersedes banner if amending); one **section per item i–ix**, each headed with its **automation badge** (matching §3, mirroring the proposal §6.5 wording); charts for iv/v/ix (rendered server-side or as embedded images `[CONFIRM AT DESIGN]`); appendix listing incident + LSR + vehicle-violation entries with their **action-taken** text; completeness notes printed in affected sections.
 - Fonts/assets bundled locally (on-prem — DOC-01).
+- Manual generation renders synchronously; scheduled auto-generation renders on the `reports` queue.
 
 ### 6.2 CSV
-- A **zip** with one CSV per item (i–x) plus a summary sheet — for reviewers who want the raw figures.
+- A **zip** with one CSV per item (i–ix) plus a summary sheet — for reviewers who want the raw figures.
 
 ### 6.3 Downloads
 - **`GET /weekly-reports/{report}/download?format=pdf|csv`** → 15-min signed URL to the stored file (DOC-01 §10). Regenerating a report re-renders both artifacts.
@@ -197,7 +200,7 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 ## 9. Frontend (React / Inertia)
 
 - **`pages/reports/index.tsx`** — WeeklyReportListPage: history (period, status chips, supersede badges), **Generate Now** (period picker), download buttons.
-- **`pages/reports/show.tsx`** — WeeklyReportDetailPage: rendered sections i–x with automation badges, completeness notes, publish button (when generated), supersede banner, downloads.
+- **`pages/reports/show.tsx`** — WeeklyReportDetailPage: rendered sections i–ix with automation badges, completeness notes, publish button (when generated), supersede banner, downloads.
 - **`pages/reports/vehicle-violations/index.tsx`** — list + LogVehicleViolationModal (with required action-taken).
 - **`pages/settings/reports.tsx`** — schedule config (day/time/auto-publish).
 - **Components:** `AutomationBadge`, `ReportSectionRenderer` (one per item type), `CompletenessNote`, `SupersedeBanner`.
@@ -216,7 +219,7 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 
 ## 11. Tests (this doc's slice of DOC-21)
 
-- **Generation:** `generate` produces all 10 `data` keys; frozen `data` doesn't change when underlying records change afterward; runs on the `reports` queue.
+- **Generation:** `generate` produces all 9 `data` item keys (+ period/completeness); frozen `data` doesn't change when underlying records change afterward; manual HTTP generate is synchronous; scheduled auto-generate uses the `reports` queue.
 - **Auto-inclusion:** every incident/LSR/vehicle-violation in the period appears in items ii/iii/vii (DOC-14 retention guarantee); false-positive PPE excluded from item i with the excluded count.
 - **Completeness:** an item whose devices were offline >20% of the period gets a completeness note; ≤20% does not.
 - **Item vi honesty:** reports a count + the scope-extension note; no fabricated telematics.

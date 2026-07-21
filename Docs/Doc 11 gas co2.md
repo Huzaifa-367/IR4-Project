@@ -1,14 +1,14 @@
-# DOC-11 — Gas & CO₂ Monitoring
+# DOC-11 — Gas Monitoring
 
-> **Depends on:** DOC-01 (conventions, settings), DOC-03 (`view-gas`, `manage-gas-thresholds`, `acknowledge-alerts`), DOC-05 (gas/CO₂ devices + `device_ref`), DOC-07 (`gas_warning`/`gas_alarm` alerts), DOC-08 (shared `gas-readings` ingest endpoint + `gas` channel + backfill rule), DOC-19 (rollups + raw-reading pruning). **Feeds:** DOC-15 (weekly-report gas + CO₂ items), DOC-16 (gas dashboard + display panels).
+> **Depends on:** DOC-01 (conventions, settings), DOC-03 (`view-gas`, `view-gas-thresholds` / `update-gas-thresholds`, `acknowledge-alerts`), DOC-05 (gas / CO₂ devices + `device_ref`), DOC-07 (`gas_warning`/`gas_alarm` alerts), DOC-08 (shared `gas-readings` ingest endpoint + `gas` channel + backfill rule), DOC-19 (raw-reading pruning). **Feeds:** DOC-15 (weekly-report item ix — all five channels), DOC-16 (gas dashboard + display panels).
 >
-> **Scope:** continuous gas & CO₂ telemetry — the readings stream (one endpoint carrying LEL/H₂S/O₂/CO **and** CO₂), **configurable thresholds**, **alarm evaluation with hysteresis auto-resolve**, the **backfill-creates-no-alarms** rule, **live per-device panels**, **trends** (raw + rollups), acknowledgement, and the weekly-report gas/CO₂ feed. **Out of scope:** the alert machinery (DOC-07), the ingest contract (DOC-08), and the physical detectors (DOC-05).
+> **Scope:** continuous gas telemetry for **five channels** — LEL, H₂S, O₂, CO, and CO₂ — one ingest endpoint, one readings table, shared thresholds/alarms/trends, live per-device panels, and the weekly-report gas feed. **Out of scope:** the alert machinery (DOC-07), the ingest contract (DOC-08), and the physical detectors (DOC-05).
 
 ---
 
 ## 1. Purpose & the safety principle
 
-Combustible/toxic-gas and CO₂ exposure is a life-safety hazard on industrial sites. Detectors continuously report LEL (% combustible), H₂S (ppm), O₂ (%), CO (ppm), and CO₂ (ppm). The platform stores every reading, evaluates it against **operator-configurable thresholds**, raises alarms, and trends the data for reporting.
+Combustible/toxic-gas and CO₂ exposure is a life-safety hazard on industrial sites. Detectors continuously report **LEL** (% combustible), **H₂S** (ppm), **O₂** (%), **CO** (ppm), and **CO₂** (ppm). The platform stores every reading, evaluates it against **operator-configurable thresholds**, raises alarms, and trends the data for reporting. CO₂ is channel five of the same Gas module — not a separate product surface.
 
 **The critical safety principle (carried from the proposal §6.2):** the **detector alarms locally on site first** — audible/visual/vibrating at the device — regardless of the platform. The dashboard is a *secondary* awareness and record layer. This is why **backfilled readings never raise platform alarms** (§5.3): if a gateway was offline during an excursion, the crew was already warned locally; a dashboard alarm hours later would be dangerous noise. The platform's job is accurate recording, live awareness when connected, and reporting — not being the primary alarm.
 
@@ -16,8 +16,8 @@ Combustible/toxic-gas and CO₂ exposure is a life-safety hazard on industrial s
 
 ## 2. Data origin
 
-- **① device:** readings via `/api/ingest/gas-readings` (DOC-08) — gas detectors (LEL/H₂S/O₂/CO, often via a Wi-Fi gateway) and CO₂ sensors (via edge RS485). One endpoint; each reading carries whichever channels the sending device measures.
-- **② system:** alarm evaluation, hysteresis auto-resolve, rollups, weekly stats, live-panel broadcasts.
+- **① device:** readings via `/api/ingest/gas-readings` (DOC-08) — gas detectors reporting any subset of LEL / H₂S / O₂ / CO / CO₂ (often via a Wi-Fi or RS485 gateway). One device type; each reading carries whichever channels that unit measures.
+- **② system:** alarm evaluation, hysteresis auto-resolve, weekly stats (SQL over raw), live-panel broadcasts.
 - **③ user:** threshold configuration (`manage-gas-thresholds`, audited) and alarm **acknowledgement** (`acknowledge-alerts`). Reading values are **immutable** — no user endpoint writes readings (DOC-01 §9).
 
 ---
@@ -25,7 +25,7 @@ Combustible/toxic-gas and CO₂ exposure is a life-safety hazard on industrial s
 ## 3. Data model
 
 ### 3.1 Storage decision: one readings table with nullable channels
-DOC-08 leaves gas-vs-CO₂ table layout to this doc. **Decision: a single `gas_readings` table** with a nullable column per channel. A reading populates whichever channels its device measures; a pure CO₂ sensor fills only `co2_ppm`, a multi-gas detector fills the four gas channels, a combined device fills all five. This keeps ingestion, rollups, trends, and retention uniform (one code path), and matches the single ingest endpoint. (Rationale over two tables: the streams share identical bookkeeping — recorded_at/received_at/is_backfill/event_uid, rollups, pruning — so one table halves the machinery. `[CONFIRM AT DESIGN]` if a client insists on physical separation.)
+DOC-08 leaves channel layout to this doc. **Decision: a single `gas_readings` table** with a nullable column per channel (LEL, H₂S, O₂, CO, CO₂). A reading populates whichever channels its gas detector measures. This keeps ingestion, trends, reports, and retention uniform (one code path), and matches the single ingest endpoint and single `gas_detector` device type.
 
 ```php
 Schema::create('gas_readings', function (Blueprint $table) {
@@ -48,24 +48,7 @@ Schema::create('gas_readings', function (Blueprint $table) {
 });
 ```
 
-### 3.2 `gas_reading_rollups` (hourly, for trends beyond 24 h — DOC-19)
-```php
-Schema::create('gas_reading_rollups', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('device_id')->constrained()->cascadeOnDelete();
-    $table->timestamp('bucket_start');                // hour bucket
-    // per-channel min/avg/max + sample count
-    $table->decimal('lel_min',6,2)->nullable(); $table->decimal('lel_avg',6,2)->nullable(); $table->decimal('lel_max',6,2)->nullable();
-    $table->decimal('h2s_min',8,2)->nullable(); $table->decimal('h2s_avg',8,2)->nullable(); $table->decimal('h2s_max',8,2)->nullable();
-    $table->decimal('o2_min',5,2)->nullable();  $table->decimal('o2_avg',5,2)->nullable();  $table->decimal('o2_max',5,2)->nullable();
-    $table->decimal('co_min',8,2)->nullable();  $table->decimal('co_avg',8,2)->nullable();  $table->decimal('co_max',8,2)->nullable();
-    $table->decimal('co2_min',10,2)->nullable();$table->decimal('co2_avg',10,2)->nullable();$table->decimal('co2_max',10,2)->nullable();
-    $table->unsignedInteger('sample_count')->default(0);
-    $table->timestamps();
-    $table->unique(['device_id', 'bucket_start']);
-});
-```
-Built by the hourly `BuildSensorRollups` job (DOC-19); raw readings pruned after `retention.sensor_readings_days` (default 180) once rolled up.
+There is **no** `gas_reading_rollups` table. Trends beyond 24 h and DOC-15 item **ix** aggregate raw rows with SQL `GROUP BY` hour/day (indexed `recorded_at` / `(device_id, recorded_at)`). Raw readings prune after `retention.sensor_readings_days` (default 180) per DOC-19 — gas has no rollup gate.
 
 ### 3.3 `gas_thresholds` (③ configurable, audited)
 ```php
@@ -120,7 +103,7 @@ Schema::create('gas_alarms', function (Blueprint $table) {
 Entry from DOC-08: `ingest(array $events, Device $device)`. Per event (after dedupe/skew/backfill classification):
 - Insert the `gas_reading` (idempotent), populating only the channels present, with `asset_id` denormalized from the device.
 - If **live** (≤10 min): `evaluate()` each present channel; broadcast a throttled `GasLiveUpdated` (per-device latest panel) on the `gas` channel.
-- If **backfill**: store + roll up only; **no evaluate, no broadcast** (§5.3).
+- If **backfill**: store only; **no evaluate, no broadcast** (§5.3).
 
 ### 4.1 `evaluate(reading)`
 For each present channel, look up its active threshold(s):
@@ -133,7 +116,7 @@ For each present channel, look up its active threshold(s):
 Threshold chatter (a value hovering right at the line) would otherwise flap alarms on/off. So resolution requires **two consecutive live readings** back under `(warning_level − 5% of the warn→alarm span)` before the alarm auto-resolves (sets `resolved_at`, `AlertService::resolveByDedupeKey`). Tunable via `gas.hysteresis_margin_pct` (DOC-18).
 
 ### 4.3 Weekly stats
-`weeklyStats(from, to)` → per-gas per-day min/avg/max (from rollups) + the list of alarm events in the period (time, device/asset, gas, level, peak value, duration, acknowledged_by, `during_outage`). Feeds DOC-15 items (ix) gas and (x) CO₂.
+DOC-15 item **ix** aggregates raw `gas_readings` with SQL daily min/avg/max for **LEL / H₂S / O₂ / CO / CO₂** + the list of alarm events in the period (time, device/asset, gas, level, peak value, duration, acknowledged_by, `during_outage`). CO₂ is not a separate weekly-report item.
 
 ---
 
@@ -160,7 +143,7 @@ Backfilled readings (>10 min old, DOC-08) are **stored and rolled up** but **do 
 ## 7. Live panels & trends (reads, `view-gas`)
 
 - **`GET /api/gas/live`** — latest reading per device (one panel each) + any open-alarm flags + a **stale badge** if the device's last reading is older than ~5 min (device likely offline — cross-ref DOC-05). Cached ~5 s; also pushed via `GasLiveUpdated`.
-- **`GET /api/gas/trends?gas_type&device_id&range=shift|day|week|custom`** — raw readings for ≤24 h, rollups beyond (DOC-19). Returns downsampled series (min/avg/max per bucket).
+- **`GET /api/gas/trends?gas_type&device_id&range=shift|day|week|custom`** — raw point series for ≤24 h; SQL hourly min/avg/max over raw beyond that. Returns downsampled series (min/avg/max per bucket).
 - **`GET /gas/alarms`** — filterable alarm history (gas, level, device, resolved, date range).
 
 ---
@@ -194,7 +177,7 @@ Backfilled readings (>10 min old, DOC-08) are **stored and rolled up** but **do 
 - **Backfill-no-alarm:** backfilled exceedances create **no** alarm/alert but appear in trends/weekly stats flagged `during_outage`.
 - **Acknowledge:** sets fields + acknowledges the alert; ack ≠ resolve.
 - **Thresholds:** update requires `manage-gas-thresholds`, audited before/after; does not retro-evaluate history; O₂ has two rows.
-- **Trends:** ≤24 h reads raw, beyond reads rollups; series min/avg/max correct.
+- **Trends:** ≤24 h reads raw points; beyond reads SQL hourly aggregates over raw; series min/avg/max correct.
 - **Immutability:** no route updates reading values.
 - **Live/stale:** `/api/gas/live` returns latest per device with a stale badge past ~5 min.
 - Authorization: view/thresholds/acknowledge gated by permission.

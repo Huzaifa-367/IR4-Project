@@ -69,7 +69,7 @@ Permissions are lower-kebab strings, grouped by domain. This is the **complete, 
 - `create-evacuation`
 - `update-evacuation`
 
-**Gas & CO₂ (DOC-11)**
+**Gas (DOC-11)**
 - `view-gas`
 - `view-gas-thresholds`
 - `update-gas-thresholds`

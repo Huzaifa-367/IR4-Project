@@ -10,7 +10,6 @@ use App\Models\Device;
 use App\Models\EnvironmentalReading;
 use App\Models\EnvironmentalRollup;
 use App\Models\GasReading;
-use App\Models\GasReadingRollup;
 use App\Models\TagReading;
 use App\Models\User;
 use App\Models\WeeklyReport;
@@ -22,71 +21,67 @@ use App\Services\Backup\SecureWipeService;
 use App\Services\RetentionService;
 use App\Services\SensorRollupService;
 use App\Services\SettingsService;
+use Database\Seeders\RolePermissionSeeder;
+use Database\Seeders\SettingsSeeder;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
-    $this->seed(\Database\Seeders\RolePermissionSeeder::class);
-    $this->seed(\Database\Seeders\SettingsSeeder::class);
+    $this->seed(RolePermissionSeeder::class);
+    $this->seed(SettingsSeeder::class);
     Storage::fake('private');
     Storage::fake('backups');
     Storage::fake('exports');
 });
 
-it('builds idempotent hourly rollups and recomputes late data', function () {
+it('builds idempotent hourly environmental rollups and recomputes late data', function () {
     $device = Device::factory()->create([
-        'device_type' => DeviceType::GasDetector,
+        'device_type' => DeviceType::EnvironmentalSensor,
         'status' => HardwareStatus::Online,
     ]);
     $bucket = now()->subHours(2)->startOfHour();
 
-    GasReading::factory()->create([
+    EnvironmentalReading::factory()->create([
         'device_id' => $device->id,
         'recorded_at' => $bucket->copy()->addMinutes(10),
-        'lel_pct' => 1,
-        'h2s_ppm' => 2,
-        'o2_pct' => 20.9,
-        'co_ppm' => 3,
-        'co2_ppm' => 400,
+        'temperature_c' => 20,
+        'humidity_pct' => 40,
+        'wind_speed_ms' => 1,
     ]);
-    GasReading::factory()->create([
+    EnvironmentalReading::factory()->create([
         'device_id' => $device->id,
         'recorded_at' => $bucket->copy()->addMinutes(20),
-        'lel_pct' => 3,
-        'h2s_ppm' => 4,
-        'o2_pct' => 20.8,
-        'co_ppm' => 5,
-        'co2_ppm' => 500,
+        'temperature_c' => 30,
+        'humidity_pct' => 50,
+        'wind_speed_ms' => 2,
     ]);
 
     $service = app(SensorRollupService::class);
-    $service->rebuildGasBucket($device->id, $bucket);
-    $service->rebuildGasBucket($device->id, $bucket);
+    $service->rebuildEnvBucket($device->id, $bucket);
+    $service->rebuildEnvBucket($device->id, $bucket);
 
-    $rollup = GasReadingRollup::query()
+    $rollup = EnvironmentalRollup::query()
         ->where('device_id', $device->id)
         ->where('bucket_start', $bucket)
         ->firstOrFail();
 
     expect($rollup->sample_count)->toBe(2)
-        ->and((float) $rollup->lel_min)->toBe(1.0)
-        ->and((float) $rollup->lel_max)->toBe(3.0)
-        ->and((float) $rollup->lel_avg)->toBe(2.0);
+        ->and((float) $rollup->temp_min)->toBe(20.0)
+        ->and((float) $rollup->temp_max)->toBe(30.0)
+        ->and((float) $rollup->temp_avg)->toBe(25.0);
 
-    GasReading::factory()->create([
+    EnvironmentalReading::factory()->create([
         'device_id' => $device->id,
         'recorded_at' => $bucket->copy()->addMinutes(30),
-        'lel_pct' => 5,
-        'h2s_ppm' => 6,
-        'o2_pct' => 20.7,
-        'co_ppm' => 7,
-        'co2_ppm' => 600,
+        'temperature_c' => 40,
+        'humidity_pct' => 60,
+        'wind_speed_ms' => 3,
     ]);
 
-    $service->rebuildGasBucket($device->id, $bucket);
+    $service->rebuildEnvBucket($device->id, $bucket);
     $rollup->refresh();
 
     expect($rollup->sample_count)->toBe(3)
-        ->and((float) $rollup->lel_max)->toBe(5.0);
+        ->and((float) $rollup->temp_max)->toBe(40.0);
 });
 
 it('prunes only allow-listed raw tables after rollups and never compliance tables', function () {
@@ -112,7 +107,6 @@ it('prunes only allow-listed raw tables after rollups and never compliance table
         'recorded_at' => $old->copy()->addMinutes(5),
         'lel_pct' => 1,
     ]);
-    app(SensorRollupService::class)->rebuildGasBucket($device->id, $old);
 
     EnvironmentalReading::factory()->create([
         'device_id' => $envDevice->id,
@@ -136,13 +130,12 @@ it('prunes only allow-listed raw tables after rollups and never compliance table
         ->and($counts['environmental_readings'])->toBe(1)
         ->and(TagReading::query()->count())->toBe(1)
         ->and(GasReading::query()->whereKey($gas->id)->exists())->toBeFalse()
-        ->and(GasReadingRollup::query()->count())->toBe(1)
         ->and(EnvironmentalRollup::query()->count())->toBe(1)
         ->and(Alert::query()->whereKey($alert->id)->exists())->toBeTrue()
         ->and(array_intersect(RetentionService::PRUNE_ALLOW_LIST, RetentionService::COMPLIANCE_TABLES))->toBe([]);
 });
 
-it('does not prune sensor rows until their hour is rolled up', function () {
+it('prunes gas readings by age without requiring a rollup', function () {
     $device = Device::factory()->create([
         'device_type' => DeviceType::GasDetector,
         'status' => HardwareStatus::Online,
@@ -157,8 +150,27 @@ it('does not prune sensor rows until their hour is rolled up', function () {
 
     $counts = app(RetentionService::class)->pruneRawSensorData();
 
-    expect($counts['gas_readings'])->toBe(0)
-        ->and(GasReading::query()->count())->toBe(1);
+    expect($counts['gas_readings'])->toBe(1)
+        ->and(GasReading::query()->count())->toBe(0);
+});
+
+it('does not prune environmental rows until their hour is rolled up', function () {
+    $device = Device::factory()->create([
+        'device_type' => DeviceType::EnvironmentalSensor,
+        'status' => HardwareStatus::Online,
+    ]);
+    app(SettingsService::class)->set('retention.sensor_readings_days', 7, confirmed: true);
+
+    EnvironmentalReading::factory()->create([
+        'device_id' => $device->id,
+        'recorded_at' => now()->subDays(40),
+        'temperature_c' => 22,
+    ]);
+
+    $counts = app(RetentionService::class)->pruneRawSensorData();
+
+    expect($counts['environmental_readings'])->toBe(0)
+        ->and(EnvironmentalReading::query()->count())->toBe(1);
 });
 
 it('removes ad-hoc exports but keeps weekly report PDFs', function () {

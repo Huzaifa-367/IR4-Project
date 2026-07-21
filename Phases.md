@@ -117,7 +117,7 @@
 ### 6b PPE (DOC-10)
 - [x] Ingest (no `worker_id`); live wall; review workflow; fall → alert only
 
-### 6c Gas / CO₂ (DOC-11)
+### 6c Gas (DOC-11)
 - [x] Ingest; global thresholds; hysteresis; live panels; backfill = no live alarms
 
 ### 6d Environmental (DOC-12)
@@ -165,7 +165,7 @@
 - [x] Publish-lock generated reports; supersede published reports instead of editing; retain both versions
 - [x] Enforce generate/publish/log permissions, signed downloads, and published-only PM/read-only visibility
 
-**Done when:** A scheduled or manual run freezes all 10 items, declares qualifying sensor gaps, exports both formats, and a published report can only be amended by a linked superseding report. ✅
+**Done when:** A scheduled or manual run freezes all 9 items, declares qualifying sensor gaps, exports both formats, and a published report can only be amended by a linked superseding report. ✅
 
 ### 9b Dashboard, display & design language (DOC-16)
 - [x] Apply the dark-first Control Room tokens, local fonts, 14px signature cards, and analytical chart system from `Design.md`

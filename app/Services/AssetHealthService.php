@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Enums\AssetStatus;
 use App\Enums\AlertSeverity;
 use App\Enums\AlertType;
+use App\Enums\AssetStatus;
 use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
 use App\Models\Asset;
@@ -150,7 +150,6 @@ final class AssetHealthService
             DeviceType::RfidReader => 'health.reader_stale_minutes',
             DeviceType::GasDetector => 'health.gas_stale_minutes',
             DeviceType::EdgeCompute => 'health.edge_stale_minutes',
-            DeviceType::Co2Sensor,
             DeviceType::EnvironmentalSensor,
             DeviceType::WifiGateway,
             DeviceType::Rs485Interface,

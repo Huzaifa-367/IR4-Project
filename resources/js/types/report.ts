@@ -27,10 +27,7 @@ export type WeeklyReportData = {
     vii_vehicle_violations: Array<Record<string, unknown>>;
     viii_environmental: { per_day: Array<Record<string, unknown>> };
     ix_gas: {
-        per_gas_per_day: Array<Record<string, unknown>>;
-        alarm_events: Array<Record<string, unknown>>;
-    };
-    x_co2: {
+        /** One row per day: nested min/avg/max for lel, h2s, o2, co, co2. */
         per_day: Array<Record<string, unknown>>;
         alarm_events: Array<Record<string, unknown>>;
     };

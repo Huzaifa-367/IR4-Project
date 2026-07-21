@@ -142,7 +142,7 @@ export default function DisplayIndex({
                     {pane === 1 && (
                         <section className="rounded-[14px] border border-[#243040] bg-[#131A22] p-6">
                             <p className="mb-4 text-sm tracking-wide text-[#8A97A6] uppercase">
-                                Gas / CO₂ panels
+                                Gas panels
                             </p>
                             {permissions.view_gas && summary.gas ? (
                                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -167,9 +167,10 @@ export default function DisplayIndex({
                                             >
                                                 {panel.status.toUpperCase()}
                                             </p>
-                                            {panel.co2_ppm !== null && (
+                                            {panel.channels?.co2_ppm != null && (
                                                 <p className="mt-1 text-[#8A97A6]">
-                                                    CO₂ {panel.co2_ppm} ppm
+                                                    CO₂ {panel.channels.co2_ppm}{' '}
+                                                    ppm
                                                 </p>
                                             )}
                                         </div>

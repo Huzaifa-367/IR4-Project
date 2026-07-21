@@ -9,7 +9,6 @@ use App\Enums\LsrCategory;
 use App\Enums\LsrStatus;
 use App\Enums\ReportStatus;
 use App\Enums\ReviewStatus;
-use App\Jobs\GenerateWeeklyReport;
 use App\Models\Alert;
 use App\Models\Device;
 use App\Models\HseIncident;
@@ -20,14 +19,13 @@ use App\Models\VehicleViolation;
 use App\Models\WeeklyReport;
 use App\Services\WeeklyReportService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     Storage::fake('private');
 });
 
-it('generates all 10 frozen data keys and excludes false-positive PPE', function () {
+it('generates all 9 frozen data keys and excludes false-positive PPE', function () {
     $manager = User::factory()->withRole('Safety Manager')->create();
     $start = now()->startOfWeek(Carbon::SUNDAY)->subWeek();
     $end = $start->copy()->endOfWeek(Carbon::SATURDAY);
@@ -68,11 +66,16 @@ it('generates all 10 frozen data keys and excludes false-positive PPE', function
 
     expect($report->status)->toBe(ReportStatus::Generated)
         ->and(array_keys($report->data))->toEqualCanonicalizing(WeeklyReportService::dataKeys())
+        ->and(WeeklyReportService::dataKeys())->not->toContain('x_co2')
+        ->and($report->data)->not->toHaveKey('x_co2')
         ->and($report->data['i_daily_safety_observations']['false_positives_excluded'])->toBe(1)
         ->and($report->data['ii_hse_incidents'])->toHaveCount(1)
         ->and($report->data['iii_lsr_violations']['entries'])->toHaveCount(1)
         ->and($report->data['vii_vehicle_violations'])->toHaveCount(1)
         ->and($report->data['vi_units_monitored']['note'])->toContain('monitoring devices')
+        ->and(collect($report->data['ix_gas']['per_day'])->first())->toHaveKeys(['date', 'lel', 'h2s', 'o2', 'co', 'co2'])
+        ->and($report->data['ix_gas']['per_day'][0]['co2'])->toHaveKeys(['min', 'avg', 'max'])
+        ->and($report->data['ix_gas'])->not->toHaveKey('per_gas_per_day')
         ->and($report->pdf_path)->not->toBeNull()
         ->and($report->csv_path)->not->toBeNull();
 
@@ -87,20 +90,23 @@ it('generates all 10 frozen data keys and excludes false-positive PPE', function
     expect($report->fresh()->data['i_daily_safety_observations']['false_positives_excluded'])->toBe(1);
 });
 
-it('queues generation on the reports queue', function () {
-    Queue::fake();
+it('generates manually in-request and redirects to the report', function () {
     $manager = User::factory()->withRole('Safety Manager')->create();
     $start = now()->toDateString();
     $end = now()->toDateString();
 
-    $this->actingAs($manager)
+    $response = $this->actingAs($manager)
         ->post(route('weekly-reports.generate'), [
             'period_start' => $start,
             'period_end' => $end,
-        ])
-        ->assertRedirect();
+        ]);
 
-    Queue::assertPushedOn('reports', GenerateWeeklyReport::class);
+    $report = WeeklyReport::query()->latest('id')->first();
+    expect($report)->not->toBeNull()
+        ->and($report->status)->toBe(ReportStatus::Generated)
+        ->and($report->generated_by)->toBe($manager->id);
+
+    $response->assertRedirect(route('reports.show', $report));
 });
 
 it('adds completeness notes when device offline exceeds threshold', function () {

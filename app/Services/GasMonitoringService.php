@@ -14,7 +14,6 @@ use App\Models\AuditLog;
 use App\Models\Device;
 use App\Models\GasAlarm;
 use App\Models\GasReading;
-use App\Models\GasReadingRollup;
 use App\Models\GasThreshold;
 use App\Models\Permit;
 use App\Models\ReaderZoneBinding;
@@ -22,6 +21,7 @@ use App\Models\User;
 use App\Support\Ingest\IngestEventRejected;
 use App\Support\Ingest\IngestTimestamps;
 use App\Support\Ingest\ReferenceResolver;
+use App\Support\SqlTimeBucket;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -38,7 +38,6 @@ final class GasMonitoringService
         private readonly AlertService $alerts,
         private readonly SettingsService $settings,
         private readonly AuditService $audit,
-        private readonly SensorRollupService $rollups,
         private readonly PermitService $permits,
     ) {}
 
@@ -103,7 +102,7 @@ final class GasMonitoringService
     {
         $staleMinutes = (int) $this->settings->get('health.gas_stale_minutes', 5);
         $devices = Device::query()
-            ->whereIn('device_type', [DeviceType::GasDetector, DeviceType::Co2Sensor])
+            ->where('device_type', DeviceType::GasDetector)
             ->with('asset')
             ->orderBy('name')
             ->get();
@@ -138,7 +137,7 @@ final class GasMonitoringService
             if ($deviceId !== null) {
                 $query->where('device_id', $deviceId);
             }
-            $points = $query->get()->map(fn (GasReading $r): array => [
+            $points = $query->get(['device_id', 'recorded_at', $column])->map(fn (GasReading $r): array => [
                 'at' => $r->recorded_at->toIso8601String(),
                 'value' => (float) $r->{$column},
                 'min' => (float) $r->{$column},
@@ -148,34 +147,6 @@ final class GasMonitoringService
             ])->all();
 
             return ['points' => $points, 'source' => 'raw'];
-        }
-
-        $prefix = match ($gasType) {
-            GasType::Lel => 'lel',
-            GasType::H2s => 'h2s',
-            GasType::O2Low, GasType::O2High => 'o2',
-            GasType::Co => 'co',
-            GasType::Co2 => 'co2',
-        };
-
-        $query = GasReadingRollup::query()
-            ->whereBetween('bucket_start', [$from, $to])
-            ->orderBy('bucket_start');
-        if ($deviceId !== null) {
-            $query->where('device_id', $deviceId);
-        }
-
-        $points = $query->get()->map(fn (GasReadingRollup $r): array => [
-            'at' => $r->bucket_start->toIso8601String(),
-            'value' => $r->{"{$prefix}_avg"} !== null ? (float) $r->{"{$prefix}_avg"} : null,
-            'min' => $r->{"{$prefix}_min"} !== null ? (float) $r->{"{$prefix}_min"} : null,
-            'avg' => $r->{"{$prefix}_avg"} !== null ? (float) $r->{"{$prefix}_avg"} : null,
-            'max' => $r->{"{$prefix}_max"} !== null ? (float) $r->{"{$prefix}_max"} : null,
-            'device_id' => $r->device_id,
-        ])->filter(fn (array $p): bool => $p['avg'] !== null)->values()->all();
-
-        if ($points !== []) {
-            return ['points' => $points, 'source' => 'rollup'];
         }
 
         return $this->trendsFromRawHourly($deviceId, $gasType, $from, $to);
@@ -253,13 +224,15 @@ final class GasMonitoringService
             'trend' => [
                 'series' => $trendSeries,
                 'source' => collect($trendSeries)->contains(
-                    fn (array $series): bool => $series['source'] === 'rollup',
-                ) ? 'rollup' : 'raw',
+                    fn (array $series): bool => $series['source'] === 'raw-hourly',
+                ) ? 'raw-hourly' : 'raw',
             ],
         ];
     }
 
     /**
+     * Hourly min/avg/max over raw readings via SQL GROUP BY (indexed recorded_at).
+     *
      * @return array{points: list<array<string, mixed>>, source: string}
      */
     private function trendsFromRawHourly(
@@ -269,45 +242,35 @@ final class GasMonitoringService
         Carbon $to,
     ): array {
         $column = $gasType->readingColumn();
+        $hourExpr = SqlTimeBucket::hour('recorded_at');
+
         $query = GasReading::query()
+            ->selectRaw("device_id, {$hourExpr} as bucket_start")
+            ->selectRaw("MIN({$column}) as min_v")
+            ->selectRaw("AVG({$column}) as avg_v")
+            ->selectRaw("MAX({$column}) as max_v")
             ->whereBetween('recorded_at', [$from, $to])
-            ->whereNotNull($column);
+            ->whereNotNull($column)
+            ->groupByRaw("device_id, {$hourExpr}")
+            ->orderBy('bucket_start');
         if ($deviceId !== null) {
             $query->where('device_id', $deviceId);
         }
-        $readings = $query->get();
-        if ($readings->isEmpty()) {
-            return ['points' => [], 'source' => 'raw-hourly'];
-        }
 
-        $points = $readings
-            ->groupBy(fn (GasReading $reading): string => $reading->device_id.'|'.$reading->recorded_at->copy()->startOfHour()->toIso8601String())
-            ->map(function ($group) use ($column): ?array {
-                /** @var GasReading $first */
-                $first = $group->first();
-                $values = $group
-                    ->pluck($column)
-                    ->filter(fn (mixed $value): bool => is_numeric($value))
-                    ->map(fn (mixed $value): float => (float) $value);
-                if ($values->isEmpty()) {
-                    return null;
-                }
+        $points = $query->get()->map(function (object $row): array {
+            $avg = $row->avg_v !== null ? (float) $row->avg_v : null;
 
-                return [
-                    'at' => $first->recorded_at->copy()->startOfHour()->toIso8601String(),
-                    'value' => (float) $values->avg(),
-                    'min' => (float) $values->min(),
-                    'avg' => (float) $values->avg(),
-                    'max' => (float) $values->max(),
-                    'device_id' => $first->device_id,
-                ];
-            })
-            ->filter()
-            ->sortBy('at')
-            ->values()
-            ->all();
+            return [
+                'at' => Carbon::parse((string) $row->bucket_start)->toIso8601String(),
+                'value' => $avg,
+                'min' => $row->min_v !== null ? (float) $row->min_v : null,
+                'avg' => $avg,
+                'max' => $row->max_v !== null ? (float) $row->max_v : null,
+                'device_id' => (int) $row->device_id,
+            ];
+        })->filter(fn (array $p): bool => $p['avg'] !== null)->values()->all();
 
-        return ['points' => array_values($points), 'source' => 'raw-hourly'];
+        return ['points' => $points, 'source' => 'raw-hourly'];
     }
 
     /**
@@ -503,8 +466,6 @@ final class GasMonitoringService
             }
             throw $e;
         }
-
-        $this->rollups->rebuildGasBucket($reading->device_id, $reading->recorded_at->copy()->startOfHour());
 
         if (! $normalized['is_backfill']) {
             $this->evaluate($reading, $device);

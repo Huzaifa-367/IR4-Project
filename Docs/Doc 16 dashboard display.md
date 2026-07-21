@@ -60,7 +60,7 @@ One bold thing per screen: on the dashboard it's the **live map + critical-alert
 {
   "headcount": { "total_on_site": 0, "by_zone": [ { "zone_id", "zone_name", "count" } ] },
   "alerts": { "open_critical": 0, "open_warning": 0, "latest": [ /* AlertResource, identity-stripped */ ] },
-  "gas": { "panels": [ { "device_id", "asset", "status": "ok|warn|crit", "channels": {…}, "co2_ppm", "stale": false } ] },
+  "gas": { "panels": [ { "device_id", "asset", "status": "ok|warn|crit", "channels": { "lel_pct", "h2s_ppm", "o2_pct", "co_ppm", "co2_ppm" }, "stale": false } ] },
   "weather": { "temperature_c", "humidity_pct", "wind_speed_ms", "updated_at", "stale": false },
   "ppe_today": { "total", "by_type": {…}, "trend_delta" },
   "incidents": { "open": 0, "under_review": 0 },
@@ -126,7 +126,7 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
   - **Overview** — Dashboard, Live View
   - **Tracking** — Workers, Tags, Zones, Entry/Exit, Devices Register, Evacuation
   - **PPE** — Trends (`/ppe`), Violations (`/ppe/violations`)
-  - **Gas & CO₂** — Live (`/gas`), Alarms (`/gas/alarms`), Thresholds (settings)
+  - **Gas** — Live (`/gas`), Alarms (`/gas/alarms`), Thresholds (settings)
   - **Equipment** — Items, Checkouts
   - **HSE** — Incidents, LSR, Summary
   - **Reports** — Weekly, Vehicle Violations, Settings

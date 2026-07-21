@@ -70,7 +70,7 @@ Integration tests that exercise a whole flow across DOCs — the highest-value t
 7. **Repositioning across an outage:** rebind a reader; flush buffered reads spanning the move → each resolves to the historically correct zone (DOC-06/08/09).
 8. **Evacuation:** trigger → freeze on-site set → auto-account at muster/gate reads → manual account the rest → close (blocked while unaccounted unless forced) → PDF (DOC-09).
 9. **Equipment lifecycle:** import → one-click labels → mobile-scan checkout → return (damaged → maintenance) → overdue flag; worker with open checkout can't be offboarded (DOC-13/04).
-10. **Weekly report:** seed a week of module data (incl. an outage) → generate → all 10 items present, PPE excludes false positives, incidents/LSR auto-included, completeness note for the outage → publish (lock) → regenerate → supersedes, original intact (DOC-15).
+10. **Weekly report:** seed a week of module data (incl. an outage) → generate → all 9 items present, PPE excludes false positives, incidents/LSR auto-included, completeness note for the outage → publish (lock) → regenerate → supersedes, original intact (DOC-15).
 11. **Read-only client week:** a read-only-role user browses dashboards/reports → every request writes `data_access` → they can't reach any write route (DOC-03/17).
 12. **End-of-project:** seed data → `ir4:export-all` archive verifiable → `ir4:secure-wipe` refuses without a verified export, then wipes and records the marker (DOC-19).
 

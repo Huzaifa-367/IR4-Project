@@ -52,7 +52,7 @@ final class PermissionCatalogue
                 'create-evacuation',
                 'update-evacuation',
             ],
-            'Gas & CO₂' => [
+            'Gas' => [
                 'view-gas',
                 'view-gas-thresholds',
                 'update-gas-thresholds',

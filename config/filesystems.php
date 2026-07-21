@@ -59,7 +59,8 @@ return [
 
         'backups' => [
             'driver' => 'local',
-            'root' => env('BACKUP_DISK_ROOT', storage_path('app/backups')),
+            // Empty BACKUP_DISK_ROOT= in .env must not win over the default (env() returns "").
+            'root' => env('BACKUP_DISK_ROOT') ?: storage_path('app/backups'),
             'visibility' => 'private',
             'serve' => false,
             'throw' => true,
@@ -68,7 +69,7 @@ return [
 
         'exports' => [
             'driver' => 'local',
-            'root' => env('EXPORT_DISK_ROOT', storage_path('app/private/exports')),
+            'root' => env('EXPORT_DISK_ROOT') ?: storage_path('app/private/exports'),
             'visibility' => 'private',
             'serve' => false,
             'throw' => true,

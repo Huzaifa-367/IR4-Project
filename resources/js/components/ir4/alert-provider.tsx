@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import {
     createContext,
     useCallback,
@@ -7,7 +8,7 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useSharedSettings } from '@/hooks/use-auth';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import type { ReverbLiveStatus } from '@/hooks/use-reverb-channel';
 import type { Alert } from '@/types/alert';
@@ -214,37 +215,107 @@ export function AlertLiveIndicator(): ReactNode {
     return <LiveStatusPill status={status} />;
 }
 
+/** Identity for toast resurfacing when a dedupe bump refreshes raised_at / occurrences. */
+function toastSignature(alert: Alert): string {
+    return `${alert.id}:${alert.occurrences}:${alert.raised_at}`;
+}
+
 function AlertToasts({ alerts }: { alerts: Alert[] }): ReactNode {
-    const recent = alerts
-        .filter((alert) => alert.status === 'open')
+    const { warning_toast_seconds: warningToastSeconds } = useSharedSettings();
+    const open = alerts.filter((alert) => alert.status === 'open');
+    /** id → signature that was dismissed (manual or auto). */
+    const [dismissed, setDismissed] = useState<Record<number, string>>({});
+
+    const dismiss = useCallback((alertId: number, signature: string): void => {
+        setDismissed((prev) =>
+            prev[alertId] === signature
+                ? prev
+                : { ...prev, [alertId]: signature },
+        );
+    }, []);
+
+    const visible = open
+        .filter((alert) => dismissed[alert.id] !== toastSignature(alert))
         .slice(0, 5);
 
-    if (recent.length === 0) {
+    if (visible.length === 0) {
         return null;
     }
 
     return (
         <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex w-80 flex-col gap-2">
-            {recent.map((alert) => (
-                <div
-                    key={alert.id}
-                    className={
-                        alert.severity === 'critical'
-                            ? 'rounded-md border border-red-600 bg-red-50 p-3 text-sm text-red-950 shadow'
-                            : alert.severity === 'warning'
-                              ? 'rounded-md border border-amber-500 bg-amber-50 p-3 text-sm text-amber-950 shadow'
-                              : 'rounded-md border border-border bg-background p-3 text-sm shadow'
-                    }
-                >
-                    <div className="font-medium">
-                        {alert.title}
-                        {alert.occurrences > 1 ? ` ×${alert.occurrences}` : ''}
-                    </div>
-                    <div className="text-xs opacity-80">
-                        {alert.alert_type_label}
-                    </div>
-                </div>
+            {visible.map((alert) => (
+                <AlertToastCard
+                    key={toastSignature(alert)}
+                    alert={alert}
+                    warningToastSeconds={warningToastSeconds}
+                    onDismiss={dismiss}
+                />
             ))}
+        </div>
+    );
+}
+
+function AlertToastCard({
+    alert,
+    warningToastSeconds,
+    onDismiss,
+}: {
+    alert: Alert;
+    warningToastSeconds: number;
+    onDismiss: (alertId: number, signature: string) => void;
+}): ReactNode {
+    const signature = toastSignature(alert);
+
+    // Critical stays until ack (DOC-07); warning/info auto-dismiss. Manual X always available.
+    useEffect(() => {
+        if (alert.severity === 'critical') {
+            return;
+        }
+
+        const ms =
+            alert.severity === 'warning'
+                ? Math.max(1, warningToastSeconds) * 1000
+                : 5_000;
+        const timer = window.setTimeout(
+            () => onDismiss(alert.id, signature),
+            ms,
+        );
+
+        return () => window.clearTimeout(timer);
+    }, [
+        alert.id,
+        alert.severity,
+        signature,
+        warningToastSeconds,
+        onDismiss,
+    ]);
+
+    const toneClass =
+        alert.severity === 'critical'
+            ? 'border-red-600 bg-red-50 text-red-950'
+            : alert.severity === 'warning'
+              ? 'border-amber-500 bg-amber-50 text-amber-950'
+              : 'border-border bg-background text-foreground';
+
+    return (
+        <div
+            className={`pointer-events-auto relative rounded-md border p-3 pr-9 text-sm shadow ${toneClass}`}
+            role="status"
+        >
+            <button
+                type="button"
+                className="absolute top-2 right-2 rounded p-0.5 opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+                aria-label="Dismiss alert"
+                onClick={() => onDismiss(alert.id, signature)}
+            >
+                <X className="size-3.5" />
+            </button>
+            <div className="font-medium">
+                {alert.title}
+                {alert.occurrences > 1 ? ` ×${alert.occurrences}` : ''}
+            </div>
+            <div className="text-xs opacity-80">{alert.alert_type_label}</div>
         </div>
     );
 }

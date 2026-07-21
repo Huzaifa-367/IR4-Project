@@ -5,7 +5,6 @@ namespace App\Enums;
 enum DeviceType: string
 {
     case GasDetector = 'gas_detector';
-    case Co2Sensor = 'co2_sensor';
     case EnvironmentalSensor = 'environmental_sensor';
     case RfidReader = 'rfid_reader';
     case WifiGateway = 'wifi_gateway';
@@ -18,7 +17,6 @@ enum DeviceType: string
     {
         return match ($this) {
             self::GasDetector => 'Gas detector',
-            self::Co2Sensor => 'CO₂ sensor',
             self::EnvironmentalSensor => 'Environmental sensor',
             self::RfidReader => 'RFID reader',
             self::WifiGateway => 'Wi-Fi gateway',

@@ -178,7 +178,6 @@ export const CheckoutStateLabels: Record<CheckoutState, string> = {
 
 export const DeviceType = {
   GasDetector: 'gas_detector',
-  Co2Sensor: 'co2_sensor',
   EnvironmentalSensor: 'environmental_sensor',
   RfidReader: 'rfid_reader',
   WifiGateway: 'wifi_gateway',
@@ -192,7 +191,6 @@ export type DeviceType = (typeof DeviceType)[keyof typeof DeviceType];
 
 export const DeviceTypeLabels: Record<DeviceType, string> = {
   'gas_detector': 'Gas detector',
-  'co2_sensor': 'CO₂ sensor',
   'environmental_sensor': 'Environmental sensor',
   'rfid_reader': 'RFID reader',
   'wifi_gateway': 'Wi-Fi gateway',

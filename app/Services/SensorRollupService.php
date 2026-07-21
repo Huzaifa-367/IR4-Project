@@ -4,8 +4,6 @@ namespace App\Services;
 
 use App\Models\EnvironmentalReading;
 use App\Models\EnvironmentalRollup;
-use App\Models\GasReading;
-use App\Models\GasReadingRollup;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Enumerable;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +13,8 @@ final class SensorRollupService
     private const LOOKBACK_HOURS = 72;
 
     /**
-     * Recompute completed hours (idempotent) for gas + environmental readings.
+     * Recompute completed hours (idempotent) for environmental readings.
+     * Gas trends/reports aggregate raw `gas_readings` on read (DOC-11) — no gas rollup table.
      *
      * @return array{gas_buckets: int, env_buckets: int}
      */
@@ -25,50 +24,19 @@ final class SensorRollupService
         $horizon = $now->copy()->startOfHour();
         $from = $horizon->copy()->subHours(self::LOOKBACK_HOURS);
 
-        $gasBuckets = $this->rebuildGasWindow($from, $horizon);
         $envBuckets = $this->rebuildEnvWindow($from, $horizon);
 
         Log::info('ir4.rollups.built', [
-            'gas_buckets' => $gasBuckets,
+            'gas_buckets' => 0,
             'env_buckets' => $envBuckets,
             'from' => $from->toIso8601String(),
             'horizon' => $horizon->toIso8601String(),
         ]);
 
         return [
-            'gas_buckets' => $gasBuckets,
+            'gas_buckets' => 0,
             'env_buckets' => $envBuckets,
         ];
-    }
-
-    public function rebuildGasBucket(int $deviceId, \DateTimeInterface $bucketStart): void
-    {
-        $bucket = Carbon::instance($bucketStart)->startOfHour();
-        $rows = GasReading::query()
-            ->where('device_id', $deviceId)
-            ->whereBetween('recorded_at', [$bucket, $bucket->copy()->endOfHour()])
-            ->get();
-
-        if ($rows->isEmpty()) {
-            GasReadingRollup::query()
-                ->where('device_id', $deviceId)
-                ->where('bucket_start', $bucket)
-                ->delete();
-
-            return;
-        }
-
-        GasReadingRollup::query()->updateOrCreate(
-            ['device_id' => $deviceId, 'bucket_start' => $bucket],
-            [
-                ...$this->channelStats($rows, 'lel_pct', 'lel'),
-                ...$this->channelStats($rows, 'h2s_ppm', 'h2s'),
-                ...$this->channelStats($rows, 'o2_pct', 'o2'),
-                ...$this->channelStats($rows, 'co_ppm', 'co'),
-                ...$this->channelStats($rows, 'co2_ppm', 'co2'),
-                'sample_count' => $rows->count(),
-            ],
-        );
     }
 
     public function rebuildEnvBucket(int $deviceId, \DateTimeInterface $bucketStart): void
@@ -98,26 +66,6 @@ final class SensorRollupService
                 'sample_count' => $rows->count(),
             ],
         );
-    }
-
-    private function rebuildGasWindow(\DateTimeInterface $from, \DateTimeInterface $horizon): int
-    {
-        $pairs = GasReading::query()
-            ->where('recorded_at', '>=', Carbon::instance($from))
-            ->where('recorded_at', '<', Carbon::instance($horizon))
-            ->get(['device_id', 'recorded_at'])
-            ->map(fn (GasReading $row): array => [
-                'device_id' => $row->device_id,
-                'bucket' => $row->recorded_at->copy()->startOfHour()->toDateTimeString(),
-            ])
-            ->unique(fn (array $row): string => $row['device_id'].'|'.$row['bucket'])
-            ->values();
-
-        foreach ($pairs as $pair) {
-            $this->rebuildGasBucket((int) $pair['device_id'], Carbon::parse($pair['bucket']));
-        }
-
-        return $pairs->count();
     }
 
     /**

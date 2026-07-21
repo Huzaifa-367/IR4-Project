@@ -67,10 +67,10 @@ export const dashboardInfo = {
             'Site-wide gas channel trend for the selected dashboard range.',
         items: [
             'Shows LEL, H₂S, O₂, CO, and CO₂ together.',
-            'Uses hourly rollups for longer windows; falls back to raw readings when rollups are missing.',
+            'Uses SQL hourly aggregates over raw readings for windows longer than 24 hours.',
             'Values are averaged across detectors at each timestamp.',
         ],
-        source: 'gas_readings · gas_reading_rollups',
+        source: 'gas_readings',
     },
     gasPanels: {
         summary:

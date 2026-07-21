@@ -114,7 +114,7 @@ These enums are **type categories**, not inventory — the code needs to know *w
 - **`AssetType`:** `pole`, `gate`, `scc_server`, `scc_workstation`, `other`. (`other` keeps the registry open to hardware arrangements not anticipated here — dynamic by design. No `vehicle` type: field units are poles.)
 - **`AssetStatus`:** `active`, `maintenance`, `offline`. (`maintenance` suppresses health alerts — §6.4.)
 - **`CameraType`:** `fixed`, `ptz`, `dome`, `other`. (Describes the camera itself; the mount is the asset it's attached to, so a camera type is independent of where it hangs.)
-- **`DeviceType`:** `gas_detector`, `co2_sensor`, `environmental_sensor`, `rfid_reader`, `wifi_gateway`, `rs485_interface`, `qr_printer`, `edge_compute`, `other`. (Any number of each may be registered on any asset.)
+- **`DeviceType`:** `gas_detector`, `environmental_sensor`, `rfid_reader`, `wifi_gateway`, `rs485_interface`, `qr_printer`, `edge_compute`, `other`. (Any number of each may be registered on any asset. Gas detectors may report any subset of LEL / H₂S / O₂ / CO / CO₂.)
 - **`HardwareStatus`** (cameras & devices): `online`, `offline`, `degraded`, `fault`, `maintenance`, `retired`.
 
 ### 3.5 Relationships
@@ -184,7 +184,7 @@ Retired devices: setting status `retired` invalidates the token (treated as no v
 ### 6.2 `AssetHealthService::markStale()` (②, scheduled every minute — DOC-01 §A8)
 - For each device, if `last_seen_at` is older than its **per-type threshold**, set `status = offline` and raise a deduplicated alert (DOC-07) `device_offline` with `dedupeKey = "device_offline:{id}"` (warning severity).
 - For each camera, if `last_frame_at` is older than the camera threshold, set `status = offline` and raise `camera_offline`.
-- Per-type staleness thresholds (settings, DOC-18): `rfid_reader` 5 min, `gas_detector` 5 min, `co2_sensor` 5 min, `environmental_sensor` 5 min, `wifi_gateway` 5 min, `edge_compute` 3 min, camera `last_frame_at` 3 min. `qr_printer` is not health-critical (informational only).
+- Per-type staleness thresholds (settings, DOC-18): `rfid_reader` 5 min, `gas_detector` 5 min, `environmental_sensor` 5 min, `wifi_gateway` 5 min, `edge_compute` 3 min, camera `last_frame_at` 3 min. `qr_printer` is not health-critical (informational only).
 
 ### 6.3 Recovery (②)
 - The next heartbeat/ingest/frame from an offline device/camera flips `status` back to `online` and resolves the open offline alert (`resolveByDedupeKey`).
@@ -230,7 +230,7 @@ Ingestion always resolves the producing hardware by its stored `reference`/token
 
 ## 9. Real-life scenarios
 
-- **Commissioning a pole:** operator creates Asset "Pole 2" (`is_mobile=true`) → adds its cameras (references `pole2-cam-n`, `pole2-cam-s` — this pole happens to have two) and its RFID reader (`pole2-reader`), plus any gas/CO₂ sensor and edge unit fitted → issues a token per device → edge unit is configured with the tokens → heartbeats arrive → all tiles green on the health widget. A different pole with a single camera and no gas sensor is registered exactly the same way, just with fewer children.
+- **Commissioning a pole:** operator creates Asset "Pole 2" (`is_mobile=true`) → adds its cameras (references `pole2-cam-n`, `pole2-cam-s` — this pole happens to have two) and its RFID reader (`pole2-reader`), plus any gas detector and edge unit fitted → issues a token per device → edge unit is configured with the tokens → heartbeats arrive → all tiles green on the health widget. A different pole with a single camera and no gas detector is registered exactly the same way, just with fewer children.
 - **Connectivity drop:** a pole loses its link for 2 h → within 5 min its reader/gas/CO₂ devices go `offline` with dedup'd warning alerts; if a gas detector crosses 30 min a critical system alert fires → link restores → heartbeats/ingest flip everything back to `online` and resolve the alerts (backfill handling in DOC-08).
 - **Repositioning:** a pole moves to a new work front → operator updates its `current_location_label` and rebinds its reader to the now-covered zone (DOC-06) → cameras/devices keep their references and tokens; nothing is re-issued.
 - **Bump test:** a gas detector is removed for calibration → operator sets that device to `maintenance` → no offline alert for the duration → restored to `active` afterward.

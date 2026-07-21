@@ -310,8 +310,8 @@ final class DashboardService
                     'h2s_ppm' => $panel['h2s_ppm'],
                     'o2_pct' => $panel['o2_pct'],
                     'co_ppm' => $panel['co_ppm'],
+                    'co2_ppm' => $panel['co2_ppm'],
                 ],
-                'co2_ppm' => $panel['co2_ppm'],
                 'stale' => $panel['is_stale'],
                 'open_alarms' => $panel['open_alarms'],
             ];
@@ -374,6 +374,7 @@ final class DashboardService
             ['key' => 'lel_pct', 'type' => GasType::Lel, 'unit' => '%', 'label' => 'LEL'],
             ['key' => 'o2_pct', 'type' => GasType::O2Low, 'unit' => '%vol', 'label' => 'O₂'],
             ['key' => 'co_ppm', 'type' => GasType::Co, 'unit' => 'ppm', 'label' => 'CO'],
+            ['key' => 'co2_ppm', 'type' => GasType::Co2, 'unit' => 'ppm', 'label' => 'CO₂'],
         ];
 
         foreach ($panels as $panel) {
@@ -400,7 +401,7 @@ final class DashboardService
                     'alarm' => $alarm,
                     'status' => $status,
                 ];
-                if (count($gauges) >= 4) {
+                if (count($gauges) >= 5) {
                     return $gauges;
                 }
             }

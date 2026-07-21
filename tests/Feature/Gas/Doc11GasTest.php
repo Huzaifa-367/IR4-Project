@@ -11,7 +11,6 @@ use App\Models\GasAlarm;
 use App\Models\GasReading;
 use App\Models\GasThreshold;
 use App\Models\User;
-use App\Services\GasMonitoringService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
@@ -73,6 +72,25 @@ it('evaluates live crossings into gas_alarm and alerts', function () {
 
     expect(GasAlarm::query()->count())->toBe(1)
         ->and(GasAlarm::query()->first()?->level)->toBe(GasAlarmLevel::Alarm)
+        ->and(Alert::query()->where('alert_type', AlertType::GasAlarm)->count())->toBe(1);
+
+    Event::assertDispatched(GasLiveUpdated::class);
+});
+
+it('evaluates CO2 channel crossings as gas_alarm with gas_type co2', function () {
+    Event::fake([GasLiveUpdated::class]);
+
+    $plain = 'gas-co2';
+    $device = Device::factory()->gasDetector()->withPlainToken($plain)->create();
+
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['co2_ppm' => 35000], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    $alarm = GasAlarm::query()->first();
+    expect($alarm)->not->toBeNull()
+        ->and($alarm->gas_type)->toBe(GasType::Co2)
+        ->and($alarm->level)->toBe(GasAlarmLevel::Alarm)
         ->and(Alert::query()->where('alert_type', AlertType::GasAlarm)->count())->toBe(1);
 
     Event::assertDispatched(GasLiveUpdated::class);
@@ -229,12 +247,11 @@ it('gates gas views by permission', function () {
     $this->actingAs($operator)->get(route('gas.index'))->assertOk();
 });
 
-it('uses rollups for trends beyond 24 hours', function () {
+it('aggregates raw readings hourly for trends beyond 24 hours', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
     $device = Device::factory()->gasDetector()->create();
-    $svc = app(GasMonitoringService::class);
 
-    // Seed via direct reading + rollup path
+    // Seed via direct reading
     $plain = 'gas-trend';
     $device->forceFill(['api_token_hash' => hash('sha256', $plain), 'token_issued_at' => now()])->save();
 
@@ -256,5 +273,5 @@ it('uses rollups for trends beyond 24 hours', function () {
             'json' => 1,
         ]))
         ->assertOk()
-        ->assertJsonPath('data.source', 'rollup');
+        ->assertJsonPath('data.source', 'raw-hourly');
 });

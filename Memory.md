@@ -77,7 +77,7 @@ _None — Control Room UI pass landed; module pages inherit tokens/components ne
 - `AppliesListQuery` param is `defaultDirection`, not `defaultDir`
 - Device-offline outage duration uses alert `created_at`→`resolved_at` (not `raised_at`)
 - Dashboard summary cache key includes user permission set; TTL `dashboard.cache_seconds` (default 8)
-- Report generation is queued on `reports` — run `php artisan queue:work --queue=reports,default`
+- Manual report generate is synchronous; scheduled auto-generate stays on `reports` — run `php artisan queue:work --queue=reports,default` for the scheduler path
 - Nested `<AppLayout>` on pages doubles the sidebar — pages must rely on `app.tsx` layout resolver only
 - Demo logins after seed: `operator@ir4.local` / `safety@ir4.local` / `pm@ir4.local` (password: `password`)
 - Sensitive settings require `confirmed` (or UI confirm flow) — report settings page keys do not

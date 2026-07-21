@@ -43,7 +43,7 @@
 - `create-evacuation`
 - `update-evacuation`
 
-### Gas & CO₂
+### Gas
 
 - `view-gas`
 - `view-gas-thresholds`
@@ -114,8 +114,8 @@
 | Super Admin | system | _all_ |
 | Client Representative | read-only | _none_ |
 | Field Staff | — | _none_ |
-| Permit Issuer | — | `create-permit-gas-tests`, `update-permits`, `view-permits` |
-| Permit Receiver | — | `create-permits`, `view-permits` |
+| Permit Issuer | — | `approve-permit`, `issue-permit`, `perform-gas-test`, `view-permits` |
+| Permit Receiver | — | `request-permit`, `view-permits` |
 | Project Manager | read-only | `view-dashboard`, `view-equipment`, `view-reports`, `view-tracking` |
-| SCC Operator | — | `acknowledge-alerts`, `create-equipment`, `create-evacuation`, `create-incidents`, `create-lsr`, `create-permit-gas-tests`, `create-permits`, `create-portable-devices`, `create-tags`, `create-vehicle-violations`, `create-worker-documents`, `create-workers`, `create-zones`, `delete-equipment`, `delete-vehicle-violations`, `delete-worker-documents`, `delete-workers`, `delete-zones`, `resolve-alerts`, `update-equipment`, `update-evacuation`, `update-lsr`, `update-portable-devices`, `update-ppe-violations`, `update-tags`, `update-worker-documents`, `update-workers`, `update-zones`, `view-dashboard`, `view-entry-exit`, `view-equipment`, `view-gas`, `view-incidents`, `view-live-cameras`, `view-lsr`, `view-permits`, `view-portable-devices`, `view-ppe`, `view-reports`, `view-tracking`, `view-vehicle-violations`, `view-worker-documents`, `view-worker-identity`, `view-zones` |
-| Safety Manager | — | `acknowledge-alerts`, `create-devices`, `create-equipment`, `create-evacuation`, `create-incidents`, `create-lsr`, `create-permit-catalogue`, `create-permit-gas-tests`, `create-permits`, `create-portable-devices`, `create-reports`, `create-tags`, `create-users`, `create-vehicle-violations`, `create-worker-documents`, `create-workers`, `create-zones`, `delete-devices`, `delete-equipment`, `delete-permit-catalogue`, `delete-vehicle-violations`, `delete-worker-documents`, `delete-workers`, `delete-zones`, `export-ppe-violations`, `resolve-alerts`, `update-alert-settings`, `update-devices`, `update-equipment`, `update-evacuation`, `update-gas-thresholds`, `update-incidents`, `update-lsr`, `update-permit-catalogue`, `update-permits`, `update-portable-devices`, `update-ppe-violations`, `update-reports`, `update-settings`, `update-tags`, `update-users`, `update-worker-documents`, `update-workers`, `update-zones`, `view-audit-log`, `view-dashboard`, `view-devices`, `view-entry-exit`, `view-equipment`, `view-gas`, `view-gas-thresholds`, `view-incidents`, `view-live-cameras`, `view-lsr`, `view-permit-catalogue`, `view-permits`, `view-portable-devices`, `view-ppe`, `view-reports`, `view-settings`, `view-tracking`, `view-users`, `view-vehicle-violations`, `view-worker-documents`, `view-worker-identity`, `view-zones` |
+| Safety Manager | — | `acknowledge-alerts`, `approve-permit`, `classify-incidents`, `close-lsr`, `configure-alerts`, `export-ppe-reports`, `generate-reports`, `issue-permit`, `log-incidents`, `log-lsr`, `log-vehicle-violations`, `manage-devices`, `manage-equipment`, `manage-evacuation`, `manage-gas-thresholds`, `manage-permit-catalogue`, `manage-portable-devices`, `manage-settings`, `manage-tags`, `manage-users`, `manage-worker-documents`, `manage-workers`, `manage-zones`, `perform-gas-test`, `publish-reports`, `request-permit`, `review-ppe`, `trigger-evacuation`, `view-audit-log`, `view-dashboard`, `view-entry-exit`, `view-equipment`, `view-gas`, `view-incidents`, `view-live-cameras`, `view-lsr`, `view-permits`, `view-ppe`, `view-reports`, `view-tracking`, `view-worker-identity` |
+| SCC Operator | — | `acknowledge-alerts`, `close-lsr`, `configure-alerts`, `log-incidents`, `log-lsr`, `log-vehicle-violations`, `manage-equipment`, `manage-evacuation`, `manage-portable-devices`, `manage-tags`, `manage-worker-documents`, `manage-workers`, `manage-zones`, `perform-gas-test`, `request-permit`, `review-ppe`, `trigger-evacuation`, `view-dashboard`, `view-entry-exit`, `view-equipment`, `view-gas`, `view-incidents`, `view-live-cameras`, `view-lsr`, `view-permits`, `view-ppe`, `view-reports`, `view-tracking`, `view-worker-identity` |

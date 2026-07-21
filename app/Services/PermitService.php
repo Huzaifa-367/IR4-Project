@@ -681,7 +681,7 @@ final class PermitService
             ->where('zone_id', $permit->zone_id)
             ->whereNull('bound_until')
             ->whereHas('reader', function ($query): void {
-                $query->whereIn('device_type', [DeviceType::GasDetector, DeviceType::Co2Sensor]);
+                $query->where('device_type', DeviceType::GasDetector);
             })
             ->pluck('device_id');
 

@@ -580,7 +580,6 @@ final class SettingsRegistry
             'equipment.public_rate_limit' => ['key' => 'equipment.public_rate_limit_per_min'],
             'health.device_stale_minutes.rfid_reader' => ['key' => 'health.reader_stale_minutes'],
             'health.device_stale_minutes.gas_detector' => ['key' => 'health.gas_stale_minutes'],
-            'health.device_stale_minutes.co2_sensor' => ['key' => 'health.sensor_stale_minutes'],
             'health.device_stale_minutes.environmental_sensor' => ['key' => 'health.sensor_stale_minutes'],
             'health.device_stale_minutes.wifi_gateway' => ['key' => 'health.sensor_stale_minutes'],
             'health.device_stale_minutes.rs485_interface' => ['key' => 'health.sensor_stale_minutes'],
@@ -604,7 +603,7 @@ final class SettingsRegistry
             'ingest' => 'Administration — Ingestion & real-time',
             'health' => 'Administration — Hardware health',
             'tracking' => 'Tracking / RFID',
-            'gas' => 'Gas & CO₂',
+            'gas' => 'Gas',
             'environment' => 'Dashboard — Environment',
             'equipment' => 'Equipment / QR',
             'reports' => 'Reports',
@@ -613,4 +612,3 @@ final class SettingsRegistry
         ];
     }
 }
-

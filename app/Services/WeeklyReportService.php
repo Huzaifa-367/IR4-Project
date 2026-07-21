@@ -6,16 +6,16 @@ use App\Enums\AlertType;
 use App\Enums\AssetStatus;
 use App\Enums\DeviceType;
 use App\Enums\Direction;
-use App\Enums\GasType;
 use App\Enums\ReportStatus;
 use App\Enums\ReviewStatus;
 use App\Models\Alert;
 use App\Models\Asset;
 use App\Models\AuditLog;
+use App\Models\Device;
 use App\Models\EntryExitLog;
 use App\Models\EnvironmentalRollup;
 use App\Models\GasAlarm;
-use App\Models\GasReadingRollup;
+use App\Models\GasReading;
 use App\Models\HseIncident;
 use App\Models\LsrViolation;
 use App\Models\PpeViolation;
@@ -23,8 +23,10 @@ use App\Models\User;
 use App\Models\VehicleViolation;
 use App\Models\WeeklyReport;
 use App\Notifications\WeeklyReportReadyNotification;
+use App\Support\SqlTimeBucket;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -56,7 +58,6 @@ final class WeeklyReportService
             'vii_vehicle_violations',
             'viii_environmental',
             'ix_gas',
-            'x_co2',
             'completeness',
         ];
     }
@@ -149,6 +150,24 @@ final class WeeklyReportService
         ]);
 
         return $report->fresh(['publisher', 'supersedes']) ?? $report;
+    }
+
+    /**
+     * Re-render PDF/CSV from frozen data (generated reports only — published artifacts are immutable).
+     */
+    public function rerenderArtifacts(WeeklyReport $report): WeeklyReport
+    {
+        if ($report->status === ReportStatus::Published) {
+            throw new HttpException(409, 'Published reports are immutable.');
+        }
+
+        $paths = $this->renderArtifacts($report);
+        $report->forceFill([
+            'pdf_path' => $paths['pdf'],
+            'csv_path' => $paths['csv'],
+        ])->save();
+
+        return $report->fresh() ?? $report;
     }
 
     /**
@@ -251,8 +270,7 @@ final class WeeklyReportService
             'vi_units_monitored' => $this->itemUnitsMonitored(),
             'vii_vehicle_violations' => $this->itemVehicleViolations($start, $end),
             'viii_environmental' => $this->itemEnvironmental($start, $end),
-            'ix_gas' => $this->itemGas($start, $end, excludeCo2: true),
-            'x_co2' => $this->itemCo2($start, $end),
+            'ix_gas' => $this->itemGas($start, $end),
             'completeness' => ['notes' => $completenessNotes],
         ];
     }
@@ -563,86 +581,50 @@ final class WeeklyReportService
     }
 
     /**
-     * @return array{per_gas_per_day: list<array<string, mixed>>, alarm_events: list<array<string, mixed>>}
-     */
-    private function itemGas(Carbon $start, Carbon $end, bool $excludeCo2): array
-    {
-        $types = collect(GasType::cases())
-            ->reject(fn (GasType $t): bool => $excludeCo2 && $t === GasType::Co2)
-            ->values();
-
-        $rollups = GasReadingRollup::query()
-            ->whereBetween('bucket_start', [$start, $end])
-            ->get();
-
-        $perGasPerDay = [];
-        foreach ($this->eachDate($start, $end) as $date) {
-            $day = $rollups->filter(fn (GasReadingRollup $r): bool => $r->bucket_start->toDateString() === $date);
-            foreach ($types as $type) {
-                if ($type === GasType::O2High) {
-                    continue;
-                }
-                $prefix = match ($type) {
-                    GasType::Lel => 'lel',
-                    GasType::H2s => 'h2s',
-                    GasType::O2Low => 'o2',
-                    GasType::Co => 'co',
-                    GasType::Co2 => 'co2',
-                    default => null,
-                };
-                if ($prefix === null) {
-                    continue;
-                }
-                $perGasPerDay[] = [
-                    'date' => $date,
-                    'gas' => $type === GasType::O2Low ? 'o2' : $type->value,
-                    'min' => $this->nullableMin($day->pluck("{$prefix}_min")),
-                    'avg' => $this->nullableAvg($day->pluck("{$prefix}_avg")),
-                    'max' => $this->nullableMax($day->pluck("{$prefix}_max")),
-                ];
-            }
-        }
-
-        $alarms = GasAlarm::query()
-            ->with(['device', 'acknowledger'])
-            ->whereBetween('triggered_at', [$start, $end])
-            ->when($excludeCo2, fn ($q) => $q->where('gas_type', '!=', GasType::Co2->value))
-            ->orderBy('triggered_at')
-            ->get()
-            ->map(fn (GasAlarm $alarm): array => $this->alarmRow($alarm))
-            ->values()
-            ->all();
-
-        return [
-            'per_gas_per_day' => $perGasPerDay,
-            'alarm_events' => $alarms,
-        ];
-    }
-
-    /**
      * @return array{per_day: list<array<string, mixed>>, alarm_events: list<array<string, mixed>>}
      */
-    private function itemCo2(Carbon $start, Carbon $end): array
+    private function itemGas(Carbon $start, Carbon $end): array
     {
-        $rollups = GasReadingRollup::query()
-            ->whereBetween('bucket_start', [$start, $end])
-            ->get();
+        $channels = [
+            'lel' => 'lel_pct',
+            'h2s' => 'h2s_ppm',
+            'o2' => 'o2_pct',
+            'co' => 'co_ppm',
+            'co2' => 'co2_ppm',
+        ];
+        $dayExpr = SqlTimeBucket::day('recorded_at');
+        $selects = ["{$dayExpr} as day"];
+        foreach ($channels as $gas => $column) {
+            $selects[] = "MIN({$column}) as {$gas}_min";
+            $selects[] = "AVG({$column}) as {$gas}_avg";
+            $selects[] = "MAX({$column}) as {$gas}_max";
+        }
+
+        $byDay = GasReading::query()
+            ->whereBetween('recorded_at', [$start, $end])
+            ->selectRaw(implode(', ', $selects))
+            ->groupByRaw($dayExpr)
+            ->orderBy('day')
+            ->get()
+            ->keyBy(fn (object $row): string => Carbon::parse((string) $row->day)->toDateString());
 
         $perDay = [];
         foreach ($this->eachDate($start, $end) as $date) {
-            $day = $rollups->filter(fn (GasReadingRollup $r): bool => $r->bucket_start->toDateString() === $date);
-            $perDay[] = [
-                'date' => $date,
-                'min' => $this->nullableMin($day->pluck('co2_min')),
-                'avg' => $this->nullableAvg($day->pluck('co2_avg')),
-                'max' => $this->nullableMax($day->pluck('co2_max')),
-            ];
+            $row = $byDay->get($date);
+            $day = ['date' => $date];
+            foreach (array_keys($channels) as $gas) {
+                $day[$gas] = [
+                    'min' => $row !== null && $row->{"{$gas}_min"} !== null ? (float) $row->{"{$gas}_min"} : null,
+                    'avg' => $row !== null && $row->{"{$gas}_avg"} !== null ? round((float) $row->{"{$gas}_avg"}, 2) : null,
+                    'max' => $row !== null && $row->{"{$gas}_max"} !== null ? (float) $row->{"{$gas}_max"} : null,
+                ];
+            }
+            $perDay[] = $day;
         }
 
         $alarms = GasAlarm::query()
             ->with(['device', 'acknowledger'])
             ->whereBetween('triggered_at', [$start, $end])
-            ->where('gas_type', GasType::Co2)
             ->orderBy('triggered_at')
             ->get()
             ->map(fn (GasAlarm $alarm): array => $this->alarmRow($alarm))
@@ -668,7 +650,7 @@ final class WeeklyReportService
             ->where('alert_type', AlertType::DeviceOffline)
             ->where(function ($q) use ($start, $end): void {
                 $q->whereBetween('created_at', [$start, $end])
-                    ->orWhere(function ($inner) use ($start, $end): void {
+                    ->orWhere(function ($inner) use ($start): void {
                         $inner->where('created_at', '<', $start)
                             ->where(function ($open) use ($start): void {
                                 $open->whereNull('resolved_at')->orWhere('resolved_at', '>', $start);
@@ -699,10 +681,9 @@ final class WeeklyReportService
                 continue;
             }
 
-            $device = \App\Models\Device::query()->find($deviceId);
+            $device = Device::query()->find($deviceId);
             $item = match ($device?->device_type) {
                 DeviceType::GasDetector => 'ix_gas',
-                DeviceType::Co2Sensor => 'x_co2',
                 DeviceType::EnvironmentalSensor => 'viii_environmental',
                 default => 'ix_gas',
             };
@@ -777,8 +758,7 @@ final class WeeklyReportService
             ]),
             'vii_vehicle_violations.csv' => $this->rowsToCsv($data['vii_vehicle_violations'] ?? []),
             'viii_environmental.csv' => $this->rowsToCsv($data['viii_environmental']['per_day'] ?? []),
-            'ix_gas.csv' => $this->rowsToCsv($data['ix_gas']['per_gas_per_day'] ?? []),
-            'x_co2.csv' => $this->rowsToCsv($data['x_co2']['per_day'] ?? []),
+            'ix_gas.csv' => $this->rowsToCsv($data['ix_gas']['per_day'] ?? []),
         ];
 
         return $files;
@@ -855,7 +835,6 @@ final class WeeklyReportService
             'vii_vehicle_violations' => 'Manual',
             'viii_environmental' => 'Automated',
             'ix_gas' => 'Automated',
-            'x_co2' => 'Automated',
         ];
     }
 
@@ -895,7 +874,7 @@ final class WeeklyReportService
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, EnvironmentalRollup>  $day
+     * @param  Collection<int, EnvironmentalRollup>  $day
      * @return array{min: float|null, avg: float|null, max: float|null}
      */
     private function aggMinAvgMax($day, string $minCol, string $avgCol, string $maxCol): array
@@ -910,18 +889,21 @@ final class WeeklyReportService
     private function nullableMin($values): ?float
     {
         $nums = collect($values)->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
+
         return $nums->isEmpty() ? null : $nums->min();
     }
 
     private function nullableMax($values): ?float
     {
         $nums = collect($values)->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
+
         return $nums->isEmpty() ? null : $nums->max();
     }
 
     private function nullableAvg($values): ?float
     {
         $nums = collect($values)->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
+
         return $nums->isEmpty() ? null : round($nums->avg(), 2);
     }
 

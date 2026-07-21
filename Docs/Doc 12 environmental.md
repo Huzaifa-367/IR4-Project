@@ -59,7 +59,7 @@ Schema::create('environmental_rollups', function (Blueprint $table) {
     $table->unique(['device_id', 'bucket_start']);
 });
 ```
-Built by the shared hourly `BuildSensorRollups` job (DOC-19, same job that rolls up gas); raw readings pruned after `retention.sensor_readings_days` (default 180) once rolled up. Trends read raw ≤24 h, rollups beyond.
+Built by the shared hourly `BuildSensorRollups` job (DOC-19; environmental only — gas has no rollup table); raw readings pruned after `retention.sensor_readings_days` (default 180) once rolled up. Trends read raw ≤24 h, rollups beyond.
 
 ---
 

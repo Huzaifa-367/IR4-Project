@@ -49,7 +49,7 @@
 ### Live safety (device-fed)
 - [ ] RFID tracking: positions, gate entry/exit, headcount, zone alerts, stationary/worker-down, evacuation + PDF
 - [ ] PPE: anonymous violations, false-positive review, live camera wall; fall → critical alert
-- [ ] Gas & CO₂: live gauges, thresholds, hysteresis alarms (backfill never raises live alarms)
+- [ ] Gas: live gauges for LEL/H₂S/O₂/CO/CO₂, thresholds, hysteresis alarms (backfill never raises live alarms)
 - [ ] Environmental: weather display + trends (no alarms in v1)
 
 ### Manual + public
@@ -91,6 +91,6 @@
 3. Gas outages/backfills do not fabricate late alarms.
 4. Equipment QR works on the LAN without login.
 5. Every closed HSE/LSR record has mandatory human judgment text.
-6. Every weekly report freezes all 10 items, declares material telemetry gaps, and cannot be edited after publication.
+6. Every weekly report freezes all 9 items, declares material telemetry gaps, and cannot be edited after publication.
 7. Audit history cannot be mutated or pruned, never stores sensitive values, and records meaningful read-only access.
 8. CI blocks external-host URLs, enum drift, and failing tests.

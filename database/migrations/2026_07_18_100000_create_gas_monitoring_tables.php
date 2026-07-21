@@ -27,30 +27,6 @@ return new class extends Migration
             $table->index(['device_id', 'recorded_at']);
         });
 
-        Schema::create('gas_reading_rollups', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('device_id')->constrained()->cascadeOnDelete();
-            $table->timestamp('bucket_start');
-            $table->decimal('lel_min', 6, 2)->nullable();
-            $table->decimal('lel_avg', 6, 2)->nullable();
-            $table->decimal('lel_max', 6, 2)->nullable();
-            $table->decimal('h2s_min', 8, 2)->nullable();
-            $table->decimal('h2s_avg', 8, 2)->nullable();
-            $table->decimal('h2s_max', 8, 2)->nullable();
-            $table->decimal('o2_min', 5, 2)->nullable();
-            $table->decimal('o2_avg', 5, 2)->nullable();
-            $table->decimal('o2_max', 5, 2)->nullable();
-            $table->decimal('co_min', 8, 2)->nullable();
-            $table->decimal('co_avg', 8, 2)->nullable();
-            $table->decimal('co_max', 8, 2)->nullable();
-            $table->decimal('co2_min', 10, 2)->nullable();
-            $table->decimal('co2_avg', 10, 2)->nullable();
-            $table->decimal('co2_max', 10, 2)->nullable();
-            $table->unsignedInteger('sample_count')->default(0);
-            $table->timestamps();
-            $table->unique(['device_id', 'bucket_start']);
-        });
-
         Schema::create('gas_thresholds', function (Blueprint $table) {
             $table->id();
             $table->string('gas_type');
@@ -89,7 +65,6 @@ return new class extends Migration
     {
         Schema::dropIfExists('gas_alarms');
         Schema::dropIfExists('gas_thresholds');
-        Schema::dropIfExists('gas_reading_rollups');
         Schema::dropIfExists('gas_readings');
     }
 };

@@ -7,7 +7,6 @@ use App\Enums\ReportStatus;
 use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\Reports\GenerateWeeklyReportRequest;
 use App\Http\Requests\Web\Reports\UpdateReportSettingsRequest;
-use App\Jobs\GenerateWeeklyReport;
 use App\Models\WeeklyReport;
 use App\Services\AuditService;
 use App\Services\SettingsService;
@@ -15,6 +14,7 @@ use App\Services\WeeklyReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -80,23 +80,25 @@ final class WeeklyReportController extends BaseController
         ]);
     }
 
-    public function generate(GenerateWeeklyReportRequest $request): RedirectResponse
-    {
+    public function generate(
+        GenerateWeeklyReportRequest $request,
+        WeeklyReportService $reports,
+    ): RedirectResponse {
         $this->authorize('generate', WeeklyReport::class);
 
-        GenerateWeeklyReport::dispatch(
-            periodStart: $request->string('period_start')->toString(),
-            periodEnd: $request->string('period_end')->toString(),
-            userId: $request->user()?->id,
+        $report = $reports->generate(
+            start: Carbon::parse($request->string('period_start')->toString()),
+            end: Carbon::parse($request->string('period_end')->toString()),
+            by: $request->user(),
             auto: false,
         );
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => 'Weekly report generation queued.',
+            'message' => 'Weekly report generated.',
         ]);
 
-        return back();
+        return redirect()->route('reports.show', $report);
     }
 
     public function publish(WeeklyReport $report, WeeklyReportService $reports): RedirectResponse

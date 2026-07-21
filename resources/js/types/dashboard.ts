@@ -55,7 +55,6 @@ export type DashboardSummary = {
             device_name?: string;
             status: 'ok' | 'warn' | 'crit';
             channels: Record<string, number | null>;
-            co2_ppm: number | null;
             stale: boolean;
         }>;
         channel_gauges?: Array<{

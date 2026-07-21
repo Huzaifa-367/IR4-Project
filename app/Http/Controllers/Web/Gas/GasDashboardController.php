@@ -51,7 +51,7 @@ final class GasDashboardController extends BaseController
                 'to' => $to->toDateString(),
             ],
             'devices' => Device::query()
-                ->whereIn('device_type', [DeviceType::GasDetector, DeviceType::Co2Sensor])
+                ->where('device_type', DeviceType::GasDetector)
                 ->orderBy('name')
                 ->get(['id', 'name', 'reference']),
             'thresholds' => $thresholds,

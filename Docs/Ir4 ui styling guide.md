@@ -240,7 +240,7 @@ Restrained, purposeful (DOC-16 §2.3 / frontend-design restraint):
 
 - **Color = meaning first.** In safety contexts (gas, alerts, severity) use `--ok/--warn/--crit`. Only use the categorical `--viz-*` palette for neutral multi-series (e.g. two gas channels, workers-by-zone) where hue is just identity, not judgment.
 - **Always label the current value + delta**, not just the shape (references 1, 4). A trend with no number is decoration.
-- **Range toggles on every time-series** (shift/day/week), reading raw ≤24h and rollups beyond (DOC-19).
+- **Range toggles on every time-series** (shift/day/week): gas uses raw ≤24h and SQL hourly aggregates beyond; environmental uses raw ≤24h and rollups beyond (DOC-11/12/19).
 - **Thresholds drawn on charts:** gas trends show a dashed `--warn`/`--crit` threshold line so an excursion is visually obvious.
 - **Never fake precision:** show "—" / "No data" / a completeness note when a stream was offline (DOC-15 honesty), not a flat zero line.
 - **Tabular figures** on all axis + tooltip numbers.

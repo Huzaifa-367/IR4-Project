@@ -31,7 +31,7 @@ alwaysApply: true
 | 16 | Dashboard aggregate `/api/dashboard/summary`, Control Room design language, `/display` kiosk, nav |
 | 17 | Append-only `audit_logs`, `Auditable` trait, masking, read-only `data_access`, audit viewer |
 | 18 | Settings registry, `SettingsService`, config-vs-`.env` boundary, general editor |
-| 19 | Rollups, allow-listed pruning, encrypted backups, `ir4:export-all` / `ir4:secure-wipe` |
+| 19 | Rollups (env), allow-listed pruning, encrypted backups, `ir4:export-all` / `ir4:secure-wipe` |
 | 20 | On-prem deploy/ops runbook: Dell R360, Supervisor, Nginx LAN fences, DB grants, ZT411, commissioning checklist |
 | 21 | Testing strategy: endpoint matrix, invariant guards, scenario catalogue, CI gates (Pint/PHPStan/TS/enum-sync/on-prem grep) |
 | 22 | Permit to Work: GI 2.100-aligned flow; dynamic types/tests/checklists; worker document packs; RFID/gas cross-detection |

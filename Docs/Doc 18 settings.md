@@ -108,7 +108,7 @@ Consolidated from DOC-02–17. Each row: key · default · unit/type · edit per
 | `tracking.worker_down_window_minutes` | `10` | int | manage-settings | fall+stationary correlation |
 | `tracking.headcount_cache_seconds` | `5` | int | manage-settings | headcount read cache |
 
-### 4.7 Gas & CO₂ (DOC-11) — safety-critical
+### 4.7 Gas (DOC-11) — safety-critical
 | key | default | type | edit perm | used by |
 |---|---|---|---|---|
 | `gas.hysteresis_margin_pct` | `5` | float | manage-gas-thresholds | alarm auto-resolve |

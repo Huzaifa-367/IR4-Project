@@ -93,7 +93,7 @@ export function AppSidebar() {
         ...(can('view-gas')
             ? [
                   {
-                      title: 'Gas & CO₂',
+                      title: 'Gas',
                       href: '/gas',
                       icon: Wind,
                   } satisfies NavItem,
