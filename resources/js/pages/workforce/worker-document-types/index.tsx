@@ -46,6 +46,7 @@ export default function WorkerDocumentTypesIndex({
     categories,
 }: Props) {
     const [form, setForm] = useState<FormState | null>(null);
+    const [category, setCategory] = useState('competence');
 
     const columns: SettingsColumn<DocumentTypeRow>[] = [
         {
@@ -100,7 +101,10 @@ export default function WorkerDocumentTypesIndex({
                         type="button"
                         size="sm"
                         variant="ghost"
-                        onClick={() => setForm({ mode: 'edit', documentType: row })}
+                        onClick={() => {
+                            setCategory(row.category);
+                            setForm({ mode: 'edit', documentType: row });
+                        }}
                     >
                         Edit
                     </Button>
@@ -134,7 +138,10 @@ export default function WorkerDocumentTypesIndex({
                 actions={
                     <Button
                         type="button"
-                        onClick={() => setForm({ mode: 'create' })}
+                        onClick={() => {
+                            setCategory('competence');
+                            setForm({ mode: 'create' });
+                        }}
                     >
                         <Plus data-icon="inline-start" />
                         Add document type
@@ -176,6 +183,10 @@ export default function WorkerDocumentTypesIndex({
                 submitLabel={
                     form?.mode === 'edit' ? 'Save changes' : 'Create type'
                 }
+                transform={(data) => ({
+                    ...data,
+                    category,
+                })}
             >
                 {({ errors }) => (
                     <>
@@ -225,12 +236,12 @@ export default function WorkerDocumentTypesIndex({
                             <Label htmlFor="category">Category</Label>
                             <SearchableSelect
                                 id="category"
-                                name="category"
                                 required
-                                defaultValue={editing?.category ?? 'competence'}
-                                options={categories.map((category) => ({
-                                    value: category,
-                                    label: categoryLabel(category),
+                                value={category}
+                                onValueChange={setCategory}
+                                options={categories.map((item) => ({
+                                    value: item,
+                                    label: categoryLabel(item),
                                 }))}
                             />
                             {errors.category ? (

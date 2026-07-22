@@ -44,9 +44,24 @@ function DialogOverlay({
   )
 }
 
+function isNestedPortaledLayer(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false
+  }
+
+  return Boolean(
+    target.closest(
+      '[data-slot="popover-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"], [data-radix-popper-content-wrapper]',
+    ),
+  )
+}
+
 function DialogContent({
   className,
   children,
+  onInteractOutside,
+  onPointerDownOutside,
+  onFocusOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
@@ -59,6 +74,24 @@ function DialogContent({
           className
         )}
         {...props}
+        onInteractOutside={(event) => {
+          if (isNestedPortaledLayer(event.target)) {
+            event.preventDefault()
+          }
+          onInteractOutside?.(event)
+        }}
+        onPointerDownOutside={(event) => {
+          if (isNestedPortaledLayer(event.target)) {
+            event.preventDefault()
+          }
+          onPointerDownOutside?.(event)
+        }}
+        onFocusOutside={(event) => {
+          if (isNestedPortaledLayer(event.target)) {
+            event.preventDefault()
+          }
+          onFocusOutside?.(event)
+        }}
       >
         {children}
         <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">

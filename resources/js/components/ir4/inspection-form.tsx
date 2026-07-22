@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,12 +18,18 @@ export function InspectionForm({
     onSuccess,
     className,
 }: Props) {
+    const [outcome, setOutcome] = useState<string>(InspectionOutcome.Pass);
+
     return (
         <Form
             action={`/equipment/${equipmentId}/inspections`}
             method="post"
             className={cn('space-y-3', className)}
             options={{ preserveScroll: true }}
+            transform={(data) => ({
+                ...data,
+                outcome,
+            })}
             onSuccess={onSuccess}
         >
             {({ processing, errors }) => (
@@ -47,9 +54,9 @@ export function InspectionForm({
                         <Label htmlFor="outcome">Outcome</Label>
                         <SearchableSelect
                             id="outcome"
-                            name="outcome"
                             required
-                            defaultValue={InspectionOutcome.Pass}
+                            value={outcome}
+                            onValueChange={setOutcome}
                             options={Object.values(InspectionOutcome).map(
                                 (value) => ({
                                     value,
@@ -72,6 +79,11 @@ export function InspectionForm({
                             maxLength={5000}
                             className="rounded-md border border-input bg-surface px-3 py-2 text-sm"
                         />
+                        {errors.notes ? (
+                            <p className="text-sm text-destructive">
+                                {errors.notes}
+                            </p>
+                        ) : null}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="next_due">Next due (optional)</Label>
@@ -81,6 +93,11 @@ export function InspectionForm({
                             type="date"
                             className="bg-surface"
                         />
+                        {errors.next_due ? (
+                            <p className="text-sm text-destructive">
+                                {errors.next_due}
+                            </p>
+                        ) : null}
                     </div>
                     <Button type="submit" disabled={processing}>
                         Log inspection

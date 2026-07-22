@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,12 +18,20 @@ export function MaintenanceForm({
     onSuccess,
     className,
 }: Props) {
+    const [maintenanceType, setMaintenanceType] = useState<string>(
+        MaintenanceType.Preventive,
+    );
+
     return (
         <Form
             action={`/equipment/${equipmentId}/maintenances`}
             method="post"
             className={cn('space-y-3', className)}
             options={{ preserveScroll: true }}
+            transform={(data) => ({
+                ...data,
+                maintenance_type: maintenanceType,
+            })}
             onSuccess={onSuccess}
         >
             {({ processing, errors }) => (
@@ -47,9 +56,9 @@ export function MaintenanceForm({
                         <Label htmlFor="maintenance_type">Type</Label>
                         <SearchableSelect
                             id="maintenance_type"
-                            name="maintenance_type"
                             required
-                            defaultValue={MaintenanceType.Preventive}
+                            value={maintenanceType}
+                            onValueChange={setMaintenanceType}
                             options={Object.values(MaintenanceType).map(
                                 (value) => ({
                                     value,
@@ -88,6 +97,11 @@ export function MaintenanceForm({
                             placeholder="Technician name"
                             className="bg-surface"
                         />
+                        {errors.performed_by_name ? (
+                            <p className="text-sm text-destructive">
+                                {errors.performed_by_name}
+                            </p>
+                        ) : null}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="next_due">Next due (optional)</Label>
@@ -97,6 +111,11 @@ export function MaintenanceForm({
                             type="date"
                             className="bg-surface"
                         />
+                        {errors.next_due ? (
+                            <p className="text-sm text-destructive">
+                                {errors.next_due}
+                            </p>
+                        ) : null}
                     </div>
                     <label className="flex items-center gap-2 rounded-md border border-border bg-surface-2/30 px-3 py-2 text-sm">
                         <input

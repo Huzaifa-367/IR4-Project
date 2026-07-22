@@ -189,6 +189,11 @@ export default function VehicleViolationsIndex({
                                 }
                                 required
                             />
+                            {form.errors.observed_at ? (
+                                <p className="text-sm text-destructive">
+                                    {form.errors.observed_at}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="vehicle_description">Vehicle</Label>
@@ -202,7 +207,13 @@ export default function VehicleViolationsIndex({
                                     )
                                 }
                                 required
+                                maxLength={255}
                             />
+                            {form.errors.vehicle_description ? (
+                                <p className="text-sm text-destructive">
+                                    {form.errors.vehicle_description}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Type</Label>
@@ -216,6 +227,11 @@ export default function VehicleViolationsIndex({
                                     label: type,
                                 }))}
                             />
+                            {form.errors.violation_type ? (
+                                <p className="text-sm text-destructive">
+                                    {form.errors.violation_type}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Camera (optional)</Label>
@@ -236,6 +252,11 @@ export default function VehicleViolationsIndex({
                                     })),
                                 ]}
                             />
+                            {form.errors.camera_id ? (
+                                <p className="text-sm text-destructive">
+                                    {form.errors.camera_id}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="flex flex-col gap-2 sm:col-span-2">
                             <Label htmlFor="description">Description</Label>
@@ -248,7 +269,13 @@ export default function VehicleViolationsIndex({
                                         event.target.value,
                                     )
                                 }
+                                maxLength={2000}
                             />
+                            {form.errors.description ? (
+                                <p className="text-sm text-destructive">
+                                    {form.errors.description}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="flex flex-col gap-2 sm:col-span-2">
                             <Label htmlFor="action_taken">
@@ -264,12 +291,13 @@ export default function VehicleViolationsIndex({
                                     )
                                 }
                                 required
+                                maxLength={5000}
                             />
-                            {form.errors.action_taken && (
+                            {form.errors.action_taken ? (
                                 <p className="text-sm text-destructive">
                                     {form.errors.action_taken}
                                 </p>
-                            )}
+                            ) : null}
                         </div>
                         <DialogFooter className="sm:col-span-2">
                             <Button

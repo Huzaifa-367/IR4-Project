@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,6 +37,10 @@ export function WorkerForm({
     className,
     onSuccess,
 }: Props) {
+    const [workerType, setWorkerType] = useState(
+        defaults.worker_type ?? 'contractor',
+    );
+
     return (
         <Form
             action={action}
@@ -43,6 +48,10 @@ export function WorkerForm({
             encType="multipart/form-data"
             className={className ?? 'max-w-xl space-y-4'}
             options={{ preserveScroll: true }}
+            transform={(data) => ({
+                ...data,
+                worker_type: workerType,
+            })}
             onSuccess={onSuccess}
         >
             {({ processing, errors }) => (
@@ -56,11 +65,11 @@ export function WorkerForm({
                             maxLength={150}
                             defaultValue={defaults.name ?? ''}
                         />
-                        {errors.name && (
+                        {errors.name ? (
                             <p className="text-sm text-destructive">
                                 {errors.name}
                             </p>
-                        )}
+                        ) : null}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="contractor">Contractor</Label>
@@ -71,26 +80,26 @@ export function WorkerForm({
                             maxLength={150}
                             defaultValue={defaults.contractor ?? ''}
                         />
-                        {errors.contractor && (
+                        {errors.contractor ? (
                             <p className="text-sm text-destructive">
                                 {errors.contractor}
                             </p>
-                        )}
+                        ) : null}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="worker_type">Worker type</Label>
                         <SearchableSelect
                             id="worker_type"
-                            name="worker_type"
                             required
-                            defaultValue={defaults.worker_type ?? 'contractor'}
+                            value={workerType}
+                            onValueChange={setWorkerType}
                             options={workerTypes}
                         />
-                        {errors.worker_type && (
+                        {errors.worker_type ? (
                             <p className="text-sm text-destructive">
                                 {errors.worker_type}
                             </p>
-                        )}
+                        ) : null}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="role_title">Role title</Label>
@@ -100,6 +109,11 @@ export function WorkerForm({
                             maxLength={150}
                             defaultValue={defaults.role_title ?? ''}
                         />
+                        {errors.role_title ? (
+                            <p className="text-sm text-destructive">
+                                {errors.role_title}
+                            </p>
+                        ) : null}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="badge_number">Badge number</Label>
@@ -109,11 +123,11 @@ export function WorkerForm({
                             maxLength={100}
                             defaultValue={defaults.badge_number ?? ''}
                         />
-                        {errors.badge_number && (
+                        {errors.badge_number ? (
                             <p className="text-sm text-destructive">
                                 {errors.badge_number}
                             </p>
-                        )}
+                        ) : null}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="employee_code">Employee code</Label>
@@ -123,11 +137,11 @@ export function WorkerForm({
                             maxLength={100}
                             defaultValue={defaults.employee_code ?? ''}
                         />
-                        {errors.employee_code && (
+                        {errors.employee_code ? (
                             <p className="text-sm text-destructive">
                                 {errors.employee_code}
                             </p>
-                        )}
+                        ) : null}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="phone">Phone</Label>
@@ -137,6 +151,11 @@ export function WorkerForm({
                             maxLength={40}
                             defaultValue={defaults.phone ?? ''}
                         />
+                        {errors.phone ? (
+                            <p className="text-sm text-destructive">
+                                {errors.phone}
+                            </p>
+                        ) : null}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="photo">Photo</Label>
@@ -146,11 +165,11 @@ export function WorkerForm({
                             type="file"
                             accept="image/jpeg,image/png"
                         />
-                        {errors.photo && (
+                        {errors.photo ? (
                             <p className="text-sm text-destructive">
                                 {errors.photo}
                             </p>
-                        )}
+                        ) : null}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="notes">Notes</Label>
@@ -162,6 +181,11 @@ export function WorkerForm({
                             defaultValue={defaults.notes ?? ''}
                             className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                         />
+                        {errors.notes ? (
+                            <p className="text-sm text-destructive">
+                                {errors.notes}
+                            </p>
+                        ) : null}
                     </div>
                     <Button type="submit" disabled={processing}>
                         {submitLabel}

@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,12 +26,24 @@ export function EquipmentForm({
     allowStatus = false,
     className,
 }: Props) {
+    const [status, setStatus] = useState(
+        defaults.status ?? EquipmentStatus.InService,
+    );
+
     return (
         <Form
             action={action}
             method={method}
             className={cn('space-y-4', className)}
             options={{ preserveScroll: true }}
+            transform={(data) =>
+                allowStatus
+                    ? {
+                          ...data,
+                          status,
+                      }
+                    : data
+            }
         >
             {({ processing, errors }) => (
                 <>
@@ -95,16 +108,20 @@ export function EquipmentForm({
                                 defaultValue={defaults.location_label ?? ''}
                                 className="bg-surface"
                             />
+                            {errors.location_label ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.location_label}
+                                </p>
+                            ) : null}
                         </div>
                         {allowStatus ? (
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Status</Label>
                                 <SearchableSelect
                                     id="status"
-                                    name="status"
-                                    defaultValue={
-                                        defaults.status ??
-                                        EquipmentStatus.InService
+                                    value={status}
+                                    onValueChange={(value) =>
+                                        setStatus(value as EquipmentStatus)
                                     }
                                     options={Object.values(
                                         EquipmentStatus,
@@ -130,6 +147,11 @@ export function EquipmentForm({
                                 defaultValue={defaults.description ?? ''}
                                 className="rounded-md border border-input bg-surface px-3 py-2 text-sm"
                             />
+                            {errors.description ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.description}
+                                </p>
+                            ) : null}
                         </div>
                     </div>
                     <label className="flex items-center gap-2 rounded-md border border-border bg-surface-2/30 px-3 py-2 text-sm">

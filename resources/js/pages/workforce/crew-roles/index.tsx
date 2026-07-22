@@ -44,6 +44,8 @@ type DialogState =
 
 export default function CrewRolesIndex({ roles, permitTypes }: Props) {
     const [dialog, setDialog] = useState<DialogState>(null);
+    const [permitTypeId, setPermitTypeId] = useState('');
+    const [permitTypeClientError, setPermitTypeClientError] = useState('');
 
     const columns: SettingsColumn<CrewRoleRow>[] = [
         {
@@ -131,7 +133,11 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                 actions={
                     <Button
                         type="button"
-                        onClick={() => setDialog({ kind: 'create' })}
+                        onClick={() => {
+                            setPermitTypeId('');
+                            setPermitTypeClientError('');
+                            setDialog({ kind: 'create' });
+                        }}
                     >
                         Add crew role
                     </Button>
@@ -151,28 +157,55 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                 onOpenChange={(open) => {
                     if (!open) {
                         setDialog(null);
+                        setPermitTypeId('');
+                        setPermitTypeClientError('');
                     }
                 }}
                 title="Add crew role"
                 action="/workforce/crew-roles"
                 method="post"
                 submitLabel="Create role"
+                disableSubmit={permitTypeId === ''}
+                transform={(data) => {
+                    if (permitTypeId === '') {
+                        setPermitTypeClientError('Select a permit type.');
+
+                        return data;
+                    }
+
+                    setPermitTypeClientError('');
+
+                    return {
+                        ...data,
+                        permit_type_id: permitTypeId,
+                    };
+                }}
             >
-                {() => (
+                {({ errors }) => (
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="grid gap-1 sm:col-span-2">
                             <Label htmlFor="permit_type_id">Permit type</Label>
                             <SearchableSelect
                                 id="permit_type_id"
-                                name="permit_type_id"
                                 required
-                                defaultValue=""
+                                value={permitTypeId}
+                                onValueChange={(value) => {
+                                    setPermitTypeId(value);
+                                    setPermitTypeClientError('');
+                                }}
                                 placeholder="Select type"
                                 options={permitTypes.map((type) => ({
                                     value: String(type.id),
                                     label: type.name,
                                 }))}
                             />
+                            {permitTypeClientError ||
+                            errors.permit_type_id ? (
+                                <p className="text-sm text-destructive">
+                                    {permitTypeClientError ||
+                                        errors.permit_type_id}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="grid gap-1">
                             <Label htmlFor="role_code">Code</Label>
@@ -183,6 +216,11 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                                 placeholder="fire_watch"
                                 pattern="[a-z][a-z0-9_]*"
                             />
+                            {errors.role_code ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.role_code}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="grid gap-1">
                             <Label htmlFor="label">Label</Label>
@@ -192,6 +230,11 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                                 required
                                 placeholder="Fire watch"
                             />
+                            {errors.label ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.label}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="grid gap-1">
                             <Label htmlFor="min_count">Minimum count</Label>
@@ -204,6 +247,11 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                                 defaultValue={1}
                                 required
                             />
+                            {errors.min_count ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.min_count}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="grid gap-1">
                             <Label htmlFor="sort_order">Sort order</Label>
@@ -214,6 +262,11 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                                 min={0}
                                 defaultValue={0}
                             />
+                            {errors.sort_order ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.sort_order}
+                                </p>
+                            ) : null}
                         </div>
                         <label className="flex items-center gap-2 text-sm sm:col-span-2">
                             <input

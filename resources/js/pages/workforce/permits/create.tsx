@@ -167,6 +167,22 @@ export default function PermitCreate({
                     action="/workforce/permits"
                     method="post"
                     className="space-y-8"
+                    transform={(data) => ({
+                        ...data,
+                        work_order_id: workOrderId || null,
+                        permit_type_id: permitTypeId || null,
+                        zone_id: zoneId || null,
+                        personnel: personnel
+                            .filter(
+                                (row) =>
+                                    row.worker_id !== '' ||
+                                    row.role_code !== '',
+                            )
+                            .map((row) => ({
+                                worker_id: row.worker_id,
+                                role_code: row.role_code,
+                            })),
+                    })}
                 >
                     {({ processing, errors }) => (
                         <>
@@ -187,7 +203,6 @@ export default function PermitCreate({
                                         </Label>
                                         <SearchableSelect
                                             id="work_order_id"
-                                            name="work_order_id"
                                             value={workOrderId}
                                             onValueChange={(nextId) => {
                                                 setWorkOrderId(nextId);
@@ -215,6 +230,11 @@ export default function PermitCreate({
                                                 }`,
                                             }))}
                                         />
+                                        {errors.work_order_id && (
+                                            <p className="text-sm text-destructive">
+                                                {errors.work_order_id}
+                                            </p>
+                                        )}
                                         <p className="text-xs text-muted-foreground">
                                             Optional. Use a work order to group
                                             related permits for one job package.
@@ -228,7 +248,6 @@ export default function PermitCreate({
                                     </Label>
                                     <SearchableSelect
                                         id="permit_type_id"
-                                        name="permit_type_id"
                                         value={permitTypeId}
                                         onValueChange={(value) => {
                                             setPermitTypeId(value);
@@ -256,7 +275,6 @@ export default function PermitCreate({
                                     <Label htmlFor="zone_id">Zone</Label>
                                     <SearchableSelect
                                         id="zone_id"
-                                        name="zone_id"
                                         value={zoneId}
                                         onValueChange={setZoneId}
                                         allowClear
@@ -271,6 +289,11 @@ export default function PermitCreate({
                                             }`,
                                         }))}
                                     />
+                                    {errors.zone_id && (
+                                        <p className="text-sm text-destructive">
+                                            {errors.zone_id}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="grid gap-2">
@@ -369,7 +392,6 @@ export default function PermitCreate({
                                             <div className="grid gap-1">
                                                 <Label>Role</Label>
                                                 <SearchableSelect
-                                                    name={`personnel[${index}][role_code]`}
                                                     value={row.role_code}
                                                     onValueChange={(value) =>
                                                         updatePersonnelRow(
@@ -400,7 +422,6 @@ export default function PermitCreate({
                                             <div className="grid gap-1">
                                                 <Label>Worker</Label>
                                                 <SearchableSelect
-                                                    name={`personnel[${index}][worker_id]`}
                                                     value={row.worker_id}
                                                     onValueChange={(value) =>
                                                         updatePersonnelRow(

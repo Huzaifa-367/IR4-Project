@@ -1,4 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import { DetailField, FactTile } from '@/components/ir4/fact-tile';
 import { Panel } from '@/components/ir4/panel';
 import { StatusPill } from '@/components/ir4/status-pill';
@@ -74,6 +75,14 @@ export default function IncidentShow({
         canClassify &&
         (incident.status === 'open' || incident.status === 'under_review');
     const canReopen = canClassify && incident.status === 'classified';
+
+    const [incidentType, setIncidentType] = useState(
+        typeOptions[0]?.value ?? '',
+    );
+    const [severity, setSeverity] = useState(
+        severityOptions[0]?.value ?? '',
+    );
+    const [involvedWorkerId, setInvolvedWorkerId] = useState('');
 
     const heroToneClass =
         incident.severity === 'critical' || incident.severity === 'high'
@@ -426,10 +435,24 @@ export default function IncidentShow({
                         title="Classify"
                         subtitle="Set type, severity, and actions"
                         className="border-[color:var(--accent)]/30"
-                    >                        <Form
+                    >
+                        <Form
                             action={`/incidents/${incident.id}/classify`}
                             method="put"
                             className="grid max-w-xl gap-3"
+                            transform={(data) => ({
+                                ...data,
+                                incident_type: incidentType,
+                                severity,
+                                personnel: involvedWorkerId
+                                    ? [
+                                          {
+                                              worker_id: involvedWorkerId,
+                                              involvement: 'involved',
+                                          },
+                                      ]
+                                    : [],
+                            })}
                         >
                             {({ processing, errors }) => (
                                 <>
@@ -439,13 +462,16 @@ export default function IncidentShow({
                                         </Label>
                                         <SearchableSelect
                                             id="incident_type"
-                                            name="incident_type"
                                             required
-                                            defaultValue={
-                                                typeOptions[0]?.value ?? ''
-                                            }
+                                            value={incidentType}
+                                            onValueChange={setIncidentType}
                                             options={typeOptions}
                                         />
+                                        {errors.incident_type && (
+                                            <p className="text-sm text-destructive">
+                                                {errors.incident_type}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="severity">
@@ -453,13 +479,16 @@ export default function IncidentShow({
                                         </Label>
                                         <SearchableSelect
                                             id="severity"
-                                            name="severity"
                                             required
-                                            defaultValue={
-                                                severityOptions[0]?.value ?? ''
-                                            }
+                                            value={severity}
+                                            onValueChange={setSeverity}
                                             options={severityOptions}
                                         />
+                                        {errors.severity && (
+                                            <p className="text-sm text-destructive">
+                                                {errors.severity}
+                                            </p>
+                                        )}
                                     </div>
                                     {(
                                         [
@@ -502,8 +531,8 @@ export default function IncidentShow({
                                     <div className="grid gap-2">
                                         <Label>Involved worker (optional)</Label>
                                         <SearchableSelect
-                                            name="personnel[0][worker_id]"
-                                            defaultValue=""
+                                            value={involvedWorkerId}
+                                            onValueChange={setInvolvedWorkerId}
                                             allowClear
                                             clearLabel="—"
                                             placeholder="—"
@@ -512,11 +541,17 @@ export default function IncidentShow({
                                                 label: worker.name,
                                             }))}
                                         />
-                                        <input
-                                            type="hidden"
-                                            name="personnel[0][involvement]"
-                                            value="involved"
-                                        />
+                                        {(errors.personnel ||
+                                            errors[
+                                                'personnel.0.worker_id'
+                                            ]) && (
+                                            <p className="text-sm text-destructive">
+                                                {errors.personnel ??
+                                                    errors[
+                                                        'personnel.0.worker_id'
+                                                    ]}
+                                            </p>
+                                        )}
                                     </div>
                                     <Button type="submit" disabled={processing}>
                                         Save classification

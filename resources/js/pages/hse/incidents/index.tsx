@@ -1,5 +1,6 @@
-import { Form, Head, Link } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
@@ -72,6 +73,21 @@ function severityTone(severity: string | null): StatusPillTone {
     return 'neutral';
 }
 
+function buildLogForm(prefill: IncidentPrefill | null) {
+    return {
+        alert_id: prefill?.alert_id ? String(prefill.alert_id) : '',
+        ppe_violation_id: prefill?.ppe_violation_id
+            ? String(prefill.ppe_violation_id)
+            : '',
+        camera_id: prefill?.camera_id ? String(prefill.camera_id) : '',
+        occurred_at:
+            prefill?.occurred_at?.slice(0, 16) ??
+            new Date().toISOString().slice(0, 16),
+        zone_id: prefill?.zone_id ? String(prefill.zone_id) : '',
+        nature_of_incident: prefill?.nature_of_incident ?? '',
+    };
+}
+
 export default function IncidentsIndex({
     incidents,
     filters,
@@ -91,6 +107,18 @@ export default function IncidentsIndex({
         filters.incident_type || ALL,
     );
     const [severity, setSeverity] = useState(filters.severity || ALL);
+    const logForm = useForm(buildLogForm(prefill));
+
+    useEffect(() => {
+        if (!logOpen) {
+            return;
+        }
+
+        logForm.setData(buildLogForm(prefill));
+        logForm.clearErrors();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when dialog opens
+    }, [logOpen, prefill]);
+
     function applyFilters(
         patch: Partial<{
             search: string;
@@ -128,10 +156,6 @@ export default function IncidentsIndex({
         incident_type: incidentType === ALL ? undefined : incidentType,
         severity: severity === ALL ? undefined : severity,
     };
-
-    const defaultOccurred =
-        prefill?.occurred_at?.slice(0, 16) ??
-        new Date().toISOString().slice(0, 16);
 
     const columns: SettingsColumn<HseIncident>[] = [
         {
@@ -315,108 +339,132 @@ export default function IncidentsIndex({
                         </div>
                     ) : null}
 
-                    <Form
-                        action="/incidents"
-                        method="post"
+                    <form
                         className="grid gap-4"
+                        onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                            event.preventDefault();
+
+                            if (logForm.data.occurred_at === '') {
+                                logForm.setError(
+                                    'occurred_at',
+                                    'Occurred at is required.',
+                                );
+
+                                return;
+                            }
+
+                            logForm.post('/incidents', {
+                                preserveScroll: true,
+                                onSuccess: () => {
+                                    setLogOpen(false);
+                                    logForm.reset();
+                                    logForm.clearErrors();
+                                },
+                            });
+                        }}
                     >
-                        {({ processing, errors }) => (
-                            <>
-                                {prefill?.alert_id ? (
-                                    <input
-                                        type="hidden"
-                                        name="alert_id"
-                                        value={prefill.alert_id}
-                                    />
-                                ) : null}
-                                {prefill?.ppe_violation_id ? (
-                                    <input
-                                        type="hidden"
-                                        name="ppe_violation_id"
-                                        value={prefill.ppe_violation_id}
-                                    />
-                                ) : null}
-                                {prefill?.camera_id ? (
-                                    <input
-                                        type="hidden"
-                                        name="camera_id"
-                                        value={prefill.camera_id}
-                                    />
-                                ) : null}
+                        <div className="grid gap-2">
+                            <Label htmlFor="incident-occurred_at">
+                                Occurred at
+                            </Label>
+                            <Input
+                                id="incident-occurred_at"
+                                type="datetime-local"
+                                required
+                                value={logForm.data.occurred_at}
+                                onChange={(event) =>
+                                    logForm.setData(
+                                        'occurred_at',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            {logForm.errors.occurred_at ? (
+                                <p className="text-sm text-destructive">
+                                    {logForm.errors.occurred_at}
+                                </p>
+                            ) : null}
+                        </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="incident-occurred_at">
-                                        Occurred at
-                                    </Label>
-                                    <Input
-                                        id="incident-occurred_at"
-                                        name="occurred_at"
-                                        type="datetime-local"
-                                        required
-                                        defaultValue={defaultOccurred}
-                                    />
-                                    {errors.occurred_at ? (
-                                        <p className="text-sm text-destructive">
-                                            {errors.occurred_at}
-                                        </p>
-                                    ) : null}
-                                </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="incident-zone_id">Zone</Label>
+                            <SearchableSelect
+                                id="incident-zone_id"
+                                value={logForm.data.zone_id}
+                                onValueChange={(value) =>
+                                    logForm.setData('zone_id', value)
+                                }
+                                allowClear
+                                clearLabel="—"
+                                placeholder="—"
+                                options={zones.map((zone) => ({
+                                    value: String(zone.id),
+                                    label: zone.name,
+                                }))}
+                            />
+                            {logForm.errors.zone_id ? (
+                                <p className="text-sm text-destructive">
+                                    {logForm.errors.zone_id}
+                                </p>
+                            ) : null}
+                        </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="incident-zone_id">
-                                        Zone
-                                    </Label>
-                                    <SearchableSelect
-                                        id="incident-zone_id"
-                                        name="zone_id"
-                                        defaultValue={
-                                            prefill?.zone_id
-                                                ? String(prefill.zone_id)
-                                                : ''
-                                        }
-                                        allowClear
-                                        clearLabel="—"
-                                        placeholder="—"
-                                        options={zones.map((zone) => ({
-                                            value: String(zone.id),
-                                            label: zone.name,
-                                        }))}
-                                    />
-                                </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="nature_of_incident">
+                                Initial notes
+                            </Label>
+                            <textarea
+                                id="nature_of_incident"
+                                rows={4}
+                                maxLength={5000}
+                                value={logForm.data.nature_of_incident}
+                                onChange={(event) =>
+                                    logForm.setData(
+                                        'nature_of_incident',
+                                        event.target.value,
+                                    )
+                                }
+                                className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                            />
+                            {logForm.errors.nature_of_incident ? (
+                                <p className="text-sm text-destructive">
+                                    {logForm.errors.nature_of_incident}
+                                </p>
+                            ) : null}
+                        </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="nature_of_incident">
-                                        Initial notes
-                                    </Label>
-                                    <textarea
-                                        id="nature_of_incident"
-                                        name="nature_of_incident"
-                                        rows={4}
-                                        defaultValue={
-                                            prefill?.nature_of_incident ?? ''
-                                        }
-                                        className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                                    />
-                                </div>
+                        {logForm.errors.alert_id ? (
+                            <p className="text-sm text-destructive">
+                                {logForm.errors.alert_id}
+                            </p>
+                        ) : null}
+                        {logForm.errors.ppe_violation_id ? (
+                            <p className="text-sm text-destructive">
+                                {logForm.errors.ppe_violation_id}
+                            </p>
+                        ) : null}
+                        {logForm.errors.camera_id ? (
+                            <p className="text-sm text-destructive">
+                                {logForm.errors.camera_id}
+                            </p>
+                        ) : null}
 
-                                <DialogFooter>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setLogOpen(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        disabled={processing}
-                                    >
-                                        Submit incident
-                                    </Button>
-                                </DialogFooter>
-                            </>
-                        )}
-                    </Form>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setLogOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={logForm.processing}
+                            >
+                                Submit incident
+                            </Button>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
         </>

@@ -329,16 +329,20 @@ final class EquipmentController extends BaseController
         $format = $request->string('format')->toString() ?: 'png';
         $sizeMm = max(20, min(100, (int) $request->integer('size', 50)));
 
+        $filename = $equipment->equipment_code;
+
         return match ($format) {
             'svg' => response($labels->svg($equipment, $sizeMm), 200, [
                 'Content-Type' => 'image/svg+xml',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'.svg"',
             ]),
             'zpl' => response($labels->zpl($equipment), 200, [
                 'Content-Type' => 'text/plain',
-                'Content-Disposition' => 'attachment; filename="'.$equipment->equipment_code.'.zpl"',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'.zpl"',
             ]),
             default => response($labels->png($equipment, $sizeMm), 200, [
                 'Content-Type' => 'image/png',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'.png"',
             ]),
         };
     }

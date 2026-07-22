@@ -176,6 +176,10 @@ export default function WorkOrdersIndex({
                         method="post"
                         className="space-y-4"
                         options={{ preserveScroll: true }}
+                        transform={(data) => ({
+                            ...data,
+                            zone_id: zoneId || null,
+                        })}
                         onSuccess={() => {
                             setCreateOpen(false);
                             setZoneId('');
@@ -207,6 +211,7 @@ export default function WorkOrdersIndex({
                                         id="description"
                                         name="description"
                                         rows={3}
+                                        maxLength={5000}
                                         className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                                         placeholder="Brief scope of work…"
                                     />
@@ -223,7 +228,6 @@ export default function WorkOrdersIndex({
                                     </Label>
                                     <SearchableSelect
                                         id="zone_id"
-                                        name="zone_id"
                                         value={zoneId}
                                         onValueChange={setZoneId}
                                         options={zones.map((zone) => ({

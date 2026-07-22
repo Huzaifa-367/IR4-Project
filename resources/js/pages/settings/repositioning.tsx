@@ -1,4 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,10 @@ type Props = {
 };
 
 export default function RepositioningPage({ readers, zones, flash }: Props) {
+    const [zoneByReader, setZoneByReader] = useState<Record<number, string>>(
+        {},
+    );
+
     return (
         <>
             <Head title="Repositioning" />
@@ -101,8 +106,12 @@ export default function RepositioningPage({ readers, zones, flash }: Props) {
                                 action={`/settings/readers/${reader.id}/rebind`}
                                 method="post"
                                 className="space-y-2 border-t border-border pt-3"
+                                transform={(data) => ({
+                                    ...data,
+                                    zone_id: zoneByReader[reader.id] || null,
+                                })}
                             >
-                                {({ processing }) => (
+                                {({ processing, errors }) => (
                                     <>
                                         {reader.current_zone?.is_gate && (
                                             <p className="text-xs text-muted-foreground">
@@ -118,8 +127,19 @@ export default function RepositioningPage({ readers, zones, flash }: Props) {
                                             </Label>
                                             <SearchableSelect
                                                 id={`zone-${reader.id}`}
-                                                name="zone_id"
                                                 required
+                                                value={
+                                                    zoneByReader[reader.id] ??
+                                                    ''
+                                                }
+                                                onValueChange={(value) =>
+                                                    setZoneByReader(
+                                                        (current) => ({
+                                                            ...current,
+                                                            [reader.id]: value,
+                                                        }),
+                                                    )
+                                                }
                                                 allowClear
                                                 clearLabel="Select zone"
                                                 placeholder="Select zone"
@@ -128,6 +148,11 @@ export default function RepositioningPage({ readers, zones, flash }: Props) {
                                                     label: `${zone.name} (${zone.zone_type_label})`,
                                                 }))}
                                             />
+                                            {errors.zone_id ? (
+                                                <p className="text-sm text-destructive">
+                                                    {errors.zone_id}
+                                                </p>
+                                            ) : null}
                                         </div>
                                         <div className="grid gap-1">
                                             <Label
@@ -140,6 +165,11 @@ export default function RepositioningPage({ readers, zones, flash }: Props) {
                                                 name="note"
                                                 maxLength={255}
                                             />
+                                            {errors.note ? (
+                                                <p className="text-sm text-destructive">
+                                                    {errors.note}
+                                                </p>
+                                            ) : null}
                                         </div>
                                         <div className="grid gap-1">
                                             <Label htmlFor={`loc-${reader.id}`}>
@@ -148,19 +178,32 @@ export default function RepositioningPage({ readers, zones, flash }: Props) {
                                             <Input
                                                 id={`loc-${reader.id}`}
                                                 name="asset_location_label"
+                                                maxLength={255}
                                                 defaultValue={
                                                     reader.asset
                                                         ?.current_location_label ??
                                                     ''
                                                 }
                                             />
+                                            {errors.asset_location_label ? (
+                                                <p className="text-sm text-destructive">
+                                                    {
+                                                        errors.asset_location_label
+                                                    }
+                                                </p>
+                                            ) : null}
                                         </div>
                                         <div className="flex gap-2">
                                             <Button
                                                 type="submit"
                                                 disabled={
                                                     processing ||
-                                                    zones.length === 0
+                                                    zones.length === 0 ||
+                                                    !(
+                                                        zoneByReader[
+                                                            reader.id
+                                                        ] ?? ''
+                                                    )
                                                 }
                                             >
                                                 Rebind

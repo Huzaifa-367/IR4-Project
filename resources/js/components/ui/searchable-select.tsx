@@ -41,6 +41,13 @@ type Props = {
     clearLabel?: string;
 };
 
+function restoreBodyPointerEvents(): void {
+    // Nested Popover/Select inside Dialog can leave body unclickable.
+    window.setTimeout(() => {
+        document.body.style.pointerEvents = '';
+    }, 0);
+}
+
 export function SearchableSelect({
     options,
     value,
@@ -74,6 +81,15 @@ export function SearchableSelect({
 
         onValueChange?.(next);
         setOpen(false);
+        restoreBodyPointerEvents();
+    }
+
+    function handleOpenChange(next: boolean): void {
+        setOpen(next);
+
+        if (!next) {
+            restoreBodyPointerEvents();
+        }
     }
 
     const isSizedTrigger = Boolean(triggerClassName);
@@ -86,14 +102,9 @@ export function SearchableSelect({
             )}
         >
             {name ? (
-                <input
-                    type="hidden"
-                    name={name}
-                    value={selectedValue}
-                    required={required && selectedValue === ''}
-                />
+                <input type="hidden" name={name} value={selectedValue} />
             ) : null}
-            <Popover open={open} onOpenChange={setOpen}>
+            <Popover open={open} onOpenChange={handleOpenChange}>
                 <PopoverTrigger asChild>
                     <Button
                         id={id}
@@ -101,6 +112,7 @@ export function SearchableSelect({
                         variant="outline"
                         role="combobox"
                         aria-expanded={open}
+                        aria-required={required || undefined}
                         disabled={disabled}
                         className={cn(
                             'border-input h-9 justify-between px-3 font-normal shadow-xs',
@@ -118,6 +130,7 @@ export function SearchableSelect({
                 <PopoverContent
                     className="w-[var(--radix-popover-trigger-width)] p-0"
                     align="start"
+                    onCloseAutoFocus={(event) => event.preventDefault()}
                 >
                     <Command>
                         <CommandInput placeholder={searchPlaceholder} />

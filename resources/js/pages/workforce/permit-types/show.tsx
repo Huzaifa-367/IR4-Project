@@ -111,6 +111,11 @@ export default function PermitTypeShow({
     documentTypes,
 }: Props) {
     const [dialog, setDialog] = useState<DialogState>(null);
+    const [conflictsWithTypeId, setConflictsWithTypeId] = useState('');
+    const [conflictScope, setConflictScope] = useState('same_zone');
+    const [conflictSeverity, setConflictSeverity] = useState('warn');
+    const [docTypeId, setDocTypeId] = useState('');
+    const [docRoleCode, setDocRoleCode] = useState('');
     const base = `/workforce/permit-types/${permitType.id}`;
 
     const roleColumns: SettingsColumn<CrewRole>[] = [
@@ -318,9 +323,17 @@ export default function PermitTypeShow({
                         type="button"
                         size="sm"
                         variant="ghost"
-                        onClick={() =>
-                            setDialog({ kind: 'edit-conflict', conflict: row })
-                        }
+                        onClick={() => {
+                            setConflictsWithTypeId(
+                                String(row.conflicts_with_type_id),
+                            );
+                            setConflictScope(row.scope);
+                            setConflictSeverity(row.severity);
+                            setDialog({
+                                kind: 'edit-conflict',
+                                conflict: row,
+                            });
+                        }}
                     >
                         Edit
                     </Button>
@@ -376,12 +389,16 @@ export default function PermitTypeShow({
                         type="button"
                         size="sm"
                         variant="ghost"
-                        onClick={() =>
+                        onClick={() => {
+                            setDocTypeId(
+                                String(row.worker_document_type_id),
+                            );
+                            setDocRoleCode(row.role_code ?? '');
                             setDialog({
                                 kind: 'edit-doc-req',
                                 requirement: row,
-                            })
-                        }
+                            });
+                        }}
                     >
                         Edit
                     </Button>
@@ -508,7 +525,12 @@ export default function PermitTypeShow({
                     title="SIMOPS conflicts"
                     description="Types that conflict in the same or adjacent zone."
                     actionLabel="Add conflict"
-                    onAction={() => setDialog({ kind: 'add-conflict' })}
+                    onAction={() => {
+                        setConflictsWithTypeId('');
+                        setConflictScope('same_zone');
+                        setConflictSeverity('warn');
+                        setDialog({ kind: 'add-conflict' });
+                    }}
                 >
                     <SettingsDataTable
                         columns={conflictColumns}
@@ -523,7 +545,11 @@ export default function PermitTypeShow({
                     title="Document requirements"
                     description="Worker competence documents required before crew can be listed."
                     actionLabel="Add requirement"
-                    onAction={() => setDialog({ kind: 'add-doc-req' })}
+                    onAction={() => {
+                        setDocTypeId('');
+                        setDocRoleCode('');
+                        setDialog({ kind: 'add-doc-req' });
+                    }}
                 >
                     <SettingsDataTable
                         columns={docReqColumns}
@@ -975,23 +1001,21 @@ export default function PermitTypeShow({
                 }
                 method={dialog?.kind === 'edit-conflict' ? 'put' : 'post'}
                 submitLabel="Save conflict"
+                transform={(data) => ({
+                    ...data,
+                    conflicts_with_type_id: conflictsWithTypeId || null,
+                    scope: conflictScope,
+                    severity: conflictSeverity,
+                })}
             >
-                {() => (
-                    <>
+                {({ errors }) => (
                     <div className="grid gap-3">
                         <Field label="Conflicts with" htmlFor="conflict_type">
                             <SearchableSelect
                                 id="conflict_type"
-                                name="conflicts_with_type_id"
                                 required
-                                defaultValue={
-                                    dialog?.kind === 'edit-conflict'
-                                        ? String(
-                                              dialog.conflict
-                                                  .conflicts_with_type_id,
-                                          )
-                                        : ''
-                                }
+                                value={conflictsWithTypeId}
+                                onValueChange={setConflictsWithTypeId}
                                 allowClear
                                 clearLabel="Select type…"
                                 placeholder="Select type…"
@@ -1000,17 +1024,18 @@ export default function PermitTypeShow({
                                     label: `${type.name} (${type.code})`,
                                 }))}
                             />
+                            {errors.conflicts_with_type_id ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.conflicts_with_type_id}
+                                </p>
+                            ) : null}
                         </Field>
                         <Field label="Scope" htmlFor="conflict_scope">
                             <SearchableSelect
                                 id="conflict_scope"
-                                name="scope"
                                 required
-                                defaultValue={
-                                    dialog?.kind === 'edit-conflict'
-                                        ? dialog.conflict.scope
-                                        : 'same_zone'
-                                }
+                                value={conflictScope}
+                                onValueChange={setConflictScope}
                                 options={[
                                     {
                                         value: 'same_zone',
@@ -1022,22 +1047,28 @@ export default function PermitTypeShow({
                                     },
                                 ]}
                             />
+                            {errors.scope ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.scope}
+                                </p>
+                            ) : null}
                         </Field>
                         <Field label="Severity" htmlFor="conflict_severity">
                             <SearchableSelect
                                 id="conflict_severity"
-                                name="severity"
                                 required
-                                defaultValue={
-                                    dialog?.kind === 'edit-conflict'
-                                        ? dialog.conflict.severity
-                                        : 'warn'
-                                }
+                                value={conflictSeverity}
+                                onValueChange={setConflictSeverity}
                                 options={[
                                     { value: 'warn', label: 'Warn' },
                                     { value: 'block', label: 'Block' },
                                 ]}
                             />
+                            {errors.severity ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.severity}
+                                </p>
+                            ) : null}
                         </Field>
                         <Field label="Note" htmlFor="conflict_note">
                             <Input
@@ -1049,9 +1080,13 @@ export default function PermitTypeShow({
                                         : ''
                                 }
                             />
+                            {errors.note ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.note}
+                                </p>
+                            ) : null}
                         </Field>
                     </div>
-                    </>
                 )}
             </CrudFormDialog>
 
@@ -1077,23 +1112,20 @@ export default function PermitTypeShow({
                 }
                 method={dialog?.kind === 'edit-doc-req' ? 'put' : 'post'}
                 submitLabel="Save requirement"
+                transform={(data) => ({
+                    ...data,
+                    worker_document_type_id: docTypeId || null,
+                    role_code: docRoleCode || null,
+                })}
             >
-                {() => (
-                    <>
+                {({ errors }) => (
                     <div className="grid gap-3">
                         <Field label="Document type" htmlFor="doc_type">
                             <SearchableSelect
                                 id="doc_type"
-                                name="worker_document_type_id"
                                 required
-                                defaultValue={
-                                    dialog?.kind === 'edit-doc-req'
-                                        ? String(
-                                              dialog.requirement
-                                                  .worker_document_type_id,
-                                          )
-                                        : ''
-                                }
+                                value={docTypeId}
+                                onValueChange={setDocTypeId}
                                 allowClear
                                 clearLabel="Select document…"
                                 placeholder="Select document…"
@@ -1102,16 +1134,17 @@ export default function PermitTypeShow({
                                     label: `${type.name} (${type.code})`,
                                 }))}
                             />
+                            {errors.worker_document_type_id ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.worker_document_type_id}
+                                </p>
+                            ) : null}
                         </Field>
                         <Field label="Role code (optional)" htmlFor="doc_role">
                             <SearchableSelect
                                 id="doc_role"
-                                name="role_code"
-                                defaultValue={
-                                    dialog?.kind === 'edit-doc-req'
-                                        ? (dialog.requirement.role_code ?? '')
-                                        : ''
-                                }
+                                value={docRoleCode}
+                                onValueChange={setDocRoleCode}
                                 allowClear
                                 clearLabel="Any role"
                                 placeholder="Any role"
@@ -1120,6 +1153,11 @@ export default function PermitTypeShow({
                                     label: `${role.label} (${role.role_code})`,
                                 }))}
                             />
+                            {errors.role_code ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.role_code}
+                                </p>
+                            ) : null}
                         </Field>
                         <FlagCheckbox
                             name="is_mandatory"
@@ -1140,7 +1178,6 @@ export default function PermitTypeShow({
                             }
                         />
                     </div>
-                    </>
                 )}
             </CrudFormDialog>
         </>

@@ -225,12 +225,12 @@ export default function EquipmentIndex({
         {
             key: 'actions',
             header: '',
-            className: 'w-24 text-right',
+            className: 'w-36 text-right',
             cell: (row) => (
                 <div className="flex justify-end gap-1">
                     <QrLabelButton
                         equipmentId={row.id}
-                        label="Print"
+                        label="QR"
                         size="sm"
                         variant="ghost"
                     />

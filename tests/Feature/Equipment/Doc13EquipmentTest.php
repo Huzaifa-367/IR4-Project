@@ -122,6 +122,30 @@ it('renders zpl encoding the public qr url and falls back when printer missing',
         ->and($result['zpl'])->toContain('^XA');
 });
 
+it('downloads qr as png svg and zpl attachments', function () {
+    $user = User::factory()->withRole('Safety Manager')->create();
+    $equipment = Equipment::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('equipment.qr', ['equipment' => $equipment, 'format' => 'png']))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'image/png')
+        ->assertHeader('Content-Disposition', 'attachment; filename="'.$equipment->equipment_code.'.png"');
+
+    $this->actingAs($user)
+        ->get(route('equipment.qr', ['equipment' => $equipment, 'format' => 'svg']))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'image/svg+xml')
+        ->assertHeader('Content-Disposition', 'attachment; filename="'.$equipment->equipment_code.'.svg"');
+
+    $this->actingAs($user)
+        ->get(route('equipment.qr', ['equipment' => $equipment, 'format' => 'zpl']))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'text/plain; charset=UTF-8')
+        ->assertHeader('Content-Disposition', 'attachment; filename="'.$equipment->equipment_code.'.zpl"')
+        ->assertSee('/e/'.$equipment->qr_token, false);
+});
+
 it('imports csv with partial success and generates qr tokens for new rows', function () {
     Storage::fake('private');
     $user = User::factory()->withRole('Safety Manager')->create();

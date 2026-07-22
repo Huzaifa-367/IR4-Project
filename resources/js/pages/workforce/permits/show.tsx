@@ -298,6 +298,9 @@ export default function PermitShow({
     const [gasPhase, setGasPhase] = useState(
         gasPhaseOptions[0]?.value ?? 'pre_start',
     );
+    const [zoneId, setZoneId] = useState(
+        permit.zone?.id ? String(permit.zone.id) : '',
+    );
     const [personnel, setPersonnel] = useState<PersonnelRow[]>(() =>
         permit.personnel.length > 0
             ? permit.personnel.map((person) => ({
@@ -970,6 +973,20 @@ export default function PermitShow({
                         action={`/workforce/permits/${permit.id}`}
                         method="put"
                         className="space-y-6"
+                        transform={(data) => ({
+                            ...data,
+                            zone_id: zoneId || null,
+                            personnel: personnel
+                                .filter(
+                                    (row) =>
+                                        row.worker_id !== '' ||
+                                        row.role_code !== '',
+                                )
+                                .map((row) => ({
+                                    worker_id: row.worker_id,
+                                    role_code: row.role_code,
+                                })),
+                        })}
                     >
                         {({ processing, errors }) => (
                             <>
@@ -988,12 +1005,8 @@ export default function PermitShow({
                                         <Label htmlFor="zone_id">Zone</Label>
                                         <SearchableSelect
                                             id="zone_id"
-                                            name="zone_id"
-                                            defaultValue={
-                                                permit.zone?.id
-                                                    ? String(permit.zone.id)
-                                                    : ''
-                                            }
+                                            value={zoneId}
+                                            onValueChange={setZoneId}
                                             allowClear
                                             clearLabel="—"
                                             placeholder="—"
@@ -1002,6 +1015,11 @@ export default function PermitShow({
                                                 label: zone.name,
                                             }))}
                                         />
+                                        {errors.zone_id && (
+                                            <p className="text-sm text-destructive">
+                                                {errors.zone_id}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="grid gap-2">
@@ -1095,7 +1113,6 @@ export default function PermitShow({
                                                 <div className="grid gap-1">
                                                     <Label>Role</Label>
                                                     <SearchableSelect
-                                                        name={`personnel[${index}][role_code]`}
                                                         value={row.role_code}
                                                         onValueChange={(
                                                             value,
@@ -1124,7 +1141,6 @@ export default function PermitShow({
                                                 <div className="grid gap-1">
                                                     <Label>Worker</Label>
                                                     <SearchableSelect
-                                                        name={`personnel[${index}][worker_id]`}
                                                         value={row.worker_id}
                                                         disabled={
                                                             !row.role_code

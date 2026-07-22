@@ -1,5 +1,6 @@
-import { Form, Head, Link } from '@inertiajs/react';
-import { useState } from 'react';
+import { Form, Head, Link, useForm } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
@@ -61,6 +62,45 @@ export default function LsrIndex({
     const [search, setSearch] = useState(filters.search);
     const [status, setStatus] = useState(filters.status || ALL);
     const [category, setCategory] = useState(filters.category || ALL);
+    const isPpeLinked = prefill?.ppe_violation_id != null;
+    const defaultOccurred =
+        prefill?.occurred_at?.slice(0, 16) ??
+        new Date().toISOString().slice(0, 16);
+    const logForm = useForm({
+        alert_id: prefill?.alert_id ? String(prefill.alert_id) : '',
+        ppe_violation_id: prefill?.ppe_violation_id
+            ? String(prefill.ppe_violation_id)
+            : '',
+        camera_id: prefill?.camera_id ? String(prefill.camera_id) : '',
+        category: prefill?.category ?? '',
+        occurred_at: defaultOccurred,
+        zone_id: prefill?.zone_id ? String(prefill.zone_id) : '',
+        worker_id: prefill?.worker_id ? String(prefill.worker_id) : '',
+        description: prefill?.description ?? '',
+    });
+
+    useEffect(() => {
+        if (!logOpen) {
+            return;
+        }
+
+        logForm.setData({
+            alert_id: prefill?.alert_id ? String(prefill.alert_id) : '',
+            ppe_violation_id: prefill?.ppe_violation_id
+                ? String(prefill.ppe_violation_id)
+                : '',
+            camera_id: prefill?.camera_id ? String(prefill.camera_id) : '',
+            category: prefill?.category ?? '',
+            occurred_at:
+                prefill?.occurred_at?.slice(0, 16) ??
+                new Date().toISOString().slice(0, 16),
+            zone_id: prefill?.zone_id ? String(prefill.zone_id) : '',
+            worker_id: prefill?.worker_id ? String(prefill.worker_id) : '',
+            description: prefill?.description ?? '',
+        });
+        logForm.clearErrors();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when dialog opens
+    }, [logOpen, prefill]);
     function applyFilters(
         patch: Partial<{
             search: string;
@@ -89,11 +129,6 @@ export default function LsrIndex({
         status: status === ALL ? undefined : status,
         category: category === ALL ? undefined : category,
     };
-
-    const isPpeLinked = prefill?.ppe_violation_id != null;
-    const defaultOccurred =
-        prefill?.occurred_at?.slice(0, 16) ??
-        new Date().toISOString().slice(0, 16);
 
     const columns: SettingsColumn<LsrViolation>[] = [
         {
@@ -269,145 +304,164 @@ export default function LsrIndex({
                         </p>
                     )}
 
-                    <Form
-                        action="/lsr-violations"
-                        method="post"
+                    <form
                         className="grid gap-4"
-                        options={{ preserveScroll: true }}
-                        onSuccess={() => setLogOpen(false)}
+                        onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                            event.preventDefault();
+
+                            if (logForm.data.category === '') {
+                                logForm.setError(
+                                    'category',
+                                    'Select a category.',
+                                );
+
+                                return;
+                            }
+
+                            if (logForm.data.occurred_at === '') {
+                                logForm.setError(
+                                    'occurred_at',
+                                    'Occurred at is required.',
+                                );
+
+                                return;
+                            }
+
+                            logForm.post('/lsr-violations', {
+                                preserveScroll: true,
+                                onSuccess: () => {
+                                    setLogOpen(false);
+                                    logForm.reset();
+                                    logForm.clearErrors();
+                                },
+                            });
+                        }}
                     >
-                        {({ processing, errors }) => (
-                            <>
-                                {prefill?.alert_id ? (
-                                    <input
-                                        type="hidden"
-                                        name="alert_id"
-                                        value={prefill.alert_id}
-                                    />
+                        <div className="grid gap-2">
+                            <Label htmlFor="log-category">Category</Label>
+                            <SearchableSelect
+                                id="log-category"
+                                required
+                                value={logForm.data.category}
+                                onValueChange={(value) => {
+                                    logForm.setData('category', value);
+                                    logForm.clearErrors('category');
+                                }}
+                                options={categoryOptions}
+                            />
+                            {logForm.errors.category ? (
+                                <p className="text-sm text-destructive">
+                                    {logForm.errors.category}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="log-occurred_at">Occurred at</Label>
+                            <Input
+                                id="log-occurred_at"
+                                type="datetime-local"
+                                required
+                                value={logForm.data.occurred_at}
+                                onChange={(event) =>
+                                    logForm.setData(
+                                        'occurred_at',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            {logForm.errors.occurred_at ? (
+                                <p className="text-sm text-destructive">
+                                    {logForm.errors.occurred_at}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="log-zone_id">Zone</Label>
+                            <SearchableSelect
+                                id="log-zone_id"
+                                value={logForm.data.zone_id}
+                                onValueChange={(value) =>
+                                    logForm.setData('zone_id', value)
+                                }
+                                allowClear
+                                clearLabel="—"
+                                placeholder="—"
+                                options={zones.map((zone) => ({
+                                    value: String(zone.id),
+                                    label: zone.name,
+                                }))}
+                            />
+                            {logForm.errors.zone_id ? (
+                                <p className="text-sm text-destructive">
+                                    {logForm.errors.zone_id}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        {!isPpeLinked ? (
+                            <div className="grid gap-2">
+                                <Label htmlFor="log-worker_id">Worker</Label>
+                                <SearchableSelect
+                                    id="log-worker_id"
+                                    value={logForm.data.worker_id}
+                                    onValueChange={(value) =>
+                                        logForm.setData('worker_id', value)
+                                    }
+                                    allowClear
+                                    clearLabel="—"
+                                    placeholder="—"
+                                    options={workers.map((worker) => ({
+                                        value: String(worker.id),
+                                        label: worker.name,
+                                    }))}
+                                />
+                                {logForm.errors.worker_id ? (
+                                    <p className="text-sm text-destructive">
+                                        {logForm.errors.worker_id}
+                                    </p>
                                 ) : null}
-                                {prefill?.ppe_violation_id ? (
-                                    <input
-                                        type="hidden"
-                                        name="ppe_violation_id"
-                                        value={prefill.ppe_violation_id}
-                                    />
-                                ) : null}
-                                {prefill?.camera_id ? (
-                                    <input
-                                        type="hidden"
-                                        name="camera_id"
-                                        value={prefill.camera_id}
-                                    />
-                                ) : null}
+                            </div>
+                        ) : null}
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="log-category">
-                                        Category
-                                    </Label>
-                                    <SearchableSelect
-                                        id="log-category"
-                                        name="category"
-                                        required
-                                        defaultValue={prefill?.category ?? ''}
-                                        options={categoryOptions}
-                                    />
-                                </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="log-description">Description</Label>
+                            <textarea
+                                id="log-description"
+                                rows={4}
+                                value={logForm.data.description}
+                                onChange={(event) =>
+                                    logForm.setData(
+                                        'description',
+                                        event.target.value,
+                                    )
+                                }
+                                className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                            />
+                            {logForm.errors.description ? (
+                                <p className="text-sm text-destructive">
+                                    {logForm.errors.description}
+                                </p>
+                            ) : null}
+                        </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="log-occurred_at">
-                                        Occurred at
-                                    </Label>
-                                    <Input
-                                        id="log-occurred_at"
-                                        name="occurred_at"
-                                        type="datetime-local"
-                                        required
-                                        defaultValue={defaultOccurred}
-                                    />
-                                    {errors.occurred_at ? (
-                                        <p className="text-sm text-destructive">
-                                            {errors.occurred_at}
-                                        </p>
-                                    ) : null}
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="log-zone_id">Zone</Label>
-                                    <SearchableSelect
-                                        id="log-zone_id"
-                                        name="zone_id"
-                                        defaultValue={
-                                            prefill?.zone_id
-                                                ? String(prefill.zone_id)
-                                                : ''
-                                        }
-                                        allowClear
-                                        clearLabel="—"
-                                        placeholder="—"
-                                        options={zones.map((zone) => ({
-                                            value: String(zone.id),
-                                            label: zone.name,
-                                        }))}
-                                    />
-                                </div>
-
-                                {!isPpeLinked && (
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="log-worker_id">
-                                            Worker
-                                        </Label>
-                                        <SearchableSelect
-                                            id="log-worker_id"
-                                            name="worker_id"
-                                            defaultValue={
-                                                prefill?.worker_id
-                                                    ? String(prefill.worker_id)
-                                                    : ''
-                                            }
-                                            allowClear
-                                            clearLabel="—"
-                                            placeholder="—"
-                                            options={workers.map((worker) => ({
-                                                value: String(worker.id),
-                                                label: worker.name,
-                                            }))}
-                                        />
-                                    </div>
-                                )}
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="log-description">
-                                        Description
-                                    </Label>
-                                    <textarea
-                                        id="log-description"
-                                        name="description"
-                                        rows={4}
-                                        defaultValue={
-                                            prefill?.description ?? ''
-                                        }
-                                        className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                                    />
-                                </div>
-
-                                <DialogFooter>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setLogOpen(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        disabled={processing}
-                                    >
-                                        Submit LSR
-                                    </Button>
-                                </DialogFooter>
-                            </>
-                        )}
-                    </Form>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setLogOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={logForm.processing}
+                            >
+                                Submit LSR
+                            </Button>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
 

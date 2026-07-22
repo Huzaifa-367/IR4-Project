@@ -1,6 +1,16 @@
 import { router } from '@inertiajs/react';
+import { ChevronDown, Download, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+type QrFormat = 'png' | 'svg' | 'zpl';
 
 type SingleProps = {
     equipmentId: number;
@@ -11,7 +21,7 @@ type SingleProps = {
 
 export function QrLabelButton({
     equipmentId,
-    label = 'Print QR label',
+    label = 'QR label',
     size = 'sm',
     variant = 'secondary',
 }: SingleProps) {
@@ -28,15 +38,50 @@ export function QrLabelButton({
         );
     }
 
+    function downloadQr(format: QrFormat): void {
+        const link = document.createElement('a');
+        link.href = `/equipment/${equipmentId}/qr?format=${format}`;
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        const labels: Record<QrFormat, string> = {
+            png: 'Downloading QR image…',
+            svg: 'Downloading QR SVG…',
+            zpl: 'Downloading ZPL…',
+        };
+        toast.success(labels[format]);
+    }
+
     return (
-        <Button
-            type="button"
-            size={size}
-            variant={variant}
-            onClick={printLabel}
-        >
-            {label}
-        </Button>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button type="button" size={size} variant={variant}>
+                    {label}
+                    <ChevronDown className="size-3.5 opacity-70" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onSelect={printLabel}>
+                    <Printer />
+                    Print label
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => downloadQr('png')}>
+                    <Download />
+                    Download PNG
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => downloadQr('svg')}>
+                    <Download />
+                    Download SVG
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => downloadQr('zpl')}>
+                    <Download />
+                    Download ZPL
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 
