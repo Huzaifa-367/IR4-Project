@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\IncidentSeverity;
 use App\Enums\IncidentSource;
 use App\Enums\IncidentStatus;
@@ -17,10 +18,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 final class HseIncident extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<HseIncidentFactory> */
     use HasCreatedBy, HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

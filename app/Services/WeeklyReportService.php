@@ -13,7 +13,7 @@ use App\Models\Asset;
 use App\Models\AuditLog;
 use App\Models\Device;
 use App\Models\EntryExitLog;
-use App\Models\EnvironmentalRollup;
+use App\Models\EnvironmentalReading;
 use App\Models\GasAlarm;
 use App\Models\GasReading;
 use App\Models\HseIncident;
@@ -26,7 +26,6 @@ use App\Notifications\WeeklyReportReadyNotification;
 use App\Support\SqlTimeBucket;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -201,6 +200,7 @@ final class WeeklyReportService
 
         return [
             'id' => $report->id,
+            'uuid' => $report->uuid,
             'report_number' => $report->report_number,
             'period_start' => optional($report->period_start)?->toDateString(),
             'period_end' => optional($report->period_end)?->toDateString(),
@@ -401,19 +401,46 @@ final class WeeklyReportService
      */
     private function itemWeather(Carbon $start, Carbon $end): array
     {
-        $rows = EnvironmentalRollup::query()
-            ->whereBetween('bucket_start', [$start, $end])
-            ->orderBy('bucket_start')
-            ->get();
+        $dayExpr = SqlTimeBucket::day('recorded_at');
+        $byDay = EnvironmentalReading::query()
+            ->whereBetween('recorded_at', [$start, $end])
+            ->selectRaw(implode(', ', [
+                "{$dayExpr} as day",
+                'MIN(temperature_c) as temp_min',
+                'AVG(temperature_c) as temp_avg',
+                'MAX(temperature_c) as temp_max',
+                'MIN(humidity_pct) as humidity_min',
+                'AVG(humidity_pct) as humidity_avg',
+                'MAX(humidity_pct) as humidity_max',
+                'MIN(wind_speed_ms) as wind_min',
+                'AVG(wind_speed_ms) as wind_avg',
+                'MAX(wind_speed_ms) as wind_max',
+            ]))
+            ->groupByRaw($dayExpr)
+            ->orderBy('day')
+            ->get()
+            ->keyBy(fn (object $row): string => Carbon::parse((string) $row->day)->toDateString());
 
         $perDay = [];
         foreach ($this->eachDate($start, $end) as $date) {
-            $day = $rows->filter(fn (EnvironmentalRollup $r): bool => $r->bucket_start->toDateString() === $date);
+            $row = $byDay->get($date);
             $perDay[] = [
                 'date' => $date,
-                'temp' => $this->aggMinAvgMax($day, 'temp_min', 'temp_avg', 'temp_max'),
-                'humidity' => $this->aggMinAvgMax($day, 'humidity_min', 'humidity_avg', 'humidity_max'),
-                'wind' => $this->aggMinAvgMax($day, 'wind_min', 'wind_avg', 'wind_max'),
+                'temp' => [
+                    'min' => $row?->temp_min !== null ? (float) $row->temp_min : null,
+                    'avg' => $row?->temp_avg !== null ? round((float) $row->temp_avg, 2) : null,
+                    'max' => $row?->temp_max !== null ? (float) $row->temp_max : null,
+                ],
+                'humidity' => [
+                    'min' => $row?->humidity_min !== null ? (float) $row->humidity_min : null,
+                    'avg' => $row?->humidity_avg !== null ? round((float) $row->humidity_avg, 2) : null,
+                    'max' => $row?->humidity_max !== null ? (float) $row->humidity_max : null,
+                ],
+                'wind' => [
+                    'min' => $row?->wind_min !== null ? (float) $row->wind_min : null,
+                    'avg' => $row?->wind_avg !== null ? round((float) $row->wind_avg, 2) : null,
+                    'max' => $row?->wind_max !== null ? (float) $row->wind_max : null,
+                ],
             ];
         }
 
@@ -530,35 +557,31 @@ final class WeeklyReportService
      */
     private function itemEnvironmental(Carbon $start, Carbon $end): array
     {
-        $rows = EnvironmentalRollup::query()
-            ->whereBetween('bucket_start', [$start, $end])
-            ->orderBy('bucket_start')
-            ->get();
+        $rows = EnvironmentalReading::query()
+            ->whereBetween('recorded_at', [$start, $end])
+            ->whereNotNull('extra')
+            ->orderBy('recorded_at')
+            ->get(['recorded_at', 'extra']);
 
         $perDay = [];
         foreach ($this->eachDate($start, $end) as $date) {
-            $day = $rows->filter(fn (EnvironmentalRollup $r): bool => $r->bucket_start->toDateString() === $date);
+            $day = $rows->filter(fn (EnvironmentalReading $r): bool => $r->recorded_at->toDateString() === $date);
             $air = [];
             foreach ($day as $row) {
-                foreach (($row->extra_stats ?? []) as $param => $stats) {
-                    if (! is_array($stats)) {
+                foreach (($row->extra ?? []) as $param => $value) {
+                    if (! is_numeric($value)) {
                         continue;
                     }
+                    $num = (float) $value;
                     $air[$param] ??= ['min' => null, 'avg_sum' => 0.0, 'avg_n' => 0, 'max' => null];
-                    if (isset($stats['min'])) {
-                        $air[$param]['min'] = $air[$param]['min'] === null
-                            ? (float) $stats['min']
-                            : min($air[$param]['min'], (float) $stats['min']);
-                    }
-                    if (isset($stats['max'])) {
-                        $air[$param]['max'] = $air[$param]['max'] === null
-                            ? (float) $stats['max']
-                            : max($air[$param]['max'], (float) $stats['max']);
-                    }
-                    if (isset($stats['avg'])) {
-                        $air[$param]['avg_sum'] += (float) $stats['avg'];
-                        $air[$param]['avg_n']++;
-                    }
+                    $air[$param]['min'] = $air[$param]['min'] === null
+                        ? $num
+                        : min($air[$param]['min'], $num);
+                    $air[$param]['max'] = $air[$param]['max'] === null
+                        ? $num
+                        : max($air[$param]['max'], $num);
+                    $air[$param]['avg_sum'] += $num;
+                    $air[$param]['avg_n']++;
                 }
             }
 
@@ -871,40 +894,6 @@ final class WeeklyReportService
         }
 
         return $dates;
-    }
-
-    /**
-     * @param  Collection<int, EnvironmentalRollup>  $day
-     * @return array{min: float|null, avg: float|null, max: float|null}
-     */
-    private function aggMinAvgMax($day, string $minCol, string $avgCol, string $maxCol): array
-    {
-        return [
-            'min' => $this->nullableMin($day->pluck($minCol)),
-            'avg' => $this->nullableAvg($day->pluck($avgCol)),
-            'max' => $this->nullableMax($day->pluck($maxCol)),
-        ];
-    }
-
-    private function nullableMin($values): ?float
-    {
-        $nums = collect($values)->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
-
-        return $nums->isEmpty() ? null : $nums->min();
-    }
-
-    private function nullableMax($values): ?float
-    {
-        $nums = collect($values)->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
-
-        return $nums->isEmpty() ? null : $nums->max();
-    }
-
-    private function nullableAvg($values): ?float
-    {
-        $nums = collect($values)->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
-
-        return $nums->isEmpty() ? null : round($nums->avg(), 2);
     }
 
     /**

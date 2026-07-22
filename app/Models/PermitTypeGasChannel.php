@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 final class PermitTypeGasChannel extends Model
 {
-    protected $guarded = ['id'];
+    use HasPublicUuid;
+
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

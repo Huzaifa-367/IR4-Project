@@ -21,6 +21,7 @@ import type { PaginatedMeta } from '@/types/hardware';
 
 type TagRow = {
     id: number;
+    uuid: string;
     tag_uid: string;
     status: string;
     status_label: string;
@@ -246,7 +247,7 @@ export default function TagsIndex({
                 }
                 action={
                     assignTarget
-                        ? `/hardware/tags/${assignTarget.id}/assign`
+                        ? `/hardware/tags/${assignTarget.uuid}/assign`
                         : ''
                 }
                 method="post"
@@ -294,7 +295,7 @@ export default function TagsIndex({
                 }
                 action={
                     unassignTarget
-                        ? `/hardware/tags/${unassignTarget.id}/unassign`
+                        ? `/hardware/tags/${unassignTarget.uuid}/unassign`
                         : undefined
                 }
                 method="post"

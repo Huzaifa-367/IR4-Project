@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\ReportStatus;
 use Database\Factories\WeeklyReportFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,10 +13,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 final class WeeklyReport extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<WeeklyReportFactory> */
     use HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

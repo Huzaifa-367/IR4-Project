@@ -116,6 +116,7 @@ function useBaseMap(
 
 type ViewZone = {
     id: number;
+    uuid: string;
     name: string;
     color?: string | null;
     latitude: string | number | null;

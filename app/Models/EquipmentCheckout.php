@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\ReturnStatus;
 use App\Models\Concerns\HasCreatedBy;
 use Database\Factories\EquipmentCheckoutFactory;
@@ -12,10 +13,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 final class EquipmentCheckout extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<EquipmentCheckoutFactory> */
     use HasCreatedBy, HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

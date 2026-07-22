@@ -53,6 +53,7 @@ final class WorkerDocumentReadinessService
 
             return [
                 'id' => $type->id,
+                'uuid' => $type->uuid,
                 'code' => $type->code,
                 'name' => $type->name,
                 'category' => $type->category,
@@ -245,8 +246,8 @@ final class WorkerDocumentReadinessService
         $requirements = PermitTypeDocumentRequirement::query()
             ->where('is_mandatory', true)
             ->with([
-                'permitType:id,code,name,is_active',
-                'workerDocumentType:id,code,name',
+                'permitType:id,uuid,code,name,is_active',
+                'workerDocumentType:id,uuid,code,name',
             ])
             ->get()
             ->filter(fn (PermitTypeDocumentRequirement $req): bool => $req->permitType?->is_active === true);

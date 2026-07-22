@@ -55,6 +55,7 @@ type PortableDeviceRow = {
 
 type IncidentRow = {
     id: number;
+    uuid: string;
     incident_number: string;
     status_label: string;
     involvement_label: string;
@@ -62,6 +63,7 @@ type IncidentRow = {
 
 type LsrRow = {
     id: number;
+    uuid: string;
     category_label: string;
     status_label: string;
     occurred_at: string | null;
@@ -534,7 +536,7 @@ export default function WorkersShow({
                                         >
                                             <div>
                                                 <Link
-                                                    href={`/incidents/${incident.id}`}
+                                                    href={`/incidents/${incident.uuid}`}
                                                     className="font-mono text-xs text-[color:var(--accent)] hover:underline"
                                                 >
                                                     {incident.incident_number}
@@ -578,7 +580,7 @@ export default function WorkersShow({
                                         >
                                             <div>
                                                 <Link
-                                                    href={`/lsr-violations/${lsr.id}`}
+                                                    href={`/lsr-violations/${lsr.uuid}`}
                                                     className="text-[color:var(--accent)] hover:underline"
                                                 >
                                                     LSR #{lsr.id} ·{' '}
@@ -617,7 +619,7 @@ export default function WorkersShow({
                         className="border-[color:var(--accent)]/25"
                     >
                         <WorkerDocumentsPanel
-                            workerId={worker.id}
+                            workerUuid={worker.uuid}
                             documents={documents}
                             documentTypes={documentTypes}
                             checklist={documentChecklist}
@@ -639,7 +641,7 @@ export default function WorkersShow({
                             {worker.is_active ? (
                                 <>
                                     <Form
-                                        action={`/workforce/workers/${worker.id}/deactivate`}
+                                        action={`/workforce/workers/${worker.uuid}/deactivate`}
                                         method="post"
                                     >
                                         {({ processing }) => (
@@ -656,7 +658,7 @@ export default function WorkersShow({
                                         )}
                                     </Form>
                                     <Form
-                                        action={`/workforce/workers/${worker.id}/offboard`}
+                                        action={`/workforce/workers/${worker.uuid}/offboard`}
                                         method="post"
                                     >
                                         {({ processing }) => (
@@ -675,7 +677,7 @@ export default function WorkersShow({
                                 </>
                             ) : (
                                 <Form
-                                    action={`/workforce/workers/${worker.id}/reactivate`}
+                                    action={`/workforce/workers/${worker.uuid}/reactivate`}
                                     method="post"
                                 >
                                     {({ processing }) => (
@@ -703,7 +705,7 @@ export default function WorkersShow({
                             </DialogDescription>
                         </DialogHeader>
                         <WorkerForm
-                            action={`/workforce/workers/${worker.id}`}
+                            action={`/workforce/workers/${worker.uuid}`}
                             method="put"
                             workerTypes={workerTypes}
                             defaults={{

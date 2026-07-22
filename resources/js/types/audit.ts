@@ -17,7 +17,7 @@ export type AuditDiff = Record<string, unknown>;
 export type AuditLog = {
     id: number;
     event: AuditEvent;
-    user: { id: number; name: string } | null;
+    user: { id: number; uuid: string; name: string } | null;
     auditable_type: string | null;
     auditable_label: string | null;
     auditable_id: number | string | null;

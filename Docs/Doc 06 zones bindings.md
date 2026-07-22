@@ -36,10 +36,10 @@ Schema::create('zones', function (Blueprint $table) {
     $table->string('zone_type');                          // enum ZoneType (§3.4)
     $table->boolean('requires_authorization')->default(false); // if true, only access-listed workers may enter without an alert
     $table->unsignedInteger('occupancy_limit')->nullable();     // null = no limit; else occupancy alert threshold (DOC-09)
-    // map placement (DOC-16) — a simple circle/point on a schematic site map (not GPS)
-    $table->decimal('map_x', 8, 2)->nullable();
-    $table->decimal('map_y', 8, 2)->nullable();
-    $table->decimal('map_radius', 8, 2)->nullable();
+    // map placement (DOC-16) — geo circle on GeoZoneMap (lat/long + radius)
+    $table->decimal('latitude', 10, 7)->nullable();
+    $table->decimal('longitude', 10, 7)->nullable();
+    $table->decimal('radius_meters', 9, 2)->nullable();
     $table->string('color')->nullable();                  // display color on the map
     $table->boolean('is_active')->default(true);
     $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
@@ -185,7 +185,7 @@ Operator UI (Inertia, surface A). **Zones ship empty** — no seeded zones (dyna
 - **`pages/settings/zones/index.tsx`** — ZoneListPage: table (type badge, requires-auth flag, occupancy limit, current reader count via coverage). ZoneForm modal.
 - **`pages/settings/zones/show.tsx`** — ZoneDetailPage: details, **access-list manager** (WorkerPicker from DOC-04, identity-aware), map-placement editor, and the list of readers currently bound here.
 - **`pages/settings/repositioning.tsx`** — RepositioningPage: reader cards (current zone, last rebind, asset location), rebind dialog (zone select or create-new), binding-history drawer.
-- **`components/ir4/ZoneMapEditor.tsx`** — place/size a zone circle on the schematic map (feeds the live map DOC-16). MapLibre or Leaflet with an uploaded site-plan image as a static overlay (offline tiles — DOC-01 on-prem) `[CONFIRM AT DESIGN]`.
+- **`components/ir4/geo-zone-map.tsx` (`GeoZoneMap`)** — place/size a zone circle via `latitude` / `longitude` / `radius_meters` (feeds the live map DOC-16). MapLibre with an offline Gulf pmtiles basemap (no live tile server — DOC-01 on-prem).
 - **Types (`types/zone.ts`):** `Zone`, `ZoneType`, `ReaderZoneBinding`, `ZoneAccessListEntry`, `CoverageBinding`.
 - Cache invalidation on every mutation; the tracking map (DOC-16) re-reads coverage after a rebind.
 

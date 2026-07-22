@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class PermitType extends Model
 {
+    use HasPublicUuid;
     use Auditable;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

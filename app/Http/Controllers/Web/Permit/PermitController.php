@@ -51,6 +51,7 @@ final class PermitController extends BaseController
             'permits' => [
                 'data' => $paginator->getCollection()->map(fn (Permit $row): array => [
                     'id' => $row->id,
+                    'uuid' => $row->uuid,
                     'permit_number' => $row->permit_number,
                     'status' => $row->status->value,
                     'status_label' => $row->status->label(),
@@ -58,11 +59,13 @@ final class PermitController extends BaseController
                     'valid_to' => $row->valid_to?->toIso8601String(),
                     'type' => $row->type === null ? null : [
                         'id' => $row->type->id,
+                        'uuid' => $row->type->uuid,
                         'name' => $row->type->name,
                         'colour_token' => $row->type->colour_token,
                     ],
                     'zone' => $row->zone === null ? null : [
                         'id' => $row->zone->id,
+                        'uuid' => $row->zone->uuid,
                         'name' => $row->zone->name,
                     ],
                 ])->values()->all(),
@@ -114,6 +117,7 @@ final class PermitController extends BaseController
             'permitTypes' => $permitTypes
                 ->map(fn (PermitType $type): array => [
                     'id' => $type->id,
+                    'uuid' => $type->uuid,
                     'code' => $type->code,
                     'name' => $type->name,
                     'colour_token' => $type->colour_token,
@@ -122,12 +126,16 @@ final class PermitController extends BaseController
                     'requires_approver' => $type->requires_approver,
                     'allows_extended' => $type->allows_extended,
                     'roles' => $type->roles->map(fn ($role): array => [
+                        'id' => $role->id,
+                        'uuid' => $role->uuid,
                         'role_code' => $role->role_code,
                         'label' => $role->label,
                         'min_count' => $role->min_count,
                         'is_mandatory' => $role->is_mandatory,
                     ])->values()->all(),
                     'gas_channels' => $type->gasChannels->map(fn ($channel): array => [
+                        'id' => $channel->id,
+                        'uuid' => $channel->uuid,
                         'channel_code' => $channel->channel_code,
                         'label' => $channel->label,
                         'unit' => $channel->unit,
@@ -135,17 +143,21 @@ final class PermitController extends BaseController
                         'alarm_above' => $channel->alarm_above,
                     ])->values()->all(),
                     'document_requirements' => $type->documentRequirements->map(fn ($req): array => [
+                        'id' => $req->id,
+                        'uuid' => $req->uuid,
                         'role_code' => $req->role_code,
                         'is_mandatory' => $req->is_mandatory,
                         'must_be_verified' => $req->must_be_verified,
                         'worker_document_type' => $req->workerDocumentType === null ? null : [
                             'id' => $req->workerDocumentType->id,
+                            'uuid' => $req->workerDocumentType->uuid,
                             'code' => $req->workerDocumentType->code,
                             'name' => $req->workerDocumentType->name,
                         ],
                     ])->values()->all(),
                     'checklist_items' => $type->checklistItems->map(fn ($item): array => [
                         'id' => $item->id,
+                        'uuid' => $item->uuid,
                         'code' => $item->code,
                         'label' => $item->label,
                         'is_mandatory' => $item->is_mandatory,
@@ -153,17 +165,19 @@ final class PermitController extends BaseController
                 ])
                 ->values()
                 ->all(),
-            'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'requires_permit']),
+            'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name', 'requires_permit']),
             'workOrders' => WorkOrder::query()
                 ->where('status', 'open')
-                ->with('zone:id,name')
+                ->with('zone:id,uuid,name')
                 ->orderByDesc('created_at')
-                ->get(['id', 'reference', 'zone_id'])
+                ->get(['id', 'uuid', 'reference', 'zone_id'])
                 ->map(fn (WorkOrder $row): array => [
                     'id' => $row->id,
+                    'uuid' => $row->uuid,
                     'reference' => $row->reference,
                     'zone' => $row->zone === null ? null : [
                         'id' => $row->zone->id,
+                        'uuid' => $row->zone->uuid,
                         'name' => $row->zone->name,
                     ],
                 ])
@@ -185,6 +199,7 @@ final class PermitController extends BaseController
 
                 return [
                     'id' => $worker->id,
+                    'uuid' => $worker->uuid,
                     'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
                     'reference' => $canSeeIdentity ? $worker->employee_code : null,
                     'verified_document_codes' => $readiness->gateSatisfyingCodes($worker),
@@ -256,6 +271,7 @@ final class PermitController extends BaseController
 
                     return [
                         'id' => $worker->id,
+                        'uuid' => $worker->uuid,
                         'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
                         'reference' => $canSeeIdentity ? $worker->employee_code : null,
                         'role_eligibility' => $roleEligibility,
@@ -268,6 +284,8 @@ final class PermitController extends BaseController
         return Inertia::render('workforce/permits/show', [
             'permit' => $permits->toArray($permit),
             'gasChannels' => ($type?->gasChannels ?? collect())->map(fn ($channel): array => [
+                'id' => $channel->id,
+                'uuid' => $channel->uuid,
                 'channel_code' => $channel->channel_code,
                 'label' => $channel->label,
                 'unit' => $channel->unit,
@@ -276,15 +294,18 @@ final class PermitController extends BaseController
             ])->values()->all(),
             'checklistItems' => ($type?->checklistItems ?? collect())->map(fn ($item): array => [
                 'id' => $item->id,
+                'uuid' => $item->uuid,
                 'code' => $item->code,
                 'label' => $item->label,
                 'is_mandatory' => $item->is_mandatory,
             ])->values()->all(),
             'zones' => $isEditable && $canUpdate
-                ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'requires_permit'])
+                ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name', 'requires_permit'])
                 : [],
             'workers' => $workers,
             'typeRoles' => ($type?->roles ?? collect())->map(fn ($role): array => [
+                'id' => $role->id,
+                'uuid' => $role->uuid,
                 'role_code' => $role->role_code,
                 'label' => $role->label,
                 'min_count' => $role->min_count,

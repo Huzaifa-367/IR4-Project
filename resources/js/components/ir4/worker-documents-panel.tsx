@@ -56,6 +56,7 @@ type DocumentTypeOption = {
 
 export type DocumentRow = {
     id: number;
+    uuid: string;
     worker_document_type_id: number;
     type_name: string;
     document_number: string | null;
@@ -70,7 +71,7 @@ export type DocumentRow = {
 };
 
 type Props = {
-    workerId: number;
+    workerUuid: string;
     documents: DocumentRow[];
     documentTypes?: DocumentTypeOption[];
     checklist: DocumentChecklistItem[];
@@ -213,7 +214,7 @@ function DocumentFormFields({
 }
 
 export function WorkerDocumentsPanel({
-    workerId,
+    workerUuid,
     documents,
     checklist,
     permitReadiness,
@@ -260,7 +261,7 @@ export function WorkerDocumentsPanel({
         );
     }
 
-    function deleteDocument(documentId: number): void {
+    function deleteDocument(documentUuid: string): void {
         if (
             !window.confirm(
                 'Remove this document? The file will be deleted from private storage.',
@@ -269,9 +270,12 @@ export function WorkerDocumentsPanel({
             return;
         }
 
-        router.delete(`/workforce/workers/${workerId}/documents/${documentId}`, {
-            preserveScroll: true,
-        });
+        router.delete(
+            `/workforce/workers/${workerUuid}/documents/${documentUuid}`,
+            {
+                preserveScroll: true,
+            },
+        );
     }
 
     return (
@@ -286,7 +290,7 @@ export function WorkerDocumentsPanel({
                         workers who are already ready for the role.
                     </p>
                     <Button asChild size="sm" variant="outline" className="mt-3">
-                        <Link href={`/workforce/workers/${workerId}`}>Done</Link>
+                        <Link href={`/workforce/workers/${workerUuid}`}>Done</Link>
                     </Button>
                 </div>
             ) : null}
@@ -419,7 +423,7 @@ export function WorkerDocumentsPanel({
                                                             'pending' && (
                                                             <>
                                                                 <Form
-                                                                    action={`/workforce/workers/${workerId}/documents/${document.id}/verify`}
+                                                                    action={`/workforce/workers/${workerUuid}/documents/${document.uuid}/verify`}
                                                                     method="post"
                                                                 >
                                                                     {({
@@ -439,7 +443,7 @@ export function WorkerDocumentsPanel({
                                                                     )}
                                                                 </Form>
                                                                 <Form
-                                                                    action={`/workforce/workers/${workerId}/documents/${document.id}/reject`}
+                                                                    action={`/workforce/workers/${workerUuid}/documents/${document.uuid}/reject`}
                                                                     method="post"
                                                                 >
                                                                     {({
@@ -497,7 +501,7 @@ export function WorkerDocumentsPanel({
                                                             className="text-destructive"
                                                             onClick={() =>
                                                                 deleteDocument(
-                                                                    document.id,
+                                                                    document.uuid,
                                                                 )
                                                             }
                                                         >
@@ -508,7 +512,7 @@ export function WorkerDocumentsPanel({
 
                                                 {editing ? (
                                                     <Form
-                                                        action={`/workforce/workers/${workerId}/documents/${document.id}`}
+                                                        action={`/workforce/workers/${workerUuid}/documents/${document.uuid}`}
                                                         method="put"
                                                         encType="multipart/form-data"
                                                         options={{
@@ -549,7 +553,7 @@ export function WorkerDocumentsPanel({
 
                             {creating ? (
                                 <Form
-                                    action={`/workforce/workers/${workerId}/documents`}
+                                    action={`/workforce/workers/${workerUuid}/documents`}
                                     method="post"
                                     encType="multipart/form-data"
                                     options={{ preserveScroll: true }}

@@ -114,7 +114,7 @@ resources/
 │   ├── layouts/               # AppSidebar layout, DisplayLayout (kiosk), AuthLayout
 │   ├── components/
 │   │   ├── ui/                # shadcn/ui primitives
-│   │   └── ir4/               # domain components (GaugePanel, ZoneMap, AlertToast…)
+│   │   └── ir4/               # domain components (GaugePanel, GeoZoneMap, AlertToast…)
 │   ├── hooks/                 # useReverbChannel, useIdleLogout, usePermissions…
 │   ├── lib/                   # api client (for public/device-facing only), utils, formatters
 │   └── types/                 # generated + hand-written TS types, enums.ts (§6)

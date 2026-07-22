@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\TagStatus;
 use App\Models\Concerns\Auditable;
 use Database\Factories\RfidTagFactory;
@@ -24,10 +25,12 @@ use Illuminate\Support\Carbon;
  */
 final class RfidTag extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<RfidTagFactory> */
     use Auditable, HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

@@ -144,7 +144,7 @@ export default function LsrShow({ violation, canClose }: Props) {
                             Record action taken
                         </h2>
                         <Form
-                            action={`/lsr-violations/${violation.id}/close`}
+                            action={`/lsr-violations/${violation.uuid}/close`}
                             method="post"
                             className="mt-3 flex flex-col gap-3"
                         >

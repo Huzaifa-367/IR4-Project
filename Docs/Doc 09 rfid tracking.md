@@ -74,7 +74,7 @@ Schema::create('tag_readings', function (Blueprint $table) {
     $table->index(['zone_id', 'recorded_at']);
 });
 ```
-- The **resolved `zone_id` is snapshotted** onto each reading at ingest (DOC-06 §8), so history never shifts if a reader is later rebound. Raw readings are pruned after rollup per DOC-19 (default 90 days); positions/entry-exit are kept.
+- The **resolved `zone_id` is snapshotted** onto each reading at ingest (DOC-06 §8), so history never shifts if a reader is later rebound. Raw tag readings are pruned by age per DOC-19 (default 90 days); positions/entry-exit are kept.
 
 ### 3.4 `entry_exit_logs` (soft-deleted, kept forever)
 ```php
@@ -274,13 +274,13 @@ All operator screens are Inertia (surface A); the three `GET /api/tracking/*` sn
 
 ## 11. Frontend (React / Inertia)
 
-- **`pages/tracking/index.tsx`** — TrackingDashboardPage: total-manpower counter, per-zone headcount cards, live map (DOC-16 `ZoneMap` component: zone circles + worker dots, dots anonymized without identity permission, reader badges from coverage), all updating via the `tracking` channel with poll fallback + LIVE/RECONNECTING pill.
+- **`pages/tracking/index.tsx`** — TrackingDashboardPage: total-manpower counter, per-zone headcount cards, live map (DOC-16 `GeoZoneMap` component: zone circles + worker dots, dots anonymized without identity permission, reader badges from coverage), all updating via the `tracking` channel with poll fallback + LIVE/RECONNECTING pill.
 - **`pages/tracking/tags/index.tsx`** — TagListPage (status filter, spare-pool count), assign/unassign/ReplaceTagDialog.
 - **`pages/tracking/entry-exit/index.tsx`** — EntryExitPage (filters, CSV, ManualCorrectionModal).
 - **`pages/tracking/portable-devices/index.tsx`** — register + approve/revoke.
 - **`pages/tracking/evacuation/{index,show}.tsx`** — trigger + live accounting board + print.
 - Worker list/detail are DOC-04's pages (shared).
-- **Components (`components/ir4/`):** `ZoneMap` (shared with DOC-16), `HeadcountCards`, `TagStatusBadge`, `ReplaceTagDialog`, `EvacuationBoard`, `WorkerDot` (identity-aware).
+- **Components (`components/ir4/`):** `GeoZoneMap` (shared with DOC-16), `HeadcountCards`, `TagStatusBadge`, `ReplaceTagDialog`, `EvacuationBoard`, `WorkerDot` (identity-aware).
 - **Types (`types/tracking.ts`):** `RfidTag`, `TagStatus`, `WorkerPosition`, `EntryExitLog`, `Direction`, `PortableDevice`, `EvacuationReport`, `EvacuationEntry`, `HeadcountSnapshot`, `PositionSnapshot`, `CoverageBinding`.
 
 ---

@@ -177,7 +177,7 @@ export default function EquipmentIndex({
             header: 'Name',
             cell: (row) => (
                 <Link
-                    href={`/equipment/${row.id}`}
+                    href={`/equipment/${row.uuid}`}
                     className="font-medium text-text hover:underline"
                 >
                     {row.name}
@@ -229,13 +229,13 @@ export default function EquipmentIndex({
             cell: (row) => (
                 <div className="flex justify-end gap-1">
                     <QrLabelButton
-                        equipmentId={row.id}
+                        equipmentUuid={row.uuid}
                         label="QR"
                         size="sm"
                         variant="ghost"
                     />
                     <Button asChild size="sm" variant="ghost">
-                        <Link href={`/equipment/${row.id}`}>View</Link>
+                        <Link href={`/equipment/${row.uuid}`}>View</Link>
                     </Button>
                 </div>
             ),

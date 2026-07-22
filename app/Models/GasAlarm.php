@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\GasAlarmLevel;
 use App\Enums\GasType;
 use Database\Factories\GasAlarmFactory;
@@ -28,10 +29,12 @@ use Illuminate\Support\Carbon;
  */
 final class GasAlarm extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<GasAlarmFactory> */
     use HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

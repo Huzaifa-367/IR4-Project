@@ -58,22 +58,23 @@ final class ReaderBindingController extends BaseController
 
         $history = ReaderZoneBinding::query()
             ->where('device_id', $device->id)
-            ->with('zone:id,name,zone_type')
+            ->with('zone:id,uuid,name,zone_type')
             ->orderByDesc('bound_from')
             ->get()
             ->map(fn (ReaderZoneBinding $binding): array => [
                 'id' => $binding->id,
                 'zone_id' => $binding->zone_id,
+                'zone_uuid' => $binding->zone?->uuid,
                 'zone_name' => $binding->zone?->name,
                 'zone_type' => $binding->zone?->zone_type->value,
                 'bound_from' => $binding->bound_from?->toIso8601String(),
                 'bound_until' => $binding->bound_until?->toIso8601String(),
                 'note' => $binding->note,
             ]);
-
         return Inertia::render('settings/readers/bindings', [
             'device' => [
                 'id' => $device->id,
+                'uuid' => $device->uuid,
                 'name' => $device->name,
                 'reference' => $device->reference,
             ],

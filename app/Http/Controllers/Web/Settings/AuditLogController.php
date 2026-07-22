@@ -18,7 +18,7 @@ final class AuditLogController extends BaseController
     public function index(Request $request): Response
     {
         $filters = $request->validate($this->filterRules());
-        $query = $this->filteredQuery($filters)->with('user:id,name,email');
+        $query = $this->filteredQuery($filters)->with('user:id,uuid,name,email');
         $paginator = $query->paginate(25)->withQueryString();
 
         return Inertia::render('settings/audit-log/index', [
@@ -35,7 +35,7 @@ final class AuditLogController extends BaseController
                 'value' => $event->value,
                 'label' => $event->label(),
             ]),
-            'users' => User::query()->orderBy('name')->get(['id', 'name']),
+            'users' => User::query()->orderBy('name')->get(['id', 'uuid', 'name']),
             'models' => AuditLog::query()
                 ->whereNotNull('auditable_type')
                 ->distinct()
@@ -65,7 +65,7 @@ final class AuditLogController extends BaseController
                 'Occurred at', 'Event', 'User', 'Subject type', 'Subject ID',
                 'Description', 'Old values', 'New values', 'IP address', 'Route', 'User agent',
             ]);
-            $this->filteredQuery($filters)->with('user:id,name')->chunkById(500, function ($logs) use ($output): void {
+            $this->filteredQuery($filters)->with('user:id,uuid,name')->chunkById(500, function ($logs) use ($output): void {
                 foreach ($logs as $log) {
                     fputcsv($output, [
                         $log->occurred_at->toIso8601String(),
@@ -126,7 +126,7 @@ final class AuditLogController extends BaseController
         return [
             'id' => $log->id,
             'event' => $log->event->value,
-            'user' => $log->user === null ? null : ['id' => $log->user->id, 'name' => $log->user->name],
+            'user' => $log->user === null ? null : ['id' => $log->user->id, 'uuid' => $log->user->uuid, 'name' => $log->user->name],
             'auditable_type' => $log->auditable_type,
             'auditable_label' => $log->auditable_type === null ? null : class_basename($log->auditable_type),
             'auditable_id' => $log->auditable_id,

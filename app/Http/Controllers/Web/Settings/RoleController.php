@@ -27,6 +27,7 @@ final class RoleController extends BaseController
             ->get()
             ->map(fn (Role $role): array => [
                 'id' => $role->id,
+                'uuid' => $role->uuid,
                 'name' => $role->name,
                 'description' => $role->description,
                 'is_system' => $role->is_system,

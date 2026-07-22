@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
 use App\Models\Concerns\Auditable;
@@ -30,10 +31,12 @@ use Illuminate\Support\Carbon;
  */
 final class Device extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<DeviceFactory> */
     use Auditable, HasFactory;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return list<string>
@@ -85,12 +88,6 @@ final class Device extends Model
     public function environmentalReadings(): HasMany
     {
         return $this->hasMany(EnvironmentalReading::class);
-    }
-
-    /** @return HasMany<EnvironmentalRollup, $this> */
-    public function environmentalRollups(): HasMany
-    {
-        return $this->hasMany(EnvironmentalRollup::class);
     }
 
     public function isRetired(): bool

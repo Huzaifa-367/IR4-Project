@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Spatie\Permission\Models\Role as SpatieRole;
@@ -16,6 +17,7 @@ use Spatie\Permission\Models\Role as SpatieRole;
  */
 final class Role extends SpatieRole
 {
+    use HasPublicUuid;
     use Auditable;
 
     protected $fillable = [

@@ -56,7 +56,7 @@ export default function EquipmentCheckoutsIndex({
             cell: (row) =>
                 row.equipment ? (
                     <Link
-                        href={`/equipment/${row.equipment.id}`}
+                        href={`/equipment/${row.equipment.uuid}`}
                         className="text-text hover:underline"
                     >
                         {row.equipment.equipment_code} · {row.equipment.name}

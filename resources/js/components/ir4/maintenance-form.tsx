@@ -8,13 +8,13 @@ import { cn } from '@/lib/utils';
 import { MaintenanceType, MaintenanceTypeLabels } from '@/types/enums';
 
 type Props = {
-    equipmentId: number;
+    equipmentUuid: string;
     onSuccess?: () => void;
     className?: string;
 };
 
 export function MaintenanceForm({
-    equipmentId,
+    equipmentUuid,
     onSuccess,
     className,
 }: Props) {
@@ -24,7 +24,7 @@ export function MaintenanceForm({
 
     return (
         <Form
-            action={`/equipment/${equipmentId}/maintenances`}
+            action={`/equipment/${equipmentUuid}/maintenances`}
             method="post"
             className={cn('space-y-3', className)}
             options={{ preserveScroll: true }}

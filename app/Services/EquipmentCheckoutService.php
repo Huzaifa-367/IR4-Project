@@ -223,6 +223,7 @@ final class EquipmentCheckoutService
         if ($worker !== null) {
             $workerPayload = [
                 'id' => $worker->id,
+                'uuid' => $worker->uuid,
                 'name' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
                 'contractor' => $worker->contractor,
                 'role_title' => $worker->role_title,
@@ -232,6 +233,7 @@ final class EquipmentCheckoutService
 
         return [
             'id' => $checkout->id,
+            'uuid' => $checkout->uuid,
             'equipment_id' => $checkout->equipment_id,
             'equipment_code' => $checkout->equipment?->equipment_code,
             'equipment_name' => $checkout->equipment?->name,
@@ -243,6 +245,7 @@ final class EquipmentCheckoutService
             'zone_id' => $checkout->zone_id,
             'zone' => $checkout->zone !== null ? [
                 'id' => $checkout->zone->id,
+                'uuid' => $checkout->zone->uuid,
                 'name' => $checkout->zone->name,
             ] : null,
             'expected_return_at' => $checkout->expected_return_at?->toIso8601String(),

@@ -560,8 +560,8 @@ final class PermitService
     public function workOrderClearance(WorkOrder $workOrder): array
     {
         $workOrder->load([
-            'permits.type:id,code,name,colour_token',
-            'permits.zone:id,name',
+            'permits.type:id,uuid,code,name,colour_token',
+            'permits.zone:id,uuid,name',
         ]);
 
         $permits = $workOrder->permits;
@@ -588,17 +588,20 @@ final class PermitService
             'pending_permits' => $pendingCount,
             'permits' => $permits->map(fn (Permit $permit): array => [
                 'id' => $permit->id,
+                'uuid' => $permit->uuid,
                 'permit_number' => $permit->permit_number,
                 'status' => $permit->status->value,
                 'status_label' => $permit->status->label(),
                 'type' => $permit->type === null ? null : [
                     'id' => $permit->type->id,
+                    'uuid' => $permit->type->uuid,
                     'code' => $permit->type->code,
                     'name' => $permit->type->name,
                     'colour_token' => $permit->type->colour_token,
                 ],
                 'zone' => $permit->zone === null ? null : [
                     'id' => $permit->zone->id,
+                    'uuid' => $permit->zone->uuid,
                     'name' => $permit->zone->name,
                 ],
             ])->values()->all(),
@@ -726,6 +729,7 @@ final class PermitService
 
         return [
             'id' => $permit->id,
+            'uuid' => $permit->uuid,
             'permit_number' => $permit->permit_number,
             'status' => $permit->status->value,
             'status_label' => $permit->status->label(),
@@ -752,6 +756,7 @@ final class PermitService
             'source' => $permit->source,
             'type' => $permit->type === null ? null : [
                 'id' => $permit->type->id,
+                'uuid' => $permit->type->uuid,
                 'code' => $permit->type->code,
                 'name' => $permit->type->name,
                 'colour_token' => $permit->type->colour_token,
@@ -763,24 +768,29 @@ final class PermitService
             ],
             'zone' => $permit->zone === null ? null : [
                 'id' => $permit->zone->id,
+                'uuid' => $permit->zone->uuid,
                 'name' => $permit->zone->name,
                 'requires_permit' => $permit->zone->requires_permit,
             ],
             'work_order_id' => $permit->work_order_id,
             'work_order' => $permit->workOrder === null ? null : [
                 'id' => $permit->workOrder->id,
+                'uuid' => $permit->workOrder->uuid,
                 'reference' => $permit->workOrder->reference,
             ],
             'receiver' => $permit->receiver === null ? null : [
                 'id' => $permit->receiver->id,
+                'uuid' => $permit->receiver->uuid,
                 'name' => $permit->receiver->name,
             ],
             'issuer' => $permit->issuer === null ? null : [
                 'id' => $permit->issuer->id,
+                'uuid' => $permit->issuer->uuid,
                 'name' => $permit->issuer->name,
             ],
             'approver' => $permit->approver === null ? null : [
                 'id' => $permit->approver->id,
+                'uuid' => $permit->approver->uuid,
                 'name' => $permit->approver->name,
             ],
             'personnel' => $permit->personnel->map(function (PermitPersonnel $row) use ($permit, $canSeeIdentity): array {

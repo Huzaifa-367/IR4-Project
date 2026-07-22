@@ -26,6 +26,7 @@ final class PermitTypeController extends BaseController
             ->get()
             ->map(fn (PermitType $type): array => [
                 'id' => $type->id,
+                'uuid' => $type->uuid,
                 'code' => $type->code,
                 'name' => $type->name,
                 'description' => $type->description,
@@ -53,25 +54,26 @@ final class PermitTypeController extends BaseController
             'roles' => fn ($query) => $query->orderBy('sort_order')->orderBy('label'),
             'checklistItems' => fn ($query) => $query->orderBy('sort_order')->orderBy('label'),
             'gasChannels' => fn ($query) => $query->orderBy('sort_order')->orderBy('label'),
-            'conflicts.conflictsWithType:id,code,name',
-            'documentRequirements.workerDocumentType:id,code,name',
+            'conflicts.conflictsWithType:id,uuid,code,name',
+            'documentRequirements.workerDocumentType:id,uuid,code,name',
         ]);
 
         $otherTypes = PermitType::query()
             ->whereKeyNot($permitType->id)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'code', 'name']);
+            ->get(['id', 'uuid', 'code', 'name']);
 
         $documentTypes = WorkerDocumentType::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'code', 'name']);
+            ->get(['id', 'uuid', 'code', 'name']);
 
         return Inertia::render('workforce/permit-types/show', [
             'permitType' => [
                 'id' => $permitType->id,
+                'uuid' => $permitType->uuid,
                 'code' => $permitType->code,
                 'name' => $permitType->name,
                 'description' => $permitType->description,
@@ -89,6 +91,7 @@ final class PermitTypeController extends BaseController
                 'is_active' => $permitType->is_active,
                 'roles' => $permitType->roles->map(fn (PermitTypeRole $role): array => [
                     'id' => $role->id,
+                    'uuid' => $role->uuid,
                     'role_code' => $role->role_code,
                     'label' => $role->label,
                     'min_count' => $role->min_count,
@@ -97,6 +100,7 @@ final class PermitTypeController extends BaseController
                 ])->values()->all(),
                 'checklist_items' => $permitType->checklistItems->map(fn (PermitTypeChecklistItem $item): array => [
                     'id' => $item->id,
+                    'uuid' => $item->uuid,
                     'code' => $item->code,
                     'label' => $item->label,
                     'is_mandatory' => $item->is_mandatory,
@@ -105,6 +109,7 @@ final class PermitTypeController extends BaseController
                 ])->values()->all(),
                 'gas_channels' => $permitType->gasChannels->map(fn (PermitTypeGasChannel $channel): array => [
                     'id' => $channel->id,
+                    'uuid' => $channel->uuid,
                     'channel_code' => $channel->channel_code,
                     'label' => $channel->label,
                     'unit' => $channel->unit,
@@ -116,9 +121,11 @@ final class PermitTypeController extends BaseController
                 ])->values()->all(),
                 'conflicts' => $permitType->conflicts->map(fn (PermitTypeConflict $conflict): array => [
                     'id' => $conflict->id,
+                    'uuid' => $conflict->uuid,
                     'conflicts_with_type_id' => $conflict->conflicts_with_type_id,
                     'conflicts_with' => $conflict->conflictsWithType === null ? null : [
                         'id' => $conflict->conflictsWithType->id,
+                        'uuid' => $conflict->conflictsWithType->uuid,
                         'code' => $conflict->conflictsWithType->code,
                         'name' => $conflict->conflictsWithType->name,
                     ],
@@ -128,12 +135,14 @@ final class PermitTypeController extends BaseController
                 ])->values()->all(),
                 'document_requirements' => $permitType->documentRequirements->map(fn (PermitTypeDocumentRequirement $req): array => [
                     'id' => $req->id,
+                    'uuid' => $req->uuid,
                     'worker_document_type_id' => $req->worker_document_type_id,
                     'role_code' => $req->role_code,
                     'is_mandatory' => $req->is_mandatory,
                     'must_be_verified' => $req->must_be_verified,
                     'worker_document_type' => $req->workerDocumentType === null ? null : [
                         'id' => $req->workerDocumentType->id,
+                        'uuid' => $req->workerDocumentType->uuid,
                         'code' => $req->workerDocumentType->code,
                         'name' => $req->workerDocumentType->name,
                     ],
@@ -141,11 +150,13 @@ final class PermitTypeController extends BaseController
             ],
             'otherTypes' => $otherTypes->map(fn (PermitType $type): array => [
                 'id' => $type->id,
+                'uuid' => $type->uuid,
                 'code' => $type->code,
                 'name' => $type->name,
             ])->values()->all(),
             'documentTypes' => $documentTypes->map(fn (WorkerDocumentType $type): array => [
                 'id' => $type->id,
+                'uuid' => $type->uuid,
                 'code' => $type->code,
                 'name' => $type->name,
             ])->values()->all(),

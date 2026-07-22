@@ -38,6 +38,7 @@ final class TagController extends BaseController
             'tags' => [
                 'data' => $paginator->getCollection()->map(fn (RfidTag $tag) => [
                     'id' => $tag->id,
+                    'uuid' => $tag->uuid,
                     'tag_uid' => $tag->tag_uid,
                     'status' => $tag->status->value,
                     'status_label' => $tag->status->label(),
@@ -62,7 +63,7 @@ final class TagController extends BaseController
             'workers' => Worker::query()
                 ->where('is_active', true)
                 ->orderBy('name')
-                ->get(['id', 'name']),
+                ->get(['id', 'uuid', 'name']),
             'spareCount' => RfidTag::query()->where('status', TagStatus::InStock)->count(),
             'canManage' => ($request->user()?->can('create-tags') || $request->user()?->can('update-tags')) ?? false,
         ]);

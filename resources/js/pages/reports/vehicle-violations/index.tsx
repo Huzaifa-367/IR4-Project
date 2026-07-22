@@ -335,7 +335,7 @@ export default function VehicleViolationsIndex({
                 }
                 action={
                     deleteTarget
-                        ? `/reports/vehicle-violations/${deleteTarget.id}`
+                        ? `/reports/vehicle-violations/${deleteTarget.uuid}`
                         : undefined
                 }
                 method="delete"

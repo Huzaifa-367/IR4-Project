@@ -26,7 +26,7 @@
 - [x] `/settings/general` grouped editor with per-key permissions + confirm
 
 ### Phase 9e — Retention & backup (DOC-19)
-- [x] `BuildSensorRollups`, `PruneRawSensorData`, `PruneExportFiles`
+- [x] `PruneRawSensorData`, `PruneExportFiles`
 - [x] Encrypted `BackupDatabase`, `ir4:restore`, `ir4:export-all`, `ir4:secure-wipe`
 - [x] Disk-space / missing-backup `system` alerts
 
@@ -57,6 +57,7 @@ _None — Control Room UI pass landed; module pages inherit tokens/components ne
 - Prior decisions still apply
 - DOC-18 registry wins for `retention.exports_days` = **7** (DOC-19 prose corrected)
 - Secure wipe default mode = **crypto_erase**; overwrite available via `IR4_WIPE_MODE`
+- No sensor rollup tables — gas and env trends/reports use on-read SQL aggregates; gas/env/tag raw rows prune after window unconditionally
 - No tag-reading rollup table — manpower stays entry/exit-derived; tags prune after window unconditionally
 - Wipe writes a separate receipt on the exports disk (does not mutate a verified handover archive)
 - Dedicated `BACKUP_ENCRYPTION_KEY` preferred; falls back to HKDF from `APP_KEY`
@@ -92,7 +93,7 @@ _None — Control Room UI pass landed; module pages inherit tokens/components ne
 |---|---|
 | Settings registry | `app/Support/SettingsRegistry.php` |
 | Settings service / UI | `app/Services/SettingsService.php`, `resources/js/pages/settings/general/index.tsx` |
-| Rollups / retention | `app/Services/SensorRollupService.php`, `app/Services/RetentionService.php` |
+| Retention | `app/Services/RetentionService.php` |
 | Backup / export / wipe | `app/Services/Backup/*`, `app/Console/Commands/{Backup,Restore,ExportAll,SecureWipe}*` |
 | Doc18 / Doc19 tests | `tests/Feature/Settings/Doc18SettingsTest.php`, `tests/Feature/Retention/Doc19RetentionBackupTest.php` |
 | Demo seeder | `database/seeders/DemoSeeder.php` |

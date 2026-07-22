@@ -194,8 +194,8 @@ Thin (6–8px) rounded progress bars for SLAs, completion, checkout dueness, eva
 ### 4.10 `MetricRow` / `LabeledStat`
 Compact "label + big value + tiny delta" used inside panels (reference 4 Allocation footer: Volatility / Market Cap / Sortino as three inline stats). For dense secondary metrics that don't each deserve a card.
 
-### 4.11 The `ZoneMap` (the bespoke signature — DOC-16 §5)
-MapLibre with an offline site-plan raster; zone circles colored by type with live occupancy labels; worker dots (anonymized without `view-worker-identity`); reader badges. This is the one visual no generic dashboard has — spend the boldness here. On the CCTV/live view (reference 6) the same dark chrome frames a camera grid with per-tile labels + status dots.
+### 4.11 The `GeoZoneMap` (the bespoke signature — DOC-16 §5)
+MapLibre with an offline Gulf pmtiles basemap; zone circles from `latitude` / `longitude` / `radius_meters`, colored by type with live occupancy labels; worker dots (anonymized without `view-worker-identity`); reader badges. This is the one visual no generic dashboard has — spend the boldness here. On the CCTV/live view (reference 6) the same dark chrome frames a camera grid with per-tile labels + status dots.
 
 ---
 
@@ -240,7 +240,7 @@ Restrained, purposeful (DOC-16 §2.3 / frontend-design restraint):
 
 - **Color = meaning first.** In safety contexts (gas, alerts, severity) use `--ok/--warn/--crit`. Only use the categorical `--viz-*` palette for neutral multi-series (e.g. two gas channels, workers-by-zone) where hue is just identity, not judgment.
 - **Always label the current value + delta**, not just the shape (references 1, 4). A trend with no number is decoration.
-- **Range toggles on every time-series** (shift/day/week): gas uses raw ≤24h and SQL hourly aggregates beyond; environmental uses raw ≤24h and rollups beyond (DOC-11/12/19).
+- **Range toggles on every time-series** (shift/day/week): gas and environmental use raw ≤24h and SQL hourly aggregates beyond (DOC-11/12/19).
 - **Thresholds drawn on charts:** gas trends show a dashed `--warn`/`--crit` threshold line so an excursion is visually obvious.
 - **Never fake precision:** show "—" / "No data" / a completeness note when a stream was offline (DOC-15 honesty), not a flat zero line.
 - **Tabular figures** on all axis + tooltip numbers.
@@ -280,7 +280,7 @@ Restrained, purposeful (DOC-16 §2.3 / frontend-design restraint):
 ## 10. Implementation notes (for Cursor)
 
 - **Tokens → Tailwind:** expose the §1 CSS vars in `tailwind.config` `theme.extend.colors` as `bg`, `surface`, `surface-2`, `border`, `text`, `text-dim`, `accent`, `ok`, `warn`, `crit`, `viz-1…6`, plus the radius/spacing scale. Components use semantic classes (`bg-surface`, `text-dim`, `border-border`), never raw hex.
-- **Component home:** all shared pieces in `components/ir4/` (StatCard, AnalyticalChart, DonutChart, RadialGauge, BarChart, DataTable, StatusPill, LiveFeed, RangeToggle, MiniProgress, MetricRow, ZoneMap, DisplayBanner, EventTicker). shadcn/ui for primitives (dialog, dropdown, tabs, tooltip) themed to the tokens.
+- **Component home:** all shared pieces in `components/ir4/` (StatCard, AnalyticalChart, DonutChart, RadialGauge, BarChart, DataTable, StatusPill, LiveFeed, RangeToggle, MiniProgress, MetricRow, GeoZoneMap, DisplayBanner, EventTicker). shadcn/ui for primitives (dialog, dropdown, tabs, tooltip) themed to the tokens.
 - **Charts:** recharts, wrapped so the crosshair-tooltip, gridline, axis, and palette styling are defined **once** in `AnalyticalChart` and inherited — pages pass data + series config, never restyle.
 - **Fonts:** self-host Inter Tight / Inter / JetBrains Mono via `@font-face` (no Google Fonts CDN — on-prem).
 - **Theme:** `data-theme` on `<html>`; `useTheme()` reads a user preference; display is forced dark.

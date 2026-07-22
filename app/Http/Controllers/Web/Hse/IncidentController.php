@@ -96,7 +96,7 @@ final class IncidentController extends BaseController
             'canClassify' => $request->user()?->can('update-incidents') ?? false,
             'prefill' => $this->resolvePrefill($request, $incidents),
             'zones' => ($request->user()?->can('create-incidents') ?? false)
-                ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])
+                ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name'])
                 : [],
         ]);
     }
@@ -125,9 +125,10 @@ final class IncidentController extends BaseController
 
         return Inertia::render('hse/incidents/show', [
             'incident' => $incidents->toArray($incident, $canSeeIdentity),
-            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])->map(
+            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name'])->map(
                 fn (Worker $worker): array => [
                     'id' => $worker->id,
+                    'uuid' => $worker->uuid,
                     'name' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
                 ],
             )->values()->all(),

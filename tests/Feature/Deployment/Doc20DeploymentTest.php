@@ -73,7 +73,6 @@ it('registers the DOC-19/20 scheduled job names', function () {
         'ir4:tracking-stationary-tags',
         'ir4:tracking-absence-sweep',
         'ir4:flag-overdue-equipment',
-        'ir4:build-sensor-rollups',
         'ir4:prune-raw-sensor-data',
         'ir4:prune-export-files',
         'ir4:backup-database',

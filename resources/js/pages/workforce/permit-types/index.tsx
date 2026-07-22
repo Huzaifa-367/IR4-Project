@@ -76,7 +76,7 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
             className: 'w-36 text-right',
             cell: (row) => (
                 <Button asChild size="sm">
-                    <Link href={`/workforce/permit-types/${row.id}`}>
+                    <Link href={`/workforce/permit-types/${row.uuid}`}>
                         Configure
                     </Link>
                 </Button>
@@ -92,7 +92,7 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
                     size="sm"
                     variant="outline"
                     onClick={() =>
-                        router.put(`/workforce/permit-types/${row.id}`, {
+                        router.put(`/workforce/permit-types/${row.uuid}`, {
                             is_active: !row.is_active,
                         })
                     }

@@ -51,7 +51,7 @@ export function ReturnDialog({
         form.clearErrors();
         // Reset only when the dialog opens for a checkout.
         // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional open/checkout gate
-    }, [open, checkout?.id]);
+    }, [open, checkout?.uuid]);
 
     const offersMaintenance =
         form.data.return_status === ReturnStatus.Damaged ||
@@ -64,7 +64,7 @@ export function ReturnDialog({
             return;
         }
 
-        form.post(`/equipment/checkouts/${checkout.id}/return`, {
+        form.post(`/equipment/checkouts/${checkout.uuid}/return`, {
             preserveScroll: true,
             onSuccess: () => {
                 onOpenChange(false);

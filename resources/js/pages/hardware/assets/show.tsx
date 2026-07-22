@@ -13,6 +13,7 @@ import type { HardwareOption } from '@/types/hardware';
 
 type AssetDetail = {
     id: number;
+    uuid: string;
     name: string;
     identifier: string;
     asset_type: string;
@@ -196,7 +197,7 @@ export default function AssetShow({
                 open={isEditing}
                 onOpenChange={setIsEditing}
                 title="Edit asset"
-                action={`/hardware/assets/${asset.id}`}
+                action={`/hardware/assets/${asset.uuid}`}
                 method="put"
                 submitLabel="Save asset"
                 transform={(data) => ({

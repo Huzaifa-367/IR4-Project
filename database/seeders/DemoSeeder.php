@@ -55,7 +55,6 @@ use App\Models\Worker;
 use App\Models\WorkerPosition;
 use App\Models\Zone;
 use App\Models\ZoneAccessListEntry;
-use App\Services\SensorRollupService;
 use App\Services\WeeklyReportService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
@@ -186,14 +185,14 @@ final class DemoSeeder extends Seeder
     {
         // Site anchor: Jubail Industrial City, Saudi Arabia (real KSA petrochemical hub).
         $defs = [
-            ['name' => 'Main Gate', 'type' => ZoneType::Gate, 'x' => 12.0, 'y' => 78.0, 'r' => 6.0, 'lat' => 27.015154, 'lng' => 49.619475, 'rm' => 48.0, 'color' => '#38BDF8', 'auth' => false, 'limit' => null],
-            ['name' => 'Muster Point A', 'type' => ZoneType::MusterPoint, 'x' => 22.0, 'y' => 72.0, 'r' => 8.0, 'lat' => 27.015783, 'lng' => 49.620987, 'rm' => 64.0, 'color' => '#34D399', 'auth' => false, 'limit' => 120],
-            ['name' => 'Work Area North', 'type' => ZoneType::Work, 'x' => 38.0, 'y' => 42.0, 'r' => 14.0, 'lat' => 27.018478, 'lng' => 49.623004, 'rm' => 112.0, 'color' => '#64748B', 'auth' => false, 'limit' => 80],
-            ['name' => 'Work Area South', 'type' => ZoneType::Work, 'x' => 55.0, 'y' => 58.0, 'r' => 12.0, 'lat' => 27.016951, 'lng' => 49.624718, 'rm' => 96.0, 'color' => '#64748B', 'auth' => false, 'limit' => 60],
-            ['name' => 'Laydown Yard', 'type' => ZoneType::Laydown, 'x' => 72.0, 'y' => 70.0, 'r' => 10.0, 'lat' => 27.015603, 'lng' => 49.626332, 'rm' => 80.0, 'color' => '#F5A524', 'auth' => false, 'limit' => 40],
-            ['name' => 'Height Work Deck', 'type' => ZoneType::HeightWork, 'x' => 48.0, 'y' => 28.0, 'r' => 9.0, 'lat' => 27.019915, 'lng' => 49.623508, 'rm' => 72.0, 'color' => '#F97316', 'auth' => true, 'limit' => 25],
-            ['name' => 'Hot Work Bay', 'type' => ZoneType::RestrictedRed, 'x' => 68.0, 'y' => 32.0, 'r' => 8.0, 'lat' => 27.019377, 'lng' => 49.625525, 'rm' => 64.0, 'color' => '#F0506E', 'auth' => true, 'limit' => 12],
-            ['name' => 'Temporary Works', 'type' => ZoneType::Other, 'x' => 30.0, 'y' => 55.0, 'r' => 7.0, 'lat' => 27.017759, 'lng' => 49.621693, 'rm' => 56.0, 'color' => '#94A3B8', 'auth' => false, 'limit' => 30],
+            ['name' => 'Main Gate', 'type' => ZoneType::Gate, 'lat' => 27.015154, 'lng' => 49.619475, 'rm' => 48.0, 'color' => '#38BDF8', 'auth' => false, 'limit' => null],
+            ['name' => 'Muster Point A', 'type' => ZoneType::MusterPoint, 'lat' => 27.015783, 'lng' => 49.620987, 'rm' => 64.0, 'color' => '#34D399', 'auth' => false, 'limit' => 120],
+            ['name' => 'Work Area North', 'type' => ZoneType::Work, 'lat' => 27.018478, 'lng' => 49.623004, 'rm' => 112.0, 'color' => '#64748B', 'auth' => false, 'limit' => 80],
+            ['name' => 'Work Area South', 'type' => ZoneType::Work, 'lat' => 27.016951, 'lng' => 49.624718, 'rm' => 96.0, 'color' => '#64748B', 'auth' => false, 'limit' => 60],
+            ['name' => 'Laydown Yard', 'type' => ZoneType::Laydown, 'lat' => 27.015603, 'lng' => 49.626332, 'rm' => 80.0, 'color' => '#F5A524', 'auth' => false, 'limit' => 40],
+            ['name' => 'Height Work Deck', 'type' => ZoneType::HeightWork, 'lat' => 27.019915, 'lng' => 49.623508, 'rm' => 72.0, 'color' => '#F97316', 'auth' => true, 'limit' => 25],
+            ['name' => 'Hot Work Bay', 'type' => ZoneType::RestrictedRed, 'lat' => 27.019377, 'lng' => 49.625525, 'rm' => 64.0, 'color' => '#F0506E', 'auth' => true, 'limit' => 12],
+            ['name' => 'Temporary Works', 'type' => ZoneType::Other, 'lat' => 27.017759, 'lng' => 49.621693, 'rm' => 56.0, 'color' => '#94A3B8', 'auth' => false, 'limit' => 30],
         ];
 
         $this->zones = collect();
@@ -204,9 +203,6 @@ final class DemoSeeder extends Seeder
                 'zone_type' => $def['type'],
                 'requires_authorization' => $def['auth'],
                 'occupancy_limit' => $def['limit'],
-                'map_x' => $def['x'],
-                'map_y' => $def['y'],
-                'map_radius' => $def['r'],
                 'latitude' => $def['lat'],
                 'longitude' => $def['lng'],
                 'radius_meters' => $def['rm'],
@@ -724,8 +720,6 @@ final class DemoSeeder extends Seeder
         if ($envRows !== []) {
             EnvironmentalReading::query()->insert($envRows);
         }
-
-        app(SensorRollupService::class)->rebuildEnvRange($this->from, $this->to);
     }
 
     private function seedPpeHistory(): void

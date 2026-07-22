@@ -92,7 +92,7 @@ export default function ReportsIndex({
             header: 'Report',
             cell: (row) => (
                 <Link
-                    href={`/reports/${row.id}`}
+                    href={`/reports/${row.uuid}`}
                     className="font-medium text-text hover:underline"
                 >
                     {row.report_number}
@@ -125,7 +125,7 @@ export default function ReportsIndex({
             className: 'w-20 text-right',
             cell: (row) => (
                 <Button asChild size="sm" variant="ghost">
-                    <Link href={`/reports/${row.id}`}>Open</Link>
+                    <Link href={`/reports/${row.uuid}`}>Open</Link>
                 </Button>
             ),
         },

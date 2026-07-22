@@ -20,11 +20,12 @@ final class UserController extends BaseController
         $this->authorize('viewAny', User::class);
 
         $users = User::query()
-            ->with('roles:id,name')
+            ->with('roles:id,uuid,name')
             ->orderBy('name')
             ->get()
             ->map(fn (User $user): array => [
                 'id' => $user->id,
+                'uuid' => $user->uuid,
                 'name' => $user->name,
                 'email' => $user->email,
                 'is_active' => $user->is_active,
@@ -34,7 +35,7 @@ final class UserController extends BaseController
         $roles = Role::query()
             ->where('guard_name', PermissionCatalogue::GUARD)
             ->orderBy('name')
-            ->get(['id', 'name', 'is_system', 'is_read_only']);
+            ->get(['id', 'uuid', 'name', 'is_system', 'is_read_only']);
 
         return Inertia::render('access/users/index', [
             'users' => $users,

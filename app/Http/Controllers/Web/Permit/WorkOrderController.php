@@ -18,7 +18,7 @@ final class WorkOrderController extends BaseController
     {
         abort_unless($request->user()?->can('view-permits'), 403);
 
-        $query = WorkOrder::query()->with(['zone:id,name']);
+        $query = WorkOrder::query()->with(['zone:id,uuid,name']);
 
         $this->applyListQuery(
             $query,
@@ -35,11 +35,13 @@ final class WorkOrderController extends BaseController
             'workOrders' => [
                 'data' => $paginator->getCollection()->map(fn (WorkOrder $row): array => [
                     'id' => $row->id,
+                    'uuid' => $row->uuid,
                     'reference' => $row->reference,
                     'description' => $row->description,
                     'status' => $row->status,
                     'zone' => $row->zone === null ? null : [
                         'id' => $row->zone->id,
+                        'uuid' => $row->zone->uuid,
                         'name' => $row->zone->name,
                     ],
                     'permits_count' => $row->permits()->count(),
@@ -60,7 +62,7 @@ final class WorkOrderController extends BaseController
             'zones' => Zone::query()
                 ->where('is_active', true)
                 ->orderBy('name')
-                ->get(['id', 'name']),
+                ->get(['id', 'uuid', 'name']),
             'canCreate' => $request->user()?->can('create-permits') ?? false,
         ]);
     }
@@ -100,9 +102,9 @@ final class WorkOrderController extends BaseController
         abort_unless($request->user()?->can('view-permits'), 403);
 
         $workOrder->load([
-            'zone:id,name',
-            'permits.type:id,code,name,colour_token',
-            'permits.zone:id,name',
+            'zone:id,uuid,name',
+            'permits.type:id,uuid,code,name,colour_token',
+            'permits.zone:id,uuid,name',
         ]);
 
         $clearance = $permits->workOrderClearance($workOrder);
@@ -110,11 +112,13 @@ final class WorkOrderController extends BaseController
         return Inertia::render('workforce/work-orders/show', [
             'workOrder' => [
                 'id' => $workOrder->id,
+                'uuid' => $workOrder->uuid,
                 'reference' => $workOrder->reference,
                 'description' => $workOrder->description,
                 'status' => $workOrder->status,
                 'zone' => $workOrder->zone === null ? null : [
                     'id' => $workOrder->zone->id,
+                    'uuid' => $workOrder->zone->uuid,
                     'name' => $workOrder->zone->name,
                 ],
                 'created_at' => $workOrder->created_at?->toIso8601String(),

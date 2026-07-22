@@ -13,21 +13,21 @@ import {
 type QrFormat = 'png' | 'svg' | 'zpl';
 
 type SingleProps = {
-    equipmentId: number;
+    equipmentUuid: string;
     label?: string;
     size?: 'default' | 'sm' | 'lg' | 'icon';
     variant?: 'default' | 'secondary' | 'outline' | 'ghost';
 };
 
 export function QrLabelButton({
-    equipmentId,
+    equipmentUuid,
     label = 'QR label',
     size = 'sm',
     variant = 'secondary',
 }: SingleProps) {
     function printLabel(): void {
         router.post(
-            `/equipment/${equipmentId}/print-label`,
+            `/equipment/${equipmentUuid}/print-label`,
             {},
             {
                 preserveScroll: true,
@@ -40,7 +40,7 @@ export function QrLabelButton({
 
     function downloadQr(format: QrFormat): void {
         const link = document.createElement('a');
-        link.href = `/equipment/${equipmentId}/qr?format=${format}`;
+        link.href = `/equipment/${equipmentUuid}/qr?format=${format}`;
         link.rel = 'noopener';
         document.body.appendChild(link);
         link.click();

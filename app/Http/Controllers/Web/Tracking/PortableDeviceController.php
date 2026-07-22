@@ -33,6 +33,7 @@ final class PortableDeviceController extends BaseController
             'devices' => [
                 'data' => $paginator->getCollection()->map(fn (PortableDevice $d) => [
                     'id' => $d->id,
+                    'uuid' => $d->uuid,
                     'worker_id' => $d->worker_id,
                     'worker_name' => $d->worker?->name,
                     'device_type' => $d->device_type,
@@ -48,7 +49,7 @@ final class PortableDeviceController extends BaseController
                     'total' => $paginator->total(),
                 ],
             ],
-            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name']),
         ]);
     }
 

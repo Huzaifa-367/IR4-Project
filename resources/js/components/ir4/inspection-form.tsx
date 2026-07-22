@@ -8,13 +8,13 @@ import { cn } from '@/lib/utils';
 import { InspectionOutcome, InspectionOutcomeLabels } from '@/types/enums';
 
 type Props = {
-    equipmentId: number;
+    equipmentUuid: string;
     onSuccess?: () => void;
     className?: string;
 };
 
 export function InspectionForm({
-    equipmentId,
+    equipmentUuid,
     onSuccess,
     className,
 }: Props) {
@@ -22,7 +22,7 @@ export function InspectionForm({
 
     return (
         <Form
-            action={`/equipment/${equipmentId}/inspections`}
+            action={`/equipment/${equipmentUuid}/inspections`}
             method="post"
             className={cn('space-y-3', className)}
             options={{ preserveScroll: true }}

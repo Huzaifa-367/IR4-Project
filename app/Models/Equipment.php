@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\EquipmentStatus;
 use App\Models\Concerns\HasCreatedBy;
 use Database\Factories\EquipmentFactory;
@@ -13,12 +14,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 final class Equipment extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<EquipmentFactory> */
     use HasCreatedBy, HasFactory, SoftDeletes;
 
     protected $table = 'equipment';
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

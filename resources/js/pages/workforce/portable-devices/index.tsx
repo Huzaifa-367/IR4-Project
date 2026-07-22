@@ -15,6 +15,7 @@ import type { PaginatedMeta } from '@/types/hardware';
 
 type DeviceRow = {
     id: number;
+    uuid: string;
     worker_id: number;
     worker_name: string | null;
     device_type: string;
@@ -226,7 +227,7 @@ export default function PortableDevicesIndex({ devices, workers }: Props) {
                 }
                 action={
                     revokeTarget
-                        ? `/workforce/portable-devices/${revokeTarget.id}/revoke`
+                        ? `/workforce/portable-devices/${revokeTarget.uuid}/revoke`
                         : undefined
                 }
                 method="post"

@@ -70,6 +70,7 @@ final class VehicleViolationService
 
         return [
             'id' => $violation->id,
+            'uuid' => $violation->uuid,
             'observed_at' => optional($violation->observed_at)?->toIso8601String(),
             'vehicle_description' => $violation->vehicle_description,
             'violation_type' => $violation->violation_type,

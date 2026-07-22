@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\EvacuationStatus;
 use Database\Factories\EvacuationReportFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,10 +24,12 @@ use Illuminate\Support\Carbon;
  */
 final class EvacuationReport extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<EvacuationReportFactory> */
     use HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

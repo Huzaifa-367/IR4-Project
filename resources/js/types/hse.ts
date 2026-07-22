@@ -34,6 +34,7 @@ export type IncidentEvidence = {
 
 export type HseIncident = {
     id: number;
+    uuid: string;
     incident_number: string;
     source: IncidentSource | string;
     source_label: string;
@@ -65,6 +66,7 @@ export type HseIncident = {
 
 export type LsrViolation = {
     id: number;
+    uuid: string;
     category: LsrCategory | string;
     category_label: string;
     occurred_at: string | null;
@@ -97,6 +99,7 @@ export type IncidentPrefill = {
     ppe_violation_id: number | null;
     alert: {
         id: number;
+        uuid: string;
         alert_type: string;
         title: string;
         raised_at: string | null;
@@ -114,6 +117,7 @@ export type LsrPrefill = {
     description: string | null;
     alert: {
         id: number;
+        uuid: string;
         alert_type: string;
         title: string;
     };

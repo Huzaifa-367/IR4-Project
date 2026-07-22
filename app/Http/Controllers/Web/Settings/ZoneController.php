@@ -42,6 +42,7 @@ final class ZoneController extends BaseController
             'zones' => [
                 'data' => $paginator->getCollection()->map(fn (Zone $zone): array => [
                     'id' => $zone->id,
+                    'uuid' => $zone->uuid,
                     'name' => $zone->name,
                     'zone_type' => $zone->zone_type->value,
                     'zone_type_label' => $zone->zone_type->label(),
@@ -81,13 +82,14 @@ final class ZoneController extends BaseController
         $this->authorize('view', $zone);
 
         $zone->load([
-            'currentBindings.reader:id,name,reference',
+            'currentBindings.reader:id,uuid,name,reference',
             'accessList.worker',
         ]);
 
         return Inertia::render('settings/zones/show', [
             'zone' => [
                 'id' => $zone->id,
+                'uuid' => $zone->uuid,
                 'name' => $zone->name,
                 'zone_type' => $zone->zone_type->value,
                 'zone_type_label' => $zone->zone_type->label(),
@@ -95,9 +97,6 @@ final class ZoneController extends BaseController
                 'requires_permit' => $zone->requires_permit,
                 'occupancy_limit' => $zone->occupancy_limit,
                 'is_active' => $zone->is_active,
-                'map_x' => $zone->map_x,
-                'map_y' => $zone->map_y,
-                'map_radius' => $zone->map_radius,
                 'latitude' => $zone->latitude,
                 'longitude' => $zone->longitude,
                 'radius_meters' => $zone->radius_meters,
@@ -105,6 +104,7 @@ final class ZoneController extends BaseController
                 'current_readers' => $zone->currentBindings->map(fn ($b) => [
                     'binding_id' => $b->id,
                     'device_id' => $b->device_id,
+                    'device_uuid' => $b->reader?->uuid,
                     'name' => $b->reader?->name,
                     'reference' => $b->reader?->reference,
                     'bound_from' => $b->bound_from?->toIso8601String(),
@@ -120,9 +120,10 @@ final class ZoneController extends BaseController
             'workers' => Worker::query()
                 ->where('is_active', true)
                 ->orderBy('name')
-                ->get(['id', 'name'])
+                ->get(['id', 'uuid', 'name'])
                 ->map(fn (Worker $worker): array => [
                     'id' => $worker->id,
+                    'uuid' => $worker->uuid,
                     'name' => $worker->name,
                 ]),
         ]);
@@ -168,9 +169,6 @@ final class ZoneController extends BaseController
         $this->authorize('update', $zone);
 
         $data = $request->validate([
-            'map_x' => ['nullable', 'numeric'],
-            'map_y' => ['nullable', 'numeric'],
-            'map_radius' => ['nullable', 'numeric', 'min:0'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'radius_meters' => ['nullable', 'numeric', 'min:0'],

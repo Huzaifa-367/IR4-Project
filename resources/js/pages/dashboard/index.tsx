@@ -426,7 +426,7 @@ export default function DashboardIndex({
                                     occupancy={summary.headcount?.by_zone}
                                     onSelect={(zone) =>
                                         router.visit(
-                                            `/settings/zones/${zone.id}`,
+                                            `/settings/zones/${zone.uuid}`,
                                         )
                                     }
                                 />

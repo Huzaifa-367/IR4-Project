@@ -149,9 +149,10 @@ final class WorkerController extends BaseController
                 ->where('worker_id', $worker->id)
                 ->orderByDesc('assigned_at')
                 ->limit(10)
-                ->get(['id', 'tag_uid', 'status', 'assigned_at'])
+                ->get(['id', 'uuid', 'tag_uid', 'status', 'assigned_at'])
                 ->map(fn (RfidTag $tag): array => [
                     'id' => $tag->id,
+                    'uuid' => $tag->uuid,
                     'tag_uid' => $tag->tag_uid,
                     'status' => $tag->status->value,
                     'status_label' => $tag->status->label(),
@@ -160,7 +161,7 @@ final class WorkerController extends BaseController
             'entryExitLogs' => $canSeeEntryExit
                 ? EntryExitLog::query()
                     ->where('worker_id', $worker->id)
-                    ->with('gateZone:id,name')
+                    ->with('gateZone:id,uuid,name')
                     ->orderByDesc('occurred_at')
                     ->limit(10)
                     ->get()
@@ -180,6 +181,7 @@ final class WorkerController extends BaseController
                     ->get()
                     ->map(fn (PortableDevice $device): array => [
                         'id' => $device->id,
+                        'uuid' => $device->uuid,
                         'device_type' => $device->device_type,
                         'make_model' => $device->make_model,
                         'serial_number' => $device->serial_number,
@@ -192,7 +194,7 @@ final class WorkerController extends BaseController
             'incidents' => $canSeeIncidents
                 ? $worker->incidentPersonnel()
                     ->whereHas('incident')
-                    ->with('incident:id,incident_number,status')
+                    ->with('incident:id,uuid,incident_number,status')
                     ->latest('id')
                     ->limit(10)
                     ->get()
@@ -202,6 +204,7 @@ final class WorkerController extends BaseController
 
                         return [
                             'id' => $incident->id,
+                            'uuid' => $incident->uuid,
                             'incident_number' => $incident->incident_number,
                             'status_label' => $incident->status->label(),
                             'involvement_label' => $row->involvement->label(),
@@ -212,9 +215,10 @@ final class WorkerController extends BaseController
                 ? $worker->lsrViolations()
                     ->orderByDesc('occurred_at')
                     ->limit(10)
-                    ->get(['id', 'category', 'status', 'occurred_at'])
+                    ->get(['id', 'uuid', 'category', 'status', 'occurred_at'])
                     ->map(fn (LsrViolation $lsr): array => [
                         'id' => $lsr->id,
+                        'uuid' => $lsr->uuid,
                         'category_label' => $lsr->category->label(),
                         'status_label' => $lsr->status->label(),
                         'occurred_at' => $lsr->occurred_at?->toIso8601String(),
@@ -226,11 +230,12 @@ final class WorkerController extends BaseController
             'readinessSummary' => $canManageDocuments ? $readiness->summary($worker) : null,
             'documents' => $canManageDocuments
                 ? $worker->documents()
-                    ->with('documentType:id,code,name,requires_file')
+                    ->with('documentType:id,uuid,code,name,requires_file')
                     ->orderByDesc('created_at')
                     ->get()
                     ->map(fn (WorkerDocument $document): array => [
                         'id' => $document->id,
+                        'uuid' => $document->uuid,
                         'worker_document_type_id' => $document->worker_document_type_id,
                         'type_name' => $document->documentType?->name ?? '—',
                         'document_number' => $document->document_number,
@@ -251,9 +256,10 @@ final class WorkerController extends BaseController
                     ->where('is_active', true)
                     ->orderBy('sort_order')
                     ->orderBy('name')
-                    ->get(['id', 'name', 'code', 'requires_file', 'requires_expiry', 'category'])
+                    ->get(['id', 'uuid', 'name', 'code', 'requires_file', 'requires_expiry', 'category'])
                     ->map(fn (WorkerDocumentType $type): array => [
                         'id' => $type->id,
+                        'uuid' => $type->uuid,
                         'name' => $type->name,
                         'code' => $type->code,
                         'requires_file' => $type->requires_file,

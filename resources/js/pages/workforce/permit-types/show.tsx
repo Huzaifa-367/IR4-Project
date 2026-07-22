@@ -15,6 +15,7 @@ type Option = { id: number; code: string; name: string };
 
 type CrewRole = {
     id: number;
+    uuid: string;
     role_code: string;
     label: string;
     min_count: number;
@@ -24,6 +25,7 @@ type CrewRole = {
 
 type ChecklistItem = {
     id: number;
+    uuid: string;
     code: string;
     label: string;
     is_mandatory: boolean;
@@ -33,6 +35,7 @@ type ChecklistItem = {
 
 type GasChannel = {
     id: number;
+    uuid: string;
     channel_code: string;
     label: string;
     unit: string | null;
@@ -45,6 +48,7 @@ type GasChannel = {
 
 type Conflict = {
     id: number;
+    uuid: string;
     conflicts_with_type_id: number;
     conflicts_with: Option | null;
     scope: string;
@@ -54,6 +58,7 @@ type Conflict = {
 
 type DocRequirement = {
     id: number;
+    uuid: string;
     worker_document_type_id: number;
     role_code: string | null;
     is_mandatory: boolean;
@@ -63,6 +68,7 @@ type DocRequirement = {
 
 type PermitTypeDetail = {
     id: number;
+    uuid: string;
     code: string;
     name: string;
     description: string | null;
@@ -116,7 +122,7 @@ export default function PermitTypeShow({
     const [conflictSeverity, setConflictSeverity] = useState('warn');
     const [docTypeId, setDocTypeId] = useState('');
     const [docRoleCode, setDocRoleCode] = useState('');
-    const base = `/workforce/permit-types/${permitType.id}`;
+    const base = `/workforce/permit-types/${permitType.uuid}`;
 
     const roleColumns: SettingsColumn<CrewRole>[] = [
         {
@@ -161,7 +167,7 @@ export default function PermitTypeShow({
                         onClick={() => {
                             if (confirm(`Remove “${row.label}”?`)) {
                                 router.delete(
-                                    `/workforce/crew-roles/${row.id}`,
+                                    `/workforce/crew-roles/${row.uuid}`,
                                 );
                             }
                         }}
@@ -221,7 +227,7 @@ export default function PermitTypeShow({
                         onClick={() => {
                             if (confirm(`Remove “${row.label}”?`)) {
                                 router.delete(
-                                    `${base}/checklist-items/${row.id}`,
+                                    `${base}/checklist-items/${row.uuid}`,
                                 );
                             }
                         }}
@@ -280,7 +286,7 @@ export default function PermitTypeShow({
                         variant="ghost"
                         onClick={() => {
                             if (confirm(`Remove “${row.label}”?`)) {
-                                router.delete(`${base}/gas-channels/${row.id}`);
+                                router.delete(`${base}/gas-channels/${row.uuid}`);
                             }
                         }}
                     >
@@ -343,7 +349,7 @@ export default function PermitTypeShow({
                         variant="ghost"
                         onClick={() => {
                             if (confirm('Remove this SIMOPS conflict?')) {
-                                router.delete(`${base}/conflicts/${row.id}`);
+                                router.delete(`${base}/conflicts/${row.uuid}`);
                             }
                         }}
                     >
@@ -409,7 +415,7 @@ export default function PermitTypeShow({
                         onClick={() => {
                             if (confirm('Remove this document requirement?')) {
                                 router.delete(
-                                    `${base}/document-requirements/${row.id}`,
+                                    `${base}/document-requirements/${row.uuid}`,
                                 );
                             }
                         }}
@@ -705,7 +711,7 @@ export default function PermitTypeShow({
                 }
                 action={
                     dialog?.kind === 'edit-role'
-                        ? `/workforce/crew-roles/${dialog.role.id}`
+                        ? `/workforce/crew-roles/${dialog.role.uuid}`
                         : '/workforce/crew-roles'
                 }
                 method={dialog?.kind === 'edit-role' ? 'put' : 'post'}
@@ -805,7 +811,7 @@ export default function PermitTypeShow({
                 }
                 action={
                     dialog?.kind === 'edit-checklist'
-                        ? `${base}/checklist-items/${dialog.item.id}`
+                        ? `${base}/checklist-items/${dialog.item.uuid}`
                         : `${base}/checklist-items`
                 }
                 method={dialog?.kind === 'edit-checklist' ? 'put' : 'post'}
@@ -876,7 +882,7 @@ export default function PermitTypeShow({
                 }
                 action={
                     dialog?.kind === 'edit-gas'
-                        ? `${base}/gas-channels/${dialog.channel.id}`
+                        ? `${base}/gas-channels/${dialog.channel.uuid}`
                         : `${base}/gas-channels`
                 }
                 method={dialog?.kind === 'edit-gas' ? 'put' : 'post'}
@@ -996,7 +1002,7 @@ export default function PermitTypeShow({
                 }
                 action={
                     dialog?.kind === 'edit-conflict'
-                        ? `${base}/conflicts/${dialog.conflict.id}`
+                        ? `${base}/conflicts/${dialog.conflict.uuid}`
                         : `${base}/conflicts`
                 }
                 method={dialog?.kind === 'edit-conflict' ? 'put' : 'post'}
@@ -1107,7 +1113,7 @@ export default function PermitTypeShow({
                 }
                 action={
                     dialog?.kind === 'edit-doc-req'
-                        ? `${base}/document-requirements/${dialog.requirement.id}`
+                        ? `${base}/document-requirements/${dialog.requirement.uuid}`
                         : `${base}/document-requirements`
                 }
                 method={dialog?.kind === 'edit-doc-req' ? 'put' : 'post'}

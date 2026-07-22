@@ -36,6 +36,7 @@ export type WeeklyReportData = {
 
 export type WeeklyReport = {
     id: number;
+    uuid: string;
     report_number: string;
     period_start: string;
     period_end: string;
@@ -56,6 +57,7 @@ export type WeeklyReport = {
 
 export type VehicleViolation = {
     id: number;
+    uuid: string;
     observed_at: string | null;
     vehicle_description: string;
     violation_type: string;

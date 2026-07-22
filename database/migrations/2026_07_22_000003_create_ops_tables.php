@@ -8,33 +8,68 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('rfid_tags', function (Blueprint $table) {
+        Schema::create('alerts', function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
+            $table->string('alert_type');
+            $table->string('severity');
+            $table->string('title');
+            $table->json('payload')->nullable();
+            $table->nullableMorphs('alertable');
+            $table->string('status')->default('open');
+            $table->timestamp('raised_at')->index();
+            $table->foreignId('acknowledged_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamp('acknowledged_at')->nullable();
+            $table->timestamp('resolved_at')->nullable();
+            $table->boolean('audible')->default(false);
+            $table->string('dedupe_key')->nullable()->index();
+            $table->unsignedInteger('occurrences')->default(1);
+            $table->timestamps();
+            $table->softDeletes();
+            $table->index(['status', 'severity']);
+            $table->index(['alert_type', 'status']);
+        });
+
+        Schema::create('ingest_events', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('device_id')->constrained()->cascadeOnDelete();
+            $table->string('stream');
+            $table->uuid('event_uid');
+            $table->timestamp('recorded_at')->index();
+            $table->timestamp('received_at')->index();
+            $table->boolean('is_backfill')->default(false);
+            $table->boolean('clock_skew')->default(false);
+            $table->json('payload')->nullable();
+            $table->timestamps();
+            $table->unique(['device_id', 'event_uid']);
+            $table->index(['stream', 'recorded_at']);
+        });
+
+        Schema::create('rfid_tags', function (Blueprint $table): void {
+            $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('tag_uid')->unique();
             $table->foreignId('worker_id')->nullable()->constrained()->nullOnDelete();
-            $table->string('status')->default('in_stock');
+            $table->string('status')->default('in_stock')->index();
             $table->timestamp('assigned_at')->nullable();
             $table->foreignId('assigned_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('notes')->nullable();
             $table->timestamps();
             $table->softDeletes();
-            $table->index(['status']);
             $table->index(['worker_id', 'status']);
         });
 
-        Schema::create('worker_positions', function (Blueprint $table) {
+        Schema::create('worker_positions', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('tag_id')->unique()->constrained('rfid_tags')->cascadeOnDelete();
+            $table->foreignId('tag_id')->constrained('rfid_tags')->cascadeOnDelete()->unique();
             $table->foreignId('worker_id')->constrained()->cascadeOnDelete();
             $table->foreignId('zone_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamp('last_seen_at');
-            $table->boolean('is_on_site')->default(false);
+            $table->boolean('is_on_site')->default(false)->index();
             $table->timestamps();
-            $table->index(['zone_id']);
-            $table->index(['is_on_site']);
         });
 
-        Schema::create('tag_readings', function (Blueprint $table) {
+        Schema::create('tag_readings', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tag_id')->constrained('rfid_tags')->cascadeOnDelete();
             $table->foreignId('reader_device_id')->constrained('devices')->cascadeOnDelete();
@@ -51,7 +86,7 @@ return new class extends Migration
             $table->index(['zone_id', 'recorded_at']);
         });
 
-        Schema::create('entry_exit_logs', function (Blueprint $table) {
+        Schema::create('entry_exit_logs', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('worker_id')->constrained()->cascadeOnDelete();
             $table->foreignId('tag_id')->nullable()->constrained('rfid_tags')->nullOnDelete();
@@ -66,8 +101,9 @@ return new class extends Migration
             $table->index(['worker_id', 'occurred_at']);
         });
 
-        Schema::create('portable_devices', function (Blueprint $table) {
+        Schema::create('portable_devices', function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->foreignId('worker_id')->constrained()->cascadeOnDelete();
             $table->string('device_type');
             $table->string('make_model')->nullable();
@@ -84,9 +120,10 @@ return new class extends Migration
             $table->index(['worker_id', 'status']);
         });
 
-        Schema::create('evacuation_reports', function (Blueprint $table) {
+        Schema::create('evacuation_reports', function (Blueprint $table): void {
             $table->id();
-            $table->string('status')->default('open');
+            $table->uuid('uuid')->unique();
+            $table->string('status')->default('open')->index();
             $table->timestamp('triggered_at');
             $table->foreignId('triggered_by')->constrained('users');
             $table->timestamp('closed_at')->nullable();
@@ -95,11 +132,11 @@ return new class extends Migration
             $table->string('close_note')->nullable();
             $table->timestamps();
             $table->softDeletes();
-            $table->index(['status']);
         });
 
-        Schema::create('evacuation_report_entries', function (Blueprint $table) {
+        Schema::create('evacuation_report_entries', function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->foreignId('evacuation_report_id')->constrained()->cascadeOnDelete();
             $table->foreignId('worker_id')->constrained();
             $table->foreignId('last_zone_id')->nullable()->constrained('zones')->nullOnDelete();
@@ -111,10 +148,34 @@ return new class extends Migration
             $table->timestamps();
             $table->unique(['evacuation_report_id', 'worker_id']);
         });
+
+        Schema::create('ppe_violations', function (Blueprint $table): void {
+            $table->id();
+            $table->uuid('uuid')->unique();
+            $table->foreignId('camera_id')->constrained()->restrictOnDelete();
+            $table->string('violation_type');
+            $table->timestamp('detected_at')->index();
+            $table->unsignedInteger('worker_count')->default(1);
+            $table->string('snapshot_path');
+            $table->decimal('confidence', 5, 2)->nullable();
+            $table->string('location_label')->nullable();
+            $table->foreignId('alert_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('review_status')->default('unreviewed')->index();
+            $table->foreignId('reviewed_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamp('reviewed_at')->nullable();
+            $table->string('review_note')->nullable();
+            $table->boolean('is_backfill')->default(false);
+            $table->uuid('event_uid');
+            $table->timestamps();
+            $table->softDeletes();
+            $table->unique(['camera_id', 'event_uid']);
+            $table->index(['violation_type', 'detected_at']);
+        });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('ppe_violations');
         Schema::dropIfExists('evacuation_report_entries');
         Schema::dropIfExists('evacuation_reports');
         Schema::dropIfExists('portable_devices');
@@ -122,5 +183,7 @@ return new class extends Migration
         Schema::dropIfExists('tag_readings');
         Schema::dropIfExists('worker_positions');
         Schema::dropIfExists('rfid_tags');
+        Schema::dropIfExists('ingest_events');
+        Schema::dropIfExists('alerts');
     }
 };

@@ -154,7 +154,7 @@ export default function PermitCreate({
                         <Link
                             href={
                                 selectedWorkOrder
-                                    ? `/workforce/work-orders/${selectedWorkOrder.id}`
+                                    ? `/workforce/work-orders/${selectedWorkOrder.uuid}`
                                     : '/workforce/permits'
                             }
                         >

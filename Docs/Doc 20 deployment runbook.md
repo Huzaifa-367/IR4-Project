@@ -46,7 +46,7 @@ Long-running processes under `supervisor` (auto-restart). Templates: `deploy/sup
 | **queue: default** | `php artisan queue:work --queue=default` | imports, general jobs, backups, pruning |
 | **queue: ingest** | `php artisan queue:work --queue=ingest` | reserved for ingest post-processing bursts (DOC-08) |
 | **queue: reports** | `php artisan queue:work --queue=reports` | PDF/CSV generation (DOC-15), exports |
-| **scheduler** | `php artisan schedule:work` | all timed jobs (DOC-01 §A8): health markStale, rollups, pruning, backups, weekly report, overdue flags, absence sweep |
+| **scheduler** | `php artisan schedule:work` | all timed jobs (DOC-01 §A8): health markStale, pruning, backups, weekly report, overdue flags, absence sweep |
 
 - Redis backs cache, queues, and Reverb scaling.
 - Worker counts tuned to the box; the `ingest` queue gets the most workers (backfill floods, DOC-08). Restart workers on deploy (`queue:restart`).

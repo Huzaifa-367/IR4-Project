@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\ReviewStatus;
 use App\Enums\ViolationType;
 use Database\Factories\PpeViolationFactory;
@@ -33,10 +34,12 @@ use Illuminate\Support\Carbon;
  */
 final class PpeViolation extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<PpeViolationFactory> */
     use HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

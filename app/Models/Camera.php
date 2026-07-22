@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\CameraType;
 use App\Enums\HardwareStatus;
 use App\Models\Concerns\Auditable;
@@ -27,10 +28,12 @@ use Illuminate\Support\Carbon;
  */
 final class Camera extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<CameraFactory> */
     use Auditable, HasFactory;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return list<string>

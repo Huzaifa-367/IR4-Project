@@ -1,5 +1,6 @@
 export type PpeViolation = {
     id: number;
+    uuid: string;
     camera_id: number;
     camera_ref: string | null;
     camera_name: string | null;
@@ -20,6 +21,7 @@ export type PpeViolation = {
 
 export type LiveCamera = {
     id: number;
+    uuid: string;
     name: string;
     reference: string;
     playback_url: string | null;

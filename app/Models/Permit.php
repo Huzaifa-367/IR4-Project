@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\PermitStatus;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasCreatedBy;
@@ -41,9 +42,10 @@ use Illuminate\Support\Carbon;
  */
 final class Permit extends Model
 {
+    use HasPublicUuid;
     use Auditable, HasCreatedBy, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

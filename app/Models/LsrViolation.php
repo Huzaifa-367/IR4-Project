@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\LsrCategory;
 use App\Enums\LsrStatus;
 use Database\Factories\LsrViolationFactory;
@@ -12,10 +13,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 final class LsrViolation extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<LsrViolationFactory> */
     use HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

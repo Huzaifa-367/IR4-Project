@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 
 type Entry = {
     id: number;
+    uuid: string;
     worker_id: number;
     worker_name: string | null;
     last_zone: string | null;
@@ -17,6 +18,7 @@ type Entry = {
 
 type Report = {
     id: number;
+    uuid: string;
     status: string;
     triggered_at: string;
     accounted: number;
@@ -26,7 +28,12 @@ type Report = {
 
 type Props = {
     openReport: Report | null;
-    history: Array<{ id: number; status: string; triggered_at: string }>;
+    history: Array<{
+        id: number;
+        uuid: string;
+        status: string;
+        triggered_at: string;
+    }>;
     canTrigger: boolean;
     canManage: boolean;
 };
@@ -73,7 +80,7 @@ export default function EvacuationIndex({
                     >
                         <Button asChild size="sm">
                             <Link
-                                href={`/tracking/evacuation/${openReport.id}`}
+                                href={`/tracking/evacuation/${openReport.uuid}`}
                             >
                                 Open board
                             </Link>
@@ -89,7 +96,7 @@ export default function EvacuationIndex({
                                 className="flex items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
                             >
                                 <Link
-                                    href={`/tracking/evacuation/${report.id}`}
+                                    href={`/tracking/evacuation/${report.uuid}`}
                                     className="text-[color:var(--accent)] hover:underline"
                                 >
                                     Evacuation #{report.id}

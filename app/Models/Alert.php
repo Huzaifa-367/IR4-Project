@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\AlertSeverity;
 use App\Enums\AlertStatus;
 use App\Enums\AlertType;
@@ -33,10 +34,12 @@ use Illuminate\Support\Carbon;
  */
 final class Alert extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<AlertFactory> */
     use HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

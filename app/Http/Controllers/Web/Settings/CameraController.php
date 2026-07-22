@@ -22,7 +22,7 @@ final class CameraController extends BaseController
     {
         $this->authorize('viewAny', Camera::class);
 
-        $query = Camera::query()->with('asset:id,name');
+        $query = Camera::query()->with('asset:id,uuid,name');
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status')->toString());
@@ -36,6 +36,7 @@ final class CameraController extends BaseController
             'cameras' => [
                 'data' => $paginator->getCollection()->map(fn (Camera $camera): array => [
                     'id' => $camera->id,
+                    'uuid' => $camera->uuid,
                     'name' => $camera->name,
                     'reference' => $camera->reference,
                     'camera_type' => $camera->camera_type->value,
@@ -46,6 +47,7 @@ final class CameraController extends BaseController
                     'stream_url' => $camera->stream_url,
                     'asset' => $camera->asset === null ? null : [
                         'id' => $camera->asset->id,
+                        'uuid' => $camera->asset->uuid,
                         'name' => $camera->asset->name,
                     ],
                 ]),
@@ -55,7 +57,7 @@ final class CameraController extends BaseController
                     'total' => $paginator->total(),
                 ],
             ],
-            'assets' => Asset::query()->orderBy('name')->get(['id', 'name']),
+            'assets' => Asset::query()->orderBy('name')->get(['id', 'uuid', 'name']),
             'cameraTypes' => collect(CameraType::cases())->map(fn (CameraType $t) => [
                 'value' => $t->value,
                 'label' => $t->label(),

@@ -1,13 +1,13 @@
 import { Head } from '@inertiajs/react';
 import { useCallback, useEffect, useState } from 'react';
+import { GeoZoneMapView } from '@/components/ir4/geo-zone-map';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
-import { ZoneMap } from '@/components/ir4/zone-map';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import type {
     DashboardPermissions,
     DashboardSummary,
 } from '@/types/dashboard';
-import type { TrackingPosition, TrackingZone } from '@/types/tracking';
+import type { TrackingZone } from '@/types/tracking';
 
 type Props = {
     summary: DashboardSummary;
@@ -71,7 +71,6 @@ export default function DisplayIndex({
             (alert) => alert.severity === 'critical',
         ) ?? [];
     const zones = (summary.map?.zones ?? []) as TrackingZone[];
-    const positions = (summary.map?.positions ?? []) as TrackingPosition[];
 
     return (
         <>
@@ -195,9 +194,8 @@ export default function DisplayIndex({
                                 Live zone map
                             </p>
                             {permissions.view_tracking ? (
-                                <ZoneMap
+                                <GeoZoneMapView
                                     zones={zones}
-                                    positions={positions}
                                     occupancy={summary.headcount?.by_zone}
                                 />
                             ) : (

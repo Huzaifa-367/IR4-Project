@@ -39,6 +39,7 @@ export type DashboardSummary = {
         open_warning: number;
         latest: Array<{
             id: number;
+            uuid: string;
             title: string;
             severity: string;
             status: string;
@@ -152,6 +153,7 @@ export type DashboardSummary = {
     };
     open_records?: Array<{
         id: number;
+        uuid: string;
         record: string;
         type: string;
         kind: 'incident' | 'lsr';
@@ -169,6 +171,7 @@ export type DashboardSummary = {
     }>;
     last_report?: {
         id: number;
+        uuid: string;
         report_number: string;
         period: { start: string | null; end: string | null };
         status: string;
@@ -177,11 +180,12 @@ export type DashboardSummary = {
     map?: {
         zones: Array<{
             id: number;
+            uuid: string;
             name: string;
             zone_type: string;
-            map_x: number | null;
-            map_y: number | null;
-            map_radius: number | null;
+            latitude: number | null;
+            longitude: number | null;
+            radius_meters: number | null;
             color: string | null;
         }>;
         positions: Array<{

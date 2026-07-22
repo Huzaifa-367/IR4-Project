@@ -1,5 +1,6 @@
 export type User = {
     id: number;
+    uuid: string;
     name: string;
     email: string;
     must_change_password?: boolean;

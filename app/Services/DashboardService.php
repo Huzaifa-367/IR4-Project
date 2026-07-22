@@ -628,6 +628,7 @@ final class DashboardService
                     $owner = $incident->classifier;
                     $rows[] = [
                         'id' => $incident->id,
+                        'uuid' => $incident->uuid,
                         'record' => $incident->incident_number,
                         'type' => $incident->incident_type?->label() ?? 'Incident',
                         'kind' => 'incident',
@@ -640,7 +641,7 @@ final class DashboardService
                         'status_label' => $incident->status->label(),
                         'action_progress' => $progress,
                         'age' => $this->humanAge($incident->occurred_at),
-                        'href' => '/incidents/'.$incident->id,
+                        'href' => '/incidents/'.$incident->uuid,
                         'occurred_at' => optional($incident->occurred_at)?->toIso8601String(),
                     ];
                 });
@@ -658,6 +659,7 @@ final class DashboardService
                     $owner = $lsr->logger;
                     $rows[] = [
                         'id' => $lsr->id,
+                        'uuid' => $lsr->uuid,
                         'record' => 'LSR-'.$lsr->id,
                         'type' => $lsr->category->label(),
                         'kind' => 'lsr',
@@ -670,7 +672,7 @@ final class DashboardService
                         'status_label' => $lsr->status->label(),
                         'action_progress' => $progress,
                         'age' => $this->humanAge($lsr->occurred_at),
-                        'href' => '/lsr-violations/'.$lsr->id,
+                        'href' => '/lsr-violations/'.$lsr->uuid,
                         'occurred_at' => optional($lsr->occurred_at)?->toIso8601String(),
                     ];
                 });
@@ -720,14 +722,12 @@ final class DashboardService
         $canIdentity = $user->can('view-worker-identity');
         $zones = Zone::query()
             ->where('is_active', true)
-            ->get(['id', 'name', 'zone_type', 'map_x', 'map_y', 'map_radius', 'latitude', 'longitude', 'radius_meters', 'color'])
+            ->get(['id', 'uuid', 'name', 'zone_type', 'latitude', 'longitude', 'radius_meters', 'color'])
             ->map(fn (Zone $zone): array => [
                 'id' => $zone->id,
+                'uuid' => $zone->uuid,
                 'name' => $zone->name,
                 'zone_type' => $zone->zone_type->value,
-                'map_x' => $zone->map_x,
-                'map_y' => $zone->map_y,
-                'map_radius' => $zone->map_radius,
                 'latitude' => $zone->latitude,
                 'longitude' => $zone->longitude,
                 'radius_meters' => $zone->radius_meters,
@@ -789,6 +789,7 @@ final class DashboardService
 
         return [
             'id' => $report->id,
+            'uuid' => $report->uuid,
             'report_number' => $report->report_number,
             'period' => [
                 'start' => optional($report->period_start)?->toDateString(),

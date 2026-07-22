@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\TagStatus;
 use App\Enums\WorkerType;
 use App\Models\Concerns\HasCreatedBy;
@@ -37,10 +38,12 @@ use Illuminate\Support\Carbon;
  */
 final class Worker extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<WorkerFactory> */
     use HasCreatedBy, HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

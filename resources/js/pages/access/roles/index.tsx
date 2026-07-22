@@ -218,7 +218,7 @@ export default function RolesIndex({ roles, catalogue }: Props) {
                 description="Permissions sync immediately for every user holding this role."
                 action={
                     form?.mode === 'edit' && form.role
-                        ? `/access/roles/${form.role.id}`
+                        ? `/access/roles/${form.role.uuid}`
                         : '/access/roles'
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
@@ -408,7 +408,7 @@ export default function RolesIndex({ roles, catalogue }: Props) {
                 }
                 action={
                     deleteTarget
-                        ? `/access/roles/${deleteTarget.id}`
+                        ? `/access/roles/${deleteTarget.uuid}`
                         : undefined
                 }
                 method="delete"

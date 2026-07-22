@@ -22,6 +22,7 @@ final class AlertResource extends JsonResource
 
         return [
             'id' => $alert->id,
+            'uuid' => $alert->uuid,
             'alert_type' => $alert->alert_type->value,
             'alert_type_label' => $alert->alert_type->label(),
             'severity' => $alert->severity->value,

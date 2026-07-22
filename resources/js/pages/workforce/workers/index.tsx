@@ -90,7 +90,7 @@ export default function WorkersIndex({
             header: 'Name',
             cell: (worker) => (
                 <Link
-                    href={`/workforce/workers/${worker.id}`}
+                    href={`/workforce/workers/${worker.uuid}`}
                     className="font-medium text-text hover:underline"
                 >
                     <WorkerIdentityCell name={worker.name} />
@@ -151,7 +151,7 @@ export default function WorkersIndex({
                         </Button>
                     ) : null}
                     <Button asChild size="sm" variant="ghost">
-                        <Link href={`/workforce/workers/${worker.id}`}>
+                        <Link href={`/workforce/workers/${worker.uuid}`}>
                             View
                         </Link>
                     </Button>
@@ -258,7 +258,7 @@ export default function WorkersIndex({
                 title={form?.mode === 'edit' ? 'Edit worker' : 'Add worker'}
                 action={
                     form?.mode === 'edit'
-                        ? `/workforce/workers/${form.worker.id}`
+                        ? `/workforce/workers/${form.worker.uuid}`
                         : '/workforce/workers'
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}

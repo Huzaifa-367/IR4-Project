@@ -56,8 +56,8 @@ it('advances positions on live reads and ignores backfill rewind', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
     $plain = 'track-live';
     $reader = Device::factory()->withPlainToken($plain)->create();
-    $zoneA = Zone::factory()->create(['name' => 'A', 'zone_type' => ZoneType::Work, 'map_x' => 20, 'map_y' => 20]);
-    $zoneB = Zone::factory()->create(['name' => 'B', 'zone_type' => ZoneType::Work, 'map_x' => 80, 'map_y' => 80]);
+    $zoneA = Zone::factory()->create(['name' => 'A', 'zone_type' => ZoneType::Work]);
+    $zoneB = Zone::factory()->create(['name' => 'B', 'zone_type' => ZoneType::Work]);
     app(ReaderBindingService::class)->bind($reader, $zoneA, now()->subDay(), $admin);
 
     $worker = Worker::factory()->create();

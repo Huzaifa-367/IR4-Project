@@ -20,8 +20,8 @@ final class RepositioningController extends BaseController
         $readers = Device::query()
             ->where('device_type', DeviceType::RfidReader)
             ->with([
-                'asset:id,name,current_location_label,is_mobile',
-                'currentZoneBinding.zone:id,name,zone_type',
+                'asset:id,uuid,name,current_location_label,is_mobile',
+                'currentZoneBinding.zone:id,uuid,name,zone_type',
             ])
             ->orderBy('name')
             ->get()
@@ -31,16 +31,19 @@ final class RepositioningController extends BaseController
 
                 return [
                     'id' => $device->id,
+                    'uuid' => $device->uuid,
                     'name' => $device->name,
                     'reference' => $device->reference,
                     'asset' => $device->asset === null ? null : [
                         'id' => $device->asset->id,
+                        'uuid' => $device->asset->uuid,
                         'name' => $device->asset->name,
                         'current_location_label' => $device->asset->current_location_label,
                         'is_mobile' => $device->asset->is_mobile,
                     ],
                     'current_zone' => $zone === null ? null : [
                         'id' => $zone->id,
+                        'uuid' => $zone->uuid,
                         'name' => $zone->name,
                         'zone_type' => $zone->zone_type->value,
                         'is_gate' => $zone->zone_type === ZoneType::Gate,
@@ -54,9 +57,10 @@ final class RepositioningController extends BaseController
             'zones' => Zone::query()
                 ->where('is_active', true)
                 ->orderBy('name')
-                ->get(['id', 'name', 'zone_type'])
+                ->get(['id', 'uuid', 'name', 'zone_type'])
                 ->map(fn (Zone $zone): array => [
                     'id' => $zone->id,
+                    'uuid' => $zone->uuid,
                     'name' => $zone->name,
                     'zone_type' => $zone->zone_type->value,
                     'zone_type_label' => $zone->zone_type->label(),

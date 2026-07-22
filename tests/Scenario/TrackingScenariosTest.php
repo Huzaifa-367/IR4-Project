@@ -30,7 +30,7 @@ it('scenario 01: ingest updates position headcount and map without backfill rewi
     $plain = 'scenario-01';
     $reader = Device::factory()->withPlainToken($plain)->create();
     $gate = Zone::factory()->create(['zone_type' => ZoneType::Gate]);
-    $zoneB = Zone::factory()->create(['name' => 'Pad B', 'zone_type' => ZoneType::Work, 'map_x' => 80, 'map_y' => 90]);
+    $zoneB = Zone::factory()->create(['name' => 'Pad B', 'zone_type' => ZoneType::Work]);
     $bindings = app(ReaderBindingService::class);
     $bindings->bind($reader, $gate, now()->subDays(2), $admin);
 

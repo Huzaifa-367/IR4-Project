@@ -63,7 +63,7 @@ Each event carries **`recorded_at`** (device clock). The server also stamps **`r
 2. `IngestBatchRequest` validates the envelope (`events` array, size) and each event's shape (per-endpoint FormRequest rules).
 3. Controller delegates to the domain service (e.g. `TrackingService::ingestReadings`), passing the device.
 4. Service, per event: dedupe check → clock-skew clamp → backfill classify → resolve references (camera/reader/zone) → persist raw row → if live (≤10 min), update state + evaluate alerts + queue a broadcast.
-5. Heavy work (rollups, alert evaluation for large live batches) is pushed to the **`ingest` queue** (DOC-01 §A8) so the HTTP response returns fast; the raw insert + dedupe is synchronous so the 202 outcome is accurate.
+5. Heavy work (alert evaluation for large live batches) is pushed to the **`ingest` queue** (DOC-01 §A8) so the HTTP response returns fast; the raw insert + dedupe is synchronous so the 202 outcome is accurate.
 6. Controller returns `202` with `{accepted, duplicates, rejected[]}`.
 
 ---

@@ -53,7 +53,7 @@ final class GasDashboardController extends BaseController
             'devices' => Device::query()
                 ->where('device_type', DeviceType::GasDetector)
                 ->orderBy('name')
-                ->get(['id', 'name', 'reference']),
+                ->get(['id', 'uuid', 'name', 'reference']),
             'thresholds' => $thresholds,
             'canManageThresholds' => $request->user()?->can('update-gas-thresholds') ?? false,
             'canAcknowledge' => $request->user()?->can('acknowledge-alerts') ?? false,

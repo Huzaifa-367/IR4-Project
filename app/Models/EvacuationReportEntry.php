@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\AccountedSource;
 use App\Enums\MusterStatus;
 use Database\Factories\EvacuationReportEntryFactory;
@@ -23,10 +24,12 @@ use Illuminate\Support\Carbon;
  */
 final class EvacuationReportEntry extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<EvacuationReportEntryFactory> */
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

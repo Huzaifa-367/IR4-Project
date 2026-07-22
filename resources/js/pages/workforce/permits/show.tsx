@@ -530,7 +530,7 @@ export default function PermitShow({
 
     async function loadGasSuggestion(): Promise<void> {
         const response = await fetch(
-            `/workforce/permits/${permit.id}/gas-suggestion`,
+            `/workforce/permits/${permit.uuid}/gas-suggestion`,
         );
         const payload = (await response.json()) as {
             readings: Record<string, number>;
@@ -611,7 +611,7 @@ export default function PermitShow({
                                     <>
                                         {' · '}
                                         <Link
-                                            href={`/workforce/work-orders/${permit.work_order.id}`}
+                                            href={`/workforce/work-orders/${permit.work_order.uuid}`}
                                             className="text-[color:var(--accent)] underline-offset-2 hover:underline"
                                         >
                                             {permit.work_order.reference}
@@ -771,7 +771,7 @@ export default function PermitShow({
                                 type="button"
                                 onClick={() =>
                                     postAction(
-                                        `/workforce/permits/${permit.id}/submit`,
+                                        `/workforce/permits/${permit.uuid}/submit`,
                                     )
                                 }
                             >
@@ -789,7 +789,7 @@ export default function PermitShow({
                                                 type="button"
                                                 onClick={() =>
                                                     postAction(
-                                                        `/workforce/permits/${permit.id}/inspection`,
+                                                        `/workforce/permits/${permit.uuid}/inspection`,
                                                         { as: 'issuer' },
                                                     )
                                                 }
@@ -809,7 +809,7 @@ export default function PermitShow({
                                                 }
                                                 onClick={() =>
                                                     postAction(
-                                                        `/workforce/permits/${permit.id}/inspection`,
+                                                        `/workforce/permits/${permit.uuid}/inspection`,
                                                         { as: 'receiver' },
                                                     )
                                                 }
@@ -834,7 +834,7 @@ export default function PermitShow({
                                     type="button"
                                     onClick={() =>
                                         postAction(
-                                            `/workforce/permits/${permit.id}/approve`,
+                                            `/workforce/permits/${permit.uuid}/approve`,
                                             { note: note || undefined },
                                         )
                                     }
@@ -848,7 +848,7 @@ export default function PermitShow({
                                 type="button"
                                 onClick={() =>
                                     postAction(
-                                        `/workforce/permits/${permit.id}/issue`,
+                                        `/workforce/permits/${permit.uuid}/issue`,
                                         { note: note || undefined },
                                     )
                                 }
@@ -864,7 +864,7 @@ export default function PermitShow({
                                     variant="outline"
                                     onClick={() =>
                                         postAction(
-                                            `/workforce/permits/${permit.id}/renew`,
+                                            `/workforce/permits/${permit.uuid}/renew`,
                                         )
                                     }
                                 >
@@ -875,7 +875,7 @@ export default function PermitShow({
                                     variant="outline"
                                     onClick={() =>
                                         postAction(
-                                            `/workforce/permits/${permit.id}/close`,
+                                            `/workforce/permits/${permit.uuid}/close`,
                                             {
                                                 note:
                                                     note || 'Work complete',
@@ -890,7 +890,7 @@ export default function PermitShow({
                                     variant="destructive"
                                     onClick={() =>
                                         postAction(
-                                            `/workforce/permits/${permit.id}/suspend`,
+                                            `/workforce/permits/${permit.uuid}/suspend`,
                                             {
                                                 note: note || 'Suspended',
                                             },
@@ -904,7 +904,7 @@ export default function PermitShow({
                                     variant="destructive"
                                     onClick={() =>
                                         postAction(
-                                            `/workforce/permits/${permit.id}/cancel`,
+                                            `/workforce/permits/${permit.uuid}/cancel`,
                                             {
                                                 note: note || 'Cancelled',
                                             },
@@ -921,7 +921,7 @@ export default function PermitShow({
                                 type="button"
                                 onClick={() =>
                                     postAction(
-                                        `/workforce/permits/${permit.id}/resume`,
+                                        `/workforce/permits/${permit.uuid}/resume`,
                                     )
                                 }
                             >
@@ -942,7 +942,7 @@ export default function PermitShow({
                                     variant="destructive"
                                     onClick={() =>
                                         postAction(
-                                            `/workforce/permits/${permit.id}/reject`,
+                                            `/workforce/permits/${permit.uuid}/reject`,
                                             {
                                                 note: note || 'Rejected',
                                             },
@@ -970,7 +970,7 @@ export default function PermitShow({
 
                 {isEditable ? (
                     <Form
-                        action={`/workforce/permits/${permit.id}`}
+                        action={`/workforce/permits/${permit.uuid}`}
                         method="put"
                         className="space-y-6"
                         transform={(data) => ({
@@ -1555,7 +1555,7 @@ export default function PermitShow({
                             disabled={gasChannels.length === 0}
                             onClick={() =>
                                 postAction(
-                                    `/workforce/permits/${permit.id}/gas-tests`,
+                                    `/workforce/permits/${permit.uuid}/gas-tests`,
                                     {
                                         readings: gasReadings,
                                         source: 'manual',

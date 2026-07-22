@@ -8,12 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('zones', function (Blueprint $table) {
-            $table->boolean('requires_permit')->default(false)->after('requires_authorization');
-        });
-
-        Schema::create('worker_document_types', function (Blueprint $table) {
+        Schema::create('worker_document_types', function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('code')->unique();
             $table->string('name');
             $table->text('description')->nullable();
@@ -25,28 +22,29 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('worker_documents', function (Blueprint $table) {
+        Schema::create('worker_documents', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('worker_id')->constrained('workers')->cascadeOnDelete();
-            $table->foreignId('worker_document_type_id')->constrained('worker_document_types')->restrictOnDelete();
+            $table->uuid('uuid')->unique();
+            $table->foreignId('worker_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('worker_document_type_id')->constrained()->restrictOnDelete();
             $table->string('document_number')->nullable();
             $table->string('issuing_body')->nullable();
             $table->timestamp('issued_at')->nullable();
-            $table->timestamp('expires_at')->nullable();
+            $table->timestamp('expires_at')->nullable()->index();
             $table->string('file_path')->nullable();
             $table->string('verification_status')->default('pending');
             $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('verified_at')->nullable();
-            $table->text('notes')->nullable();
             $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->text('notes')->nullable();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['worker_id', 'worker_document_type_id']);
-            $table->index(['expires_at']);
         });
 
-        Schema::create('permit_types', function (Blueprint $table) {
+        Schema::create('permit_types', function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('code')->unique();
             $table->string('name');
             $table->text('description')->nullable();
@@ -65,9 +63,10 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('permit_type_checklist_items', function (Blueprint $table) {
+        Schema::create('permit_type_checklist_items', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('permit_type_id')->constrained('permit_types')->cascadeOnDelete();
+            $table->uuid('uuid')->unique();
+            $table->foreignId('permit_type_id')->constrained()->cascadeOnDelete();
             $table->string('code');
             $table->string('label');
             $table->boolean('is_mandatory')->default(true);
@@ -77,9 +76,10 @@ return new class extends Migration
             $table->unique(['permit_type_id', 'code']);
         });
 
-        Schema::create('permit_type_roles', function (Blueprint $table) {
+        Schema::create('permit_type_roles', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('permit_type_id')->constrained('permit_types')->cascadeOnDelete();
+            $table->uuid('uuid')->unique();
+            $table->foreignId('permit_type_id')->constrained()->cascadeOnDelete();
             $table->string('role_code');
             $table->string('label');
             $table->unsignedTinyInteger('min_count')->default(1);
@@ -89,9 +89,10 @@ return new class extends Migration
             $table->unique(['permit_type_id', 'role_code']);
         });
 
-        Schema::create('permit_type_gas_channels', function (Blueprint $table) {
+        Schema::create('permit_type_gas_channels', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('permit_type_id')->constrained('permit_types')->cascadeOnDelete();
+            $table->uuid('uuid')->unique();
+            $table->foreignId('permit_type_id')->constrained()->cascadeOnDelete();
             $table->string('channel_code');
             $table->string('label');
             $table->string('unit')->nullable();
@@ -104,9 +105,10 @@ return new class extends Migration
             $table->unique(['permit_type_id', 'channel_code']);
         });
 
-        Schema::create('permit_type_conflicts', function (Blueprint $table) {
+        Schema::create('permit_type_conflicts', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('permit_type_id')->constrained('permit_types')->cascadeOnDelete();
+            $table->uuid('uuid')->unique();
+            $table->foreignId('permit_type_id')->constrained()->cascadeOnDelete();
             $table->foreignId('conflicts_with_type_id')->constrained('permit_types')->cascadeOnDelete();
             $table->string('scope')->default('same_zone');
             $table->string('severity')->default('warn');
@@ -115,12 +117,14 @@ return new class extends Migration
             $table->unique(['permit_type_id', 'conflicts_with_type_id', 'scope'], 'permit_type_conflicts_unique');
         });
 
-        Schema::create('permit_type_document_requirements', function (Blueprint $table) {
+        Schema::create('permit_type_document_requirements', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('permit_type_id')->constrained('permit_types')->cascadeOnDelete();
+            $table->uuid('uuid')->unique();
+            $table->foreignId('permit_type_id')->constrained()->cascadeOnDelete();
             $table->foreignId('worker_document_type_id')
-                ->constrained('worker_document_types', 'id', 'pt_doc_req_wdoc_type_fk')
-                ->restrictOnDelete();
+                ->constrained()
+                ->restrictOnDelete()
+                ->name('pt_doc_req_wdoc_type_fk');
             $table->string('role_code')->nullable();
             $table->boolean('is_mandatory')->default(true);
             $table->boolean('must_be_verified')->default(true);
@@ -128,28 +132,30 @@ return new class extends Migration
             $table->index(['permit_type_id', 'role_code']);
         });
 
-        Schema::create('work_orders', function (Blueprint $table) {
+        Schema::create('work_orders', function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('reference')->unique();
             $table->text('description')->nullable();
-            $table->foreignId('zone_id')->nullable()->constrained('zones')->nullOnDelete();
+            $table->foreignId('zone_id')->nullable()->constrained()->nullOnDelete();
             $table->string('status')->default('open');
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
         });
 
-        Schema::create('permits', function (Blueprint $table) {
+        Schema::create('permits', function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('permit_number')->unique();
-            $table->foreignId('permit_type_id')->constrained('permit_types')->restrictOnDelete();
-            $table->foreignId('work_order_id')->nullable()->constrained('work_orders')->nullOnDelete();
-            $table->foreignId('zone_id')->nullable()->constrained('zones')->nullOnDelete();
+            $table->foreignId('permit_type_id')->constrained()->restrictOnDelete();
+            $table->foreignId('work_order_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('zone_id')->nullable()->constrained()->nullOnDelete();
             $table->text('task_description');
             $table->foreignId('receiver_id')->constrained('users')->restrictOnDelete();
             $table->foreignId('issuer_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('approver_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('status')->default('draft');
+            $table->string('status')->default('draft')->index();
             $table->unsignedTinyInteger('renewal_count')->default(0);
             $table->boolean('is_extended')->default(false);
             $table->timestamp('valid_from')->nullable();
@@ -168,40 +174,39 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
-            $table->index(['status']);
             $table->index(['permit_type_id', 'status']);
             $table->index(['zone_id', 'status']);
             $table->index(['valid_from', 'valid_to']);
         });
 
-        Schema::create('permit_gas_tests', function (Blueprint $table) {
+        Schema::create('permit_gas_tests', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('permit_id')->constrained('permits')->cascadeOnDelete();
+            $table->foreignId('permit_id')->constrained()->cascadeOnDelete();
             $table->timestamp('tested_at');
             $table->json('readings');
             $table->string('result');
             $table->string('source');
-            $table->foreignId('device_id')->nullable()->constrained('devices')->nullOnDelete();
+            $table->foreignId('device_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('tested_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('phase')->default('pre_start');
             $table->timestamps();
             $table->index(['permit_id', 'tested_at']);
         });
 
-        Schema::create('permit_personnel', function (Blueprint $table) {
+        Schema::create('permit_personnel', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('permit_id')->constrained('permits')->cascadeOnDelete();
-            $table->foreignId('worker_id')->constrained('workers')->restrictOnDelete();
+            $table->foreignId('permit_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('worker_id')->constrained()->restrictOnDelete();
             $table->string('role_code');
             $table->timestamp('documents_verified_at')->nullable();
             $table->timestamps();
             $table->unique(['permit_id', 'worker_id', 'role_code']);
         });
 
-        Schema::create('permit_approvals', function (Blueprint $table) {
+        Schema::create('permit_approvals', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('permit_id')->constrained('permits')->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained('users')->restrictOnDelete();
+            $table->foreignId('permit_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained()->restrictOnDelete();
             $table->string('action');
             $table->text('note')->nullable();
             $table->timestamp('signed_at');
@@ -209,12 +214,12 @@ return new class extends Migration
             $table->index(['permit_id', 'action']);
         });
 
-        Schema::create('permit_events', function (Blueprint $table) {
+        Schema::create('permit_events', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('permit_id')->constrained('permits')->cascadeOnDelete();
+            $table->foreignId('permit_id')->constrained()->cascadeOnDelete();
             $table->string('event');
             $table->json('payload')->nullable();
-            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamp('occurred_at');
             $table->timestamps();
             $table->index(['permit_id', 'occurred_at']);
@@ -237,9 +242,5 @@ return new class extends Migration
         Schema::dropIfExists('permit_types');
         Schema::dropIfExists('worker_documents');
         Schema::dropIfExists('worker_document_types');
-
-        Schema::table('zones', function (Blueprint $table) {
-            $table->dropColumn('requires_permit');
-        });
     }
 };

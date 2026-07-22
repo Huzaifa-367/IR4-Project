@@ -111,6 +111,7 @@ final class WorkerDocumentTypeController extends BaseController
     {
         return [
             'id' => $type->id,
+            'uuid' => $type->uuid,
             'code' => $type->code,
             'name' => $type->name,
             'description' => $type->description,

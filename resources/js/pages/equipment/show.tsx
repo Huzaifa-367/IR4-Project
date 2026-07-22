@@ -176,7 +176,7 @@ export default function EquipmentShow({
                             <Button asChild variant="outline" size="sm">
                                 <Link href="/equipment">All equipment</Link>
                             </Button>
-                            <QrLabelButton equipmentId={equipment.id} />
+                            <QrLabelButton equipmentUuid={equipment.uuid} />
                             {canManage &&
                                 equipment.is_checkoutable &&
                                 !isRetired &&
@@ -198,7 +198,7 @@ export default function EquipmentShow({
                             )}
                             {canManage && !isRetired && (
                                 <Form
-                                    action={`/equipment/${equipment.id}/retire`}
+                                    action={`/equipment/${equipment.uuid}/retire`}
                                     method="post"
                                     options={{ preserveScroll: true }}
                                 >
@@ -304,7 +304,7 @@ export default function EquipmentShow({
                         >
                             {canManage && !isRetired ? (
                                 <EquipmentForm
-                                    action={`/equipment/${equipment.id}`}
+                                    action={`/equipment/${equipment.uuid}`}
                                     method="put"
                                     defaults={equipment}
                                     submitLabel="Save changes"
@@ -329,7 +329,7 @@ export default function EquipmentShow({
                                 subtitle="Record outcome and next due"
                                 className="border-l-[3px] border-l-[color:var(--ok)]"
                             >
-                                <InspectionForm equipmentId={equipment.id} />
+                                <InspectionForm equipmentUuid={equipment.uuid} />
                             </Panel>
                         ) : null}
                         <Panel
@@ -403,7 +403,7 @@ export default function EquipmentShow({
                                 subtitle="Preventive or corrective work"
                                 className="border-l-[3px] border-l-[color:var(--accent)]"
                             >
-                                <MaintenanceForm equipmentId={equipment.id} />
+                                <MaintenanceForm equipmentUuid={equipment.uuid} />
                             </Panel>
                         ) : null}
                         <Panel
@@ -473,7 +473,7 @@ export default function EquipmentShow({
                     >
                         {canManage && !isRetired ? (
                             <ScheduleEditor
-                                equipmentId={equipment.id}
+                                equipmentUuid={equipment.uuid}
                                 schedules={equipment.schedules}
                             />
                         ) : (
@@ -514,7 +514,7 @@ export default function EquipmentShow({
                                 className="border-l-[3px] border-l-[color:var(--accent)]"
                             >
                                 <Form
-                                    action={`/equipment/${equipment.id}/documents`}
+                                    action={`/equipment/${equipment.uuid}/documents`}
                                     method="post"
                                     encType="multipart/form-data"
                                     className="space-y-3"
@@ -601,7 +601,7 @@ export default function EquipmentShow({
                                             ) : null}
                                             {canManage ? (
                                                 <Form
-                                                    action={`/equipment/${equipment.id}/documents/${doc.id}`}
+                                                    action={`/equipment/${equipment.uuid}/documents/${doc.uuid}`}
                                                     method="delete"
                                                     options={{
                                                         preserveScroll: true,

@@ -267,7 +267,7 @@ export default function CamerasIndex({
                 }
                 action={
                     form?.mode === 'edit'
-                        ? `/hardware/cameras/${form.camera.id}`
+                        ? `/hardware/cameras/${form.camera.uuid}`
                         : '/hardware/cameras'
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
@@ -387,7 +387,7 @@ export default function CamerasIndex({
                 }
                 action={
                     aiTarget
-                        ? `/hardware/cameras/${aiTarget.id}/ai`
+                        ? `/hardware/cameras/${aiTarget.uuid}/ai`
                         : undefined
                 }
                 method="patch"
@@ -405,7 +405,7 @@ export default function CamerasIndex({
                 description="Retiring keeps the camera row for historical PPE and incident links."
                 action={
                     retireTarget
-                        ? `/hardware/cameras/${retireTarget.id}/status`
+                        ? `/hardware/cameras/${retireTarget.uuid}/status`
                         : undefined
                 }
                 method="patch"

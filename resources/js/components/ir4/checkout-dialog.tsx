@@ -60,7 +60,7 @@ export function CheckoutDialog({
         form.clearErrors();
         // Reset only when the dialog opens for an item.
         // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional open/equipment gate
-    }, [open, equipment?.id]);
+    }, [open, equipment?.uuid]);
 
     function submit(event: FormEvent<HTMLFormElement>): void {
         event.preventDefault();
@@ -75,7 +75,7 @@ export function CheckoutDialog({
             return;
         }
 
-        form.post(`/equipment/${equipment.id}/checkout`, {
+        form.post(`/equipment/${equipment.uuid}/checkout`, {
             preserveScroll: true,
             onSuccess: () => {
                 onOpenChange(false);

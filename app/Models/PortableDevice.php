@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\PortableDeviceStatus;
 use Database\Factories\PortableDeviceFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,10 +27,12 @@ use Illuminate\Support\Carbon;
  */
 final class PortableDevice extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<PortableDeviceFactory> */
     use HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

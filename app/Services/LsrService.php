@@ -45,6 +45,7 @@ final class LsrService
             'description' => $alert->title,
             'alert' => [
                 'id' => $alert->id,
+                'uuid' => $alert->uuid,
                 'alert_type' => $alert->alert_type->value,
                 'title' => $alert->title,
             ],
@@ -196,6 +197,7 @@ final class LsrService
 
         return [
             'id' => $lsr->id,
+            'uuid' => $lsr->uuid,
             'category' => $lsr->category->value,
             'category_label' => $lsr->category->label(),
             'occurred_at' => optional($lsr->occurred_at)?->toIso8601String(),

@@ -257,7 +257,8 @@ it('serves the public page without auth and rejects writes', function () {
         ->assertSee('RETIRED', false)
         ->assertSee($equipment->equipment_code, false)
         ->assertDontSee('equipment_id', false)
-        ->assertDontSee('/equipment/'.$equipment->id, false);
+        ->assertDontSee('/equipment/'.$equipment->id, false)
+        ->assertDontSee('/equipment/'.$equipment->uuid, false);
 
     $this->post(route('public.equipment.show', $equipment->qr_token))
         ->assertStatus(405);

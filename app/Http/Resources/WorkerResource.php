@@ -28,6 +28,7 @@ final class WorkerResource extends JsonResource
 
         return [
             'id' => $worker->id,
+            'uuid' => $worker->uuid,
             'contractor' => $worker->contractor,
             'role_title' => $worker->role_title,
             'worker_type' => $worker->worker_type->value,

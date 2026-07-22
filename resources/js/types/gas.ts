@@ -29,6 +29,7 @@ export type GasThreshold = {
 
 export type GasAlarm = {
     id: number;
+    uuid: string;
     device_id: number;
     device_name: string | null;
     device_ref: string | null;

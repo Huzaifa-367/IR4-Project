@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('gas_readings', function (Blueprint $table) {
+        Schema::create('gas_readings', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('device_id')->constrained()->cascadeOnDelete();
             $table->foreignId('asset_id')->nullable()->constrained()->nullOnDelete();
@@ -27,9 +27,9 @@ return new class extends Migration
             $table->index(['device_id', 'recorded_at']);
         });
 
-        Schema::create('gas_thresholds', function (Blueprint $table) {
+        Schema::create('gas_thresholds', function (Blueprint $table): void {
             $table->id();
-            $table->string('gas_type');
+            $table->string('gas_type')->unique();
             $table->decimal('warning_level', 10, 2);
             $table->decimal('alarm_level', 10, 2);
             $table->string('unit');
@@ -37,18 +37,18 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
-            $table->unique(['gas_type']);
         });
 
-        Schema::create('gas_alarms', function (Blueprint $table) {
+        Schema::create('gas_alarms', function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->foreignId('device_id')->constrained()->cascadeOnDelete();
             $table->foreignId('asset_id')->nullable()->constrained()->nullOnDelete();
             $table->string('gas_type');
             $table->string('level');
             $table->decimal('reading_value', 10, 2);
             $table->decimal('threshold_value', 10, 2);
-            $table->timestamp('triggered_at');
+            $table->timestamp('triggered_at')->index();
             $table->timestamp('resolved_at')->nullable();
             $table->foreignId('alert_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('acknowledged_by')->nullable()->constrained('users')->nullOnDelete();
@@ -57,12 +57,31 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             $table->index(['device_id', 'gas_type', 'level']);
-            $table->index(['triggered_at']);
         });
+
+        Schema::create('environmental_readings', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('device_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('asset_id')->nullable()->constrained()->nullOnDelete();
+            $table->timestamp('recorded_at')->index();
+            $table->timestamp('received_at');
+            $table->decimal('temperature_c', 5, 2)->nullable();
+            $table->decimal('humidity_pct', 5, 2)->nullable();
+            $table->decimal('wind_speed_ms', 6, 2)->nullable();
+            $table->json('extra')->nullable();
+            $table->boolean('is_backfill')->default(false);
+            $table->boolean('clock_skew')->default(false);
+            $table->uuid('event_uid');
+            $table->timestamps();
+            $table->unique(['device_id', 'event_uid']);
+            $table->index(['device_id', 'recorded_at']);
+        });
+
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('environmental_readings');
         Schema::dropIfExists('gas_alarms');
         Schema::dropIfExists('gas_thresholds');
         Schema::dropIfExists('gas_readings');

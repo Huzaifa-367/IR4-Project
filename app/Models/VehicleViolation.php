@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\VehicleViolationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,10 +11,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 final class VehicleViolation extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<VehicleViolationFactory> */
     use HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

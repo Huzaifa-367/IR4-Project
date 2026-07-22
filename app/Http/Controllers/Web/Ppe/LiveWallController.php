@@ -29,6 +29,7 @@ final class LiveWallController extends BaseController
             ->get()
             ->map(fn (Camera $camera): array => [
                 'id' => $camera->id,
+                'uuid' => $camera->uuid,
                 'name' => $camera->name,
                 'reference' => $camera->reference,
                 'playback_url' => is_string($playbackUrlTemplate) && $playbackUrlTemplate !== ''

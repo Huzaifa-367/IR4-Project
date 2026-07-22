@@ -244,7 +244,7 @@ export default function UsersIndex({
                 title="Edit user"
                 action={
                     form?.mode === 'edit'
-                        ? `/access/users/${form.user.id}`
+                        ? `/access/users/${form.user.uuid}`
                         : '/access/users'
                 }
                 method="put"
@@ -319,7 +319,7 @@ export default function UsersIndex({
                 }
                 action={
                     lifecycleTarget
-                        ? `/access/users/${lifecycleTarget.id}`
+                        ? `/access/users/${lifecycleTarget.uuid}`
                         : undefined
                 }
                 method="put"

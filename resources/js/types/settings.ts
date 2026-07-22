@@ -36,7 +36,7 @@ export type SettingSchema = {
     editable: boolean;
     permission: string;
     updated_at: string | null;
-    updated_by: { id: number; name: string } | null;
+    updated_by: { id: number; uuid: string; name: string } | null;
 };
 
 export type SettingGroup = {

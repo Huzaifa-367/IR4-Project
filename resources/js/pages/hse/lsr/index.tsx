@@ -57,7 +57,7 @@ export default function LsrIndex({
     zones = [],
     workers = [],
 }: Props) {
-    const [closeId, setCloseId] = useState<number | null>(null);
+    const [closing, setClosing] = useState<{ id: number; uuid: string } | null>(null);
     const [logOpen, setLogOpen] = useState(() => prefill !== null);
     const [search, setSearch] = useState(filters.search);
     const [status, setStatus] = useState(filters.status || ALL);
@@ -136,7 +136,7 @@ export default function LsrIndex({
             header: 'Category',
             cell: (row) => (
                 <Link
-                    href={`/lsr-violations/${row.id}`}
+                    href={`/lsr-violations/${row.uuid}`}
                     className="font-medium text-text hover:underline"
                 >
                     {row.category_label}
@@ -173,14 +173,14 @@ export default function LsrIndex({
             cell: (row) => (
                 <div className="flex justify-end gap-1">
                     <Button asChild size="sm" variant="ghost">
-                        <Link href={`/lsr-violations/${row.id}`}>Open</Link>
+                        <Link href={`/lsr-violations/${row.uuid}`}>Open</Link>
                     </Button>
                     {canClose && row.status === 'open' && (
                         <Button
                             type="button"
                             size="sm"
                             variant="secondary"
-                            onClick={() => setCloseId(row.id)}
+                            onClick={() => setClosing({ id: row.id, uuid: row.uuid })}
                         >
                             Close
                         </Button>
@@ -466,23 +466,24 @@ export default function LsrIndex({
             </Dialog>
 
             <Dialog
-                open={closeId !== null}
+                open={closing !== null}
                 onOpenChange={(open) => {
                     if (!open) {
-                        setCloseId(null);
+                        setClosing(null);
                     }
                 }}
             >
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Close LSR #{closeId}</DialogTitle>
+                        <DialogTitle>Close LSR #{closing?.id}</DialogTitle>
                     </DialogHeader>
+                    {closing ? (
                     <Form
-                        action={`/lsr-violations/${closeId}/close`}
+                        action={`/lsr-violations/${closing.uuid}/close`}
                         method="post"
                         className="flex flex-col gap-4"
                         options={{ preserveScroll: true }}
-                        onSuccess={() => setCloseId(null)}
+                        onSuccess={() => setClosing(null)}
                     >
                         {({ processing, errors }) => (
                             <>
@@ -506,7 +507,7 @@ export default function LsrIndex({
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        onClick={() => setCloseId(null)}
+                                        onClick={() => setClosing(null)}
                                     >
                                         Cancel
                                     </Button>
@@ -517,6 +518,7 @@ export default function LsrIndex({
                             </>
                         )}
                     </Form>
+                    ) : null}
                 </DialogContent>
             </Dialog>
         </>

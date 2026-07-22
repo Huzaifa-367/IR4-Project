@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\ZoneType;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasCreatedBy;
@@ -20,9 +21,6 @@ use Illuminate\Support\Carbon;
  * @property bool $requires_authorization
  * @property bool $requires_permit
  * @property int|null $occupancy_limit
- * @property string|null $map_x
- * @property string|null $map_y
- * @property string|null $map_radius
  * @property string|null $latitude
  * @property string|null $longitude
  * @property string|null $radius_meters
@@ -35,10 +33,12 @@ use Illuminate\Support\Carbon;
  */
 final class Zone extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<ZoneFactory> */
     use Auditable, HasCreatedBy, HasFactory, SoftDeletes;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>
@@ -50,9 +50,6 @@ final class Zone extends Model
             'requires_authorization' => 'boolean',
             'requires_permit' => 'boolean',
             'is_active' => 'boolean',
-            'map_x' => 'decimal:2',
-            'map_y' => 'decimal:2',
-            'map_radius' => 'decimal:2',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'radius_meters' => 'decimal:2',

@@ -138,7 +138,8 @@ it('exposes coverage for view-tracking users', function () {
     $this->actingAs($user)
         ->getJson(route('tracking.coverage'))
         ->assertOk()
-        ->assertJsonPath('data.0.zone.id', $zone->id);
+        ->assertJsonPath('data.0.zone.id', $zone->id)
+        ->assertJsonPath('data.0.zone.uuid', $zone->uuid);
 });
 
 it('forbids zone settings without view-zones', function () {

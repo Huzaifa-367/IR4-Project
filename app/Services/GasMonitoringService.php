@@ -381,6 +381,7 @@ final class GasMonitoringService
 
         return [
             'id' => $alarm->id,
+            'uuid' => $alarm->uuid,
             'device_id' => $alarm->device_id,
             'device_name' => $alarm->device?->name,
             'device_ref' => $alarm->device?->reference,

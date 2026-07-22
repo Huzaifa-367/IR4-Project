@@ -133,7 +133,7 @@ final class SettingsService
     public function editorGroups(User $user): array
     {
         $rows = Setting::query()
-            ->with('updatedBy:id,name')
+            ->with('updatedBy:id,uuid,name')
             ->whereIn('key', SettingsRegistry::keys())
             ->get()
             ->keyBy('key');
@@ -169,7 +169,7 @@ final class SettingsService
                 'permission' => $permission,
                 'updated_at' => optional($row?->updated_at)?->toIso8601String(),
                 'updated_by' => $row?->updatedBy !== null
-                    ? ['id' => $row->updatedBy->id, 'name' => $row->updatedBy->name]
+                    ? ['id' => $row->updatedBy->id, 'uuid' => $row->updatedBy->uuid, 'name' => $row->updatedBy->name]
                     : null,
             ];
         }

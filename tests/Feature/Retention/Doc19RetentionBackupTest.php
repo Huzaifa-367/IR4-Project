@@ -8,7 +8,6 @@ use App\Enums\HardwareStatus;
 use App\Models\Alert;
 use App\Models\Device;
 use App\Models\EnvironmentalReading;
-use App\Models\EnvironmentalRollup;
 use App\Models\GasReading;
 use App\Models\TagReading;
 use App\Models\User;
@@ -19,7 +18,6 @@ use App\Services\Backup\ExportAllService;
 use App\Services\Backup\ExportManifestService;
 use App\Services\Backup\SecureWipeService;
 use App\Services\RetentionService;
-use App\Services\SensorRollupService;
 use App\Services\SettingsService;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SettingsSeeder;
@@ -33,58 +31,7 @@ beforeEach(function () {
     Storage::fake('exports');
 });
 
-it('builds idempotent hourly environmental rollups and recomputes late data', function () {
-    $device = Device::factory()->create([
-        'device_type' => DeviceType::EnvironmentalSensor,
-        'status' => HardwareStatus::Online,
-    ]);
-    $bucket = now()->subHours(2)->startOfHour();
-
-    EnvironmentalReading::factory()->create([
-        'device_id' => $device->id,
-        'recorded_at' => $bucket->copy()->addMinutes(10),
-        'temperature_c' => 20,
-        'humidity_pct' => 40,
-        'wind_speed_ms' => 1,
-    ]);
-    EnvironmentalReading::factory()->create([
-        'device_id' => $device->id,
-        'recorded_at' => $bucket->copy()->addMinutes(20),
-        'temperature_c' => 30,
-        'humidity_pct' => 50,
-        'wind_speed_ms' => 2,
-    ]);
-
-    $service = app(SensorRollupService::class);
-    $service->rebuildEnvBucket($device->id, $bucket);
-    $service->rebuildEnvBucket($device->id, $bucket);
-
-    $rollup = EnvironmentalRollup::query()
-        ->where('device_id', $device->id)
-        ->where('bucket_start', $bucket)
-        ->firstOrFail();
-
-    expect($rollup->sample_count)->toBe(2)
-        ->and((float) $rollup->temp_min)->toBe(20.0)
-        ->and((float) $rollup->temp_max)->toBe(30.0)
-        ->and((float) $rollup->temp_avg)->toBe(25.0);
-
-    EnvironmentalReading::factory()->create([
-        'device_id' => $device->id,
-        'recorded_at' => $bucket->copy()->addMinutes(30),
-        'temperature_c' => 40,
-        'humidity_pct' => 60,
-        'wind_speed_ms' => 3,
-    ]);
-
-    $service->rebuildEnvBucket($device->id, $bucket);
-    $rollup->refresh();
-
-    expect($rollup->sample_count)->toBe(3)
-        ->and((float) $rollup->temp_max)->toBe(40.0);
-});
-
-it('prunes only allow-listed raw tables after rollups and never compliance tables', function () {
+it('prunes only allow-listed raw tables by age and never compliance tables', function () {
     $device = Device::factory()->create([
         'device_type' => DeviceType::GasDetector,
         'status' => HardwareStatus::Online,
@@ -113,8 +60,6 @@ it('prunes only allow-listed raw tables after rollups and never compliance table
         'recorded_at' => $old->copy()->addMinutes(5),
         'temperature_c' => 30,
     ]);
-    app(SensorRollupService::class)->rebuildEnvBucket($envDevice->id, $old);
-
     $alert = Alert::factory()->create([
         'alert_type' => AlertType::System,
         'severity' => AlertSeverity::Warning,
@@ -130,7 +75,6 @@ it('prunes only allow-listed raw tables after rollups and never compliance table
         ->and($counts['environmental_readings'])->toBe(1)
         ->and(TagReading::query()->count())->toBe(1)
         ->and(GasReading::query()->whereKey($gas->id)->exists())->toBeFalse()
-        ->and(EnvironmentalRollup::query()->count())->toBe(1)
         ->and(Alert::query()->whereKey($alert->id)->exists())->toBeTrue()
         ->and(array_intersect(RetentionService::PRUNE_ALLOW_LIST, RetentionService::COMPLIANCE_TABLES))->toBe([]);
 });
@@ -154,7 +98,7 @@ it('prunes gas readings by age without requiring a rollup', function () {
         ->and(GasReading::query()->count())->toBe(0);
 });
 
-it('does not prune environmental rows until their hour is rolled up', function () {
+it('prunes environmental readings by age without requiring a rollup', function () {
     $device = Device::factory()->create([
         'device_type' => DeviceType::EnvironmentalSensor,
         'status' => HardwareStatus::Online,
@@ -169,8 +113,8 @@ it('does not prune environmental rows until their hour is rolled up', function (
 
     $counts = app(RetentionService::class)->pruneRawSensorData();
 
-    expect($counts['environmental_readings'])->toBe(0)
-        ->and(EnvironmentalReading::query()->count())->toBe(1);
+    expect($counts['environmental_readings'])->toBe(1)
+        ->and(EnvironmentalReading::query()->count())->toBe(0);
 });
 
 it('removes ad-hoc exports but keeps weekly report PDFs', function () {

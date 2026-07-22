@@ -133,7 +133,7 @@ export default function TrackingIndex({
                         zones={zones}
                         occupancy={headcount.by_zone}
                         onSelect={(zone) =>
-                            router.visit(`/settings/zones/${zone.id}`)
+                            router.visit(`/settings/zones/${zone.uuid}`)
                         }
                     />
                 ) : (

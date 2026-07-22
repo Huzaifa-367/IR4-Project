@@ -24,14 +24,14 @@ alwaysApply: true
 | 09 | RFID tracking, entry/exit, evacuation, tags, portable devices |
 | 10 | PPE + fall ingest, false-positive review, anonymous violations |
 | 11 | Gas/CO₂ readings, thresholds, hysteresis, backfill-creates-no-alarms |
-| 12 | Environmental telemetry (display + rollups; no alarms in v1) |
+| 12 | Environmental telemetry (display + on-read aggregates; no alarms in v1) |
 | 13 | Equipment registry, permanent `qr_token`, custody, ZPL print, public `/e/{token}` |
 | 14 | HSE incidents + LSR — **always user-created**; alert prefill only; mandatory action-taken |
 | 15 | Weekly report: frozen 10-item snapshot, vehicle violations, publish-lock, supersede-don't-edit |
 | 16 | Dashboard aggregate `/api/dashboard/summary`, Control Room design language, `/display` kiosk, nav |
 | 17 | Append-only `audit_logs`, `Auditable` trait, masking, read-only `data_access`, audit viewer |
 | 18 | Settings registry, `SettingsService`, config-vs-`.env` boundary, general editor |
-| 19 | Rollups (env), allow-listed pruning, encrypted backups, `ir4:export-all` / `ir4:secure-wipe` |
+| 19 | On-read sensor aggregates (gas/env), allow-listed pruning, encrypted backups, `ir4:export-all` / `ir4:secure-wipe` |
 | 20 | On-prem deploy/ops runbook: Dell R360, Supervisor, Nginx LAN fences, DB grants, ZT411, commissioning checklist |
 | 21 | Testing strategy: endpoint matrix, invariant guards, scenario catalogue, CI gates (Pint/PHPStan/TS/enum-sync/on-prem grep) |
 | 22 | Permit to Work: GI 2.100-aligned flow; dynamic types/tests/checklists; worker document packs; RFID/gas cross-detection |

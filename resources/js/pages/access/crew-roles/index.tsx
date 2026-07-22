@@ -12,12 +12,14 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 
 type PermitTypeOption = {
     id: number;
+    uuid: string;
     code: string;
     name: string;
 };
 
 type CrewRoleRow = {
     id: number;
+    uuid: string;
     permit_type_id: number;
     role_code: string;
     label: string;
@@ -26,6 +28,7 @@ type CrewRoleRow = {
     sort_order: number;
     permit_type: {
         id: number;
+        uuid: string;
         code: string;
         name: string;
         is_active: boolean;
@@ -54,7 +57,7 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
             cell: (row) =>
                 row.permit_type ? (
                     <Link
-                        href={`/workforce/permit-types/${row.permit_type.id}`}
+                        href={`/workforce/permit-types/${row.permit_type.uuid}`}
                         className="text-[color:var(--accent)] hover:underline"
                     >
                         {row.permit_type.name}
@@ -111,7 +114,7 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                                 )
                             ) {
                                 router.delete(
-                                    `/workforce/crew-roles/${row.id}`,
+                                    `/workforce/crew-roles/${row.uuid}`,
                                 );
                             }
                         }}
@@ -292,7 +295,7 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                 title="Edit crew role"
                 action={
                     dialog?.kind === 'edit'
-                        ? `/workforce/crew-roles/${dialog.role.id}`
+                        ? `/workforce/crew-roles/${dialog.role.uuid}`
                         : '/workforce/crew-roles'
                 }
                 method="put"

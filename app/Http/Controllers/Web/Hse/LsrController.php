@@ -77,12 +77,13 @@ final class LsrController extends BaseController
             'canClose' => $request->user()?->can('update-lsr') ?? false,
             'prefill' => $this->resolvePrefill($request, $lsr),
             'zones' => ($request->user()?->can('create-lsr') ?? false)
-                ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])
+                ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name'])
                 : [],
             'workers' => ($request->user()?->can('create-lsr') ?? false)
-                ? Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])->map(
+                ? Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name'])->map(
                     fn (Worker $worker): array => [
                         'id' => $worker->id,
+                        'uuid' => $worker->uuid,
                         'name' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
                     ],
                 )->values()->all()

@@ -13,7 +13,7 @@ export const gasInfo = {
         summary: 'Hydrogen sulphide average across live detectors.',
         items: [
             'Compared against DOC-11 warning and alarm thresholds on live panels.',
-            'Trend points come from rollups for windows longer than 24 hours.',
+            'Trend points use raw readings (hourly aggregates for windows longer than 24 hours).',
         ],
         source: 'gas_readings · h2s_ppm',
     },
@@ -112,10 +112,10 @@ export const environmentInfo = {
     trend: {
         summary: 'Temperature, humidity, wind, and extra metrics on one chart.',
         items: [
-            'Uses raw readings within 24 hours; rollups beyond that.',
-            'Falls back to hourly raw aggregation when rollups are empty.',
+            'Uses raw readings within 24 hours.',
+            'Uses hourly aggregates from raw readings for longer windows.',
         ],
-        source: 'environmental_readings · environmental_rollups',
+        source: 'environmental_readings',
     },
     rangeStats: {
         summary: 'Min / average / max for each core environmental metric.',

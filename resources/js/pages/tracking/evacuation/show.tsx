@@ -7,6 +7,7 @@ import { useReverbChannel } from '@/hooks/use-reverb-channel';
 
 type Entry = {
     id: number;
+    uuid: string;
     worker_id: number;
     worker_name: string | null;
     last_zone: string | null;
@@ -16,6 +17,7 @@ type Entry = {
 
 type Report = {
     id: number;
+    uuid: string;
     status: string;
     triggered_at: string;
     accounted: number;
@@ -98,7 +100,7 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                     </Link>
                                     {canManage && report.status === 'open' && (
                                         <Form
-                                            action={`/tracking/evacuation/${report.id}/entries/${entry.id}`}
+                                            action={`/tracking/evacuation/${report.uuid}/entries/${entry.uuid}`}
                                             method="post"
                                         >
                                             {({ processing }) => (
@@ -152,14 +154,14 @@ export default function EvacuationShow({ report, canManage }: Props) {
 
                 <div className="flex flex-wrap gap-2">
                     <Button asChild variant="secondary" size="sm">
-                        <a href={`/tracking/evacuation/${report.id}/download`}>
+                        <a href={`/tracking/evacuation/${report.uuid}/download`}>
                             Download PDF
                         </a>
                     </Button>
                     {canManage && report.status === 'open' && (
                         <>
                             <Form
-                                action={`/tracking/evacuation/${report.id}/close`}
+                                action={`/tracking/evacuation/${report.uuid}/close`}
                                 method="post"
                             >
                                 {({ processing }) => (
@@ -181,7 +183,7 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                 )}
                             </Form>
                             <Form
-                                action={`/tracking/evacuation/${report.id}/close`}
+                                action={`/tracking/evacuation/${report.uuid}/close`}
                                 method="post"
                                 className="flex flex-wrap items-center gap-2"
                             >

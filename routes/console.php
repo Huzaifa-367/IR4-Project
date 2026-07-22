@@ -1,7 +1,6 @@
 <?php
 
 use App\Jobs\BackupDatabase;
-use App\Jobs\BuildSensorRollups;
 use App\Jobs\CheckDiskSpace;
 use App\Jobs\FlagOverdueEquipment;
 use App\Jobs\GenerateWeeklyReport;
@@ -38,11 +37,6 @@ Schedule::call(function (TrackingService $tracking): void {
 })->hourly()->name('ir4:tracking-absence-sweep');
 
 Schedule::job(new FlagOverdueEquipment)->daily()->name('ir4:flag-overdue-equipment');
-
-Schedule::job(new BuildSensorRollups)
-    ->hourly()
-    ->name('ir4:build-sensor-rollups')
-    ->withoutOverlapping(55);
 
 Schedule::job(new PruneRawSensorData)
     ->dailyAt('03:15')

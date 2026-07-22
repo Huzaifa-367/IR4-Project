@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 
 type PermitRow = {
     id: number;
+    uuid: string;
     permit_number: string;
     status: string;
     status_label: string;
@@ -23,6 +24,7 @@ type PermitRow = {
 type Props = {
     workOrder: {
         id: number;
+        uuid: string;
         reference: string;
         description: string | null;
         status: string;
@@ -64,7 +66,7 @@ export default function WorkOrderShow({
             header: 'Permit',
             cell: (row) => (
                 <Link
-                    href={`/workforce/permits/${row.id}`}
+                    href={`/workforce/permits/${row.uuid}`}
                     className="font-mono text-xs hover:underline"
                 >
                     {row.permit_number}

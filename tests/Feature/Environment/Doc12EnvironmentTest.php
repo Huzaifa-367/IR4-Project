@@ -6,7 +6,6 @@ use App\Events\EnvironmentUpdated;
 use App\Models\Alert;
 use App\Models\Device;
 use App\Models\EnvironmentalReading;
-use App\Models\EnvironmentalRollup;
 use App\Models\IngestEvent;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
@@ -87,7 +86,7 @@ it('is idempotent and rejects unknown device references', function () {
     expect(EnvironmentalReading::query()->count())->toBe(1);
 });
 
-it('stores and rolls up backfill without broadcasting', function () {
+it('stores backfill without broadcasting', function () {
     Event::fake([EnvironmentUpdated::class]);
     Cache::flush();
     $token = 'environment-backfill';
@@ -107,12 +106,11 @@ it('stores and rolls up backfill without broadcasting', function () {
         ], environmentHeaders($token))->assertAccepted();
     }
 
-    $rollup = EnvironmentalRollup::query()->firstOrFail();
-    expect(EnvironmentalReading::query()->where('is_backfill', true)->count())->toBe(2)
-        ->and($rollup->temp_min)->toBe('20.00')
-        ->and($rollup->temp_avg)->toBe('25.00')
-        ->and($rollup->temp_max)->toBe('30.00')
-        ->and($rollup->extra_stats['pm25'])->toBe(['min' => 10, 'avg' => 20, 'max' => 30]);
+    $readings = EnvironmentalReading::query()->where('is_backfill', true)->get();
+    expect($readings)->toHaveCount(2)
+        ->and($readings->avg(fn ($r) => (float) $r->temperature_c))->toBe(25.0)
+        ->and($readings->min(fn ($r) => (float) $r->temperature_c))->toBe(20.0)
+        ->and($readings->max(fn ($r) => (float) $r->temperature_c))->toBe(30.0);
 
     Event::assertNotDispatched(EnvironmentUpdated::class);
 });
@@ -138,7 +136,7 @@ it('returns latest sensor values and stale state', function () {
         ->assertJsonPath('data.sensors.0.extra.pm10', 11);
 });
 
-it('uses raw data for a day and rollups beyond 24 hours including extra parameters', function () {
+it('uses raw data for a day and hourly raw aggregates beyond 24 hours including extra parameters', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
     $token = 'environment-trends';
     $device = Device::factory()->withPlainToken($token)->create([
@@ -162,7 +160,7 @@ it('uses raw data for a day and rollups beyond 24 hours including extra paramete
             'to' => now()->toDateString(),
         ]))
         ->assertOk()
-        ->assertJsonPath('data.source', 'rollup')
+        ->assertJsonPath('data.source', 'raw-hourly')
         ->assertJsonPath('data.points.0.avg', 9);
 
     EnvironmentalReading::factory()->create([
@@ -181,7 +179,7 @@ it('uses raw data for a day and rollups beyond 24 hours including extra paramete
         ->assertJsonPath('data.source', 'raw');
 });
 
-it('falls back to hourly raw aggregation when rollups are missing', function () {
+it('aggregates hourly from raw readings for windows longer than 24 hours', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
     $device = Device::factory()->create([
         'device_type' => DeviceType::EnvironmentalSensor,
@@ -206,8 +204,6 @@ it('falls back to hourly raw aggregation when rollups are missing', function () 
         'humidity_pct' => 55,
         'wind_speed_ms' => 4,
     ]);
-
-    expect(EnvironmentalRollup::query()->count())->toBe(0);
 
     $this->actingAs($admin)
         ->getJson(route('environment.trends', [

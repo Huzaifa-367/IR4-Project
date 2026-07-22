@@ -4,12 +4,15 @@ export type PermitOption = { value: string; label: string };
 
 export type PermitTypeChecklistItem = {
     id: number;
+    uuid: string;
     code: string;
     label: string;
     is_mandatory: boolean;
 };
 
 export type PermitTypeRole = {
+    id?: number;
+    uuid?: string;
     role_code: string;
     label: string;
     min_count: number;
@@ -17,6 +20,8 @@ export type PermitTypeRole = {
 };
 
 export type PermitTypeGasChannel = {
+    id?: number;
+    uuid?: string;
     channel_code: string;
     label: string;
     unit: string | null;
@@ -25,11 +30,14 @@ export type PermitTypeGasChannel = {
 };
 
 export type PermitDocumentRequirement = {
+    id?: number;
+    uuid?: string;
     role_code: string | null;
     is_mandatory: boolean;
     must_be_verified: boolean;
     worker_document_type: {
         id: number;
+        uuid: string;
         code: string;
         name: string;
     } | null;
@@ -37,6 +45,7 @@ export type PermitDocumentRequirement = {
 
 export type PermitTypeSummary = {
     id: number;
+    uuid: string;
     code: string;
     name: string;
     colour_token: string | null;
@@ -52,6 +61,7 @@ export type PermitTypeSummary = {
 
 export type PermitListItem = {
     id: number;
+    uuid: string;
     permit_number: string;
     status: string;
     status_label: string;
@@ -125,6 +135,7 @@ export type PermitJointInspection = {
 
 export type PermitDetail = {
     id: number;
+    uuid: string;
     permit_number: string;
     status: string;
     status_label: string;
@@ -160,7 +171,7 @@ export type PermitDetail = {
         requires_permit: boolean;
     } | null;
     work_order_id: number | null;
-    work_order: { id: number; reference: string } | null;
+    work_order: { id: number; uuid: string; reference: string } | null;
     receiver: { id: number; name: string } | null;
     issuer: { id: number; name: string } | null;
     approver: { id: number; name: string } | null;
@@ -172,6 +183,7 @@ export type PermitDetail = {
 
 export type PermitTypeCatalogueRow = {
     id: number;
+    uuid: string;
     code: string;
     name: string;
     description: string | null;
@@ -190,6 +202,7 @@ export type PermitTypeCatalogueRow = {
 
 export type WorkerOption = {
     id: number;
+    uuid: string;
     label: string;
     reference: string | null;
     verified_document_codes?: string[];
@@ -205,12 +218,14 @@ export type WorkerOption = {
 
 export type WorkOrderOption = {
     id: number;
+    uuid: string;
     reference: string;
     zone: { id: number; name: string } | null;
 };
 
 export type ZoneOption = {
     id: number;
+    uuid: string;
     name: string;
     requires_permit: boolean;
 };

@@ -109,13 +109,14 @@ final class EquipmentController extends BaseController
                 'label' => $status->label(),
             ])->values()->all(),
             'typeOptions' => Equipment::query()->select('equipment_type')->distinct()->orderBy('equipment_type')->pluck('equipment_type')->all(),
-            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])->map(
+            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name'])->map(
                 fn (Worker $worker): array => [
                     'id' => $worker->id,
+                    'uuid' => $worker->uuid,
                     'name' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
                 ],
             )->values()->all(),
-            'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name']),
             'canManage' => ($request->user()?->can('create-equipment') || $request->user()?->can('update-equipment') || $request->user()?->can('delete-equipment')) ?? false,
         ]);
     }
@@ -144,13 +145,14 @@ final class EquipmentController extends BaseController
 
         return Inertia::render('equipment/show', [
             'equipment' => $equipmentService->toArray($equipment, true, $canSeeIdentity),
-            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])->map(
+            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name'])->map(
                 fn (Worker $worker): array => [
                     'id' => $worker->id,
+                    'uuid' => $worker->uuid,
                     'name' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
                 ],
             )->values()->all(),
-            'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name']),
             'canManage' => ($request->user()?->can('create-equipment') || $request->user()?->can('update-equipment') || $request->user()?->can('delete-equipment')) ?? false,
         ]);
     }

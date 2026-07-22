@@ -22,7 +22,7 @@ final class DeviceController extends BaseController
     {
         $this->authorize('viewAny', Device::class);
 
-        $query = Device::query()->with('asset:id,name');
+        $query = Device::query()->with('asset:id,uuid,name');
 
         if ($request->filled('device_type')) {
             $query->where('device_type', $request->string('device_type')->toString());
@@ -40,6 +40,7 @@ final class DeviceController extends BaseController
             'devices' => [
                 'data' => $paginator->getCollection()->map(fn (Device $device): array => [
                     'id' => $device->id,
+                    'uuid' => $device->uuid,
                     'name' => $device->name,
                     'reference' => $device->reference,
                     'serial_number' => $device->serial_number,
@@ -50,6 +51,7 @@ final class DeviceController extends BaseController
                     'last_seen_at' => $device->last_seen_at?->toIso8601String(),
                     'asset' => $device->asset === null ? null : [
                         'id' => $device->asset->id,
+                        'uuid' => $device->asset->uuid,
                         'name' => $device->asset->name,
                     ],
                 ]),
@@ -59,7 +61,7 @@ final class DeviceController extends BaseController
                     'total' => $paginator->total(),
                 ],
             ],
-            'assets' => Asset::query()->orderBy('name')->get(['id', 'name']),
+            'assets' => Asset::query()->orderBy('name')->get(['id', 'uuid', 'name']),
             'deviceTypes' => collect(DeviceType::cases())->map(fn (DeviceType $t) => [
                 'value' => $t->value,
                 'label' => $t->label(),

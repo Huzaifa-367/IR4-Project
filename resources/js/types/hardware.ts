@@ -25,6 +25,7 @@ export type HardwareOption = {
 
 export type AssetRow = {
     id: number;
+    uuid: string;
     name: string;
     identifier: string;
     asset_type: AssetType | string;
@@ -39,6 +40,7 @@ export type AssetRow = {
 
 export type DeviceRow = {
     id: number;
+    uuid: string;
     name: string;
     reference: string;
     serial_number?: string | null;
@@ -47,11 +49,12 @@ export type DeviceRow = {
     status: HardwareStatus | string;
     has_token: boolean;
     last_seen_at: string | null;
-    asset: { id: number; name: string } | null;
+    asset: { id: number; uuid: string; name: string } | null;
 };
 
 export type CameraRow = {
     id: number;
+    uuid: string;
     name: string;
     reference: string;
     camera_type: CameraType | string;
@@ -60,7 +63,7 @@ export type CameraRow = {
     ai_enabled: boolean;
     last_frame_at: string | null;
     stream_url?: string | null;
-    asset: { id: number; name: string } | null;
+    asset: { id: number; uuid: string; name: string } | null;
 };
 
 export type PlainDeviceToken = {

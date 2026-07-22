@@ -23,21 +23,25 @@ export {
 
 export type EquipmentWorkerRef = {
     id: number;
+    uuid: string;
     name: string;
 };
 
 export type EquipmentZoneRef = {
     id: number;
+    uuid: string;
     name: string;
 };
 
 export type EquipmentUserRef = {
     id: number;
+    uuid: string;
     name: string;
 };
 
 export type EquipmentCheckout = {
     id: number;
+    uuid: string;
     equipment_id: number;
     worker_id: number;
     worker: EquipmentWorkerRef | null;
@@ -60,6 +64,7 @@ export type EquipmentCheckout = {
     equipment?: Pick<
         Equipment,
         | 'id'
+        | 'uuid'
         | 'equipment_code'
         | 'name'
         | 'equipment_type'
@@ -106,6 +111,7 @@ export type MaintenanceSchedule = {
 
 export type EquipmentDocument = {
     id: number;
+    uuid: string;
     equipment_id: number;
     title: string;
     mime: string;
@@ -117,6 +123,7 @@ export type EquipmentDocument = {
 
 export type Equipment = {
     id: number;
+    uuid: string;
     equipment_code: string;
     qr_token: string;
     name: string;

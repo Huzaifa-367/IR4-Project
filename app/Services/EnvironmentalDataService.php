@@ -7,7 +7,6 @@ use App\Enums\DeviceType;
 use App\Events\EnvironmentUpdated;
 use App\Models\Device;
 use App\Models\EnvironmentalReading;
-use App\Models\EnvironmentalRollup;
 use App\Support\Ingest\IngestEventRejected;
 use App\Support\Ingest\IngestTimestamps;
 use App\Support\Ingest\ReferenceResolver;
@@ -25,7 +24,6 @@ final class EnvironmentalDataService
         private readonly ReferenceResolver $references,
         private readonly AlertService $alerts,
         private readonly SettingsService $settings,
-        private readonly SensorRollupService $rollups,
     ) {}
 
     /**
@@ -116,27 +114,12 @@ final class EnvironmentalDataService
 
             return ['points' => $points, 'source' => 'raw'];
         }
-        $query = EnvironmentalRollup::query()
-            ->whereBetween('bucket_start', [$from, $to])
-            ->orderBy('bucket_start');
-        if ($deviceId !== null) {
-            $query->where('device_id', $deviceId);
-        }
-        $points = array_values($query->get()
-            ->map(fn (EnvironmentalRollup $rollup): array => $this->rollupPoint($rollup, $parameter))
-            ->filter(fn (array $point): bool => $point['avg'] !== null)
-            ->all());
-
-        if ($points !== []) {
-            return ['points' => $points, 'source' => 'rollup'];
-        }
 
         return $this->trendsFromRawHourly($parameter, $deviceId, $from, $to);
     }
 
     /**
-     * Build hourly trend points from raw readings when rollups are missing
-     * (e.g. bulk backfill or demo seed before rollup rebuild).
+     * Build hourly trend points from raw readings for windows longer than 24 hours.
      *
      * @return array{points: list<array<string, mixed>>, source: string}
      */
@@ -153,7 +136,7 @@ final class EnvironmentalDataService
         }
         $readings = $query->get();
         if ($readings->isEmpty()) {
-            return ['points' => [], 'source' => 'rollup'];
+            return ['points' => [], 'source' => 'raw-hourly'];
         }
 
         $points = $readings
@@ -220,7 +203,7 @@ final class EnvironmentalDataService
         }
         $normalized = $this->timestamps->normalize(Carbon::parse((string) $event['recorded_at']));
         try {
-            $reading = EnvironmentalReading::query()->create([
+            EnvironmentalReading::query()->create([
                 'device_id' => $device->id,
                 'asset_id' => $device->asset_id,
                 'recorded_at' => $normalized['recorded_at'],
@@ -236,7 +219,6 @@ final class EnvironmentalDataService
             }
             throw $exception;
         }
-        $this->rollups->rebuildEnvBucket($reading->device_id, $reading->recorded_at->copy()->startOfHour());
         if (! $normalized['is_backfill']) {
             $this->pendingBroadcasts[$device->id] = true;
         }
@@ -338,33 +320,6 @@ final class EnvironmentalDataService
         ];
     }
 
-    /** @return array<string, mixed> */
-    private function rollupPoint(EnvironmentalRollup $rollup, string $parameter): array
-    {
-        $prefix = match ($parameter) {
-            'temperature_c' => 'temp',
-            'humidity_pct' => 'humidity',
-            'wind_speed_ms' => 'wind',
-            default => null,
-        };
-        $stats = $prefix === null
-            ? ($rollup->extra_stats[$parameter] ?? null)
-            : [
-                'min' => $rollup->{"{$prefix}_min"},
-                'avg' => $rollup->{"{$prefix}_avg"},
-                'max' => $rollup->{"{$prefix}_max"},
-            ];
-
-        return [
-            'at' => $rollup->bucket_start->toIso8601String(),
-            'value' => isset($stats['avg']) ? (float) $stats['avg'] : null,
-            'min' => isset($stats['min']) ? (float) $stats['min'] : null,
-            'avg' => isset($stats['avg']) ? (float) $stats['avg'] : null,
-            'max' => isset($stats['max']) ? (float) $stats['max'] : null,
-            'device_id' => $rollup->device_id,
-        ];
-    }
-
     /**
      * Control-room snapshot: all sensors, all core (+ extra) metrics for the window.
      *
@@ -459,8 +414,8 @@ final class EnvironmentalDataService
             'trend' => [
                 'series' => $trendSeries,
                 'source' => collect($trendSeries)->contains(
-                    fn (array $series): bool => $series['source'] === 'rollup',
-                ) ? 'rollup' : 'raw',
+                    fn (array $series): bool => $series['source'] === 'raw-hourly',
+                ) ? 'raw-hourly' : 'raw',
             ],
         ];
     }

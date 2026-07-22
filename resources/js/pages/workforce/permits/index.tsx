@@ -149,7 +149,7 @@ export default function PermitsIndex({
             className: 'w-20 text-right',
             cell: (row) => (
                 <Button asChild size="sm" variant="ghost">
-                    <Link href={`/workforce/permits/${row.id}`}>Open</Link>
+                    <Link href={`/workforce/permits/${row.uuid}`}>Open</Link>
                 </Button>
             ),
         },

@@ -177,7 +177,7 @@ export default function AlertsIndex({
                 <div className="flex justify-end gap-1">
                     {canAcknowledge && alert.status === 'open' && (
                         <Form
-                            action={`/alerts/${alert.id}/acknowledge`}
+                            action={`/alerts/${alert.uuid}/acknowledge`}
                             method="post"
                         >
                             {({ processing }) => (
@@ -194,7 +194,7 @@ export default function AlertsIndex({
                     )}
                     {canResolve && alert.status !== 'resolved' && (
                         <Form
-                            action={`/alerts/${alert.id}/resolve`}
+                            action={`/alerts/${alert.uuid}/resolve`}
                             method="post"
                         >
                             {({ processing }) => (

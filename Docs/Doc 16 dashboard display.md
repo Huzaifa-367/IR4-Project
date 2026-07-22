@@ -102,12 +102,12 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
 
 ## 5. The live zone map (the signature visual)
 
-- Rendered with **MapLibre GL** using an **uploaded site-plan image as a static raster overlay** (offline — no external tiles, DOC-01 on-prem), or a plain coordinate canvas if no plan is uploaded `[CONFIRM AT DESIGN]`.
-- **Zones** drawn as translucent circles from their `map_x/map_y/map_radius` (DOC-06), colored by type (red for restricted, etc.), labeled with live occupancy count.
+- Rendered with **MapLibre GL** via **`GeoZoneMap`** using an **offline Gulf pmtiles basemap** (no live tile server, DOC-01 on-prem).
+- **Zones** drawn as translucent circles from their `latitude` / `longitude` / `radius_meters` (DOC-06), colored by type (red for restricted, etc.), labeled with live occupancy count.
 - **Workers** drawn as dots at their zone (approximate placement within the zone — RFID is zone-level, not GPS, so dots cluster in the zone, not precise points). Dots are **anonymized** (`Worker #id`, stable) unless the viewer has `view-worker-identity` (DOC-04 §5); hovering a dot shows the permitted detail.
 - **Readers** shown as small badges with their current zone binding (DOC-06 coverage), so an operator can see which pole covers what.
 - Updates live from the `tracking` channel (`HeadcountUpdated`/`PositionsUpdated`, throttled 5 s); reflects repositioning (a rebind moves a reader's coverage).
-- The map is the `ZoneMap` component, shared with the tracking page (DOC-09) and the display.
+- The map is the `GeoZoneMap` component, shared with the tracking page (DOC-09) and the display.
 
 ---
 
@@ -141,7 +141,7 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
 
 - **`pages/dashboard/index.tsx`** — the widget grid; subscribes to `tracking`/`gas`/`alerts`/`environment`/`system` channels + 60 s poll of `/api/dashboard/summary`; LIVE/RECONNECTING pill.
 - **`pages/display/index.tsx`** — kiosk cycler (`DisplayLayout`).
-- **Components (`components/ir4/`):** `StatCard` (label + value + delta chip + sparkline), `RangeToggle` (Day/Week/Month), `AnalyticalChart` (area/line + hover tooltip + crosshair, recharts), `ZoneMap` (MapLibre), `GasPanelStrip`, `WeatherTiles`, `SystemHealthTiles`, `AlertFeed`, `SeverityBadge`, `LiveDot`, `DisplayBanner`, `EventTicker`.
+- **Components (`components/ir4/`):** `StatCard` (label + value + delta chip + sparkline), `RangeToggle` (Day/Week/Month), `AnalyticalChart` (area/line + hover tooltip + crosshair, recharts), `GeoZoneMap` (MapLibre), `GasPanelStrip`, `WeatherTiles`, `SystemHealthTiles`, `AlertFeed`, `SeverityBadge`, `LiveDot`, `DisplayBanner`, `EventTicker`.
 - **Design tokens** in `resources/css/app.css` (the §2 palette + radius + shadows); a small `useTheme()` for dark/light.
 - **Types (`types/dashboard.ts`):** `DashboardSummary` (typed to §3), `StatCardProps`, `ChartRange`, `ZoneMapData`.
 - Every number that updates live uses tabular figures + a 200ms tween; no layout shift on update.

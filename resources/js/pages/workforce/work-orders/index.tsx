@@ -24,6 +24,7 @@ import type { PaginatedMeta } from '@/types/hardware';
 
 type WorkOrderRow = {
     id: number;
+    uuid: string;
     reference: string;
     description: string | null;
     status: string;
@@ -73,7 +74,7 @@ export default function WorkOrdersIndex({
             header: 'Reference',
             cell: (row) => (
                 <Link
-                    href={`/workforce/work-orders/${row.id}`}
+                    href={`/workforce/work-orders/${row.uuid}`}
                     className="font-mono text-xs font-medium hover:underline"
                 >
                     {row.reference}
@@ -102,7 +103,7 @@ export default function WorkOrdersIndex({
             className: 'w-20 text-right',
             cell: (row) => (
                 <Button asChild size="sm" variant="ghost">
-                    <Link href={`/workforce/work-orders/${row.id}`}>Open</Link>
+                    <Link href={`/workforce/work-orders/${row.uuid}`}>Open</Link>
                 </Button>
             ),
         },

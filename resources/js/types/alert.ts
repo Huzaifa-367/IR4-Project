@@ -1,5 +1,6 @@
 export type Alert = {
     id: number;
+    uuid: string;
     alert_type: string;
     alert_type_label: string;
     severity: 'info' | 'warning' | 'critical';

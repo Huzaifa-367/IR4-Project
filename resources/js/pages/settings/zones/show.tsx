@@ -14,6 +14,7 @@ const DEFAULT_RADIUS_METERS = 60;
 type Props = {
     zone: {
         id: number;
+        uuid: string;
         name: string;
         zone_type: string;
         zone_type_label: string;
@@ -21,9 +22,6 @@ type Props = {
         requires_permit: boolean;
         occupancy_limit: number | null;
         is_active: boolean;
-        map_x: string | null;
-        map_y: string | null;
-        map_radius: string | null;
         latitude: string | null;
         longitude: string | null;
         radius_meters: string | null;
@@ -60,7 +58,7 @@ export default function ZoneShow({ zone, workers }: Props) {
     function saveAccessList(): void {
         setSavingAccessList(true);
         router.put(
-            `/settings/zones/${zone.id}/access-list`,
+            `/settings/zones/${zone.uuid}/access-list`,
             { worker_ids: accessListIds },
             {
                 preserveScroll: true,
@@ -72,7 +70,7 @@ export default function ZoneShow({ zone, workers }: Props) {
     function saveLocation(): void {
         setSavingLocation(true);
         router.patch(
-            `/settings/zones/${zone.id}/map-position`,
+            `/settings/zones/${zone.uuid}/map-position`,
             { latitude, longitude, radius_meters: radiusMeters },
             { preserveScroll: true, onFinish: () => setSavingLocation(false) },
         );
@@ -107,7 +105,7 @@ export default function ZoneShow({ zone, workers }: Props) {
                         </Button>
                         {zone.is_active && (
                             <Form
-                                action={`/settings/zones/${zone.id}/deactivate`}
+                                action={`/settings/zones/${zone.uuid}/deactivate`}
                                 method="post"
                             >
                                 {({ processing }) => (

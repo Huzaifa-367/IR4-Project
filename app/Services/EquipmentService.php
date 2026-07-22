@@ -450,6 +450,7 @@ final class EquipmentService
 
         $payload = [
             'id' => $equipment->id,
+            'uuid' => $equipment->uuid,
             'equipment_code' => $equipment->equipment_code,
             'qr_token' => $equipment->qr_token,
             'public_url' => url('/e/'.$equipment->qr_token),
@@ -493,6 +494,7 @@ final class EquipmentService
             'inspector_id' => $row->inspector_id,
             'inspector' => $row->inspector === null ? null : [
                 'id' => $row->inspector->id,
+                'uuid' => $row->inspector->uuid,
                 'name' => $row->inspector->name,
             ],
             'next_due' => optional($row->next_due)?->toDateString(),
@@ -510,6 +512,7 @@ final class EquipmentService
             'recorded_by' => $row->recorded_by,
             'recorded_by_user' => $row->recorder === null ? null : [
                 'id' => $row->recorder->id,
+                'uuid' => $row->recorder->uuid,
                 'name' => $row->recorder->name,
             ],
             'next_due' => optional($row->next_due)?->toDateString(),
@@ -527,12 +530,14 @@ final class EquipmentService
 
         $payload['documents'] = $equipment->documents->map(fn (EquipmentDocument $document): array => [
             'id' => $document->id,
+            'uuid' => $document->uuid,
             'equipment_id' => $document->equipment_id,
             'title' => $document->title,
             'mime' => $document->mime,
             'uploaded_by' => $document->uploaded_by,
             'uploaded_by_user' => $document->uploader === null ? null : [
                 'id' => $document->uploader->id,
+                'uuid' => $document->uploader->uuid,
                 'name' => $document->uploader->name,
             ],
             'download_url' => $this->signedUrls->temporaryUrl($document->file_path),
@@ -560,22 +565,26 @@ final class EquipmentService
 
         return [
             'id' => $checkout->id,
+            'uuid' => $checkout->uuid,
             'equipment_id' => $checkout->equipment_id,
             'worker_id' => $checkout->worker_id,
             'worker' => $worker === null ? null : [
                 'id' => $worker->id,
+                'uuid' => $worker->uuid,
                 'name' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
             ],
             'checked_out_at' => optional($checkout->checked_out_at)?->toIso8601String(),
             'checked_out_by' => $checkout->checked_out_by,
             'checked_out_by_user' => $checkout->checkedOutByUser === null ? null : [
                 'id' => $checkout->checkedOutByUser->id,
+                'uuid' => $checkout->checkedOutByUser->uuid,
                 'name' => $checkout->checkedOutByUser->name,
             ],
             'reason' => $checkout->reason,
             'zone_id' => $checkout->zone_id,
             'zone' => $checkout->zone === null ? null : [
                 'id' => $checkout->zone->id,
+                'uuid' => $checkout->zone->uuid,
                 'name' => $checkout->zone->name,
             ],
             'expected_return_at' => optional($checkout->expected_return_at)?->toIso8601String(),
@@ -583,6 +592,7 @@ final class EquipmentService
             'returned_to' => $checkout->returned_to,
             'returned_to_user' => $checkout->returnedToUser === null ? null : [
                 'id' => $checkout->returnedToUser->id,
+                'uuid' => $checkout->returnedToUser->uuid,
                 'name' => $checkout->returnedToUser->name,
             ],
             'condition_out' => $checkout->condition_out,

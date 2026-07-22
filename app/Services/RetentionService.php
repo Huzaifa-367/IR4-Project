@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\EnvironmentalReading;
-use App\Models\EnvironmentalRollup;
 use App\Models\GasReading;
 use App\Models\TagReading;
 use App\Models\WeeklyReport;
@@ -166,25 +165,14 @@ final class RetentionService
 
     private function pruneEnvironmentalReadings(\DateTimeInterface $before): int
     {
+        // Environmental history is raw-only (no rollup table). Prune by retention window.
         $deleted = 0;
         EnvironmentalReading::query()
             ->where('recorded_at', '<', Carbon::instance($before))
             ->orderBy('id')
             ->chunkById(self::CHUNK, function ($rows) use (&$deleted): void {
-                $ids = [];
-                foreach ($rows as $row) {
-                    $bucket = $row->recorded_at->copy()->startOfHour();
-                    $hasRollup = EnvironmentalRollup::query()
-                        ->where('device_id', $row->device_id)
-                        ->where('bucket_start', $bucket)
-                        ->exists();
-                    if ($hasRollup) {
-                        $ids[] = $row->id;
-                    }
-                }
-                if ($ids !== []) {
-                    $deleted += EnvironmentalReading::query()->whereIn('id', $ids)->delete();
-                }
+                $ids = $rows->pluck('id');
+                $deleted += EnvironmentalReading::query()->whereIn('id', $ids)->delete();
             });
 
         return $deleted;

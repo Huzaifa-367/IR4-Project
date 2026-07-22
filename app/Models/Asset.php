@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Enums\AssetStatus;
 use App\Enums\AssetType;
 use App\Models\Concerns\Auditable;
@@ -24,10 +25,12 @@ use Illuminate\Support\Carbon;
  */
 final class Asset extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<AssetFactory> */
     use Auditable, HasFactory;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return array<string, string>

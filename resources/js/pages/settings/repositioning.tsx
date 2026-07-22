@@ -8,6 +8,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 
 type ReaderCard = {
     id: number;
+    uuid: string;
     name: string;
     reference: string;
     asset: {
@@ -103,7 +104,7 @@ export default function RepositioningPage({ readers, zones, flash }: Props) {
                                     : ''}
                             </p>
                             <Form
-                                action={`/settings/readers/${reader.id}/rebind`}
+                                action={`/settings/readers/${reader.uuid}/rebind`}
                                 method="post"
                                 className="space-y-2 border-t border-border pt-3"
                                 transform={(data) => ({
@@ -214,7 +215,7 @@ export default function RepositioningPage({ readers, zones, flash }: Props) {
                                                 size="sm"
                                             >
                                                 <Link
-                                                    href={`/settings/readers/${reader.id}/bindings`}
+                                                    href={`/settings/readers/${reader.uuid}/bindings`}
                                                 >
                                                     History
                                                 </Link>

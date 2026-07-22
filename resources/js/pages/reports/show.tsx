@@ -742,7 +742,7 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                             {report.has_pdf && (
                                 <Button variant="outline" asChild>
                                     <a
-                                        href={`/weekly-reports/${report.id}/download?format=pdf`}
+                                        href={`/weekly-reports/${report.uuid}/download?format=pdf`}
                                     >
                                         Download PDF
                                     </a>
@@ -751,7 +751,7 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                             {report.has_csv && (
                                 <Button variant="outline" asChild>
                                     <a
-                                        href={`/weekly-reports/${report.id}/download?format=csv`}
+                                        href={`/weekly-reports/${report.uuid}/download?format=csv`}
                                     >
                                         Download CSV
                                     </a>
@@ -760,7 +760,7 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                             {canPublish && report.status === 'generated' && (
                                 <Form
                                     method="post"
-                                    action={`/weekly-reports/${report.id}/publish`}
+                                    action={`/weekly-reports/${report.uuid}/publish`}
                                 >
                                     <Button type="submit">Publish</Button>
                                 </Form>

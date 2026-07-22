@@ -1,8 +1,8 @@
-# DOC-19 — Data Retention, Rollups, Backup & End-of-Project
+# DOC-19 — Data Retention, Backup & End-of-Project
 
-> **Depends on:** DOC-01 (queues/scheduler, storage), DOC-05 (device offline durations), DOC-09/11/12 (raw readings; environmental rollups), DOC-15 (report PDFs), DOC-17 (audit logs — never pruned), DOC-18 (`retention.*`, `backup.*` settings). **Feeds:** DOC-20 (backup/restore drills, wipe as a commissioning/decommissioning step), DOC-16/11/12 (trends: gas from raw aggregates; env from rollups beyond 24 h).
+> **Depends on:** DOC-01 (queues/scheduler, storage), DOC-05 (device offline durations), DOC-09/11/12 (raw readings), DOC-15 (report PDFs), DOC-17 (audit logs — never pruned), DOC-18 (`retention.*`, `backup.*` settings). **Feeds:** DOC-20 (backup/restore drills, wipe as a commissioning/decommissioning step), DOC-16/11/12 (trends: gas and env from on-read raw aggregates beyond 24 h).
 >
-> **Scope:** the **data lifecycle** — hourly **environmental rollups**, **on-read SQL aggregates** for gas (no gas rollup table), **pruning** of raw readings (and the hard rule that **compliance tables are never pruned**), the **data-volume math** that justifies the on-prem disk, **encrypted daily backups** with rotation, and the **end-of-project** `ir4:export-all` and `ir4:secure-wipe` commands. **Out of scope:** what the data means (owned by its module) — this doc owns *how long it lives, how it's compacted, backed up, exported, and destroyed*.
+> **Scope:** the **data lifecycle** — **on-read SQL aggregates** for gas and environmental trends/reports (no sensor rollup tables), **pruning** of raw readings (and the hard rule that **compliance tables are never pruned**), the **data-volume math** that justifies the on-prem disk, **encrypted daily backups** with rotation, and the **end-of-project** `ir4:export-all` and `ir4:secure-wipe` commands. **Out of scope:** what the data means (owned by its module) — this doc owns *how long it lives, how it's compacted, backed up, exported, and destroyed*.
 
 ---
 
@@ -10,25 +10,20 @@
 
 The platform generates two very different kinds of data:
 
-- **High-volume machine telemetry** — tag reads, gas/CO₂/environmental readings. Millions of rows over a project. Valuable in aggregate (trends, reports) but not individually forever. **Environmental** readings are **rolled up** (hourly min/avg/max) and raw env rows pruned after a retention window (rollup-gated). **Gas** stays raw-only with on-read SQL aggregates; raw gas rows prune by age. Tags prune by age (no tag rollup in v1).
+- **High-volume machine telemetry** — tag reads, gas/CO₂/environmental readings. Millions of rows over a project. Valuable in aggregate (trends, reports) but not individually forever. **Gas** and **environmental** stay raw-only with on-read SQL aggregates (≤24 h raw points; hourly min/avg/max beyond); raw rows prune by age. Tags prune by age (no tag rollup in v1).
 - **Compliance & safety records** — alerts, gas alarms, incidents, LSR, weekly reports, audit logs, entry/exit logs, equipment records, evacuation reports. Low-volume, legally/operationally significant. These are **never pruned** — retained for the life of the deployment and exported at project end.
 
 The dividing line is a hard invariant (DOC-21): **pruning touches only raw sensor-reading tables; it never touches a compliance table.** The pruner operates on an explicit allow-list, not a deny-list, so a new table is safe by default (not pruned unless deliberately added).
 
 ---
 
-## 2. Compaction & trend reads (②)
+## 2. Trend reads (② — on-read aggregates)
 
-### 2.1 `BuildSensorRollups` — hourly (DOC-01 §A8)
-- Aggregates **environmental** raw readings into `environmental_rollups` (DOC-12). **Gas has no rollup table** — trends and the weekly report aggregate `gas_readings` with SQL on read (DOC-11).
-- Optional `tag_reading_rollups` `[CONFIRM AT DESIGN]` — tracking trends may derive from `entry_exit_logs`/positions; default: entry/exit drives manpower, so a tag rollup is optional.
-- Each env rollup row: min/avg/max per channel + `sample_count`, keyed `(device_id, bucket_start)` (unique — idempotent; re-running an hour recomputes it).
-- Env rollups are **kept long-term**. They are **not** pruned with the raw data.
-- Backfilled environmental readings that arrive after an hour was rolled up **trigger a recompute** of the affected buckets.
+There is **no** `BuildSensorRollups` job and **no** `environmental_rollups` / `gas_reading_rollups` table. Trends and weekly-report sensor items aggregate raw rows with SQL on read.
 
-### 2.2 Trend reads
 - **Gas (DOC-11):** raw point series for ≤24 h; SQL hourly min/avg/max over raw beyond that (indexed `recorded_at`).
-- **Environmental (DOC-12):** raw for ≤24 h, `environmental_rollups` beyond.
+- **Environmental (DOC-12):** same pattern — raw for ≤24 h; SQL hourly min/avg/max over raw beyond that.
+- Optional `tag_reading_rollups` `[CONFIRM AT DESIGN]` — tracking trends may derive from `entry_exit_logs`/positions; default: entry/exit drives manpower, so a tag rollup is optional.
 
 ---
 
@@ -40,8 +35,8 @@ Operates on an **explicit allow-list** of raw sensor tables only:
 |---|---|---|---|
 | `tag_readings` | `retention.tag_readings_days` | 90 | `recorded_at` older — **unconditionally** after window (v1 has no tag rollup; manpower derives from entry/exit) |
 | `gas_readings` | `retention.sensor_readings_days` | 180 | older — **unconditionally** after window (gas is raw-only; no rollup gate) |
-| `environmental_readings` | `retention.sensor_readings_days` | 180 | older AND the hour is rolled up |
-- **Guard (env only):** an environmental raw row is pruned only if its hour has a corresponding rollup (so compaction never loses aggregate history). If env rollups are behind, pruning waits. Gas and tags prune by age alone.
+| `environmental_readings` | `retention.sensor_readings_days` | 180 | older — **unconditionally** after window (env is raw-only; no rollup gate) |
+- Gas, environmental, and tags all prune by age alone (no rollup gate).
 - Deletes in **chunks** (avoid long locks), off-peak, logged (rows pruned per table) as a `system` info summary.
 - **Explicitly excluded (never in the allow-list):** `alerts`, `gas_alarms`, `hse_incidents`, `incident_*`, `lsr_violations`, `weekly_reports`, `audit_logs`, `entry_exit_logs`, `worker_positions` (current state), `equipment*`, `evacuation_*`, all registry/config tables. A code comment + a DOC-21 test asserts this list can't accidentally include a compliance table.
 
@@ -54,9 +49,9 @@ Operates on an **explicit allow-list** of raw sensor tables only:
 
 An order-of-magnitude estimate so the Dell R360's storage is provisioned correctly (DOC-20). Illustrative — actual depends on registered hardware (dynamic, DOC-05):
 
-- **Tag reads:** ~5 readers × ~1 read/worker/few-seconds. Say ~80 workers, a read every ~5 s per in-range worker ⇒ order ~1–2 M rows/day. At ~120 bytes/row ⇒ ~150–250 MB/day raw. Pruned at 90 days ⇒ steady-state raw ~15–25 GB; rollups negligible (hourly).
+- **Tag reads:** ~5 readers × ~1 read/worker/few-seconds. Say ~80 workers, a read every ~5 s per in-range worker ⇒ order ~1–2 M rows/day. At ~120 bytes/row ⇒ ~150–250 MB/day raw. Pruned at 90 days ⇒ steady-state raw ~15–25 GB.
 - **Gas/CO₂:** ~4 detectors × 1 reading/10–60 s ⇒ tens of thousands rows/day ⇒ a few MB/day; pruned at 180 days ⇒ ~1–2 GB.
-- **Environmental:** ~1 sensor × 1/min ⇒ ~1.5 k rows/day ⇒ trivial.
+- **Environmental:** ~1 sensor × 1/min ⇒ ~1.5 k rows/day ⇒ trivial; pruned at 180 days like gas.
 - **Snapshots (PPE):** the space driver — each violation stores a JPEG (~100–300 KB). At, say, 200 violations/day ⇒ ~40 MB/day ⇒ ~15 GB/year (kept, they're evidence). Sizing assumes retaining snapshots for the project; a snapshot-thinning policy is a `[CONFIRM AT DESIGN]` option if space is tight.
 - **Compliance rows:** kilobytes; negligible over years.
 - **Backups:** each daily dump compressed; 30 kept (§5).
@@ -99,7 +94,6 @@ The system is an **on-prem, project-scoped** deployment; at project end the clie
 
 | Job | Cadence | Action |
 |---|---|---|
-| `BuildSensorRollups` | hourly | env raw → rollups; gas has no rollup path |
 | `PruneRawSensorData` | daily (off-peak) | prune raw sensor tables past retention (allow-list only) |
 | export-file sweep | daily | remove ad-hoc exports past `retention.exports_days` (not report PDFs) |
 | `BackupDatabase` | daily | encrypted DB backup to separate volume; rotate to `backup.keep_count` |
@@ -112,8 +106,8 @@ All registered in the scheduler (DOC-01 §A8), monitored; failures raise `system
 
 ## 8. Real-life scenarios
 
-- **Steady state:** hourly env rollups accumulate; nightly pruning trims 90-day-old tag reads and 180-day-old sensor reads (gas by age; env only where rolled up); gas trends stay on raw aggregates within the retention window; nightly backup runs; disk stays bounded.
-- **Backfill after an outage:** a pole flushes 6 h of buffered reads → gas trends/report see them immediately from raw; env rollup run recomputes those hours → trends/report update; pruning still respects the retention window.
+- **Steady state:** nightly pruning trims 90-day-old tag reads and 180-day-old gas/env sensor reads by age; gas and env trends stay on raw aggregates within the retention window; nightly backup runs; disk stays bounded.
+- **Backfill after an outage:** a pole flushes 6 h of buffered reads → gas and env trends/report see them immediately from raw; pruning still respects the retention window.
 - **Backup gap:** a nightly backup fails (disk full) → a `system` warning fires + `disk_space_low` → ops intervenes before data is at risk.
 - **Project handover:** at close, an admin runs `ir4:export-all` → hands the encrypted archive + key to the client → verifies → runs `ir4:secure-wipe --confirm` → the site install is destroyed; the verified archive stays intact and a separate wipe receipt is written beside it.
 - **Compliance never lost:** across all pruning, every incident, LSR, alarm, report, and audit row remains — a two-year-old incident is still fully retrievable.
@@ -122,8 +116,8 @@ All registered in the scheduler (DOC-01 §A8), monitored; failures raise `system
 
 ## 9. Tests (this doc's slice of DOC-21)
 
-- **Rollups:** `BuildSensorRollups` computes correct min/avg/max + sample_count per hour; idempotent re-run; a backfilled reading triggers recompute of its hour.
-- **Pruning allow-list:** `PruneRawSensorData` removes only allow-listed raw tables past their window; a **compliance table is never touched** (explicit test iterating the excluded set); a raw row is not pruned until its hour is rolled up; chunked deletes.
+- **Trend aggregates:** gas and env trends use raw points ≤24 h and SQL hourly aggregates beyond; weekly-report sensor items read raw.
+- **Pruning allow-list:** `PruneRawSensorData` removes only allow-listed raw tables past their window; a **compliance table is never touched** (explicit test iterating the excluded set); gas/env/tag rows prune by age alone (no rollup gate); chunked deletes.
 - **Export-file sweep:** ad-hoc exports past window removed; **published report PDFs retained**.
 - **Backup:** produces an encrypted archive on the configured volume; rotates to `keep_count`; a failure raises a `system` warning; `ir4:restore` restores into staging.
 - **export-all:** archive contains DB + report PDFs + evidence + audit CSV + manifest/checksums; writes an `exported` audit row.

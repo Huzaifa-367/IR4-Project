@@ -46,9 +46,6 @@ final class TrackingApiController extends BaseController
                     'worker_label' => $label,
                     'zone_id' => $position->zone_id,
                     'zone_name' => $position->zone?->name,
-                    'map_x' => $position->zone?->map_x,
-                    'map_y' => $position->zone?->map_y,
-                    'map_radius' => $position->zone?->map_radius,
                     'last_seen_at' => $position->last_seen_at->toIso8601String(),
                     'is_on_site' => $position->is_on_site,
                 ];
@@ -58,14 +55,12 @@ final class TrackingApiController extends BaseController
 
         $zones = Zone::query()
             ->where('is_active', true)
-            ->get(['id', 'name', 'zone_type', 'map_x', 'map_y', 'map_radius', 'latitude', 'longitude', 'radius_meters', 'color'])
+            ->get(['id', 'uuid', 'name', 'zone_type', 'latitude', 'longitude', 'radius_meters', 'color'])
             ->map(fn (Zone $z) => [
                 'id' => $z->id,
+                'uuid' => $z->uuid,
                 'name' => $z->name,
                 'zone_type' => $z->zone_type->value,
-                'map_x' => $z->map_x,
-                'map_y' => $z->map_y,
-                'map_radius' => $z->map_radius,
                 'latitude' => $z->latitude,
                 'longitude' => $z->longitude,
                 'radius_meters' => $z->radius_meters,

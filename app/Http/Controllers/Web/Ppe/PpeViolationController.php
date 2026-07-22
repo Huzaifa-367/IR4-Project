@@ -78,7 +78,7 @@ final class PpeViolationController extends BaseController
                 'is_backfill' => $request->string('is_backfill')->toString(),
                 'search' => $request->string('search')->toString(),
             ],
-            'cameras' => Camera::query()->orderBy('name')->get(['id', 'name', 'reference']),
+            'cameras' => Camera::query()->orderBy('name')->get(['id', 'uuid', 'name', 'reference']),
             'violationTypes' => collect(ViolationType::cases())->map(fn (ViolationType $t) => [
                 'value' => $t->value,
                 'label' => $t->label(),

@@ -18,6 +18,7 @@ import type { HardwareOption, Paginated } from '@/types/hardware';
 
 type ZoneRow = {
     id: number;
+    uuid: string;
     name: string;
     zone_type: string;
     zone_type_label: string;
@@ -61,7 +62,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
             header: 'Name',
             cell: (zone) => (
                 <Link
-                    href={`/settings/zones/${zone.id}`}
+                    href={`/settings/zones/${zone.uuid}`}
                     className="font-medium text-text hover:underline"
                 >
                     {zone.name}
@@ -197,7 +198,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                     <GeoZoneMapView
                         zones={zones.data}
                         onSelect={(zone) =>
-                            router.visit(`/settings/zones/${zone.id}`)
+                            router.visit(`/settings/zones/${zone.uuid}`)
                         }
                     />
                 </Panel>
@@ -223,7 +224,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                 title={form?.mode === 'edit' ? 'Edit zone' : 'Add zone'}
                 action={
                     form?.mode === 'edit'
-                        ? `/settings/zones/${form.zone.id}`
+                        ? `/settings/zones/${form.zone.uuid}`
                         : '/settings/zones'
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
@@ -368,7 +369,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                 }
                 action={
                     deactivateTarget
-                        ? `/settings/zones/${deactivateTarget.id}/deactivate`
+                        ? `/settings/zones/${deactivateTarget.uuid}/deactivate`
                         : undefined
                 }
                 method="post"
@@ -397,7 +398,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                 }
                 action={
                     deleteTarget
-                        ? `/settings/zones/${deleteTarget.id}`
+                        ? `/settings/zones/${deleteTarget.uuid}`
                         : undefined
                 }
                 method="delete"

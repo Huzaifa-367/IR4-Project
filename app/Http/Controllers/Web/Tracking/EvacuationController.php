@@ -35,7 +35,7 @@ final class EvacuationController extends BaseController
         $history = EvacuationReport::query()
             ->orderByDesc('triggered_at')
             ->limit(20)
-            ->get(['id', 'status', 'triggered_at', 'closed_at', 'force_closed']);
+            ->get(['id', 'uuid', 'status', 'triggered_at', 'closed_at', 'force_closed']);
 
         return Inertia::render('tracking/evacuation/index', [
             'openReport' => $open ? $this->serializeReport($open) : null,
@@ -133,6 +133,7 @@ final class EvacuationController extends BaseController
 
         return [
             'id' => $report->id,
+            'uuid' => $report->uuid,
             'status' => $report->status->value,
             'triggered_at' => $report->triggered_at->toIso8601String(),
             'closed_at' => $report->closed_at?->toIso8601String(),
@@ -142,6 +143,7 @@ final class EvacuationController extends BaseController
             'total' => $report->entries->count(),
             'entries' => $report->entries->map(fn (EvacuationReportEntry $e) => [
                 'id' => $e->id,
+                'uuid' => $e->uuid,
                 'worker_id' => $e->worker_id,
                 'worker_name' => $e->worker?->name,
                 'last_zone' => $e->lastZone?->name,

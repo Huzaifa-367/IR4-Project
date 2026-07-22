@@ -255,7 +255,7 @@ export default function IncidentShow({
                         <div className="flex flex-wrap gap-2">
                             {canReopen && (
                                 <Form
-                                    action={`/incidents/${incident.id}/reopen`}
+                                    action={`/incidents/${incident.uuid}/reopen`}
                                     method="post"
                                 >
                                     {({ processing }) => (
@@ -271,7 +271,7 @@ export default function IncidentShow({
                             )}
                             {canCloseClassified && (
                                 <Form
-                                    action={`/incidents/${incident.id}/close`}
+                                    action={`/incidents/${incident.uuid}/close`}
                                     method="post"
                                 >
                                     {({ processing }) => (
@@ -286,7 +286,7 @@ export default function IncidentShow({
                             )}
                             {canFalseAlarmClose && (
                                 <Form
-                                    action={`/incidents/${incident.id}/close`}
+                                    action={`/incidents/${incident.uuid}/close`}
                                     method="post"
                                     className="flex flex-wrap items-end gap-2"
                                 >
@@ -389,7 +389,7 @@ export default function IncidentShow({
                         </ul>
                         {canLog && incident.status !== 'closed' && (
                             <Form
-                                action={`/incidents/${incident.id}/evidence`}
+                                action={`/incidents/${incident.uuid}/evidence`}
                                 method="post"
                                 className="mt-3 flex flex-wrap items-end gap-2 border-t border-border pt-3"
                             >
@@ -437,7 +437,7 @@ export default function IncidentShow({
                         className="border-[color:var(--accent)]/30"
                     >
                         <Form
-                            action={`/incidents/${incident.id}/classify`}
+                            action={`/incidents/${incident.uuid}/classify`}
                             method="put"
                             className="grid max-w-xl gap-3"
                             transform={(data) => ({

@@ -45,6 +45,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user === null ? null : [
                     'id' => $user->id,
+                    'uuid' => $user->uuid,
                     'name' => $user->name,
                     'email' => $user->email,
                     'must_change_password' => $user->must_change_password,

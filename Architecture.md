@@ -145,7 +145,7 @@ Docs/                      # Specs DOC-01…21 (authoritative, complete set)
 - **Dashboard/display:** one cached, permission-filtered `GET /api/dashboard/summary` composes module read services. Inertia supplies the screen, Reverb patches live deltas, and a 60 s summary poll reconciles both the role-aware dashboard and authenticated display.
 - **Audit:** observers record masked diffs for configured security/configuration models; middleware records allow-listed meaningful access by read-only roles; domain actions emit explicit publish/acknowledge/export events. `audit_logs` is append-only and excluded from pruning, with only a permission-gated read/export surface.
 - **Settings (DOC-18):** `SettingsRegistry` + `SettingsService` whitelist every runtime key; deploy-fixed values stay in `.env`/`config`.
-- **Lifecycle (DOC-19):** hourly `BuildSensorRollups`, daily allow-listed `PruneRawSensorData`, encrypted `BackupDatabase`, and console-only `ir4:export-all` / `ir4:restore` / `ir4:secure-wipe`.
+- **Lifecycle (DOC-19):** daily allow-listed `PruneRawSensorData`, encrypted `BackupDatabase`, and console-only `ir4:export-all` / `ir4:restore` / `ir4:secure-wipe`. Gas/env trends use on-read SQL aggregates (no rollup job/table).
 - **Deploy (DOC-20):** single-box LAN install; Nginx fences surfaces A/B/C; Supervisor runs web/Reverb/queues/scheduler; app DB user is INSERT/SELECT-only on `audit_logs`.
 - **Quality (DOC-21):** endpoint matrix + named invariant guards + cross-module scenarios; CI fails on enum drift, on-prem greps, and append-only violations.
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicUuid;
 use App\Models\Concerns\HasCreatedBy;
 use Database\Factories\EquipmentDocumentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,10 +11,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 final class EquipmentDocument extends Model
 {
+    use HasPublicUuid;
+
     /** @use HasFactory<EquipmentDocumentFactory> */
     use HasCreatedBy, HasFactory;
 
-    protected $guarded = ['id'];
+    protected $guarded = ['id', 'uuid'];
 
     /**
      * @return BelongsTo<Equipment, $this>

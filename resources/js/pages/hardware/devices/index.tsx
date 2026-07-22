@@ -310,7 +310,7 @@ export default function DevicesIndex({
                 }
                 action={
                     form?.mode === 'edit'
-                        ? `/hardware/devices/${form.device.id}`
+                        ? `/hardware/devices/${form.device.uuid}`
                         : '/hardware/devices'
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
@@ -414,7 +414,7 @@ export default function DevicesIndex({
                 }
                 action={
                     tokenConfirm
-                        ? `/hardware/devices/${tokenConfirm.id}/token`
+                        ? `/hardware/devices/${tokenConfirm.uuid}/token`
                         : undefined
                 }
                 method="post"
@@ -435,7 +435,7 @@ export default function DevicesIndex({
                 description="Retiring invalidates the API token and blocks ingestion. Historical telemetry is retained."
                 action={
                     retireTarget
-                        ? `/hardware/devices/${retireTarget.id}/status`
+                        ? `/hardware/devices/${retireTarget.uuid}/status`
                         : undefined
                 }
                 method="patch"
@@ -455,7 +455,7 @@ export default function DevicesIndex({
                 description="Maintenance skips offline health alerts until restored."
                 action={
                     statusTarget
-                        ? `/hardware/devices/${statusTarget.id}/status`
+                        ? `/hardware/devices/${statusTarget.uuid}/status`
                         : '/hardware/devices'
                 }
                 method="patch"

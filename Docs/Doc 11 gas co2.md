@@ -197,4 +197,4 @@ Backfilled readings (>10 min old, DOC-08) are **stored and rolled up** but **do 
 ---
 
 ### Next document
-**DOC-12 — Environmental Data:** the RS485 weather stream (temperature/humidity/wind + optional air-quality), rollups, the live weather widget + trends, and the weekly-report weather/environmental items — the smallest module (pure ①→② with no user workflow).
+**DOC-12 — Environmental Data:** the RS485 weather stream (temperature/humidity/wind + optional air-quality), on-read aggregates (no rollup table), the live weather widget + trends, and the weekly-report weather/environmental items — the smallest module (pure ①→② with no user workflow).

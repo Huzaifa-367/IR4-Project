@@ -14,6 +14,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 
 type DocumentTypeRow = {
     id: number;
+    uuid: string;
     code: string;
     name: string;
     description: string | null;
@@ -114,7 +115,7 @@ export default function WorkerDocumentTypesIndex({
                         variant="outline"
                         onClick={() =>
                             router.put(
-                                `/workforce/worker-document-types/${row.id}`,
+                                `/workforce/worker-document-types/${row.uuid}`,
                                 { is_active: !row.is_active },
                             )
                         }
@@ -176,7 +177,7 @@ export default function WorkerDocumentTypesIndex({
                 }
                 action={
                     form?.mode === 'edit' && editing
-                        ? `/workforce/worker-document-types/${editing.id}`
+                        ? `/workforce/worker-document-types/${editing.uuid}`
                         : '/workforce/worker-document-types'
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}

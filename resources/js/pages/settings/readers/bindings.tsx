@@ -3,7 +3,7 @@ import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 
 type Props = {
-    device: { id: number; name: string; reference: string };
+    device: { id: number; uuid: string; name: string; reference: string };
     bindings: Array<{
         id: number;
         zone_name: string | null;

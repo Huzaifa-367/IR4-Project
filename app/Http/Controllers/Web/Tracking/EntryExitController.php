@@ -67,7 +67,7 @@ final class EntryExitController extends BaseController
                 'source' => $request->string('source')->toString(),
                 'worker_id' => $request->string('worker_id')->toString(),
             ],
-            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'workers' => Worker::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name']),
             'canCorrect' => $request->user()?->can('update-workers') ?? false,
         ]);
     }

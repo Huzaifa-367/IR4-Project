@@ -97,7 +97,7 @@ export default function AssetsIndex({
             cell: (asset) => (
                 <div>
                     <Link
-                        href={`/hardware/assets/${asset.id}`}
+                        href={`/hardware/assets/${asset.uuid}`}
                         className="font-medium text-text hover:underline"
                     >
                         {asset.name}
@@ -148,7 +148,7 @@ export default function AssetsIndex({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                            <Link href={`/hardware/assets/${asset.id}`}>
+                            <Link href={`/hardware/assets/${asset.uuid}`}>
                                 Open
                             </Link>
                         </DropdownMenuItem>
@@ -267,7 +267,7 @@ export default function AssetsIndex({
                 title={form?.mode === 'edit' ? 'Edit asset' : 'Register asset'}
                 action={
                     form?.mode === 'edit'
-                        ? `/hardware/assets/${form.asset.id}`
+                        ? `/hardware/assets/${form.asset.uuid}`
                         : '/hardware/assets'
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
@@ -388,7 +388,7 @@ export default function AssetsIndex({
                 }
                 action={
                     deleteTarget
-                        ? `/hardware/assets/${deleteTarget.id}`
+                        ? `/hardware/assets/${deleteTarget.uuid}`
                         : undefined
                 }
                 method="delete"

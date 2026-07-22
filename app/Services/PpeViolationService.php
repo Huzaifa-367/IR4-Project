@@ -360,6 +360,7 @@ final class PpeViolationService
 
         return [
             'id' => $violation->id,
+            'uuid' => $violation->uuid,
             'camera_id' => $violation->camera_id,
             'camera_ref' => $violation->camera?->reference,
             'camera_name' => $violation->camera?->name,
@@ -456,6 +457,7 @@ final class PpeViolationService
 
             broadcast(new PpeViolationDetected([
                 'id' => $violation->id,
+                'uuid' => $violation->uuid,
                 'violation_type' => $violationType->value,
                 'camera_ref' => $camera->reference,
                 'snapshot_url' => $this->signedUrls->temporaryUrl($snapshotPath),

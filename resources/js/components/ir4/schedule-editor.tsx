@@ -8,7 +8,7 @@ import { ScheduleType, ScheduleTypeLabels } from '@/types/enums';
 import type { MaintenanceSchedule } from '@/types/equipment';
 
 type Props = {
-    equipmentId: number;
+    equipmentUuid: string;
     schedules: MaintenanceSchedule[];
 };
 
@@ -30,7 +30,7 @@ function buildDrafts(schedules: MaintenanceSchedule[]): DraftRow[] {
     });
 }
 
-export function ScheduleEditor({ equipmentId, schedules }: Props) {
+export function ScheduleEditor({ equipmentUuid, schedules }: Props) {
     const [rows, setRows] = useState<DraftRow[]>(() => buildDrafts(schedules));
     const [error, setError] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
@@ -73,7 +73,7 @@ export function ScheduleEditor({ equipmentId, schedules }: Props) {
 
         setProcessing(true);
         router.put(
-            `/equipment/${equipmentId}/schedules`,
+            `/equipment/${equipmentUuid}/schedules`,
             { schedules: payload },
             {
                 preserveScroll: true,

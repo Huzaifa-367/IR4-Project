@@ -22,14 +22,14 @@ export type EnvironmentTrendPoint = {
 
 export type EnvironmentTrendSeries = {
     points: EnvironmentTrendPoint[];
-    source: 'raw' | 'rollup';
+    source: 'raw' | 'raw-hourly';
 };
 
 export type EnvironmentMetricTrend = {
     key: string;
     label: string;
     unit: string;
-    source: 'raw' | 'rollup';
+    source: 'raw' | 'raw-hourly';
     points: EnvironmentTrendPoint[];
 };
 
@@ -58,7 +58,7 @@ export type EnvironmentDashboardSnapshot = {
         sensor_count: number;
     }>;
     trend: {
-        source: 'raw' | 'rollup';
+        source: 'raw' | 'raw-hourly';
         series: EnvironmentMetricTrend[];
     };
 };

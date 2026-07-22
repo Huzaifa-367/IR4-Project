@@ -121,7 +121,7 @@
 - [x] Ingest; global thresholds; hysteresis; live panels; backfill = no live alarms
 
 ### 6d Environmental (DOC-12)
-- [x] Ingest; weather widget; trends/rollups; no alarms
+- [x] Ingest; weather widget; trends (raw ≤24 h / on-read hourly beyond); no alarms
 
 **Done when:** Headcount + map + gas + PPE update live; evacuation runnable.
 
@@ -196,12 +196,12 @@
 **Done when:** Settings editor saves audited values; unknown keys rejected; consumers honor registry defaults. ✅
 
 ### 9e Retention, backup & decommissioning (DOC-19)
-- [x] Hourly `BuildSensorRollups` (gas/env; no tag rollup — manpower from entry/exit)
+- [x] Gas/env on-read aggregates (no `BuildSensorRollups`; no tag rollup — manpower from entry/exit)
 - [x] Daily allow-listed `PruneRawSensorData` + export-file sweep (report PDFs exempt)
 - [x] Encrypted daily `BackupDatabase` + rotation + disk/backup gap alerts
 - [x] `ir4:restore`, `ir4:export-all`, guarded `ir4:secure-wipe` (crypto_erase default)
 
-**Done when:** Rollups/pruning/backup jobs are scheduled; wipe refuses without verified export + confirm phrase. ✅
+**Done when:** Pruning/backup jobs are scheduled; wipe refuses without verified export + confirm phrase. ✅
 
 ### 10 Deploy & operations runbook (DOC-20)
 - [ ] Documented/deployable Supervisor set: web, reverb, queues (`default`, `ingest`, `reports`), scheduler

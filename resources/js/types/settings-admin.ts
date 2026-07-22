@@ -1,5 +1,6 @@
 export type RoleRow = {
     id: number;
+    uuid: string;
     name: string;
     description: string | null;
     is_system: boolean;
@@ -10,6 +11,7 @@ export type RoleRow = {
 
 export type UserRow = {
     id: number;
+    uuid: string;
     name: string;
     email: string;
     is_active: boolean;
@@ -18,6 +20,7 @@ export type UserRow = {
 
 export type RoleOption = {
     id: number;
+    uuid: string;
     name: string;
     is_system: boolean;
     is_read_only: boolean;

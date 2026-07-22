@@ -38,6 +38,7 @@ final class AssetController extends BaseController
             'assets' => [
                 'data' => $paginator->getCollection()->map(fn (Asset $asset): array => [
                     'id' => $asset->id,
+                    'uuid' => $asset->uuid,
                     'name' => $asset->name,
                     'identifier' => $asset->identifier,
                     'asset_type' => $asset->asset_type->value,
@@ -87,6 +88,7 @@ final class AssetController extends BaseController
         return Inertia::render('hardware/assets/show', [
             'asset' => [
                 'id' => $asset->id,
+                'uuid' => $asset->uuid,
                 'name' => $asset->name,
                 'identifier' => $asset->identifier,
                 'asset_type' => $asset->asset_type->value,
@@ -97,6 +99,7 @@ final class AssetController extends BaseController
                 'last_heartbeat_at' => $asset->last_heartbeat_at?->toIso8601String(),
                 'cameras' => $asset->cameras->map(fn ($c) => [
                     'id' => $c->id,
+                    'uuid' => $c->uuid,
                     'name' => $c->name,
                     'reference' => $c->reference,
                     'status' => $c->status->value,
@@ -104,6 +107,7 @@ final class AssetController extends BaseController
                 ]),
                 'devices' => $asset->devices->map(fn ($d) => [
                     'id' => $d->id,
+                    'uuid' => $d->uuid,
                     'name' => $d->name,
                     'reference' => $d->reference,
                     'device_type' => $d->device_type->value,

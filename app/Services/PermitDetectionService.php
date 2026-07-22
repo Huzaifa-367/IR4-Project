@@ -84,7 +84,7 @@ final class PermitDetectionService
         $activeByZone = Permit::query()
             ->where('status', PermitStatus::Active)
             ->whereNotNull('zone_id')
-            ->with(['type:id,code,name', 'zone:id,name'])
+            ->with(['type:id,uuid,code,name', 'zone:id,uuid,name'])
             ->get()
             ->groupBy('zone_id');
 
@@ -99,7 +99,7 @@ final class PermitDetectionService
                 ->where('scope', 'same_zone')
                 ->whereIn('permit_type_id', $typeIds)
                 ->whereIn('conflicts_with_type_id', $typeIds)
-                ->with(['permitType:id,code,name', 'conflictsWithType:id,code,name'])
+                ->with(['permitType:id,uuid,code,name', 'conflictsWithType:id,uuid,code,name'])
                 ->get();
 
             foreach ($conflicts as $conflict) {
@@ -146,7 +146,7 @@ final class PermitDetectionService
             ->where('status', PermitStatus::Active)
             ->whereNotNull('zone_id')
             ->whereHas('type', fn ($query) => $query->where('code', 'hot_work'))
-            ->with(['personnel', 'zone:id,name', 'type:id,code,name'])
+            ->with(['personnel', 'zone:id,uuid,name', 'type:id,uuid,code,name'])
             ->get();
 
         foreach ($hotWorkPermits as $permit) {

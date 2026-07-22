@@ -16,7 +16,7 @@ final class CrewRoleController extends BaseController
     public function index(): InertiaResponse
     {
         $roles = PermitTypeRole::query()
-            ->with('permitType:id,code,name,is_active')
+            ->with('permitType:id,uuid,code,name,is_active')
             ->orderBy('permit_type_id')
             ->orderBy('sort_order')
             ->orderBy('label')
@@ -27,9 +27,10 @@ final class CrewRoleController extends BaseController
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'code', 'name'])
+            ->get(['id', 'uuid', 'code', 'name'])
             ->map(fn (PermitType $type): array => [
                 'id' => $type->id,
+                'uuid' => $type->uuid,
                 'code' => $type->code,
                 'name' => $type->name,
             ]);
@@ -106,6 +107,7 @@ final class CrewRoleController extends BaseController
     {
         return [
             'id' => $role->id,
+            'uuid' => $role->uuid,
             'permit_type_id' => $role->permit_type_id,
             'role_code' => $role->role_code,
             'label' => $role->label,
@@ -114,6 +116,7 @@ final class CrewRoleController extends BaseController
             'sort_order' => $role->sort_order,
             'permit_type' => $role->permitType === null ? null : [
                 'id' => $role->permitType->id,
+                'uuid' => $role->permitType->uuid,
                 'code' => $role->permitType->code,
                 'name' => $role->permitType->name,
                 'is_active' => $role->permitType->is_active,

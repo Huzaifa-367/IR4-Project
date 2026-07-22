@@ -188,7 +188,7 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                         </h2>
                         <div className="mt-3 flex flex-wrap gap-2">
                             <Form
-                                action={`/ppe/violations/${violation.id}/review`}
+                                action={`/ppe/violations/${violation.uuid}/review`}
                                 method="post"
                             >
                                 <input
@@ -206,7 +206,7 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                                 </Button>
                             </Form>
                             <Form
-                                action={`/ppe/violations/${violation.id}/review`}
+                                action={`/ppe/violations/${violation.uuid}/review`}
                                 method="post"
                             >
                                 <input

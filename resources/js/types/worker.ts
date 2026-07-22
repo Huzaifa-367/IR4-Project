@@ -1,5 +1,6 @@
 export type Worker = {
     id: number;
+    uuid: string;
     name: string;
     contractor: string;
     role_title: string | null;

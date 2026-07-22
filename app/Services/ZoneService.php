@@ -22,9 +22,6 @@ final class ZoneService
             'requires_authorization' => (bool) ($data['requires_authorization'] ?? false),
             'requires_permit' => (bool) ($data['requires_permit'] ?? false),
             'occupancy_limit' => $data['occupancy_limit'] ?? null,
-            'map_x' => $data['map_x'] ?? null,
-            'map_y' => $data['map_y'] ?? null,
-            'map_radius' => $data['map_radius'] ?? null,
             'latitude' => $data['latitude'] ?? null,
             'longitude' => $data['longitude'] ?? null,
             'radius_meters' => $data['radius_meters'] ?? null,
@@ -107,14 +104,11 @@ final class ZoneService
     }
 
     /**
-     * @param  array{map_x?: mixed, map_y?: mixed, map_radius?: mixed, latitude?: mixed, longitude?: mixed, radius_meters?: mixed, color?: mixed}  $data
+     * @param  array{latitude?: mixed, longitude?: mixed, radius_meters?: mixed, color?: mixed}  $data
      */
     public function setMapPosition(Zone $zone, array $data): Zone
     {
         $zone->forceFill([
-            'map_x' => $data['map_x'] ?? $zone->map_x,
-            'map_y' => $data['map_y'] ?? $zone->map_y,
-            'map_radius' => $data['map_radius'] ?? $zone->map_radius,
             'latitude' => $data['latitude'] ?? $zone->latitude,
             'longitude' => $data['longitude'] ?? $zone->longitude,
             'radius_meters' => $data['radius_meters'] ?? $zone->radius_meters,

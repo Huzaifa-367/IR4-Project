@@ -217,4 +217,4 @@ These are the settings the client/safety lead should review at commissioning; al
 ---
 
 ### Next document
-**DOC-19 — Data Retention, Rollups, Backup & End-of-Project:** the sensor rollup jobs, raw-data pruning (never touching compliance tables), the data-volume math, encrypted daily backups, and the `ir4:export-all` / `ir4:secure-wipe` commands for end-of-project handover.
+**DOC-19 — Data Retention, Backup & End-of-Project:** on-read sensor aggregates (gas/env), raw-data pruning (never touching compliance tables), the data-volume math, encrypted daily backups, and the `ir4:export-all` / `ir4:secure-wipe` commands for end-of-project handover.

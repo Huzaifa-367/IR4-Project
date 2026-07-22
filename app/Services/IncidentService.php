@@ -53,6 +53,7 @@ final class IncidentService
             'ppe_violation_id' => $payload['ppe_violation_id'] ?? null,
             'alert' => [
                 'id' => $alert->id,
+                'uuid' => $alert->uuid,
                 'alert_type' => $alert->alert_type->value,
                 'title' => $alert->title,
                 'raised_at' => optional($alert->raised_at)?->toIso8601String(),
@@ -260,6 +261,7 @@ final class IncidentService
 
         return [
             'id' => $incident->id,
+            'uuid' => $incident->uuid,
             'incident_number' => $incident->incident_number,
             'source' => $incident->source->value,
             'source_label' => $incident->source->label(),
