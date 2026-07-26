@@ -46,13 +46,15 @@ IR4 is a **standalone, on-premise safety command-centre platform**: one installa
 
 PHP 8.4+, Laravel 13.9+, Laravel React Starter Kit (React 19 + TypeScript + Inertia 3 + Tailwind 4 + shadcn/ui + Vite), Fortify, Reverb (self-hosted), Redis, MySQL 8+/PostgreSQL 15+, `spatie/laravel-permission`, `barryvdh/laravel-dompdf`, `endroid/qr-code`, Larastan + Pest + Pint.
 
+**Monorepo layout:** Laravel/Inertia app under `Server/`; Android Flutter operator app under `Mobile/`; authoritative specs under `Docs/`. Run artisan/composer/npm from `Server/`.
+
 ## 3. Three entry surfaces — never blur them
 
 | Surface | Who | Transport | Routes | Auth |
 |---|---|---|---|---|
-| **A. Operator UI** | logged-in staff | Inertia (+ session JSON helpers e.g. `/api/dashboard/summary`, `/api/equipment/by-token/…`) | `routes/web.php` | Fortify session + RBAC |
-| **B. Device API** | field hardware | REST JSON (`/api/ingest/*`, heartbeats) | `routes/api.php` | `auth.device` |
-| **C. Public page** | LAN QR scanners | read-only page | `routes/web.php` public group | none, rate-limited |
+| **A. Operator UI** | logged-in staff | Inertia (+ session JSON helpers e.g. `/api/dashboard/summary`, `/api/equipment/by-token/…`) | `Server/routes/web.php` | Fortify session + RBAC |
+| **B. Device API** | field hardware | REST JSON (`/api/ingest/*`, heartbeats) | `Server/routes/api.php` | `auth.device` |
+| **C. Public page** | LAN QR scanners | read-only page | `Server/routes/web.php` public group | none, rate-limited |
 
 - Operator CRUD uses Inertia forms — not fetch/axios.
 - Live screens: Inertia snapshot → Reverb → LIVE/RECONNECTING → poll fallback.

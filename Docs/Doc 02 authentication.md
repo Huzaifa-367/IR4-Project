@@ -2,7 +2,7 @@
 
 > **Depends on:** DOC-01 (stack, hybrid surfaces, conventions, settings). **Feeds:** DOC-03 (RBAC layers on top of authenticated identity), DOC-08 (device auth, introduced here, specified there).
 >
-> **Scope:** how humans and machines prove identity to the platform. Human auth (Fortify, session lifecycle, password/lockout policy, idle timeout, first-login flow), the authenticated kiosk/display view, the device-auth path (`auth.device`) at the contract level, and the frontend auth shell. **Out of scope:** *what* an identity is allowed to do — that is authorization (DOC-03).
+> **Scope:** how humans and machines prove identity to the platform. Human auth (Fortify session for the operator UI, Sanctum bearer tokens for the Android mobile operator app), session lifecycle, password/lockout policy, idle timeout, first-login flow, the authenticated kiosk/display view, the device-auth path (`auth.device`) at the contract level, and the frontend auth shell. **Out of scope:** *what* an identity is allowed to do — that is authorization (DOC-03).
 
 ---
 
@@ -13,13 +13,13 @@ The platform authenticates two fundamentally different callers. Keep them separa
 | | **Human users** | **Field devices** |
 |---|---|---|
 | Who | operators, safety managers, PM, Aramco rep | RFID readers, AI cameras, gas/CO₂/env gateways, edge units |
-| Proves identity with | email + password (Fortify session) | static bearer token (`X-Device-Token`) |
-| Guard | `web` (session) | `auth.device` (custom, DOC-08) |
-| Routes | `routes/web.php` (Inertia) | `routes/api.php` (`/api/ingest/*`) |
-| Session concept | yes — cookie, timeout, CSRF | none — stateless, per-request token |
-| Covered by | this doc | §7 here (contract) + DOC-08 (full) |
+| Proves identity with | email + password → Fortify **session** (web) **or** Sanctum **personal access token** (mobile) | static bearer token (`X-Device-Token`) |
+| Guard | `web` (session) / `sanctum` (mobile API) | `auth.device` (custom, DOC-08) |
+| Routes | `routes/web.php` (Inertia) + `/api/mobile/*` (Android app) | `routes/api.php` (`/api/ingest/*`) |
+| Session concept | web: cookie, idle timeout, CSRF; mobile: bearer token, no cookie | none — stateless, per-request token |
+| Covered by | this doc (§4–§8 web; §8a mobile) | §9 here (contract) + DOC-08 (full) |
 
-Neither is a "Worker" (DOC-04). Workers are tracked personnel and never authenticate — they don't log in and hold no credentials.
+Neither is a "Worker" (DOC-04). Workers are tracked personnel and never authenticate — they don't log in and hold no credentials. The mobile app is still **surface A** (operator tooling) — token transport instead of cookies — not a fourth surface and not device auth.
 
 ---
 
@@ -170,6 +170,19 @@ Extend Fortify's authentication to enforce our rules, in order:
 - Recovery codes generated and shown once; stored encrypted (Fortify columns).
 - A Safety Manager can **require** 2FA for privileged roles via setting `auth.require_2fa_for_admins` `[CONFIRM AT DESIGN]`; when on, a `manage-users` holder without confirmed 2FA is routed to set it up before accessing anything else.
 - No SMS, no email OTP — those need connectivity.
+
+---
+
+## 8a. Mobile operator bearer tokens (Sanctum — surface A on Android)
+
+Authorized field operators use the Android app under `Mobile/` to scan equipment QR codes and drive checkout/return (DOC-13 §4.5). That path authenticates the **same User** as the web UI, with a **Sanctum personal access token** instead of a session cookie.
+
+- **Issuance:** `POST /api/mobile/login` (`throttle:mobile-login`) accepts `email`, `password`, optional `device_name`. Credentials, lockout, inactive-account, and admin-2FA-required checks reuse the same `AuthLockoutService` / settings policy as Fortify (§6–§7). On success the controller creates a Sanctum token, fires `Illuminate\Auth\Events\Login` (so audit + `last_login_at` match web login), and returns `{ token, token_type: Bearer, user, permissions }`.
+- **Transport:** subsequent calls send `Authorization: Bearer <token>` under `auth:sanctum`. There is no CSRF and no idle-timeout cookie; the token is stored in the device's secure storage by the app.
+- **Expiry:** `config/sanctum.php` `expiration` = `SANCTUM_TOKEN_MINUTES` (default **720** — one 12-hour shift). Expired tokens → `401`; the app clears local storage and returns to login.
+- **Logout:** `POST /api/mobile/logout` deletes the **current** access token. `GET /api/mobile/me` returns the user + permission catalogue for bootstrap.
+- **Guard / RBAC:** `config/auth.php` registers a `sanctum` guard on the `users` provider. Spatie permissions still resolve with `guard_name = web` (User `getDefaultGuardName()`). Enforce capabilities via policies / FormRequests — **do not** put Spatie's `permission:` middleware on these routes (it resolves the default `web` guard and rejects token requests).
+- **Not device auth:** mobile tokens never authorize `/api/ingest/*`. Device tokens never authorize `/api/mobile/*`.
 
 ---
 

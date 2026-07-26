@@ -163,18 +163,18 @@ Schema::create('equipment_checkouts', function (Blueprint $table) {
 - For each item past `next_inspection_due` or `next_service_due`, raise **one deduplicated** `equipment_overdue` alert (dedupe `equipment_overdue:{id}` — DOC-07) and surface it on the dashboard widget (overdue + due-in-7-days). Resolved when the overdue inspection/service is logged.
 
 ### 4.5 Checkout / return custody (`EquipmentCheckoutService`, ③) — QR-scan driven
-Checkout and return are performed **in the field from the mobile app** (DOC-01 §3 surface A on mobile) by an authorized user who **scans the item's QR code**. The QR resolves the equipment by its permanent `qr_token`; the app then drives a short form. Both actions are also available from the desktop UI (manual pick instead of scan) as a fallback.
+Checkout and return are performed **in the field from the Android mobile app** (`Mobile/`, DOC-01 §3 surface A on mobile / DOC-02 §8a) by an authorized user who **scans the item's QR code**. The QR resolves the equipment by its permanent `qr_token`; the app then drives a short form. Both actions are also available from the desktop UI (manual pick instead of scan) as a fallback.
 
-- **Resolve-by-scan:** `GET /api/equipment/by-token/{qr_token}` (auth’d, `view-equipment`) returns the equipment + its current custody state so the mobile app knows whether to show a **checkout** or **return** flow after a scan. (This is the *authenticated* lookup for operators — distinct from the public page §7, which is unauthenticated and read-only.)
-- **`checkout(...)`** — from the scan flow the user selects the **worker** (WorkerPicker), a **reason/task**, an optional **zone** (where it's going, DOC-06), optional `expected_return_at`, and an optional `condition_out`. In a transaction: verify the item is `is_checkoutable`, `in_service`, and has **no open checkout** (else 409/422); create the `equipment_checkouts` row (`checked_out_by` = the scanning user). Audited. Item status unchanged; "who holds it" is derived from the open checkout.
-- **`return(...)`** — the user scans the same QR; because an open checkout exists, the app shows the **return** flow: optional `return_status` (ok / damaged / needs_service), optional `return_reason`, optional `condition_in`. Sets `returned_at`, `returned_to` = the scanning user. Audited. Item becomes `available`.
+- **Resolve-by-scan (mobile):** `GET /api/mobile/equipment/by-token/{qr_token}` (`auth:sanctum`, `view-equipment`, `whereUuid`) returns the equipment (via `EquipmentService::toArray`), active workers + zones for the checkout form, and a `can_checkout` flag in one round trip. Worker names pass through `anonymizedLabel()` when the caller lacks `view-worker-identity` (DOC-04). Desktop still uses `GET /api/equipment/by-token/{qr_token}` (session). Both are *authenticated* operator lookups — distinct from the public page §7.
+- **`checkout(...)` (mobile):** `POST /api/mobile/equipment/{equipment}/checkout` (`auth:sanctum`) reuses `CheckoutEquipmentRequest` + `EquipmentCheckoutService::checkout(...)`. From the scan flow the user selects the **worker**, a **reason/task**, an optional **zone**, optional `expected_return_at`, and an optional `condition_out`. In a transaction: verify the item is `is_checkoutable`, `in_service`, and has **no open checkout** (else 409/422); create the `equipment_checkouts` row (`checked_out_by` = the token user). Audited. Item status unchanged; "who holds it" is derived from the open checkout. Desktop: `POST /equipment/{equipment}/checkout`.
+- **`return(...)` (mobile):** `POST /api/mobile/equipment/{equipment}/return` (`auth:sanctum`) resolves the equipment's **open** checkout server-side (the app only knows the scanned item; 409 when none), then reuses return validation + `EquipmentCheckoutService::returnCheckout(...)`. Flow fields: optional `return_status` (ok / damaged / needs_service), optional `return_reason`, optional `condition_in`. Sets `returned_at`, `returned_to` = the token user. Audited. Item becomes `available`. Desktop: `POST /equipment/checkouts/{checkout}/return`.
 - **Scan-decides-the-action:** one scan entry point — if the item has an open checkout the app offers **return**, otherwise **checkout**. No mode toggle for the user to get wrong.
 - **Condition-on-return → maintenance:** if `return_status` is `damaged`/`needs_service` (or `condition_in` notes damage), the return flow offers "log corrective maintenance / set out-of-service" (reusing §4.3) — a convenience, not automatic.
 - **Overdue return** (folded into the daily `FlagOverdueEquipment`, or a sibling): open checkouts past `expected_return_at` are flagged `overdue_return` on the equipment list + dashboard; `[CONFIRM AT DESIGN]` whether it raises an alert (default: flag only, not a safety alert).
 - **Worker offboarding interaction (DOC-04):** a worker with any **open checkout** cannot be offboarded until items are returned/reassigned → 409; the offboard flow surfaces "N items still checked out."
 - The **public QR page** (§7) shows current custody (available / checked out to {worker}, identity-permitting) so even an unauthenticated field scan reveals who holds it.
 
-Permissions: checkout/return require a role holding `manage-equipment` (the "authorized role" that operates the mobile custody flow). `[CONFIRM AT DESIGN]` whether to split out a lighter `checkout-equipment` permission so field supervisors can issue/return gear without full equipment management — default: reuse `manage-equipment`.
+Permissions: checkout/return require a role holding `update-equipment` (policy `checkout` / FormRequest). `[CONFIRM AT DESIGN]` whether to split out a lighter `checkout-equipment` permission so field supervisors can issue/return gear without full equipment management — default: reuse `update-equipment`.
 
 ---
 
@@ -230,9 +230,12 @@ Real life: at mobilization the team registers dozens/hundreds of items from clie
 | Add maintenance | POST `/equipment/{equipment}/maintenances` | manage-equipment |
 | Set schedule | PUT `/equipment/{equipment}/schedules` | manage-equipment |
 | Documents CRUD | `/equipment/{equipment}/documents…` | manage-equipment |
-| Resolve by QR scan | GET `/api/equipment/by-token/{qr_token}` | view-equipment (authed scan lookup) |
-| Check out (scan → worker/reason/zone) | POST `/equipment/{equipment}/checkout` | manage-equipment |
-| Return (scan → status/reason/condition) | POST `/equipment/checkouts/{checkout}/return` | manage-equipment |
+| Resolve by QR scan (desktop) | GET `/api/equipment/by-token/{qr_token}` | view-equipment (session) |
+| Resolve by QR scan (mobile) | GET `/api/mobile/equipment/by-token/{qr_token}` | view-equipment (Sanctum) |
+| Check out (desktop) | POST `/equipment/{equipment}/checkout` | update-equipment |
+| Check out (mobile) | POST `/api/mobile/equipment/{equipment}/checkout` | update-equipment (Sanctum) |
+| Return (desktop) | POST `/equipment/checkouts/{checkout}/return` | update-equipment |
+| Return (mobile) | POST `/api/mobile/equipment/{equipment}/return` | update-equipment (Sanctum) |
 | Checkout history (item) | GET `/equipment/{equipment}/checkouts` | view-equipment |
 | Currently checked-out list | GET `/equipment/checkouts?open=1` | view-equipment |
 | One-click print (single) | POST `/equipment/{equipment}/print-label` | view-equipment |

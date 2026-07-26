@@ -1,0 +1,36 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "IR4 Mobile",
+            "request": "launch",
+            "type": "dart",
+            "cwd": "Mobile",
+            "program": "lib/main.dart",
+            "flutterMode": "debug"
+        },
+        {
+            "name": "IR4 Mobile (profile)",
+            "request": "launch",
+            "type": "dart",
+            "cwd": "Mobile",
+            "program": "lib/main.dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "IR4 Mobile (release)",
+            "request": "launch",
+            "type": "dart",
+            "cwd": "Mobile",
+            "program": "lib/main.dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "IR4 Mobile (tests)",
+            "request": "launch",
+            "type": "dart",
+            "cwd": "Mobile",
+            "program": "test/"
+        }
+    ]
+}

@@ -1,7 +1,8 @@
 name: Deploy to Hostinger
 
 # Disable Hostinger Git auto-deploy. This workflow SSHs in, git pull, then post-deploy steps.
-# git pull keeps untracked uploads in storage/app/public.
+# git pull keeps untracked uploads in Server/storage/app/public.
+# App root is Server/ (Laravel); repo root also holds Mobile/ and Docs/.
 
 on:
   push:
@@ -32,6 +33,7 @@ jobs:
             fi
             git remote set-url origin "https://x-access-token:${GH_DEPLOY_TOKEN}@github.com/${{ github.repository }}.git"
             git pull --ff-only origin main
+            cd Server
             APP_PUBLIC="$(pwd)/storage/app/public"
             PUBLIC_STORAGE="$(pwd)/public/storage"
             mkdir -p "$APP_PUBLIC"

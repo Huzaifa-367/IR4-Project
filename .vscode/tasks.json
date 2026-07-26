@@ -1,0 +1,83 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "IR4: artisan serve",
+            "type": "shell",
+            "command": "php artisan serve",
+            "options": {
+                "cwd": "${workspaceFolder}/Server"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "ir4-backend"
+            },
+            "isBackground": true
+        },
+        {
+            "label": "IR4: vite dev",
+            "type": "shell",
+            "command": "npm run dev",
+            "options": {
+                "cwd": "${workspaceFolder}/Server"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "ir4-frontend"
+            },
+            "isBackground": true
+        },
+        {
+            "label": "IR4: reverb",
+            "type": "shell",
+            "command": "php artisan reverb:start",
+            "options": {
+                "cwd": "${workspaceFolder}/Server"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "ir4-backend"
+            },
+            "isBackground": true
+        },
+        {
+            "label": "IR4 Mobile: pub get",
+            "type": "shell",
+            "command": "flutter pub get",
+            "options": {
+                "cwd": "${workspaceFolder}/Mobile"
+            },
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "IR4 Mobile: build_runner",
+            "type": "shell",
+            "command": "dart run build_runner build --delete-conflicting-outputs",
+            "options": {
+                "cwd": "${workspaceFolder}/Mobile"
+            },
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "IR4 Mobile: test",
+            "type": "shell",
+            "command": "flutter test",
+            "options": {
+                "cwd": "${workspaceFolder}/Mobile"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        }
+    ]
+}

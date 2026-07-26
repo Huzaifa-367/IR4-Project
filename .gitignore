@@ -1,29 +1,42 @@
-/.phpunit.cache
-/bootstrap/ssr
-/node_modules
-/public/build
-/public/fonts-manifest.dev.json
-/public/hot
-/public/storage
-/storage/*.key
-/storage/pail
-/resources/js/actions
-/resources/js/routes
-/resources/js/wayfinder
-/vendor
 .DS_Store
+.idea/
+.fleet/
+.nova/
+.zed/
+.phpactor.json
+
+# Local IDE (tracked selectively under .vscode/)
+# Keep .vscode/* committed; ignore user-specific clutter if added later.
+
+# Secrets / local TLS at either root or Server/
 .env
 .env.backup
 .env.production
-.phpactor.json
-.phpunit.result.cache
-Homestead.json
-Homestead.yaml
-npm-debug.log
-yarn-error.log
-/auth.json
-/.fleet
-/.idea
-/.nova
-/.vscode
-/.zed
+**/.env
+**/auto.crt
+**/auto.key
+
+# Laravel / Node artifacts (Server/)
+Server/vendor/
+Server/node_modules/
+Server/bootstrap/ssr/
+Server/public/build/
+Server/public/hot/
+Server/public/storage/
+Server/public/fonts-manifest.dev.json
+Server/storage/*.key
+Server/storage/pail/
+Server/.phpunit.cache/
+Server/.phpunit.result.cache
+Server/resources/js/actions/
+Server/resources/js/routes/
+Server/resources/js/wayfinder/
+Server/auth.json
+Server/npm-debug.log
+Server/yarn-error.log
+
+# Flutter
+Mobile/.dart_tool/
+Mobile/build/
+Mobile/.flutter-plugins-dependencies
+Mobile/.packages

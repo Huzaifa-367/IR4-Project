@@ -1,0 +1,62 @@
+{
+    "dart.projectSearchDepth": 3,
+    "dart.analysisExcludedFolders": [
+        "Server/vendor",
+        "Server/node_modules",
+        "Server/public/build",
+        "Server/bootstrap/cache",
+        "Mobile/build",
+        "Mobile/.dart_tool"
+    ],
+    "search.exclude": {
+        "**/vendor": true,
+        "**/node_modules": true,
+        "**/Mobile/build": true,
+        "**/Mobile/.dart_tool": true,
+        "**/Server/public/build": true,
+        "**/Server/storage/logs": true,
+        "**/Server/storage/framework": true
+    },
+    "files.watcherExclude": {
+        "**/vendor/**": true,
+        "**/node_modules/**": true,
+        "**/Mobile/build/**": true,
+        "**/Mobile/.dart_tool/**": true,
+        "**/Server/public/build/**": true,
+        "**/Server/storage/logs/**": true,
+        "**/Server/storage/framework/**": true
+    },
+    "files.associations": {
+        "*.blade.php": "blade",
+        ".env*": "dotenv"
+    },
+    "[dart]": {
+        "editor.formatOnSave": true,
+        "editor.rulers": [80],
+        "editor.selectionHighlight": false,
+        "editor.suggestSelection": "first",
+        "editor.tabCompletion": "only",
+        "editor.wordBasedSuggestions": "off"
+    },
+    "[php]": {
+        "editor.formatOnSave": false,
+        "editor.defaultFormatter": "open-southeners.laravel-pint"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true
+    },
+    "intelephense.environment.phpVersion": "8.4.0",
+    "intelephense.files.exclude": [
+        "**/vendor/**",
+        "**/node_modules/**",
+        "**/Mobile/**",
+        "**/Server/storage/**",
+        "**/Server/public/build/**"
+    ],
+    "java.configuration.updateBuildConfiguration": "interactive"
+}

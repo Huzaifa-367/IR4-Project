@@ -12,6 +12,9 @@ permissions:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Server
 
     steps:
       - name: Checkout code

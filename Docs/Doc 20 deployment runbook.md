@@ -26,13 +26,16 @@
 
 ## 3. Application deploy
 
-1. Clone the repo, `composer install --no-dev --optimize-autoloader`, `npm ci && npm run build` (Vite build; the built assets ship — no Node at runtime).
-2. `.env` from `deploy/env/ir4.production.env.example` (DOC-18 §1): `APP_KEY`, least-privilege DB creds (`ir4_app` / `ir4_backup` / `ir4_restore` / `ir4_wipe`), Redis, Reverb keys, storage paths, `BACKUP_ENCRYPTION_KEY`, `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT`. **Secrets live here, never in the DB.** Runtime timezone is `general.timezone` after seed — not an `.env` knob.
-3. `php artisan migrate --force`; `php artisan db:seed` (permissions, Super Admin role, settings defaults, **no hardware/zone inventory** — those are registered in-app, DOC-05/06).
+The Laravel/Inertia app lives under **`Server/`** in the monorepo (Flutter under `Mobile/`, docs under `Docs/`).
+
+1. Clone the repo, then from `Server/`: `composer install --no-dev --optimize-autoloader`, `npm ci && npm run build` (Vite build; the built assets ship — no Node at runtime).
+2. `Server/.env` from `deploy/env/ir4.production.env.example` (DOC-18 §1): `APP_KEY`, least-privilege DB creds (`ir4_app` / `ir4_backup` / `ir4_restore` / `ir4_wipe`), Redis, Reverb keys, storage paths, `BACKUP_ENCRYPTION_KEY`, `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT`. **Secrets live here, never in the DB.** Runtime timezone is `general.timezone` after seed — not an `.env` knob.
+3. From `Server/`: `php artisan migrate --force`; `php artisan db:seed` (permissions, Super Admin role, settings defaults, **no hardware/zone inventory** — those are registered in-app, DOC-05/06).
 4. `php artisan ir4:install` — create the first Super Admin user (DOC-03 §7.3).
 5. `php artisan config:cache route:cache view:cache`; `php artisan storage:link` (public disk only; snapshots stay private).
-6. `php artisan ir4:export-permissions` → commit-checked `PERMISSIONS.md` (DOC-03).
+6. `php artisan ir4:export-permissions` → commit-checked `Server/PERMISSIONS.md` (DOC-03).
 
+Nginx/php-fpm document root is `Server/public`.
 ---
 
 ## 4. Process model (Supervisor)
@@ -88,6 +91,19 @@ Three surfaces (DOC-01 §3) with different exposure, enforced at Nginx + host fi
 
 ---
 
+## 7a. Android operator app (equipment scan checkout/return)
+
+The Android APK under `Mobile/` is **surface A** over Sanctum bearer tokens (DOC-02 §8a, DOC-13 §4.5) — not a fourth surface and not device auth.
+
+1. **Build:** on a Flutter-capable machine, `cd Mobile && flutter pub get && flutter build apk --release` (debug: `flutter build apk --debug`). Artifact: `Mobile/build/app/outputs/flutter-apk/app-release.apk`.
+2. **Sideload:** install on operator handsets over USB / MDM / shared LAN drop — no Play Store, no public internet.
+3. **Base URL:** at first login the operator enters the on-prem host (e.g. `https://10.0.0.10` or the LAN hostname). Th
+e app stores the URL + Sanctum token in secure storage.
+4. **TLS / self-signed:** Nginx uses a self-signed or client-CA cert (§5.1). The app's network security config permits cleartext only for private LAN ranges, trusts user-added CAs, and accepts the configured host's certificate (so a commissioning `auto.crt`-style cert works without shipping a public CA). Prefer installing the site CA on the handset when available.
+5. **Commissioning check:** log in as a user with `view-equipment` + `update-equipment`, scan a printed `/e/{qr_token}` label, confirm detail → checkout → rescan → return.
+
+---
+
 ## 8. Backups, restore & wipe (operational — DOC-19)
 
 - **Daily encrypted backup** to the separate volume (Supervisor scheduler); 30 kept; failure raises a `system` warning. Document the (manual, no-cloud) **off-site copy** procedure in `deploy/offsite-backup.md`.
@@ -127,7 +143,7 @@ Sign-off that the deployment is production-ready:
 - [ ] PPE violation ingests → wall toast + record; fall event → alert suggests an incident.
 - [ ] Gas reading → live panel; a test excursion → alarm (audible) → acknowledge → hysteresis resolve; **backfill raises no alarm**.
 - [ ] Environmental reading → weather widget.
-- [ ] Equipment: register + one-click label + mobile scan checkout/return.
+- [x] Equipment: register + one-click label + mobile scan checkout/return (`Mobile/` APK, DOC-13 §4.5 / §7a).
 - [ ] Incident + LSR: create (incl. from-alert prefill), classify, close with mandatory action.
 - [ ] Evacuation: trigger → auto-account at muster/gate → close → PDF.
 - [ ] Weekly report: generate → PDF/CSV with automation badges → publish; a completeness note appears when a stream was offline.
