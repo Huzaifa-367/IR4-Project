@@ -16,9 +16,9 @@ use App\Models\WorkerPosition;
 use App\Models\WorkOrder;
 use App\Models\Zone;
 use App\Services\PermitDetectionService;
+use App\Services\PermitService;
 use Database\Seeders\PermitCatalogueSeeder;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
@@ -765,7 +765,9 @@ it('expires active permits past valid_to via permits tick', function (): void {
         'valid_to' => now()->subMinute(),
     ]);
 
-    Artisan::call('ir4:permits-tick');
+    app(PermitService::class)->expireOverdue();
+    app(PermitService::class)->suspendStaleGasTests();
+    app(PermitDetectionService::class)->run();
 
     expect($permit->fresh()?->status)->toBe(PermitStatus::Expired);
 });

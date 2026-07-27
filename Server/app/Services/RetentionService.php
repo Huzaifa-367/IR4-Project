@@ -105,7 +105,7 @@ final class RetentionService
                     continue;
                 }
                 if (str_starts_with($path, 'exports/final/')) {
-                    // Handover archives — keep until wipe/ops remove them.
+                    // Keep handover-style export trees under exports/final/ if present.
                     continue;
                 }
 

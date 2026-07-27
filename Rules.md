@@ -17,7 +17,7 @@
 9. Store timestamps in UTC; soft-delete compliance/evidence tables.
 10. Bundle all fonts/assets locally (Vite). Keep the app air-gapped.
 11. Add Pest tests for every write: happy path + validation + authorization.
-12. After enum changes: `php artisan ir4:export-enums` (never hand-edit `enums.ts`).
+12. After enum changes: keep PHP backed enums and `Server/resources/js/types/enums.ts` in sync.
 13. Follow `Phases.md` — finish the current phase before starting the next.
 14. When coding starts, update `Memory.md` after each meaningful chunk of work.
 

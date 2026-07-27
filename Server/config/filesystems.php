@@ -57,25 +57,6 @@ return [
             'report' => false,
         ],
 
-        'backups' => [
-            'driver' => 'local',
-            // Empty BACKUP_DISK_ROOT= in .env must not win over the default (env() returns "").
-            'root' => env('BACKUP_DISK_ROOT') ?: storage_path('app/backups'),
-            'visibility' => 'private',
-            'serve' => false,
-            'throw' => true,
-            'report' => false,
-        ],
-
-        'exports' => [
-            'driver' => 'local',
-            'root' => env('EXPORT_DISK_ROOT') ?: storage_path('app/private/exports'),
-            'visibility' => 'private',
-            'serve' => false,
-            'throw' => true,
-            'report' => false,
-        ],
-
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

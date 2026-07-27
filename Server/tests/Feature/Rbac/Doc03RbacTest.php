@@ -206,18 +206,10 @@ it('creates the first Super Admin via ir4:install', function () {
         ->and($user->must_change_password)->toBeTrue();
 });
 
-it('exports PERMISSIONS.md and Permission union', function () {
-    $md = base_path('PERMISSIONS.md');
+it('keeps the committed Permission catalogue mirror in enums.ts', function () {
     $enums = resource_path('js/types/enums.ts');
 
-    if (file_exists($md)) {
-        unlink($md);
-    }
-
-    Artisan::call('ir4:export-permissions');
-
-    expect(file_exists($md))->toBeTrue()
-        ->and(file_get_contents($md))->toContain('# IR4 Permissions')
+    expect(file_exists($enums))->toBeTrue()
         ->and(file_get_contents($enums))->toContain('export const Permission')
         ->and(file_get_contents($enums))->toContain("ViewDashboard: 'view-dashboard'");
 });
