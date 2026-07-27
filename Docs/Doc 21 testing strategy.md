@@ -131,7 +131,7 @@ Lower priority: exhaustive CRUD permutations already covered by the matrix gener
 ## 9. Real-life validation (beyond automated tests)
 
 - The **commissioning acceptance checklist** (DOC-20 §10) is the human-run acceptance suite — functional smoke per module on the real hardware, which automated tests (with simulated ingest) can't fully replace.
-- A **soak period** at commissioning: run the system live for a defined window, watch for missed reads, alarm behavior, backfill after a deliberate link drop, and a restore drill — before sign-off.
+- A **soak period** at commissioning: run the system live for a defined window, watch for missed reads, alarm behavior, and backfill after a deliberate link drop — before sign-off.
 
 ---
 
@@ -154,7 +154,7 @@ DOC-01 through DOC-21 form the complete build specification for the IR4 Safety C
 - **Cross-cutting systems (07–08):** unified alerts, ingestion + real-time backbone.
 - **Modules (09–14):** RFID tracking, PPE, gas/CO₂, environmental, QR equipment (+ custody), HSE incidents & LSR.
 - **Surfaces & reporting (15–16):** weekly report, dashboard + display + design language.
-- **Operations (17–20):** audit, settings, retention/backup/wipe, deployment runbook.
+- **Operations (17–20):** audit, settings, retention/wipe, deployment runbook.
 - **Quality (21):** this testing strategy.
 
 Every module DOC carries its own Tests section; this document aggregates them into a matrix, a scenario catalogue, the invariant guards, and the CI gates — so the hard rules the design depends on are enforced continuously, not just asserted in prose.

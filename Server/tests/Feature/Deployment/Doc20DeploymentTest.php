@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schedule;
 
 uses(RefreshDatabase::class);
 
-it('registers DOC-19/20 scheduled jobs including backup-before-prune', function () {
+it('registers DOC-19/20 scheduled jobs including retention prune', function () {
     $names = collect(Schedule::events())
         ->map(fn ($event) => (string) ($event->description ?? ''))
         ->filter()
@@ -20,9 +20,6 @@ it('registers DOC-19/20 scheduled jobs including backup-before-prune', function 
         'ir4:permits-tick',
         'ir4:tracking-absence-sweep',
         'ir4:flag-overdue-equipment',
-        'ir4:backup-run',
-        'ir4:backup-clean',
-        'ir4:backup-monitor',
         'ir4:prune-raw-sensor-data',
         'ir4:prune-export-files',
         'ir4:check-disk-space',
@@ -31,14 +28,10 @@ it('registers DOC-19/20 scheduled jobs including backup-before-prune', function 
         expect($names)->toContain($name);
     }
 
-    $backupAt = collect(Schedule::events())
-        ->first(fn ($event) => ($event->description ?? '') === 'ir4:backup-run');
     $pruneAt = collect(Schedule::events())
         ->first(fn ($event) => ($event->description ?? '') === 'ir4:prune-raw-sensor-data');
 
-    expect($backupAt)->not->toBeNull()
-        ->and($pruneAt)->not->toBeNull()
-        ->and($backupAt->expression)->toBe('0 1 * * *')
+    expect($pruneAt)->not->toBeNull()
         ->and($pruneAt->expression)->toBe('15 3 * * *');
 });
 

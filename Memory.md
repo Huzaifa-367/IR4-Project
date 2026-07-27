@@ -25,10 +25,10 @@
 - [x] Legacy settings key migration; printer host/port in `.env`/`config/ir4.php`
 - [x] `/settings/general` grouped editor with per-key permissions + confirm
 
-### Phase 9e — Retention & backup (DOC-19)
+### Phase 9e — Retention (DOC-19)
 - [x] `PruneRawSensorData`, `PruneExportFiles`
-- [x] Encrypted Spatie backup/cleanup/monitoring, manual staging restore drill, `ir4:export-all`, `ir4:secure-wipe`
-- [x] Disk-space / missing-backup `system` alerts
+- [x] `ir4:export-all`, `ir4:secure-wipe`
+- [x] Disk-space `system` alerts
 
 ### Docs
 - [x] Full set `Docs/Doc 01`–`Doc 21` on disk (including DOC-20 deploy runbook + DOC-21 testing strategy)
@@ -60,7 +60,6 @@ _None — Control Room UI pass landed; module pages inherit tokens/components ne
 - No sensor rollup tables — gas and env trends/reports use on-read SQL aggregates; gas/env/tag raw rows prune after window unconditionally
 - No tag-reading rollup table — manpower stays entry/exit-derived; tags prune after window unconditionally
 - Wipe writes a separate receipt on the exports disk (does not mutate a verified handover archive)
-- Spatie backup archives require a dedicated `BACKUP_ARCHIVE_PASSWORD`; there is no `APP_KEY` fallback
 - `dashboard.cache_seconds` is canonical (replaces `dashboard.cache_ttl_seconds`)
 - `DemoSeeder` is local/staging only; skips if `Main Gate` zone already exists; never runs in production
 - Docs 01–21 are the complete authoritative specification set
@@ -82,7 +81,6 @@ _None — Control Room UI pass landed; module pages inherit tokens/components ne
 - Nested `<AppLayout>` on pages doubles the sidebar — pages must rely on `app.tsx` layout resolver only
 - Demo logins after seed: `operator@ir4.local` / `safety@ir4.local` / `pm@ir4.local` (password: `password`)
 - Sensitive settings require `confirmed` (or UI confirm flow) — report settings page keys do not
-- Backup/export workdirs live under `storage/app/tmp/`; disks `backups` + `exports` must exist
 - Shared Inertia `settings` drives client idle timeout, display keep-alive, poll fallback, and toast duration
 
 ---

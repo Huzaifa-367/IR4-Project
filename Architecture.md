@@ -133,7 +133,7 @@ Docs/                      # Specs DOC-01…21 (authoritative, complete set)
 | 16 | Aggregate dashboard + authenticated display | A + Reverb |
 | 17 | Append-only audit trail + viewer | A + middleware/observers |
 | 18 | Runtime settings registry + general editor | A |
-| 19 | Rollups, pruning, backup, export, wipe | Scheduler + privileged CLI |
+| 19 | Rollups, pruning, export, wipe | Scheduler + privileged CLI |
 | 20 | Deploy / LAN ops runbook + commissioning | Ops (Nginx, Supervisor, DB grants) |
 | 21 | Testing strategy + CI invariant gates | Pest / Vitest / CI |
 
@@ -145,7 +145,7 @@ Docs/                      # Specs DOC-01…21 (authoritative, complete set)
 - **Dashboard/display:** one cached, permission-filtered `GET /api/dashboard/summary` composes module read services. Inertia supplies the screen, Reverb patches live deltas, and a 60 s summary poll reconciles both the role-aware dashboard and authenticated display.
 - **Audit:** observers record masked diffs for configured security/configuration models; middleware records allow-listed meaningful access by read-only roles; domain actions emit explicit publish/acknowledge/export events. `audit_logs` is append-only and excluded from pruning, with only a permission-gated read/export surface.
 - **Settings (DOC-18):** `SettingsRegistry` + `SettingsService` whitelist every runtime key; deploy-fixed values stay in `.env`/`config`.
-- **Lifecycle (DOC-19):** daily allow-listed `PruneRawSensorData`, encrypted Spatie `backup:run` / `backup:clean` / `backup:monitor`, manual staging restore drills, and console-only `ir4:export-all` / `ir4:secure-wipe`. Gas/env trends use on-read SQL aggregates (no rollup job/table).
+- **Lifecycle (DOC-19):** daily allow-listed `PruneRawSensorData` and console-only `ir4:export-all` / `ir4:secure-wipe`. Gas/env trends use on-read SQL aggregates (no rollup job/table).
 - **Deploy (DOC-20):** single-box LAN install; Nginx fences surfaces A/B/C; Supervisor runs web/Reverb/queues/scheduler; app DB user is INSERT/SELECT-only on `audit_logs`.
 - **Quality (DOC-21):** endpoint matrix + named invariant guards + cross-module scenarios; CI fails on enum drift, on-prem greps, and append-only violations.
 

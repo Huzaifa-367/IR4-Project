@@ -16,7 +16,7 @@ final class DiskSpaceMonitor
     public function check(): void
     {
         $threshold = max(1, (int) config('ir4.infrastructure.disk_space_warn_pct', 15));
-        foreach (['private', 'backups'] as $diskName) {
+        foreach (['private'] as $diskName) {
             $this->checkDisk($diskName, $threshold);
         }
     }

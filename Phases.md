@@ -195,18 +195,17 @@
 
 **Done when:** Settings editor saves audited values; unknown keys rejected; consumers honor registry defaults. ✅
 
-### 9e Retention, backup & decommissioning (DOC-19)
+### 9e Retention & decommissioning (DOC-19)
 - [x] Gas/env on-read aggregates (no `BuildSensorRollups`; no tag rollup — manpower from entry/exit)
 - [x] Daily allow-listed `PruneRawSensorData` + export-file sweep (report PDFs exempt)
-- [x] Encrypted daily Spatie backup + 30-day cleanup + disk/backup alerts + prune gate
-- [x] Manual staging restore drill, `ir4:export-all`, guarded `ir4:secure-wipe` (crypto_erase default)
+- [x] Disk-space alerts; `ir4:export-all`, guarded `ir4:secure-wipe` (crypto_erase default)
 
-**Done when:** Pruning/backup jobs are scheduled; wipe refuses without verified export + confirm phrase. ✅
+**Done when:** Pruning jobs are scheduled; wipe refuses without verified export + confirm phrase. ✅
 
 ### 10 Deploy & operations runbook (DOC-20)
 - [ ] Documented/deployable Supervisor set: web, reverb, queues (`default`, `ingest`, `reports`), scheduler
 - [ ] Nginx TLS + LAN segmentation notes/templates for surfaces A/B/C (device ingest + public QR fences)
-- [ ] App DB user INSERT/SELECT-only on `audit_logs`; separate wipe/restore privileged account
+- [ ] App DB user INSERT/SELECT-only on `audit_logs`; separate wipe privileged account
 - [ ] ZT411 `.env` printer path + commissioning test-label steps
 - [ ] Commissioning acceptance checklist usable as Phase-3 sign-off (infra + hardware + smoke + lifecycle)
 
