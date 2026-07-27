@@ -19,7 +19,7 @@
 
 1. **OS & packages:** Ubuntu 24.04, security updates, then Lerd PHP 8.4 (required extensions: pdo_mysql, redis, gd/imagick for snapshots, zip, bcmath), Nginx, Lerd MySQL 8, `7zip`, Redis, `git`, Composer, Node 22 (build only). Add `mariadb-connector-c` to Lerd PHP with `lerd php:pkg add mariadb-connector-c --php 8.4` when the bundled `mysqldump` needs MySQL 8 `caching_sha2_password`.
 2. **Disk layout:** OS volume; a **data volume** for MySQL + the private storage (snapshots/documents); a **separate backup volume** (DOC-19 backups must not share the live-data disk). Provision per the DOC-19 volume math (hundreds of GB, snapshot-dominated). Enable **encryption at rest** (LUKS) on the data + backup volumes.
-3. **Time:** NTP synced (ordering/clock-skew logic depends on a sane server clock; devices are reconciled to it — DOC-08). Server/OS timezone stays UTC; operator display/report timezone is the runtime setting `general.timezone` (DOC-18), not `APP_TIMEZONE`.
+3. **Time:** NTP synced (ordering/clock-skew logic depends on a sane server clock; devices are reconciled to it — DOC-08). Server/OS timezone stays UTC. Bootstrap default is `APP_TIMEZONE` in `.env` (default `Asia/Riyadh`); after seed the runtime setting `general.timezone` (DOC-18) overrides it for display/reports/scheduler.
 4. **Users:** a non-root deploy user; the web/worker processes run unprivileged.
 
 ---
@@ -29,7 +29,7 @@
 The Laravel/Inertia app lives under **`Server/`** in the monorepo (Flutter under `Mobile/`, docs under `Docs/`).
 
 1. Clone the repo, then from `Server/`: `composer install --no-dev --optimize-autoloader`, `npm ci && npm run build` (Vite build; the built assets ship — no Node at runtime).
-2. `Server/.env` from the production template: `APP_KEY`, the fixed MySQL connection credentials, the maintenance-only `ir4_wipe` credentials, Redis, Reverb keys, storage paths, `BACKUP_DISK_ROOT=/data/ir4-backups`, `BACKUP_ARCHIVE_PASSWORD`, `MYSQL_DUMP_BINARY_PATH`, and `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT`. **Secrets live here, never in the DB.** Runtime timezone is `general.timezone` after seed — not an `.env` knob.
+2. `Server/.env` from the production template: `APP_KEY`, `APP_TIMEZONE`, the fixed MySQL connection credentials, the maintenance-only `ir4_wipe` credentials, Redis, Reverb keys, storage paths, `BACKUP_DISK_ROOT=/data/ir4-backups`, `BACKUP_ARCHIVE_PASSWORD`, `MYSQL_DUMP_BINARY_PATH`, and `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT`. **Secrets live here, never in the DB.** After seed, `general.timezone` overrides `APP_TIMEZONE` at runtime (DOC-18).
 3. From `Server/`: `php artisan migrate --force`; `php artisan db:seed` (permissions, Super Admin role, settings defaults, **no hardware/zone inventory** — those are registered in-app, DOC-05/06).
 4. `php artisan ir4:install` — create the first Super Admin user (DOC-03 §7.3).
 5. `php artisan config:cache route:cache view:cache`; `php artisan storage:link` (public disk only; snapshots stay private).
@@ -105,8 +105,8 @@ e app stores the URL + Sanctum token in secure storage.
 ## 8. Backups, restore & wipe (operational — DOC-19)
 
 - Add `/data` to the global Lerd `mounts` list in `~/.config/lerd/config.yaml`, restart Lerd, and verify the backup root is visible inside the PHP runtime.
-- Start the standard persistent worker with `lerd schedule:start`; `Scripts/setup.sh` does this automatically.
-- Schedule (Spatie install order): `backup:clean` 01:00 → `backup:run` 01:30 → `backup:monitor` 03:00 → prune 03:15. Archives are AES-256 ZIPs under `/data/ir4-backups/{APP_NAME}`; 30 daily retention. Failures raise in-app `system` alerts via `AlertService` (no mail). Pruning refuses without the current day's success marker.
+- Start the standard persistent worker with `lerd schedule:start`; `Scripts/setup.sh` does this automatically and fails if the schedule worker is missing. Confirm with `lerd worker list` and `php artisan schedule:list`.
+- Schedule (Spatie install order, runs automatically via `schedule:work`): `backup:clean` 01:00 → `backup:run` 01:30 → `backup:monitor` 03:00 → prune 03:15. Archives are AES-256 ZIPs under `/data/ir4-backups/{APP_NAME}`; 30 daily retention. Failures raise in-app `system` alerts via `AlertService` (no mail). Pruning refuses without the current day's success marker.
 - Operational commands: `php artisan backup:run`, `backup:list`, `backup:clean`, `backup:monitor`.
 - **Restore drill (staging only):** decrypt/extract with `7z` + `BACKUP_ARCHIVE_PASSWORD`, import SQL into a new staging schema, validate, destroy staging. Never import into live.
 - **End-of-project:** `ir4:export-all` → verify → hand over → `ir4:secure-wipe --confirm` (DOC-19 §6).

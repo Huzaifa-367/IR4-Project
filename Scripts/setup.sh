@@ -187,10 +187,16 @@ fi
 
 lerd schedule:start
 
+if ! lerd worker list 2>/dev/null | grep -qi 'schedule'; then
+  echo "ERROR: Lerd schedule worker is not running after schedule:start." >&2
+  echo "Daily Spatie backups will not run until: lerd schedule:start" >&2
+  exit 1
+fi
+
 echo
 echo "=================================="
 echo "Setup Complete"
 echo "App root: $APP_ROOT"
 echo "(Server/ contents flattened; Mobile/Docs skipped)"
-echo "Lerd scheduler: running"
+echo "Lerd scheduler: running (daily backup:clean 01:00, backup:run 01:30, backup:monitor 03:00)"
 echo "=================================="
