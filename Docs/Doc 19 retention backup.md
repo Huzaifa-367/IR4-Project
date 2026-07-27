@@ -64,14 +64,14 @@ An order-of-magnitude estimate so the Dell R360's storage is provisioned correct
 
 ### 5.1 Spatie `backup:run` — daily (DOC-01 §A8)
 - `spatie/laravel-backup` v10 dumps the fixed `mysql` connection and the deployed Laravel tree to an **AES-256 encrypted** ZIP on the `backups` filesystem rooted at `/data/ir4-backups`. `/data` is a separate physical volume from live `/data2` (DOC-20). The archive password is `BACKUP_ARCHIVE_PASSWORD` in `.env`, never a runtime DB setting.
-- The host PHP 8.4 scheduler runs the command because it can see both `/data` and MySQL at `127.0.0.1`. Spatie uses the official MySQL 8 `mysqldump` binary; the MariaDB compatibility shim is unsupported.
+- Lerd's default persistent scheduler (`lerd schedule:start`) runs `schedule:work` with `DB_HOST=lerd-mysql`. Lerd's global config must mount `/data` into the PHP container. Its bundled `mysqldump` uses `mariadb-connector-c` to provide the `caching_sha2_password` plugin required by MySQL 8.
 - **Rotation:** `backup:clean` uses Spatie's built-in strategy to retain one daily archive for 30 days. Weekly/monthly/yearly tiers are disabled by default; a long-retention copy remains `[CONFIRM AT DESIGN]`.
 - Spatie events use the unified `AlertService`: backup, cleanup, and health-check failures raise deduplicated `system` warnings; successful/recovered events resolve their matching alerts. `BackupWasSuccessful` also records completion, archive path, and size.
 - Raw-data pruning requires a successful backup marker from the current day. A failed, missing, queued, or incomplete backup blocks pruning and raises a deduplicated warning.
 - **On-prem, no cloud egress** (DOC-01) — backups stay on site; off-site copy is a manual/operational step the runbook documents (DOC-20).
 
 ### 5.2 Restore drill
-- Spatie does not restore archives. The privileged DOC-20 procedure copies an archive, decrypts and extracts it with AES-capable ZIP tooling, creates a **new staging MySQL schema**, imports `db-dumps/*.sql` with the official MySQL client, and validates the schema/data. Deployed files are recovered manually only when required.
+- Spatie does not restore archives. The privileged DOC-20 procedure copies an archive, decrypts and extracts it with AES-capable ZIP tooling, creates a **new staging MySQL schema**, imports `db-dumps/*.sql` with a MySQL-8-compatible client, and validates the schema/data. Deployed files are recovered manually only when required.
 - No in-app live restore command exists. The runbook mandates this staging restore drill at commissioning and periodically; a backup that has not been restored is unproven.
 
 ---

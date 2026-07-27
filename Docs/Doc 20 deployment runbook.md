@@ -17,7 +17,7 @@
 
 ## 2. Server preparation
 
-1. **OS & packages:** Ubuntu 24.04, security updates, then PHP 8.4 (fpm + required extensions: pdo_mysql, redis, gd/imagick for snapshots, zip, bcmath), Nginx, MySQL 8, the **official MySQL 8 client** (`mysqldump` + `mysql`), `7zip`, Redis, `supervisor`, `git`, Composer, Node 22 (build only). Do not use the MariaDB `mysqldump` shim: it cannot authenticate the production `caching_sha2_password` account.
+1. **OS & packages:** Ubuntu 24.04, security updates, then Lerd PHP 8.4 (required extensions: pdo_mysql, redis, gd/imagick for snapshots, zip, bcmath), Nginx, Lerd MySQL 8, `7zip`, Redis, `git`, Composer, Node 22 (build only). Add `mariadb-connector-c` to Lerd PHP with `lerd php:pkg add mariadb-connector-c --php 8.4`; it supplies the `caching_sha2_password` plugin used by the bundled MySQL CLI.
 2. **Disk layout:** OS volume; a **data volume** for MySQL + the private storage (snapshots/documents); a **separate backup volume** (DOC-19 backups must not share the live-data disk). Provision per the DOC-19 volume math (hundreds of GB, snapshot-dominated). Enable **encryption at rest** (LUKS) on the data + backup volumes.
 3. **Time:** NTP synced (ordering/clock-skew logic depends on a sane server clock; devices are reconciled to it — DOC-08). Server/OS timezone stays UTC; operator display/report timezone is the runtime setting `general.timezone` (DOC-18), not `APP_TIMEZONE`.
 4. **Users:** a non-root deploy user; the web/worker processes run unprivileged.
@@ -40,7 +40,7 @@ Nginx/php-fpm document root is `Server/public`.
 
 ## 4. Process model (Supervisor)
 
-Long-running processes use `supervisor` (auto-restart). PHP-FPM and the minute scheduler timer are managed by **systemd**; Supervisor owns Reverb and queues.
+Long-running processes use Lerd's persistent workers. The scheduler is Lerd's built-in Laravel worker, which runs `schedule:work` as a user-level systemd service and restarts with the site.
 
 | Process | Command | Notes |
 |---|---|---|
@@ -49,7 +49,7 @@ Long-running processes use `supervisor` (auto-restart). PHP-FPM and the minute s
 | **queue: default** | `php artisan queue:work --queue=default` | imports, general jobs, pruning |
 | **queue: ingest** | `php artisan queue:work --queue=ingest` | reserved for ingest post-processing bursts (DOC-08) |
 | **queue: reports** | `php artisan queue:work --queue=reports` | PDF/CSV generation (DOC-15), exports |
-| **scheduler** | `ir4-scheduler@{user}.timer` → host `/usr/bin/php8.4 artisan schedule:run` | runs every minute with `DB_HOST=127.0.0.1`; host context can see `/data` |
+| **scheduler** | `lerd schedule:start` | persistent Laravel `schedule:work` worker with `DB_HOST=lerd-mysql` |
 
 - Redis backs cache, queues, and Reverb scaling.
 - Worker counts tuned to the box; the `ingest` queue gets the most workers (backfill floods, DOC-08). Restart workers on deploy (`queue:restart`).
@@ -106,9 +106,10 @@ e app stores the URL + Sanctum token in secure storage.
 
 ## 8. Backups, restore & wipe (operational — DOC-19)
 
-- Install the checked-in host timer once: `cd /data2/laravel/IR4-Project && ./scripts/install-host-scheduler.sh`. Confirm it with `systemctl status ir4-scheduler@${USER}.timer`.
-- The timer runs Spatie `backup:run` at 01:00, `backup:clean` at 02:30, and `backup:monitor` at 03:00 in the configured application timezone. Backups are AES-256 ZIPs under `/data/ir4-backups/{APP_NAME}`; one daily archive is retained for 30 days. Failure/unhealthy events raise `system` warnings. Raw pruning at 03:15 refuses to run without the current day's success marker.
-- Operational commands are `/usr/bin/php8.4 artisan backup:run`, `backup:list`, `backup:clean`, and `backup:monitor`, run from the deployed application with `DB_HOST=127.0.0.1`. Confirm `MYSQL_DUMP_BINARY_PATH/mysqldump --version` reports the official MySQL client before commissioning.
+- Add `/data` to the global Lerd `mounts` list in `~/.config/lerd/config.yaml`, restart Lerd, and verify `php -r 'echo is_dir(\"/data\") ? \"mounted\" : \"missing\";'` prints `mounted`. The backup destination must be visible inside the same PHP runtime as the scheduler.
+- Start the standard persistent worker from the deployed application with `lerd schedule:start`; `Scripts/setup.sh` does this automatically. Confirm it in the Lerd dashboard or with `lerd worker list`.
+- Lerd runs Spatie `backup:run` at 01:00, `backup:clean` at 02:30, and `backup:monitor` at 03:00 in the configured application timezone. Backups are AES-256 ZIPs under `/data/ir4-backups/{APP_NAME}`; one daily archive is retained for 30 days. Failure/unhealthy events raise `system` warnings. Raw pruning at 03:15 refuses to run without the current day's success marker.
+- Operational commands are `php artisan backup:run`, `backup:list`, `backup:clean`, and `backup:monitor` from the Lerd-linked application. Confirm `MYSQL_DUMP_BINARY_PATH/mysqldump --version` works and `/usr/lib/mariadb/plugin/caching_sha2_password.so` exists inside Lerd before commissioning.
 - **Restore drill (staging only):** copy the selected ZIP from `/data` to an isolated working directory; use `7z` with `BACKUP_ARCHIVE_PASSWORD` to test and extract it; create a new empty staging MySQL schema; import the extracted `db-dumps/mysql-*.sql` with the official `mysql` client; run migrations/status and representative row-count checks against that schema; then destroy the staging schema and working copy. Never import into the live schema. Application files in the ZIP are recovered manually only when required.
 - Document the manual, no-cloud **off-site copy** procedure. A backup that has not passed the decrypt-and-staging-import drill is unproven; repeat the drill periodically.
 - **End-of-project:** `ir4:export-all` → verify → hand over encrypted archive + key → `ir4:secure-wipe --confirm` (refuses without a verified export). The verified `.ir4exp` archive is **immutable**; wipe writes a **separate wipe receipt** beside it on the exports disk (DOC-19 §6). Chain-of-custody: `deploy/operations.md`.
@@ -131,7 +132,7 @@ Sign-off that the deployment is production-ready:
 **Infrastructure**
 - [ ] Server prepped (OS, packages, NTP, LUKS on data+backup volumes, disk sized per DOC-19).
 - [ ] App deployed, migrated, seeded (permissions + Super Admin + settings defaults; **no** seeded hardware/zones).
-- [ ] Supervisor running Reverb/queues(default,ingest,reports), PHP-FPM healthy, and the host scheduler systemd timer enabled.
+- [ ] Lerd PHP-FPM, Reverb, queues, and default scheduler worker are healthy; `/data` is mounted inside the PHP runtime.
 - [ ] Nginx TLS up; LAN segmentation verified (device path device-only, public QR LAN-only, no internet egress in/out).
 - [ ] DB grants: app user INSERT/SELECT-only on `audit_logs` plus required dump-read privileges; separate wipe account.
 
