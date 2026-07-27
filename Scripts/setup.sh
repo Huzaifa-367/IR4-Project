@@ -173,6 +173,18 @@ fi
 
 lerd start
 
+if ! php -r 'exit(is_dir("/data") ? 0 : 1);'; then
+  echo "ERROR: /data is not mounted inside the Lerd PHP runtime." >&2
+  echo "Add /data to mounts in ~/.config/lerd/config.yaml, then restart Lerd." >&2
+  exit 1
+fi
+
+if ! php -r 'passthru("/usr/bin/mysqldump --version", $status); exit($status);'; then
+  echo "ERROR: mysqldump is unavailable in the Lerd PHP runtime." >&2
+  echo "Install Lerd's MySQL client before starting the scheduler." >&2
+  exit 1
+fi
+
 lerd schedule:start
 
 echo

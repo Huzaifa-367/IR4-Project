@@ -139,12 +139,13 @@ Gas threshold **seed values** (in `gas_thresholds`, DOC-11 — **confirm with sa
 | `report.week_start` | `sunday` | enum(mon…sun) | manage-settings | reporting week boundary |
 | `report.completeness_threshold_pct` | `20` | int | manage-settings | outage-note threshold |
 
-### 4.11 Retention (DOC-19)
+### 4.11 Retention & backup (DOC-19)
 | key | default | type | edit perm | used by |
 |---|---|---|---|---|
 | `retention.tag_readings_days` | `90` | int | manage-settings + confirm | raw tag-read pruning |
 | `retention.sensor_readings_days` | `180` | int | manage-settings + confirm | raw gas/env pruning |
 | `retention.exports_days` | `7` | int | manage-settings | export-file cleanup |
+| *(Spatie backup retention)* | `30 daily` | deploy config | — | `config/backup.php`; not runtime-editable |
 | *(compliance tables — never pruned)* | — | — | — | alerts/incidents/LSR/reports/audit (DOC-19) |
 
 ### 4.12 Display (DOC-16)
@@ -216,4 +217,4 @@ These are the settings the client/safety lead should review at commissioning; al
 ---
 
 ### Next document
-**DOC-19 — Data Retention & End-of-Project:** on-read sensor aggregates (gas/env), raw-data pruning (never touching compliance tables), the data-volume math, and the `ir4:export-all` / `ir4:secure-wipe` commands for end-of-project handover.
+**DOC-19 — Data Retention, Backup & End-of-Project:** on-read sensor aggregates (gas/env), raw-data pruning (never touching compliance tables), the data-volume math, encrypted daily backups (Spatie events → `AlertService`, no mail), and the `ir4:export-all` / `ir4:secure-wipe` commands for end-of-project handover.

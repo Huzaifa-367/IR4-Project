@@ -57,6 +57,16 @@ return [
             'report' => false,
         ],
 
+        // Separate volume in production (DOC-19/20). Never the live app/data disk.
+        'backups' => [
+            'driver' => 'local',
+            'root' => env('BACKUP_DISK_ROOT') ?: '/data/ir4-backups',
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

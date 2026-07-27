@@ -25,10 +25,10 @@
 - [x] Legacy settings key migration; printer host/port in `.env`/`config/ir4.php`
 - [x] `/settings/general` grouped editor with per-key permissions + confirm
 
-### Phase 9e — Retention (DOC-19)
+### Phase 9e — Retention & backup (DOC-19)
 - [x] `PruneRawSensorData`, `PruneExportFiles`
-- [x] `ir4:export-all`, `ir4:secure-wipe`
-- [x] Disk-space `system` alerts
+- [x] Encrypted Spatie backup/cleanup/monitoring; events → `AlertService` (no mail); `ir4:export-all`, `ir4:secure-wipe`
+- [x] Disk-space / missing-backup `system` alerts
 
 ### Docs
 - [x] Full set `Docs/Doc 01`–`Doc 21` on disk (including DOC-20 deploy runbook + DOC-21 testing strategy)

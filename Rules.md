@@ -53,15 +53,15 @@
 ## Settings boundaries (DOC-18)
 
 - Runtime tunables live in the `settings` table via `SettingsRegistry` / `SettingsService` only — no arbitrary keys.
-- Deploy-fixed values (DB credentials, Reverb, printer IP/port) stay in `.env` / `config/*`.
+- Deploy-fixed values (DB credentials, Reverb, printer IP/port, backup disk paths/keys) stay in `.env` / `config/*`.
 - Per-key edit permissions; sensitive keys require a server-validated confirmation flag.
 - Every successful `set` audits `config_changed` with old→new.
 
-## Retention boundaries (DOC-19)
+## Retention / backup boundaries (DOC-19)
 
 - Prune only the explicit raw allow-list (`tag_readings`, `gas_readings`, `environmental_readings`); never compliance tables.
 - Gas, environmental, and tag raw rows prune after the retention window (no sensor rollup tables; no rollup gate); tags likewise have no rollup in v1.
-- `ir4:secure-wipe` requires a verified export marker and confirmation phrase.
+- Daily backups are encrypted on the separate `backups` disk; Spatie events raise/resolve `system` alerts (no mail); `ir4:secure-wipe` requires a verified export marker and confirmation phrase.
 
 ## Deploy & test boundaries (DOC-20 / DOC-21)
 

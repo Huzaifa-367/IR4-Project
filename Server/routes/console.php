@@ -41,6 +41,22 @@ Schedule::call(function (TrackingService $tracking): void {
 
 Schedule::job(new FlagOverdueEquipment)->daily()->name('ir4:flag-overdue-equipment');
 
+// Spatie docs: clean before run; avoid 02:00–03:00 DST window.
+Schedule::command('backup:clean')
+    ->dailyAt('01:00')
+    ->name('ir4:backup-clean')
+    ->withoutOverlapping(60);
+
+Schedule::command('backup:run')
+    ->dailyAt('01:30')
+    ->name('ir4:backup-run')
+    ->withoutOverlapping(180);
+
+Schedule::command('backup:monitor')
+    ->dailyAt('03:00')
+    ->name('ir4:backup-monitor')
+    ->withoutOverlapping(30);
+
 Schedule::job(new PruneRawSensorData)
     ->dailyAt('03:15')
     ->name('ir4:prune-raw-sensor-data')

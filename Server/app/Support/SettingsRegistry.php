@@ -596,7 +596,7 @@ final class SettingsRegistry
             'environment' => 'Dashboard — Environment',
             'equipment' => 'Equipment / QR',
             'reports' => 'Reports',
-            'retention' => 'Administration — Retention',
+            'retention' => 'Administration — Retention & backup',
             'display' => 'Dashboard',
         ];
     }

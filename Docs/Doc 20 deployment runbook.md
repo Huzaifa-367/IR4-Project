@@ -1,8 +1,8 @@
 # DOC-20 — Deployment & Operations Runbook
 
-> **Depends on:** DOC-01 (stack, queues, scheduler, storage), DOC-02/08 (device + display auth on the LAN), DOC-05 (printer as a device), DOC-13 (public QR page + ZT411 printing), DOC-17 (append-only audit → DB grants), DOC-18 (config-vs-`.env`), DOC-19 (retention, wipe). **Feeds:** the field-engineering team standing the system up; the acceptance sign-off.
+> **Depends on:** DOC-01 (stack, queues, scheduler, storage), DOC-02/08 (device + display auth on the LAN), DOC-05 (printer as a device), DOC-13 (public QR page + ZT411 printing), DOC-17 (append-only audit → DB grants), DOC-18 (config-vs-`.env`), DOC-19 (backups, restore, wipe). **Feeds:** the field-engineering team standing the system up; the acceptance sign-off.
 >
-> **Scope:** the **on-prem deployment and operations runbook** — server preparation (Dell R360), the app/queue/Reverb/scheduler process model, reverse-proxy + firewall LAN enforcement (public QR page and device ingest), ZT411 printer setup, database-permission hardening (append-only audit, wipe privileges), wipe drills, monitoring, and the **Phase-3 commissioning acceptance checklist**. **Out of scope:** application behavior (owned by the module DOCs) — this doc gets it running and keeps it running.
+> **Scope:** the **on-prem deployment and operations runbook** — server preparation (Dell R360), the app/queue/Reverb/scheduler process model, reverse-proxy + firewall LAN enforcement (public QR page and device ingest), ZT411 printer setup, database-permission hardening (append-only audit, wipe privileges), backup/restore/wipe drills, monitoring, and the **Phase-3 commissioning acceptance checklist**. **Out of scope:** application behavior (owned by the module DOCs) — this doc gets it running and keeps it running.
 
 ---
 
@@ -17,8 +17,8 @@
 
 ## 2. Server preparation
 
-1. **OS & packages:** Ubuntu 24.04, security updates, then Lerd PHP 8.4 (required extensions: pdo_mysql, redis, gd/imagick for snapshots, zip, bcmath), Nginx, Lerd MySQL 8, Redis, `git`, Composer, Node 22 (build only).
-2. **Disk layout:** OS volume; a **data volume** for MySQL + the private storage (snapshots/documents). Provision per the DOC-19 volume math (hundreds of GB, snapshot-dominated). Enable **encryption at rest** (LUKS) on the data volume.
+1. **OS & packages:** Ubuntu 24.04, security updates, then Lerd PHP 8.4 (required extensions: pdo_mysql, redis, gd/imagick for snapshots, zip, bcmath), Nginx, Lerd MySQL 8, `7zip`, Redis, `git`, Composer, Node 22 (build only). Add `mariadb-connector-c` to Lerd PHP with `lerd php:pkg add mariadb-connector-c --php 8.4` when the bundled `mysqldump` needs MySQL 8 `caching_sha2_password`.
+2. **Disk layout:** OS volume; a **data volume** for MySQL + the private storage (snapshots/documents); a **separate backup volume** (DOC-19 backups must not share the live-data disk). Provision per the DOC-19 volume math (hundreds of GB, snapshot-dominated). Enable **encryption at rest** (LUKS) on the data + backup volumes.
 3. **Time:** NTP synced (ordering/clock-skew logic depends on a sane server clock; devices are reconciled to it — DOC-08). Server/OS timezone stays UTC; operator display/report timezone is the runtime setting `general.timezone` (DOC-18), not `APP_TIMEZONE`.
 4. **Users:** a non-root deploy user; the web/worker processes run unprivileged.
 
@@ -29,7 +29,7 @@
 The Laravel/Inertia app lives under **`Server/`** in the monorepo (Flutter under `Mobile/`, docs under `Docs/`).
 
 1. Clone the repo, then from `Server/`: `composer install --no-dev --optimize-autoloader`, `npm ci && npm run build` (Vite build; the built assets ship — no Node at runtime).
-2. `Server/.env` from the production template: `APP_KEY`, the fixed MySQL connection credentials, the maintenance-only `ir4_wipe` credentials, Redis, Reverb keys, storage paths, and `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT`. **Secrets live here, never in the DB.** Runtime timezone is `general.timezone` after seed — not an `.env` knob.
+2. `Server/.env` from the production template: `APP_KEY`, the fixed MySQL connection credentials, the maintenance-only `ir4_wipe` credentials, Redis, Reverb keys, storage paths, `BACKUP_DISK_ROOT=/data/ir4-backups`, `BACKUP_ARCHIVE_PASSWORD`, `MYSQL_DUMP_BINARY_PATH`, and `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT`. **Secrets live here, never in the DB.** Runtime timezone is `general.timezone` after seed — not an `.env` knob.
 3. From `Server/`: `php artisan migrate --force`; `php artisan db:seed` (permissions, Super Admin role, settings defaults, **no hardware/zone inventory** — those are registered in-app, DOC-05/06).
 4. `php artisan ir4:install` — create the first Super Admin user (DOC-03 §7.3).
 5. `php artisan config:cache route:cache view:cache`; `php artisan storage:link` (public disk only; snapshots stay private).
@@ -74,9 +74,9 @@ Three surfaces (DOC-01 §3) with different exposure, enforced at Nginx + host fi
 
 ## 6. Database hardening
 
-- **App DB user (`ir4_app`):** normal DML on operational tables, but **INSERT/SELECT only on `audit_logs`** (no UPDATE/DELETE) — the append-only guarantee enforced at the DB, not just the model (DOC-17 §6). SQL: `deploy/database/mysql-grants.sql`.
+- **App DB user (`ir4_app`):** normal DML on operational tables, but **INSERT/SELECT only on `audit_logs`** (no UPDATE/DELETE) — the append-only guarantee enforced at the DB, not just the model (DOC-17 §6). SQL: `deploy/database/mysql-grants.sql`. Needs `mysqldump` read privileges (`SELECT`, `SHOW VIEW`, `TRIGGER`, `EVENT`) for Spatie backups.
 - **Wipe/maintenance user (`ir4_wipe`):** privileged account used only by `ir4:secure-wipe` (DOC-19), including DELETE on `audit_logs`.
-- Least-privilege throughout; credentials only in `.env`.
+- Archive password from `.env` (`BACKUP_ARCHIVE_PASSWORD`). Least-privilege throughout; credentials only in `.env`.
 
 ---
 
@@ -102,17 +102,20 @@ e app stores the URL + Sanctum token in secure storage.
 
 ---
 
-## 8. Retention & wipe (operational — DOC-19)
+## 8. Backups, restore & wipe (operational — DOC-19)
 
-- Start the standard persistent worker from the deployed application with `lerd schedule:start`; `Scripts/setup.sh` does this automatically. Confirm it in the Lerd dashboard or with `lerd worker list`.
-- Lerd runs `PruneRawSensorData` at 03:15 and the export-file sweep at 03:30 in the configured application timezone. Failures raise `system` warnings. A `disk_space_low` warning fires when free space on the private volume falls below the threshold.
-- **End-of-project:** `ir4:export-all` → verify → hand over encrypted archive + key → `ir4:secure-wipe --confirm` (refuses without a verified export). The verified `.ir4exp` archive is **immutable**; wipe writes a **separate wipe receipt** beside it on the exports disk (DOC-19 §5). Chain-of-custody: `deploy/operations.md`.
+- Add `/data` to the global Lerd `mounts` list in `~/.config/lerd/config.yaml`, restart Lerd, and verify the backup root is visible inside the PHP runtime.
+- Start the standard persistent worker with `lerd schedule:start`; `Scripts/setup.sh` does this automatically.
+- Schedule (Spatie install order): `backup:clean` 01:00 → `backup:run` 01:30 → `backup:monitor` 03:00 → prune 03:15. Archives are AES-256 ZIPs under `/data/ir4-backups/{APP_NAME}`; 30 daily retention. Failures raise in-app `system` alerts via `AlertService` (no mail). Pruning refuses without the current day's success marker.
+- Operational commands: `php artisan backup:run`, `backup:list`, `backup:clean`, `backup:monitor`.
+- **Restore drill (staging only):** decrypt/extract with `7z` + `BACKUP_ARCHIVE_PASSWORD`, import SQL into a new staging schema, validate, destroy staging. Never import into live.
+- **End-of-project:** `ir4:export-all` → verify → hand over → `ir4:secure-wipe --confirm` (DOC-19 §6).
 
 ---
 
 ## 9. Monitoring & operations
 
-- **System health** is in-app (DOC-05/16): device/camera offline, gas-telemetry-lost escalation, `disk_space_low` — all as `system` alerts on the dashboard, so operators see infra problems in the same place as safety ones.
+- **System health** is in-app (DOC-05/16): device/camera offline, gas-telemetry-lost escalation, `disk_space_low`, backup-failure — all as `system` alerts on the dashboard, so operators see infra problems in the same place as safety ones.
 - **Logs:** Laravel logs to disk (rotated); Nginx/php-fpm/Supervisor logs standard. No external log shipping (on-prem).
 - **Health endpoint:** `GET /up` (Laravel health) for a local uptime check.
 - **Runbook basics:** how to restart a stuck queue (`supervisorctl restart`), re-run a failed scheduled job, rotate a leaked device token (DOC-05 §5), re-cache config after an `.env` change, and read the audit log after an incident.
@@ -152,6 +155,7 @@ Sign-off that the deployment is production-ready:
 
 **Data lifecycle**
 - [ ] Pruning dry-run confirms allow-list (no compliance table touched).
+- [ ] `backup:run`, `backup:list`, `backup:monitor`, and 30-day cleanup pass; encrypted ZIP exists on `/data`; staging restore drill passed.
 - [ ] `ir4:export-all` produces a verifiable archive (dry run).
 
 **Access & audit**

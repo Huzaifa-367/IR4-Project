@@ -12,16 +12,26 @@ use App\Models\EnvironmentalReading;
 use App\Models\GasReading;
 use App\Models\TagReading;
 use App\Models\WeeklyReport;
+use App\Services\BackupStatusService;
 use App\Services\RetentionService;
 use App\Services\SettingsService;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SettingsSeeder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Backup\Events\BackupHasFailed;
+use Spatie\Backup\Events\BackupWasSuccessful;
+use Spatie\Backup\Events\CleanupHasFailed;
+use Spatie\Backup\Events\CleanupWasSuccessful;
+use Spatie\Backup\Events\HealthyBackupWasFound;
+use Spatie\Backup\Events\UnhealthyBackupWasFound;
+use Spatie\Backup\Notifications\Notifications\BackupHasFailedNotification;
 
 beforeEach(function () {
     $this->seed(RolePermissionSeeder::class);
     $this->seed(SettingsSeeder::class);
     Storage::fake('private');
+    Storage::fake('backups');
 });
 
 it('prunes only allow-listed raw tables by age and never compliance tables', function () {
@@ -130,8 +140,66 @@ it('removes ad-hoc exports but keeps weekly report PDFs', function () {
         ->and(Storage::disk('private')->exists('reports/1/report.pdf'))->toBeTrue();
 });
 
-it('runs the prune job for aged raw readings', function () {
+it('configures encrypted Spatie backups for MySQL on the backups disk without mail', function () {
+    expect(config('backup.backup.source.databases'))->toBe(['mysql'])
+        ->and(config('backup.backup.destination.disks'))->toBe(['backups'])
+        ->and(config('backup.backup.encryption'))->toBe('aes256')
+        ->and(config('backup.backup.verify_backup'))->toBeTrue()
+        ->and(config('backup.cleanup.default_strategy.keep_daily_backups_for_days'))->toBe(30)
+        ->and(config('backup.notifications.notifications.'.BackupHasFailedNotification::class))->toBe([])
+        ->and(config('database.connections'))->toHaveKey('mysql')
+        ->and(config('database.connections'))->toHaveCount(1);
+});
+
+it('blocks raw pruning until the current day has a successful backup', function () {
+    Cache::forget('ir4:backup:last-success');
     $reading = TagReading::factory()->create(['recorded_at' => now()->subDays(120)]);
-    app(PruneRawSensorData::class)->handle(app(RetentionService::class));
+    app(PruneRawSensorData::class)->handle(
+        app(BackupStatusService::class),
+        app(RetentionService::class),
+    );
+    expect(TagReading::query()->whereKey($reading->id)->exists())->toBeTrue()
+        ->and(Alert::query()->where('dedupe_key', 'backup:prune-blocked')->exists())->toBeTrue();
+
+    Storage::disk('backups')->put('IR4/ir4-test.zip', 'encrypted-backup-fixture');
+    app(BackupStatusService::class)->recordSuccess(new BackupWasSuccessful('backups', 'IR4'));
+    app(PruneRawSensorData::class)->handle(
+        app(BackupStatusService::class),
+        app(RetentionService::class),
+    );
     expect(TagReading::query()->whereKey($reading->id)->exists())->toBeFalse();
+});
+
+it('routes Spatie backup events through AlertService', function () {
+    event(new BackupHasFailed(
+        new RuntimeException('mysqldump failed'),
+        'backups',
+        'IR4',
+    ));
+    event(new UnhealthyBackupWasFound(
+        'backups',
+        'IR4',
+        collect([[
+            'check' => 'MaximumAgeInDays',
+            'message' => 'The latest backup is too old.',
+        ]]),
+    ));
+    event(new CleanupHasFailed(
+        new RuntimeException('cleanup failed'),
+        'backups',
+        'IR4',
+    ));
+
+    expect(Alert::query()->where('dedupe_key', 'backup:failed')->where('status', AlertStatus::Open)->exists())->toBeTrue()
+        ->and(Alert::query()->where('dedupe_key', 'backup:missing')->where('status', AlertStatus::Open)->exists())->toBeTrue()
+        ->and(Alert::query()->where('dedupe_key', 'backup:cleanup-failed')->where('status', AlertStatus::Open)->exists())->toBeTrue();
+
+    Storage::disk('backups')->put('IR4/ir4-test.zip', 'encrypted-backup-fixture');
+    event(new BackupWasSuccessful('backups', 'IR4'));
+    event(new HealthyBackupWasFound('backups', 'IR4'));
+    event(new CleanupWasSuccessful('backups', 'IR4'));
+
+    expect(Alert::query()->where('dedupe_key', 'backup:failed')->where('status', AlertStatus::Resolved)->exists())->toBeTrue()
+        ->and(Alert::query()->where('dedupe_key', 'backup:missing')->where('status', AlertStatus::Resolved)->exists())->toBeTrue()
+        ->and(Alert::query()->where('dedupe_key', 'backup:cleanup-failed')->where('status', AlertStatus::Resolved)->exists())->toBeTrue();
 });

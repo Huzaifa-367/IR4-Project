@@ -50,6 +50,14 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            'dump' => [
+                'dump_binary_path' => env('MYSQL_DUMP_BINARY_PATH', '/usr/bin'),
+                'use_single_transaction',
+                'use_quick',
+                'include_routines',
+                'add_extra_option' => '--events',
+                'timeout' => (int) env('MYSQL_DUMP_TIMEOUT', 3600),
+            ],
         ],
 
     ],

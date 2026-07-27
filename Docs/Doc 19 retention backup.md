@@ -1,8 +1,8 @@
-# DOC-19 — Data Retention & End-of-Project
+# DOC-19 — Data Retention, Backup & End-of-Project
 
-> **Depends on:** DOC-01 (queues/scheduler, storage), DOC-05 (device offline durations), DOC-09/11/12 (raw readings), DOC-15 (report PDFs), DOC-17 (audit logs — never pruned), DOC-18 (`retention.*` settings). **Feeds:** DOC-20 (wipe as a commissioning/decommissioning step), DOC-16/11/12 (trends: gas and env from on-read raw aggregates beyond 24 h).
+> **Depends on:** DOC-01 (queues/scheduler, storage), DOC-05 (device offline durations), DOC-09/11/12 (raw readings), DOC-15 (report PDFs), DOC-17 (audit logs — never pruned), DOC-18 (`retention.*` settings). **Feeds:** DOC-20 (backup/restore drills, wipe as a commissioning/decommissioning step), DOC-16/11/12 (trends: gas and env from on-read raw aggregates beyond 24 h).
 >
-> **Scope:** the **data lifecycle** — **on-read SQL aggregates** for gas and environmental trends/reports (no sensor rollup tables), **pruning** of raw readings (and the hard rule that **compliance tables are never pruned**), the **data-volume math** that justifies the on-prem disk, and the **end-of-project** `ir4:export-all` and `ir4:secure-wipe` commands. **Out of scope:** what the data means (owned by its module) — this doc owns *how long it lives, how it's compacted, exported, and destroyed*.
+> **Scope:** the **data lifecycle** — **on-read SQL aggregates** for gas and environmental trends/reports (no sensor rollup tables), **pruning** of raw readings (and the hard rule that **compliance tables are never pruned**), the **data-volume math** that justifies the on-prem disk, **encrypted daily backups** with rotation, and the **end-of-project** `ir4:export-all` and `ir4:secure-wipe` commands. **Out of scope:** what the data means (owned by its module) — this doc owns *how long it lives, how it's compacted, backed up, exported, and destroyed*.
 
 ---
 
@@ -54,34 +54,54 @@ An order-of-magnitude estimate so the Dell R360's storage is provisioned correct
 - **Environmental:** ~1 sensor × 1/min ⇒ ~1.5 k rows/day ⇒ trivial; pruned at 180 days like gas.
 - **Snapshots (PPE):** the space driver — each violation stores a JPEG (~100–300 KB). At, say, 200 violations/day ⇒ ~40 MB/day ⇒ ~15 GB/year (kept, they're evidence). Sizing assumes retaining snapshots for the project; a snapshot-thinning policy is a `[CONFIRM AT DESIGN]` option if space is tight.
 - **Compliance rows:** kilobytes; negligible over years.
+- **Backups:** each daily encrypted Spatie archive contains the MySQL dump and deployed application tree; one archive per day is retained for 30 days (§5).
 
 **Takeaway:** provision on the order of **hundreds of GB** for a multi-year project (dominated by snapshots), with raw telemetry bounded by pruning. DOC-20 specifies the actual disk + monitoring; a `disk_space_low` `system` alert warns before it fills.
 
 ---
 
-## 5. End-of-project commands (decommissioning)
+## 5. Backups (encrypted, rotated, ②)
+
+### 5.1 Spatie `backup:run` — daily (DOC-01 §A8)
+- `spatie/laravel-backup` v10 dumps the fixed `mysql` connection and the deployed Laravel tree to an **AES-256 encrypted** ZIP on the `backups` filesystem rooted at `/data/ir4-backups`. `/data` is a separate physical volume from live data (DOC-20). The archive password is `BACKUP_ARCHIVE_PASSWORD` in `.env`, never a runtime DB setting.
+- Scheduler order follows Spatie's install guide: `backup:clean` at 01:00, then `backup:run` at 01:30 (avoid the 02:00–03:00 DST window). `backup:monitor` runs at 03:00.
+- **Rotation:** `backup:clean` retains one daily archive for 30 days. Weekly/monthly/yearly tiers are disabled by default.
+- **Notifications (on-prem):** Spatie mail/Slack/Discord channels are empty. Spatie events are routed through `BackupStatusService` → unified `AlertService` as deduplicated `system` warnings; success/recovery resolves matching alerts.
+- Raw-data pruning requires a successful backup marker from the current day. A failed, missing, or incomplete backup blocks pruning and raises a deduplicated warning.
+- **On-prem, no cloud egress** (DOC-01) — backups stay on site; off-site copy is a manual/operational step (DOC-20).
+
+### 5.2 Restore drill
+- Spatie does not restore archives. The privileged DOC-20 procedure copies an archive, decrypts and extracts it with AES-capable ZIP tooling, creates a **new staging MySQL schema**, imports `db-dumps/*.sql` with a MySQL-8-compatible client, and validates the schema/data. Deployed files are recovered manually only when required.
+- No in-app live restore command exists. The runbook mandates this staging restore drill at commissioning and periodically; a backup that has not been restored is unproven.
+
+---
+
+## 6. End-of-project commands (decommissioning)
 
 The system is an **on-prem, project-scoped** deployment; at project end the client gets their data and the site data is destroyed. Two privileged artisan commands (run by an admin at the console, not exposed in the UI):
 
-### 5.1 `ir4:export-all` — the complete handover export
+### 6.1 `ir4:export-all` — the complete handover export
 - Produces a single **encrypted archive** containing: a full DB export (SQL + CSV per table), **all weekly-report PDFs**, all **incident/LSR evidence** (snapshots, documents), the **audit log** (CSV), evacuation PDFs, and a manifest + checksums.
 - This is the client's permanent record. Generating it writes an `exported` audit row (DOC-17); the archive is encrypted with a key handed to the client.
 - Idempotent and resumable for large snapshot sets.
 
-### 5.2 `ir4:secure-wipe` — destruction after handover
+### 6.2 `ir4:secure-wipe` — destruction after handover
 - **Two-step, guarded:** requires an explicit `--confirm` phrase and a prior successful `ir4:export-all` (checks a recorded export marker) — refuses to wipe if no verified export exists.
-- Securely removes the database contents and the private storage (snapshots, documents) per the client's data-destruction requirement. The verified `.ir4exp` handover archive is **immutable** — wipe never mutates it. Instead the command writes a separate signed **wipe receipt** beside the archive on the exports disk (and a local `wiped` audit row before clearing audit last).
+- Securely removes the database contents and the private storage (snapshots, documents, backups) per the client's data-destruction requirement. The verified `.ir4exp` handover archive is **immutable** — wipe never mutates it. Instead the command writes a separate signed **wipe receipt** beside the archive on the exports disk (and a local `wiped` audit row before clearing audit last).
 - Intended to run once, at decommissioning, by an administrator. Logged and irreversible — the runbook (DOC-20) covers chain-of-custody.
 - `[CONFIRM AT DESIGN]` exact wipe standard (e.g. crypto-erase vs overwrite) per client policy.
 
 ---
 
-## 6. Scheduled-job summary (this doc's jobs)
+## 7. Scheduled-job summary (this doc's jobs)
 
 | Job | Cadence | Action |
 |---|---|---|
-| `PruneRawSensorData` | daily (off-peak) | prune raw sensor tables past retention (allow-list only) |
-| export-file sweep | daily | remove ad-hoc exports past `retention.exports_days` (not report PDFs) |
+| Spatie `backup:clean` | daily 01:00 | retain one daily archive for 30 days |
+| Spatie `backup:run` | daily 01:30 | encrypted MySQL + application archive to separate volume |
+| Spatie `backup:monitor` | daily 03:00 | detect missing/unhealthy backups |
+| `PruneRawSensorData` | daily 03:15 | prune raw sensor tables past retention (allow-list only; requires same-day backup) |
+| export-file sweep | daily 03:30 | remove ad-hoc exports past `retention.exports_days` (not report PDFs) |
 | `ir4:export-all` | manual (project end) | full encrypted handover archive |
 | `ir4:secure-wipe` | manual (decommission) | guarded destruction after verified export |
 
@@ -89,37 +109,40 @@ All registered in the scheduler (DOC-01 §A8), monitored; failures raise `system
 
 ---
 
-## 7. Real-life scenarios
+## 8. Real-life scenarios
 
-- **Steady state:** nightly pruning trims 90-day-old tag reads and 180-day-old gas/env sensor reads by age; gas and env trends stay on raw aggregates within the retention window; disk stays bounded.
+- **Steady state:** nightly backup then pruning; gas and env trends stay on raw aggregates within the retention window; disk stays bounded.
 - **Backfill after an outage:** a pole flushes 6 h of buffered reads → gas and env trends/report see them immediately from raw; pruning still respects the retention window.
-- **Disk pressure:** free space on the private volume falls below the warn threshold → a `disk_space_low` `system` warning fires → ops intervenes before data is at risk.
+- **Backup gap:** a nightly backup fails (disk full) → a `system` warning fires + `disk_space_low` → pruning is blocked → ops intervenes before data is at risk.
 - **Project handover:** at close, an admin runs `ir4:export-all` → hands the encrypted archive + key to the client → verifies → runs `ir4:secure-wipe --confirm` → the site install is destroyed; the verified archive stays intact and a separate wipe receipt is written beside it.
 - **Compliance never lost:** across all pruning, every incident, LSR, alarm, report, and audit row remains — a two-year-old incident is still fully retrievable.
 
 ---
 
-## 8. Tests (this doc's slice of DOC-21)
+## 9. Tests (this doc's slice of DOC-21)
 
 - **Trend aggregates:** gas and env trends use raw points ≤24 h and SQL hourly aggregates beyond; weekly-report sensor items read raw.
-- **Pruning allow-list:** `PruneRawSensorData` removes only allow-listed raw tables past their window; a **compliance table is never touched** (explicit test iterating the excluded set); gas/env/tag rows prune by age alone (no rollup gate); chunked deletes.
+- **Pruning allow-list:** `PruneRawSensorData` removes only allow-listed raw tables past their window; a **compliance table is never touched**; gas/env/tag rows prune by age alone; chunked deletes.
 - **Export-file sweep:** ad-hoc exports past window removed; **published report PDFs retained**.
-- **export-all:** archive contains DB + report PDFs + evidence + audit CSV + manifest/checksums; writes an `exported` audit row.
-- **secure-wipe:** refuses without `--confirm` and without a prior verified export; on success removes data, leaves the verified archive immutable, and writes a separate wipe receipt on the exports disk.
+- **Backup:** Spatie configuration fixes the source to `mysql`, produces an AES-256 archive on the configured volume, verifies the ZIP, retains 30 daily archives, raises failures as `system` alerts (no mail), and blocks pruning without a current successful backup.
+- **Restore drill:** an encrypted archive decrypts successfully and its SQL imports into a new staging MySQL schema; no live schema is modified.
+- **export-all / secure-wipe:** as before (DOC-19 §6).
 - **Volume guard:** `disk_space_low` `system` alert fires below the threshold.
 
 ---
 
-## 9. Open decisions logged
+## 10. Open decisions logged
 
 | # | Decision | Default | Confirm in |
 |---|---|---|---|
 | 1 | Tag rollup table vs deriving manpower from entry/exit | derive from entry/exit; tag rollup optional | this doc / DOC-09 |
 | 2 | Snapshot retention / thinning | keep for project; thinning optional if space tight | this doc / DOC-10 |
-| 3 | Secure-wipe standard | crypto-erase/overwrite per client policy | DOC-20 |
-| 4 | Retention windows (raw) | 90 / 180 days | DOC-18 |
+| 3 | Long-retention (weekly/monthly) backup copies | 30 daily only | DOC-20 |
+| 4 | Off-site backup copy | manual/operational (no cloud egress) | DOC-20 |
+| 5 | Secure-wipe standard | crypto-erase/overwrite per client policy | DOC-20 |
+| 6 | Retention windows (raw) | 90 / 180 days | DOC-18 |
 
 ---
 
 ### Next document
-**DOC-20 — Deployment & Operations Runbook:** server prep (Dell R360), the app/queue/Reverb/scheduler process model, reverse-proxy LAN enforcement for the public QR page + device ingest, ZT411 printer setup, the DB-permission hardening (append-only audit, wipe privileges), wipe drills, and the Phase-3 commissioning acceptance checklist.
+**DOC-20 — Deployment & Operations Runbook:** server prep (Dell R360), the app/queue/Reverb/scheduler process model, reverse-proxy LAN enforcement for the public QR page + device ingest, ZT411 printer setup, the DB-permission hardening (append-only audit, wipe privileges), backup/restore + wipe drills, and the Phase-3 commissioning acceptance checklist.
