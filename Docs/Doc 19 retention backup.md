@@ -54,7 +54,7 @@ An order-of-magnitude estimate so the Dell R360's storage is provisioned correct
 - **Environmental:** ~1 sensor × 1/min ⇒ ~1.5 k rows/day ⇒ trivial; pruned at 180 days like gas.
 - **Snapshots (PPE):** the space driver — each violation stores a JPEG (~100–300 KB). At, say, 200 violations/day ⇒ ~40 MB/day ⇒ ~15 GB/year (kept, they're evidence). Sizing assumes retaining snapshots for the project; a snapshot-thinning policy is a `[CONFIRM AT DESIGN]` option if space is tight.
 - **Compliance rows:** kilobytes; negligible over years.
-- **Backups:** each daily dump compressed; 30 kept (§5).
+- **Backups:** each daily encrypted Spatie archive contains the MySQL dump and deployed application tree; one archive per day is retained for 30 days (§5).
 
 **Takeaway:** provision on the order of **hundreds of GB** for a multi-year project (dominated by snapshots), with raw telemetry bounded by pruning. DOC-20 specifies the actual disk + monitoring; a `disk_space_low` `system` alert warns before it fills.
 
@@ -62,14 +62,17 @@ An order-of-magnitude estimate so the Dell R360's storage is provisioned correct
 
 ## 5. Backups (encrypted, rotated, ②)
 
-### 5.1 `BackupDatabase` — daily (DOC-01 §A8)
-- Dumps the database (and a manifest of the storage/ snapshot dir) to an **encrypted** archive on a **separate disk/volume** (not the same physical disk as the live DB — DOC-20). Encryption at rest via the deploy key (`.env`, not in the DB).
-- **Rotation:** keep `backup.keep_count` (30) daily archives; older removed. Optionally a weekly/monthly long-retention copy `[CONFIRM AT DESIGN]`.
-- Each backup logs success/size; a **failed or missing** backup raises a `system` warning (a silent backup gap is itself a risk).
+### 5.1 Spatie `backup:run` — daily (DOC-01 §A8)
+- `spatie/laravel-backup` v10 dumps the fixed `mysql` connection and the deployed Laravel tree to an **AES-256 encrypted** ZIP on the `backups` filesystem rooted at `/data/ir4-backups`. `/data` is a separate physical volume from live `/data2` (DOC-20). The archive password is `BACKUP_ARCHIVE_PASSWORD` in `.env`, never a runtime DB setting.
+- The host PHP 8.4 scheduler runs the command because it can see both `/data` and MySQL at `127.0.0.1`. Spatie uses the official MySQL 8 `mysqldump` binary; the MariaDB compatibility shim is unsupported.
+- **Rotation:** `backup:clean` uses Spatie's built-in strategy to retain one daily archive for 30 days. Weekly/monthly/yearly tiers are disabled by default; a long-retention copy remains `[CONFIRM AT DESIGN]`.
+- Spatie events use the unified `AlertService`: backup, cleanup, and health-check failures raise deduplicated `system` warnings; successful/recovered events resolve their matching alerts. `BackupWasSuccessful` also records completion, archive path, and size.
+- Raw-data pruning requires a successful backup marker from the current day. A failed, missing, queued, or incomplete backup blocks pruning and raises a deduplicated warning.
 - **On-prem, no cloud egress** (DOC-01) — backups stay on site; off-site copy is a manual/operational step the runbook documents (DOC-20).
 
 ### 5.2 Restore drill
-- `ir4:restore {archive}` (privileged CLI, DOC-20) restores a backup into a staging DB for verification. The runbook mandates a **restore drill at commissioning** (prove backups are usable, not just created) and periodically.
+- Spatie does not restore archives. The privileged DOC-20 procedure copies an archive, decrypts and extracts it with AES-capable ZIP tooling, creates a **new staging MySQL schema**, imports `db-dumps/*.sql` with the official MySQL client, and validates the schema/data. Deployed files are recovered manually only when required.
+- No in-app live restore command exists. The runbook mandates this staging restore drill at commissioning and periodically; a backup that has not been restored is unproven.
 
 ---
 
@@ -96,7 +99,9 @@ The system is an **on-prem, project-scoped** deployment; at project end the clie
 |---|---|---|
 | `PruneRawSensorData` | daily (off-peak) | prune raw sensor tables past retention (allow-list only) |
 | export-file sweep | daily | remove ad-hoc exports past `retention.exports_days` (not report PDFs) |
-| `BackupDatabase` | daily | encrypted DB backup to separate volume; rotate to `backup.keep_count` |
+| Spatie `backup:run` | daily | encrypted MySQL + application archive to separate volume |
+| Spatie `backup:clean` | daily | retain one daily archive for 30 days |
+| Spatie `backup:monitor` | daily | detect missing/unhealthy backups |
 | `ir4:export-all` | manual (project end) | full encrypted handover archive |
 | `ir4:secure-wipe` | manual (decommission) | guarded destruction after verified export |
 
@@ -119,7 +124,8 @@ All registered in the scheduler (DOC-01 §A8), monitored; failures raise `system
 - **Trend aggregates:** gas and env trends use raw points ≤24 h and SQL hourly aggregates beyond; weekly-report sensor items read raw.
 - **Pruning allow-list:** `PruneRawSensorData` removes only allow-listed raw tables past their window; a **compliance table is never touched** (explicit test iterating the excluded set); gas/env/tag rows prune by age alone (no rollup gate); chunked deletes.
 - **Export-file sweep:** ad-hoc exports past window removed; **published report PDFs retained**.
-- **Backup:** produces an encrypted archive on the configured volume; rotates to `keep_count`; a failure raises a `system` warning; `ir4:restore` restores into staging.
+- **Backup:** Spatie configuration fixes the source to `mysql`, produces an AES-256 archive on the configured volume, verifies the ZIP, retains 30 daily archives, raises failures as `system` warnings, and blocks pruning without a current successful backup.
+- **Restore drill:** an encrypted archive decrypts successfully and its SQL imports into a new staging MySQL schema; no live schema is modified.
 - **export-all:** archive contains DB + report PDFs + evidence + audit CSV + manifest/checksums; writes an `exported` audit row.
 - **secure-wipe:** refuses without `--confirm` and without a prior verified export; on success removes data, leaves the verified archive immutable, and writes a separate wipe receipt on the exports disk.
 - **Volume guard:** `disk_space_low` `system` alert fires below the threshold.

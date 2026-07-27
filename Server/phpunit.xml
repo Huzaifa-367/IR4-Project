@@ -34,7 +34,7 @@
         <env name="DB_PASSWORD" value=""/>
         <env name="DB_URL" value=""/>
         <env name="BACKUP_DISK_ROOT" value="/data/ir4-backups"/>
-        <env name="IR4_RESTORE_DATABASE" value="ir4_restore_test"/>
+        <env name="BACKUP_ARCHIVE_PASSWORD" value="ir4-test-backup-password"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

@@ -21,6 +21,7 @@
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
+        "spatie/laravel-backup": "^10.0",
         "spatie/laravel-permission": "^8.3"
     },
     "require-dev": {
@@ -84,16 +85,6 @@
             "@lint:check",
             "@types:check",
             "@php artisan test"
-        ],
-        "ir4:gates": [
-            "bash scripts/check-enums-synced.sh",
-            "bash scripts/check-onprem-hosts.sh",
-            "bash scripts/check-standalone.sh",
-            "bash scripts/check-ppe-no-worker.sh",
-            "bash scripts/check-no-gate-before.sh",
-            "bash scripts/check-audit-append-only.sh",
-            "bash scripts/check-qr-token-immutable.sh",
-            "bash scripts/check-permissions-exported.sh"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

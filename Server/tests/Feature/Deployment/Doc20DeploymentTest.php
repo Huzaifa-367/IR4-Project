@@ -20,23 +20,26 @@ it('registers DOC-19/20 scheduled jobs including backup-before-prune', function 
         'ir4:permits-tick',
         'ir4:tracking-absence-sweep',
         'ir4:flag-overdue-equipment',
-        'ir4:backup-site',
+        'ir4:backup-run',
+        'ir4:backup-clean',
+        'ir4:backup-monitor',
         'ir4:prune-raw-sensor-data',
         'ir4:prune-export-files',
         'ir4:check-disk-space',
-        'ir4:backup-gap-check',
         'ir4:generate-weekly-report',
     ] as $name) {
         expect($names)->toContain($name);
     }
 
     $backupAt = collect(Schedule::events())
-        ->first(fn ($event) => ($event->description ?? '') === 'ir4:backup-site');
+        ->first(fn ($event) => ($event->description ?? '') === 'ir4:backup-run');
     $pruneAt = collect(Schedule::events())
         ->first(fn ($event) => ($event->description ?? '') === 'ir4:prune-raw-sensor-data');
 
     expect($backupAt)->not->toBeNull()
-        ->and($pruneAt)->not->toBeNull();
+        ->and($pruneAt)->not->toBeNull()
+        ->and($backupAt->expression)->toBe('0 1 * * *')
+        ->and($pruneAt->expression)->toBe('15 3 * * *');
 });
 
 it('exposes health and classifies unauthenticated surfaces', function () {

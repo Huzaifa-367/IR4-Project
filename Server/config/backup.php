@@ -1,51 +1,114 @@
 <?php
 
+use Spatie\Backup\Notifications\Notifiable;
+use Spatie\Backup\Notifications\Notifications\BackupHasFailedNotification;
+use Spatie\Backup\Notifications\Notifications\BackupWasSuccessfulNotification;
+use Spatie\Backup\Notifications\Notifications\CleanupHasFailedNotification;
+use Spatie\Backup\Notifications\Notifications\CleanupWasSuccessfulNotification;
+use Spatie\Backup\Notifications\Notifications\HealthyBackupWasFoundNotification;
+use Spatie\Backup\Notifications\Notifications\UnhealthyBackupWasFoundNotification;
+use Spatie\Backup\Tasks\Cleanup\Strategies\DefaultStrategy;
+use Spatie\Backup\Tasks\Monitor\HealthChecks\MaximumAgeInDays;
+
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Site backup (DOC-19) — deploy-fixed paths
-    |--------------------------------------------------------------------------
-    |
-    | On-prem: app lives on /data2; daily full live snapshots go to /data
-    | (BACKUP_DISK_ROOT). Each zip contains server/ + DB/ + manifest.json.
-    | Encryption at rest is via LUKS on the backup volume (DOC-20).
-    |
-    */
-
-    'disk' => env('BACKUP_DISK', 'backups'),
-
-    /**
-     * Absolute backup volume root (DOC-19/20).
-     * On-prem default is /data/ir4-backups — never the app disk under /data2.
-     * Override in .env for local machines without /data.
-     */
-    'disk_root' => env('BACKUP_DISK_ROOT') ?: '/data/ir4-backups',
-
-    /** Shared app-volume handoff paths: Lerd and host PHP can both access these. */
-    'staging_root' => env('BACKUP_STAGING_ROOT') ?: storage_path('app/backup-staging'),
-    'restore_inbox' => env('BACKUP_RESTORE_INBOX') ?: storage_path('app/restore-inbox'),
-
-    /** Filesystem-only publisher fallback; normal value is recorded from SettingsService. */
-    'keep_count' => (int) env('BACKUP_KEEP_COUNT', 30),
-
-    /** Absolute Laravel app root packed into server/. Defaults to base_path(). */
-    'app_root' => env('BACKUP_APP_ROOT') ?: null,
-
-    /** Directory names skipped while packing server/. */
-    'exclude_directories' => array_values(array_filter(array_map(
-        'trim',
-        explode(',', (string) env(
-            'BACKUP_EXCLUDE_DIRECTORIES',
-            'node_modules,.git,backup-staging,restore-inbox,tmp',
-        )),
-    ))),
-
-    'disk_space_warn_pct' => (int) env('DISK_SPACE_WARN_PCT', 15),
-
-    /** Restore target schema on the same MySQL connection; never the live DB by default. */
-    'restore_database' => env('IR4_RESTORE_DATABASE', 'ir4_restore'),
-
-    /** Hours without a successful zip before raising backup:missing. */
-    'missing_backup_hours' => 36,
+    'backup' => [
+        'name' => env('APP_NAME', 'IR4'),
+        'source' => [
+            'files' => [
+                'include' => [
+                    base_path(),
+                ],
+                'exclude' => [
+                    base_path('.git'),
+                    base_path('node_modules'),
+                    base_path('vendor'),
+                    base_path('public/hot'),
+                    base_path('bootstrap/cache'),
+                    storage_path('framework'),
+                    storage_path('logs'),
+                    storage_path('app/backup-temp'),
+                ],
+                'follow_links' => false,
+                'ignore_unreadable_directories' => false,
+                'relative_path' => base_path(),
+            ],
+            'databases' => [
+                'mysql',
+            ],
+        ],
+        'database_dump_compressor' => null,
+        'database_dump_file_timestamp_format' => null,
+        'database_dump_filename_base' => 'database',
+        'database_dump_file_extension' => '',
+        'destination' => [
+            'compression_method' => ZipArchive::CM_DEFAULT,
+            'compression_level' => 6,
+            'filename_prefix' => 'ir4-',
+            'disks' => [
+                'backups',
+            ],
+            'continue_on_failure' => false,
+        ],
+        'temporary_directory' => storage_path('app/backup-temp'),
+        'password' => env('BACKUP_ARCHIVE_PASSWORD'),
+        'encryption' => 'aes256',
+        'verify_backup' => true,
+        'tries' => 1,
+        'retry_delay' => 0,
+    ],
+    'notifications' => [
+        'notifications' => [
+            BackupHasFailedNotification::class => [],
+            UnhealthyBackupWasFoundNotification::class => [],
+            CleanupHasFailedNotification::class => [],
+            BackupWasSuccessfulNotification::class => [],
+            HealthyBackupWasFoundNotification::class => [],
+            CleanupWasSuccessfulNotification::class => [],
+        ],
+        'notifiable' => Notifiable::class,
+        'mail' => [
+            'to' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+            'from' => [
+                'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+                'name' => env('MAIL_FROM_NAME', 'IR4'),
+            ],
+        ],
+        'slack' => [
+            'webhook_url' => '',
+            'channel' => null,
+            'username' => null,
+            'icon' => null,
+        ],
+        'discord' => [
+            'webhook_url' => '',
+            'username' => '',
+            'avatar_url' => '',
+        ],
+        'webhook' => [
+            'url' => '',
+        ],
+    ],
+    'log_channel' => env('BACKUP_LOG_CHANNEL', 'stack'),
+    'monitor_backups' => [
+        [
+            'name' => env('APP_NAME', 'IR4'),
+            'disks' => ['backups'],
+            'health_checks' => [
+                MaximumAgeInDays::class => 1,
+            ],
+        ],
+    ],
+    'cleanup' => [
+        'strategy' => DefaultStrategy::class,
+        'default_strategy' => [
+            'keep_all_backups_for_days' => 0,
+            'keep_daily_backups_for_days' => 30,
+            'keep_weekly_backups_for_weeks' => 0,
+            'keep_monthly_backups_for_months' => 0,
+            'keep_yearly_backups_for_years' => 0,
+            'delete_oldest_backups_when_using_more_megabytes_than' => null,
+        ],
+        'tries' => 1,
+        'retry_delay' => 0,
+    ],
 ];

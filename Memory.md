@@ -27,7 +27,7 @@
 
 ### Phase 9e — Retention & backup (DOC-19)
 - [x] `PruneRawSensorData`, `PruneExportFiles`
-- [x] Encrypted `BackupDatabase`, `ir4:restore`, `ir4:export-all`, `ir4:secure-wipe`
+- [x] Encrypted Spatie backup/cleanup/monitoring, manual staging restore drill, `ir4:export-all`, `ir4:secure-wipe`
 - [x] Disk-space / missing-backup `system` alerts
 
 ### Docs
@@ -60,7 +60,7 @@ _None — Control Room UI pass landed; module pages inherit tokens/components ne
 - No sensor rollup tables — gas and env trends/reports use on-read SQL aggregates; gas/env/tag raw rows prune after window unconditionally
 - No tag-reading rollup table — manpower stays entry/exit-derived; tags prune after window unconditionally
 - Wipe writes a separate receipt on the exports disk (does not mutate a verified handover archive)
-- Dedicated `BACKUP_ENCRYPTION_KEY` preferred; falls back to HKDF from `APP_KEY`
+- Spatie backup archives require a dedicated `BACKUP_ARCHIVE_PASSWORD`; there is no `APP_KEY` fallback
 - `dashboard.cache_seconds` is canonical (replaces `dashboard.cache_ttl_seconds`)
 - `DemoSeeder` is local/staging only; skips if `Main Gate` zone already exists; never runs in production
 - Docs 01–21 are the complete authoritative specification set

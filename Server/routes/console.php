@@ -1,13 +1,11 @@
 <?php
 
-use App\Jobs\BackupSite;
-use App\Jobs\CheckDiskSpace;
 use App\Jobs\FlagOverdueEquipment;
 use App\Jobs\GenerateWeeklyReport;
 use App\Jobs\PruneExportFiles;
 use App\Jobs\PruneRawSensorData;
 use App\Services\AssetHealthService;
-use App\Services\Backup\BackupService;
+use App\Services\DiskSpaceMonitor;
 use App\Services\PermitDetectionService;
 use App\Services\PermitService;
 use App\Services\SettingsService;
@@ -43,12 +41,20 @@ Schedule::call(function (TrackingService $tracking): void {
 
 Schedule::job(new FlagOverdueEquipment)->daily()->name('ir4:flag-overdue-equipment');
 
-// Lerd stages at 02:30 using DB_HOST=lerd-mysql. Host cron publishes at 02:45:
-// /usr/bin/php8.4 artisan ir4:backup --publish
-Schedule::job(new BackupSite)
+Schedule::command('backup:run')
+    ->dailyAt('01:00')
+    ->name('ir4:backup-run')
+    ->withoutOverlapping(180);
+
+Schedule::command('backup:clean')
     ->dailyAt('02:30')
-    ->name('ir4:backup-site')
-    ->withoutOverlapping(120);
+    ->name('ir4:backup-clean')
+    ->withoutOverlapping(60);
+
+Schedule::command('backup:monitor')
+    ->dailyAt('03:00')
+    ->name('ir4:backup-monitor')
+    ->withoutOverlapping(30);
 
 Schedule::job(new PruneRawSensorData)
     ->dailyAt('03:15')
@@ -60,14 +66,12 @@ Schedule::job(new PruneExportFiles)
     ->name('ir4:prune-export-files')
     ->withoutOverlapping(60);
 
-Schedule::job(new CheckDiskSpace)
+Schedule::call(function (DiskSpaceMonitor $monitor): void {
+    $monitor->check();
+})
     ->everyFifteenMinutes()
     ->name('ir4:check-disk-space')
     ->withoutOverlapping(10);
-
-Schedule::call(function (BackupService $backups): void {
-    $backups->raiseIfBackupMissing();
-})->hourly()->name('ir4:backup-gap-check');
 
 Schedule::call(function (SettingsService $settings, WeeklyReportService $reports): void {
     $day = strtolower((string) $settings->get('report.generation_day', 'sunday'));

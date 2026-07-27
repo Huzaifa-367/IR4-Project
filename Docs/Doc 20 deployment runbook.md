@@ -17,7 +17,7 @@
 
 ## 2. Server preparation
 
-1. **OS & packages:** Ubuntu 24.04, security updates, then PHP 8.4 (fpm + required extensions: pdo_mysql, redis, gd/imagick for snapshots, zip, bcmath), Nginx, MySQL 8, Redis, `supervisor`, `git`, Composer, Node 22 (build only).
+1. **OS & packages:** Ubuntu 24.04, security updates, then PHP 8.4 (fpm + required extensions: pdo_mysql, redis, gd/imagick for snapshots, zip, bcmath), Nginx, MySQL 8, the **official MySQL 8 client** (`mysqldump` + `mysql`), `7zip`, Redis, `supervisor`, `git`, Composer, Node 22 (build only). Do not use the MariaDB `mysqldump` shim: it cannot authenticate the production `caching_sha2_password` account.
 2. **Disk layout:** OS volume; a **data volume** for MySQL + the private storage (snapshots/documents); a **separate backup volume** (DOC-19 backups must not share the live-data disk). Provision per the DOC-19 volume math (hundreds of GB, snapshot-dominated). Enable **encryption at rest** (LUKS) on the data + backup volumes.
 3. **Time:** NTP synced (ordering/clock-skew logic depends on a sane server clock; devices are reconciled to it — DOC-08). Server/OS timezone stays UTC; operator display/report timezone is the runtime setting `general.timezone` (DOC-18), not `APP_TIMEZONE`.
 4. **Users:** a non-root deploy user; the web/worker processes run unprivileged.
@@ -29,7 +29,7 @@
 The Laravel/Inertia app lives under **`Server/`** in the monorepo (Flutter under `Mobile/`, docs under `Docs/`).
 
 1. Clone the repo, then from `Server/`: `composer install --no-dev --optimize-autoloader`, `npm ci && npm run build` (Vite build; the built assets ship — no Node at runtime).
-2. `Server/.env` from `deploy/env/ir4.production.env.example` (DOC-18 §1): `APP_KEY`, least-privilege DB creds (`ir4_app` / `ir4_backup` / `ir4_restore` / `ir4_wipe`), Redis, Reverb keys, storage paths, `BACKUP_ENCRYPTION_KEY`, `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT`. **Secrets live here, never in the DB.** Runtime timezone is `general.timezone` after seed — not an `.env` knob.
+2. `Server/.env` from the production template: `APP_KEY`, the fixed MySQL connection credentials, the maintenance-only `ir4_wipe` credentials, Redis, Reverb keys, storage paths, `BACKUP_DISK_ROOT=/data/ir4-backups`, `BACKUP_ARCHIVE_PASSWORD`, `MYSQL_DUMP_BINARY_PATH`, and `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT`. **Secrets live here, never in the DB.** Runtime timezone is `general.timezone` after seed — not an `.env` knob.
 3. From `Server/`: `php artisan migrate --force`; `php artisan db:seed` (permissions, Super Admin role, settings defaults, **no hardware/zone inventory** — those are registered in-app, DOC-05/06).
 4. `php artisan ir4:install` — create the first Super Admin user (DOC-03 §7.3).
 5. `php artisan config:cache route:cache view:cache`; `php artisan storage:link` (public disk only; snapshots stay private).
@@ -40,16 +40,16 @@ Nginx/php-fpm document root is `Server/public`.
 
 ## 4. Process model (Supervisor)
 
-Long-running processes under `supervisor` (auto-restart). Templates: `deploy/supervisor/ir4.conf`. PHP-FPM is managed by **systemd** (`php8.4-fpm`); Supervisor owns Reverb, queues, and the scheduler only.
+Long-running processes use `supervisor` (auto-restart). PHP-FPM and the minute scheduler timer are managed by **systemd**; Supervisor owns Reverb and queues.
 
 | Process | Command | Notes |
 |---|---|---|
 | **php-fpm** | systemd `php8.4-fpm` | serves the app + API behind Nginx |
 | **reverb** | `php artisan reverb:start` | self-hosted WebSockets (DOC-08); LAN only |
-| **queue: default** | `php artisan queue:work --queue=default` | imports, general jobs, backups, pruning |
+| **queue: default** | `php artisan queue:work --queue=default` | imports, general jobs, pruning |
 | **queue: ingest** | `php artisan queue:work --queue=ingest` | reserved for ingest post-processing bursts (DOC-08) |
 | **queue: reports** | `php artisan queue:work --queue=reports` | PDF/CSV generation (DOC-15), exports |
-| **scheduler** | `php artisan schedule:work` | all timed jobs (DOC-01 §A8): health markStale, pruning, backups, weekly report, overdue flags, absence sweep |
+| **scheduler** | `ir4-scheduler@{user}.timer` → host `/usr/bin/php8.4 artisan schedule:run` | runs every minute with `DB_HOST=127.0.0.1`; host context can see `/data` |
 
 - Redis backs cache, queues, and Reverb scaling.
 - Worker counts tuned to the box; the `ingest` queue gets the most workers (backfill floods, DOC-08). Restart workers on deploy (`queue:restart`).
@@ -75,10 +75,10 @@ Three surfaces (DOC-01 §3) with different exposure, enforced at Nginx + host fi
 ## 6. Database hardening
 
 - **App DB user (`ir4_app`):** normal DML on operational tables, but **INSERT/SELECT only on `audit_logs`** (no UPDATE/DELETE) — the append-only guarantee enforced at the DB, not just the model (DOC-17 §6). SQL: `deploy/database/mysql-grants.sql`.
-- **Backup user (`ir4_backup`):** SELECT-only on all tables; used by the daily dump connection `ir4_backup`.
-- **Restore user (`ir4_restore`):** full DML on the staging database only (never the live DB name).
+- **Backup:** Spatie is fixed to the application's only Laravel connection, `mysql`. Its MySQL account needs the read privileges required by `mysqldump` (`SELECT`, `SHOW VIEW`, `TRIGGER`, and `EVENT`) in addition to normal application DML.
+- **Restore drill:** use a temporary operations credential scoped to the newly created staging schema; it is passed to the official `mysql` CLI and is not a Laravel connection.
 - **Wipe/maintenance user (`ir4_wipe`):** privileged account used only by `ir4:secure-wipe` (DOC-19), including DELETE on `audit_logs`.
-- Encryption key from `.env` (`BACKUP_ENCRYPTION_KEY`). Least-privilege throughout; credentials only in `.env`.
+- Archive password from `.env` (`BACKUP_ARCHIVE_PASSWORD`). Least-privilege throughout; credentials only in `.env`.
 
 ---
 
@@ -106,8 +106,11 @@ e app stores the URL + Sanctum token in secure storage.
 
 ## 8. Backups, restore & wipe (operational — DOC-19)
 
-- **Daily encrypted backup** to the separate volume (Supervisor scheduler); 30 kept; failure raises a `system` warning. Document the (manual, no-cloud) **off-site copy** procedure in `deploy/offsite-backup.md`.
-- **Restore drill at commissioning:** run `ir4:restore` into a staging DB and verify — a backup that hasn't been restored is unproven. Repeat periodically.
+- Install the checked-in host timer once: `cd /data2/laravel/IR4-Project && ./scripts/install-host-scheduler.sh`. Confirm it with `systemctl status ir4-scheduler@${USER}.timer`.
+- The timer runs Spatie `backup:run` at 01:00, `backup:clean` at 02:30, and `backup:monitor` at 03:00 in the configured application timezone. Backups are AES-256 ZIPs under `/data/ir4-backups/{APP_NAME}`; one daily archive is retained for 30 days. Failure/unhealthy events raise `system` warnings. Raw pruning at 03:15 refuses to run without the current day's success marker.
+- Operational commands are `/usr/bin/php8.4 artisan backup:run`, `backup:list`, `backup:clean`, and `backup:monitor`, run from the deployed application with `DB_HOST=127.0.0.1`. Confirm `MYSQL_DUMP_BINARY_PATH/mysqldump --version` reports the official MySQL client before commissioning.
+- **Restore drill (staging only):** copy the selected ZIP from `/data` to an isolated working directory; use `7z` with `BACKUP_ARCHIVE_PASSWORD` to test and extract it; create a new empty staging MySQL schema; import the extracted `db-dumps/mysql-*.sql` with the official `mysql` client; run migrations/status and representative row-count checks against that schema; then destroy the staging schema and working copy. Never import into the live schema. Application files in the ZIP are recovered manually only when required.
+- Document the manual, no-cloud **off-site copy** procedure. A backup that has not passed the decrypt-and-staging-import drill is unproven; repeat the drill periodically.
 - **End-of-project:** `ir4:export-all` → verify → hand over encrypted archive + key → `ir4:secure-wipe --confirm` (refuses without a verified export). The verified `.ir4exp` archive is **immutable**; wipe writes a **separate wipe receipt** beside it on the exports disk (DOC-19 §6). Chain-of-custody: `deploy/operations.md`.
 
 ---
@@ -128,9 +131,9 @@ Sign-off that the deployment is production-ready:
 **Infrastructure**
 - [ ] Server prepped (OS, packages, NTP, LUKS on data+backup volumes, disk sized per DOC-19).
 - [ ] App deployed, migrated, seeded (permissions + Super Admin + settings defaults; **no** seeded hardware/zones).
-- [ ] Supervisor running web/reverb/queues(default,ingest,reports)/scheduler; all auto-restart.
+- [ ] Supervisor running Reverb/queues(default,ingest,reports), PHP-FPM healthy, and the host scheduler systemd timer enabled.
 - [ ] Nginx TLS up; LAN segmentation verified (device path device-only, public QR LAN-only, no internet egress in/out).
-- [ ] DB grants: app user INSERT/SELECT-only on `audit_logs`; separate wipe account.
+- [ ] DB grants: app user INSERT/SELECT-only on `audit_logs` plus required dump-read privileges; separate wipe account.
 
 **Hardware registration (dynamic — DOC-05/06)**
 - [ ] All poles/gate/SCC assets registered; all cameras + readers + gas/CO₂/env devices registered with references + tokens.
@@ -154,7 +157,7 @@ Sign-off that the deployment is production-ready:
 
 **Data lifecycle**
 - [ ] Rollups building; pruning dry-run confirms allow-list (no compliance table touched).
-- [ ] Daily backup runs; **restore drill passed** on staging.
+- [ ] `backup:run`, `backup:list`, `backup:monitor`, and 30-day cleanup pass; encrypted ZIP exists on `/data`; manual decrypt/import **restore drill passed** on a new staging schema.
 - [ ] `ir4:export-all` produces a verifiable archive (dry run).
 
 **Access & audit**

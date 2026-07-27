@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\BackupStatusService;
 use App\Services\SettingsService;
 use App\Services\SignedStorageUrlService;
 use Carbon\CarbonImmutable;
@@ -10,10 +11,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use RuntimeException;
+use Spatie\Backup\Events\BackupHasFailed;
+use Spatie\Backup\Events\BackupManifestWasCreated;
+use Spatie\Backup\Events\BackupWasSuccessful;
+use Spatie\Backup\Events\CleanupHasFailed;
+use Spatie\Backup\Events\CleanupWasSuccessful;
+use Spatie\Backup\Events\HealthyBackupWasFound;
+use Spatie\Backup\Events\UnhealthyBackupWasFound;
 use Throwable;
 
 class AppServiceProvider extends ServiceProvider
@@ -41,6 +51,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureBackupEvents();
         $this->configureRateLimiting();
         $this->configureRuntimeTimezone();
     }
@@ -99,6 +110,40 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(max(1, $max))->by($email.'|'.$request->ip());
         });
+    }
+
+    protected function configureBackupEvents(): void
+    {
+        Event::listen(BackupManifestWasCreated::class, function (): void {
+            $password = config('backup.backup.password');
+            if (! is_string($password) || $password === '') {
+                throw new RuntimeException('BACKUP_ARCHIVE_PASSWORD must be configured before creating a backup.');
+            }
+        });
+        Event::listen(
+            BackupWasSuccessful::class,
+            fn (BackupWasSuccessful $event) => app(BackupStatusService::class)->recordSuccess($event),
+        );
+        Event::listen(
+            BackupHasFailed::class,
+            fn (BackupHasFailed $event) => app(BackupStatusService::class)->recordFailure($event),
+        );
+        Event::listen(
+            UnhealthyBackupWasFound::class,
+            fn (UnhealthyBackupWasFound $event) => app(BackupStatusService::class)->recordUnhealthy($event),
+        );
+        Event::listen(
+            HealthyBackupWasFound::class,
+            fn (HealthyBackupWasFound $event) => app(BackupStatusService::class)->recordHealthy($event),
+        );
+        Event::listen(
+            CleanupHasFailed::class,
+            fn (CleanupHasFailed $event) => app(BackupStatusService::class)->recordCleanupFailure($event),
+        );
+        Event::listen(
+            CleanupWasSuccessful::class,
+            fn (CleanupWasSuccessful $event) => app(BackupStatusService::class)->recordCleanupSuccess($event),
+        );
     }
 
     protected function configureRuntimeTimezone(): void

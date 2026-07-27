@@ -198,8 +198,8 @@
 ### 9e Retention, backup & decommissioning (DOC-19)
 - [x] Gas/env on-read aggregates (no `BuildSensorRollups`; no tag rollup — manpower from entry/exit)
 - [x] Daily allow-listed `PruneRawSensorData` + export-file sweep (report PDFs exempt)
-- [x] Encrypted daily `BackupDatabase` + rotation + disk/backup gap alerts
-- [x] `ir4:restore`, `ir4:export-all`, guarded `ir4:secure-wipe` (crypto_erase default)
+- [x] Encrypted daily Spatie backup + 30-day cleanup + disk/backup alerts + prune gate
+- [x] Manual staging restore drill, `ir4:export-all`, guarded `ir4:secure-wipe` (crypto_erase default)
 
 **Done when:** Pruning/backup jobs are scheduled; wipe refuses without verified export + confirm phrase. ✅
 

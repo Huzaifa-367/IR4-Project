@@ -27,4 +27,8 @@ return [
         'printer_port' => (int) env('EQUIPMENT_PRINTER_PORT', 9100),
     ],
 
+    'infrastructure' => [
+        'disk_space_warn_pct' => (int) env('DISK_SPACE_WARN_PCT', 15),
+    ],
+
 ];

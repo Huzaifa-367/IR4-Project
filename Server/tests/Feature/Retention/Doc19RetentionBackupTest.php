@@ -5,20 +5,26 @@ use App\Enums\AlertStatus;
 use App\Enums\AlertType;
 use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
+use App\Jobs\PruneRawSensorData;
 use App\Models\Alert;
 use App\Models\Device;
 use App\Models\EnvironmentalReading;
 use App\Models\GasReading;
 use App\Models\TagReading;
 use App\Models\WeeklyReport;
-use App\Services\Backup\BackupPublisher;
-use App\Services\Backup\BackupService;
-use App\Services\Backup\RestoreService;
+use App\Services\BackupStatusService;
 use App\Services\RetentionService;
 use App\Services\SettingsService;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SettingsSeeder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Backup\Events\BackupHasFailed;
+use Spatie\Backup\Events\BackupWasSuccessful;
+use Spatie\Backup\Events\CleanupHasFailed;
+use Spatie\Backup\Events\CleanupWasSuccessful;
+use Spatie\Backup\Events\HealthyBackupWasFound;
+use Spatie\Backup\Events\UnhealthyBackupWasFound;
 
 beforeEach(function () {
     $this->seed(RolePermissionSeeder::class);
@@ -133,88 +139,66 @@ it('removes ad-hoc exports but keeps weekly report PDFs', function () {
         ->and(Storage::disk('private')->exists('reports/1/report.pdf'))->toBeTrue();
 });
 
-it('stages a timestamped server+DB zip and publishes with rotation', function () {
-    $fixture = storage_path('app/tmp/backup-fixture-'.uniqid());
-    mkdir($fixture.'/app', 0700, true);
-    mkdir($fixture.'/node_modules/left-pad', 0700, true);
-    file_put_contents($fixture.'/app/demo.php', '<?php // fixture');
-    file_put_contents($fixture.'/node_modules/left-pad/index.js', 'module.exports=1');
-    $staging = storage_path('app/tmp/backup-staging-'.uniqid());
-    config([
-        'backup.app_root' => $fixture,
-        'backup.staging_root' => $staging,
-        'backup.disk_root' => Storage::disk('backups')->path(''),
-    ]);
-
-    app(SettingsService::class)->set('backup.keep_count', 2);
-    $service = app(BackupService::class);
-
-    $first = $service->run();
-    expect(is_file($first['path']))->toBeTrue()
-        ->and($first['path'])->toEndWith('.zip')
-        ->and($first['sha256'])->not->toBeEmpty();
-
-    $local = storage_path('app/tmp/test-site-backup.zip');
-    @mkdir(dirname($local), 0700, true);
-    file_put_contents($local, (string) file_get_contents($first['path']));
-
-    $zip = new ZipArchive;
-    expect($zip->open($local))->toBeTrue();
-    expect($zip->locateName('DB/database.sql'))->not->toBeFalse()
-        ->and($zip->locateName('manifest.json'))->not->toBeFalse()
-        ->and($zip->locateName('server/app/demo.php'))->not->toBeFalse()
-        ->and($zip->locateName('server/node_modules/left-pad/index.js'))->toBeFalse();
-    $zip->close();
-
-    $service->run();
-    $service->run();
-    app(BackupPublisher::class)->publishAll();
-
-    $files = glob(Storage::disk('backups')->path('daily/ir4-backup-*.zip')) ?: [];
-
-    expect($files)->toHaveCount(2)
-        ->and(glob($staging.'/ir4-backup-*.zip') ?: [])->toBe([]);
+it('configures encrypted Spatie backups for only MySQL on the backup volume', function () {
+    expect(config('backup.backup.source.databases'))->toBe(['mysql'])
+        ->and(config('backup.backup.destination.disks'))->toBe(['backups'])
+        ->and(config('backup.backup.encryption'))->toBe('aes256')
+        ->and(config('backup.backup.verify_backup'))->toBeTrue()
+        ->and(config('backup.cleanup.default_strategy.keep_all_backups_for_days'))->toBe(0)
+        ->and(config('backup.cleanup.default_strategy.keep_daily_backups_for_days'))->toBe(30)
+        ->and(config('database.connections'))->toHaveKey('mysql')
+        ->and(config('database.connections'))->toHaveCount(1);
 });
 
-it('verifies a site backup zip via RestoreService', function () {
-    $fixture = storage_path('app/tmp/backup-fixture-'.uniqid());
-    mkdir($fixture.'/app', 0700, true);
-    file_put_contents($fixture.'/app/demo.php', '<?php');
-    config([
-        'backup.app_root' => $fixture,
-        'backup.staging_root' => storage_path('app/tmp/backup-staging-'.uniqid()),
-    ]);
+it('blocks raw pruning until the current day has a successful backup', function () {
+    Cache::forget('ir4:backup:last-success');
+    $reading = TagReading::factory()->create(['recorded_at' => now()->subDays(120)]);
+    app(PruneRawSensorData::class)->handle(
+        app(BackupStatusService::class),
+        app(RetentionService::class),
+    );
+    expect(TagReading::query()->whereKey($reading->id)->exists())->toBeTrue()
+        ->and(Alert::query()->where('dedupe_key', 'backup:prune-blocked')->exists())->toBeTrue();
 
-    $path = app(BackupService::class)->run()['path'];
-    $result = app(RestoreService::class)->verify($path);
-
-    expect($result['meta']['format'] ?? null)->toBe('ir4-site-backup/v1')
-        ->and($result['files'])->toContain('DB/database.sql')
-        ->and($result['files'])->toContain('manifest.json');
+    Storage::disk('backups')->put('IR4/ir4-test.zip', 'encrypted-backup-fixture');
+    app(BackupStatusService::class)->recordSuccess(new BackupWasSuccessful('backups', 'IR4'));
+    app(PruneRawSensorData::class)->handle(
+        app(BackupStatusService::class),
+        app(RetentionService::class),
+    );
+    expect(TagReading::query()->whereKey($reading->id)->exists())->toBeFalse();
 });
 
-it('prepares a volume backup in the shared restore inbox', function () {
-    $fixture = storage_path('app/tmp/backup-fixture-'.uniqid());
-    $staging = storage_path('app/tmp/backup-staging-'.uniqid());
-    $volume = storage_path('app/tmp/backup-volume-'.uniqid());
-    $inbox = storage_path('app/tmp/restore-inbox-'.uniqid());
-    mkdir($fixture.'/app', 0700, true);
-    mkdir($volume.'/daily', 0700, true);
-    file_put_contents($fixture.'/app/demo.php', '<?php');
-    config([
-        'backup.app_root' => $fixture,
-        'backup.staging_root' => $staging,
-        'backup.disk_root' => $volume,
-        'backup.restore_inbox' => $inbox,
-    ]);
+it('routes Spatie backup notifications through the alert flow', function () {
+    event(new BackupHasFailed(
+        new RuntimeException('mysqldump failed'),
+        'backups',
+        'IR4',
+    ));
+    event(new UnhealthyBackupWasFound(
+        'backups',
+        'IR4',
+        collect([[
+            'check' => 'MaximumAgeInDays',
+            'message' => 'The latest backup is too old.',
+        ]]),
+    ));
+    event(new CleanupHasFailed(
+        new RuntimeException('cleanup failed'),
+        'backups',
+        'IR4',
+    ));
 
-    $staged = app(BackupService::class)->run()['path'];
-    $volumeArchive = $volume.'/daily/'.basename($staged);
-    copy($staged, $volumeArchive);
+    expect(Alert::query()->where('dedupe_key', 'backup:failed')->where('status', AlertStatus::Open)->exists())->toBeTrue()
+        ->and(Alert::query()->where('dedupe_key', 'backup:missing')->where('status', AlertStatus::Open)->exists())->toBeTrue()
+        ->and(Alert::query()->where('dedupe_key', 'backup:cleanup-failed')->where('status', AlertStatus::Open)->exists())->toBeTrue();
 
-    $prepared = app(RestoreService::class)->prepare('daily/'.basename($staged));
+    Storage::disk('backups')->put('IR4/ir4-test.zip', 'encrypted-backup-fixture');
+    event(new BackupWasSuccessful('backups', 'IR4'));
+    event(new HealthyBackupWasFound('backups', 'IR4'));
+    event(new CleanupWasSuccessful('backups', 'IR4'));
 
-    expect($prepared)->toBe($inbox.'/'.basename($staged))
-        ->and(is_file($prepared))->toBeTrue()
-        ->and(hash_file('sha256', $prepared))->toBe(hash_file('sha256', $volumeArchive));
+    expect(Alert::query()->where('dedupe_key', 'backup:failed')->where('status', AlertStatus::Resolved)->exists())->toBeTrue()
+        ->and(Alert::query()->where('dedupe_key', 'backup:missing')->where('status', AlertStatus::Resolved)->exists())->toBeTrue()
+        ->and(Alert::query()->where('dedupe_key', 'backup:cleanup-failed')->where('status', AlertStatus::Resolved)->exists())->toBeTrue();
 });

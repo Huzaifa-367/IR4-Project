@@ -145,7 +145,7 @@ Gas threshold **seed values** (in `gas_thresholds`, DOC-11 — **confirm with sa
 | `retention.tag_readings_days` | `90` | int | manage-settings + confirm | raw tag-read pruning |
 | `retention.sensor_readings_days` | `180` | int | manage-settings + confirm | raw gas/env pruning |
 | `retention.exports_days` | `7` | int | manage-settings | export-file cleanup |
-| `backup.keep_count` | `30` | int | manage-settings | DB backup rotation |
+| *(Spatie backup retention)* | `30 daily` | deploy config | — | `config/backup.php`; not runtime-editable |
 | *(compliance tables — never pruned)* | — | — | — | alerts/incidents/LSR/reports/audit (DOC-19) |
 
 ### 4.12 Display (DOC-16)
