@@ -128,6 +128,14 @@ jobs:
             mkdir -p storage/app/public bootstrap/cache
             chmod -R 775 storage bootstrap/cache || true
 
+            # Drop cached config/routes before artisan boots. A stale config.php
+            # from before spatie/laravel-backup was installed binds CleanupStrategy
+            # to null and makes every artisan command fail.
+            rm -f bootstrap/cache/config.php \
+              bootstrap/cache/routes-v7.php \
+              bootstrap/cache/events.php \
+              bootstrap/cache/blade-icons.php
+
             sh scripts/link-public-storage.sh
 
             php artisan optimize:clear

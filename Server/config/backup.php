@@ -109,6 +109,8 @@ return [
         ],
     ],
 
+    'log_channel' => env('BACKUP_LOG_CHANNEL', 'stack'),
+
     'cleanup' => [
         'strategy' => DefaultStrategy::class,
         'default_strategy' => [

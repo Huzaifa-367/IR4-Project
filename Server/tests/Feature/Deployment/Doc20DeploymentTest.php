@@ -46,6 +46,16 @@ it('registers DOC-19/20 scheduled jobs including backup-before-prune', function 
         ->and($pruneAt->expression)->toBe('15 3 * * *');
 });
 
+it('resolves Spatie backup cleanup command after config cache', function () {
+    expect(config('backup.cleanup.strategy'))->toBe(
+        \Spatie\Backup\Tasks\Cleanup\Strategies\DefaultStrategy::class,
+    );
+
+    $command = app(\Spatie\Backup\Commands\CleanupCommand::class);
+
+    expect($command)->toBeInstanceOf(\Spatie\Backup\Commands\CleanupCommand::class);
+});
+
 it('exposes health and classifies unauthenticated surfaces', function () {
     $this->get('/up')->assertOk();
 

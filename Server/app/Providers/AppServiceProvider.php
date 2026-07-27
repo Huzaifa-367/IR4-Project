@@ -24,6 +24,8 @@ use Spatie\Backup\Events\CleanupHasFailed;
 use Spatie\Backup\Events\CleanupWasSuccessful;
 use Spatie\Backup\Events\HealthyBackupWasFound;
 use Spatie\Backup\Events\UnhealthyBackupWasFound;
+use Spatie\Backup\Tasks\Cleanup\CleanupStrategy;
+use Spatie\Backup\Tasks\Cleanup\Strategies\DefaultStrategy;
 use Throwable;
 
 class AppServiceProvider extends ServiceProvider
@@ -43,6 +45,17 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(SettingsService::class);
         $this->app->singleton(SignedStorageUrlService::class);
+
+        // Spatie binds CleanupStrategy during packageRegistered() via config().
+        // A stale bootstrap/cache/config.php (pre-backup install) makes that null
+        // and breaks every artisan command. Re-bind after providers register.
+        $this->app->booting(function (): void {
+            $strategy = config('backup.cleanup.strategy');
+            if (! is_string($strategy) || $strategy === '' || ! class_exists($strategy)) {
+                $strategy = DefaultStrategy::class;
+            }
+            $this->app->bind(CleanupStrategy::class, $strategy);
+        });
     }
 
     /**
