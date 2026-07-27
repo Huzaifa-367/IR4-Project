@@ -57,6 +57,16 @@ return [
             'report' => false,
         ],
 
+        // Separate volume in production (e.g. BACKUP_DISK_ROOT=/data/ir4-backups).
+        'backups' => [
+            'driver' => 'local',
+            'root' => env('BACKUP_DISK_ROOT') ?: storage_path('app/backups'),
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

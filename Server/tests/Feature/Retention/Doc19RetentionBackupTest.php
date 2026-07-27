@@ -11,6 +11,8 @@ use App\Models\EnvironmentalReading;
 use App\Models\GasReading;
 use App\Models\TagReading;
 use App\Models\WeeklyReport;
+use App\Services\Backup\BackupService;
+use App\Services\Backup\RestoreService;
 use App\Services\RetentionService;
 use App\Services\SettingsService;
 use Database\Seeders\RolePermissionSeeder;
@@ -21,6 +23,7 @@ beforeEach(function () {
     $this->seed(RolePermissionSeeder::class);
     $this->seed(SettingsSeeder::class);
     Storage::fake('private');
+    Storage::fake('backups');
 });
 
 it('prunes only allow-listed raw tables by age and never compliance tables', function () {
@@ -127,4 +130,55 @@ it('removes ad-hoc exports but keeps weekly report PDFs', function () {
     expect($removed)->toBeGreaterThan(0)
         ->and(Storage::disk('private')->exists('exports/tmp/old.csv'))->toBeFalse()
         ->and(Storage::disk('private')->exists('reports/1/report.pdf'))->toBeTrue();
+});
+
+it('creates a timestamped server+DB zip backup and rotates to keep_count', function () {
+    $fixture = storage_path('app/tmp/backup-fixture-'.uniqid());
+    mkdir($fixture.'/app', 0700, true);
+    mkdir($fixture.'/node_modules/left-pad', 0700, true);
+    file_put_contents($fixture.'/app/demo.php', '<?php // fixture');
+    file_put_contents($fixture.'/node_modules/left-pad/index.js', 'module.exports=1');
+    config(['backup.app_root' => $fixture]);
+
+    app(SettingsService::class)->set('backup.keep_count', 2);
+    $service = app(BackupService::class);
+
+    $first = $service->run();
+    expect(Storage::disk('backups')->exists($first['path']))->toBeTrue()
+        ->and($first['path'])->toEndWith('.zip')
+        ->and($first['sha256'])->not->toBeEmpty();
+
+    $local = storage_path('app/tmp/test-site-backup.zip');
+    @mkdir(dirname($local), 0700, true);
+    file_put_contents($local, Storage::disk('backups')->get($first['path']));
+
+    $zip = new \ZipArchive;
+    expect($zip->open($local))->toBeTrue();
+    expect($zip->locateName('DB/database.sql'))->not->toBeFalse()
+        ->and($zip->locateName('manifest.json'))->not->toBeFalse()
+        ->and($zip->locateName('server/app/demo.php'))->not->toBeFalse()
+        ->and($zip->locateName('server/node_modules/left-pad/index.js'))->toBeFalse();
+    $zip->close();
+
+    $service->run();
+    $service->run();
+
+    $files = collect(Storage::disk('backups')->files('daily'))
+        ->filter(fn (string $path): bool => str_ends_with($path, '.zip'));
+
+    expect($files)->toHaveCount(2);
+});
+
+it('verifies a site backup zip via RestoreService', function () {
+    $fixture = storage_path('app/tmp/backup-fixture-'.uniqid());
+    mkdir($fixture.'/app', 0700, true);
+    file_put_contents($fixture.'/app/demo.php', '<?php');
+    config(['backup.app_root' => $fixture]);
+
+    $path = app(BackupService::class)->run(rotate: false)['path'];
+    $result = app(RestoreService::class)->verify($path);
+
+    expect($result['meta']['format'] ?? null)->toBe('ir4-site-backup/v1')
+        ->and($result['files'])->toContain('DB/database.sql')
+        ->and($result['files'])->toContain('manifest.json');
 });

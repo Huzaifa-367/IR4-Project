@@ -479,6 +479,16 @@ final class SettingsRegistry
                 'min' => 1,
                 'max' => 90,
             ],
+            'backup.keep_count' => [
+                'default' => 30,
+                'type' => 'int',
+                'group' => 'retention',
+                'permission' => 'update-settings',
+                'requires_confirm' => false,
+                'label' => 'Daily backups to keep',
+                'min' => 1,
+                'max' => 365,
+            ],
 
             'display.cycle_seconds' => [
                 'default' => 20,
@@ -597,7 +607,7 @@ final class SettingsRegistry
             'environment' => 'Dashboard — Environment',
             'equipment' => 'Equipment / QR',
             'reports' => 'Reports',
-            'retention' => 'Administration — Retention',
+            'retention' => 'Administration — Retention & backup',
             'display' => 'Dashboard',
         ];
     }

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schedule;
 
 uses(RefreshDatabase::class);
 
-it('registers the DOC-19/20 scheduled job names that remain after backup removal', function () {
+it('registers DOC-19/20 scheduled jobs including backup-before-prune', function () {
     $names = collect(Schedule::events())
         ->map(fn ($event) => (string) ($event->description ?? ''))
         ->filter()
@@ -20,16 +20,23 @@ it('registers the DOC-19/20 scheduled job names that remain after backup removal
         'ir4:permits-tick',
         'ir4:tracking-absence-sweep',
         'ir4:flag-overdue-equipment',
+        'ir4:backup-site',
         'ir4:prune-raw-sensor-data',
         'ir4:prune-export-files',
+        'ir4:check-disk-space',
+        'ir4:backup-gap-check',
         'ir4:generate-weekly-report',
     ] as $name) {
         expect($names)->toContain($name);
     }
 
-    expect($names)->not->toContain('ir4:backup-database')
-        ->and($names)->not->toContain('ir4:backup-gap-check')
-        ->and($names)->not->toContain('ir4:check-disk-space');
+    $backupAt = collect(Schedule::events())
+        ->first(fn ($event) => ($event->description ?? '') === 'ir4:backup-site');
+    $pruneAt = collect(Schedule::events())
+        ->first(fn ($event) => ($event->description ?? '') === 'ir4:prune-raw-sensor-data');
+
+    expect($backupAt)->not->toBeNull()
+        ->and($pruneAt)->not->toBeNull();
 });
 
 it('exposes health and classifies unauthenticated surfaces', function () {
