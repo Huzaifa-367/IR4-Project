@@ -34,6 +34,69 @@ On the login screen, base URL is the LAN address of the Server (e.g. `http://10.
 
 Start with `Docs/Doc 01 base structure.md`. Conventions for agents: `.cursor/rules/ir4-conventions.mdc`.
 
+## On-prem SCC backups (DOC-19 / DOC-20)
+
+Dell R360 / Lerd hosts (e.g. SCC2 at `/data2/laravel/IR4-Project`). Deploy is a **flattened** `Server/` tree (often not a git repo). Archives land on a separate volume: `/data/ir4-backups/{APP_NAME}/ir4-*.zip`.
+
+### One-shot setup
+
+```bash
+cd /data2/laravel/IR4-Project          # directory with artisan + .env
+# copy Scripts/setup-backup.sh onto the host if needed, e.g. ~/Desktop/Scripts/
+BACKUP_ARCHIVE_PASSWORD_OVERRIDE='<strong-site-secret>' \
+  bash ~/Desktop/Scripts/setup-backup.sh
+```
+
+The script:
+
+1. Writes `.env` keys: `APP_TIMEZONE`, `BACKUP_DISK_ROOT=/data/ir4-backups`, dump paths, password  
+2. Runs `composer install --no-dev` if `backup:*` artisan commands are missing (Spatie not in vendor yet)  
+3. Creates/chowns `/data/ir4-backups`  
+4. Requires `/data` under `mounts:` in `~/.config/lerd/config.yaml`  
+5. Applies the bind-mount (`lerd restart`; if PHP still lacks `/data` or **inodes differ**, `lerd unlink` + `lerd link`)  
+6. Proves host and Lerd PHP share the **same inode** for `BACKUP_DISK_ROOT`  
+7. Runs `backup:run` and requires the zip to be visible with host `ls`  
+8. Starts `lerd schedule:start` (clean 01:00 → run 01:30 → monitor 03:00 in `APP_TIMEZONE`)
+
+### Manual checklist (if not using the script)
+
+```bash
+# 1) Package (flattened deploys often need this once)
+grep laravel-backup composer.json
+composer install --no-dev --optimize-autoloader
+php artisan package:discover
+rm -f bootstrap/cache/{packages,services,config}.php
+php artisan optimize:clear
+php artisan list backup
+
+# 2) Volume + .env
+sudo mkdir -p /data/ir4-backups && sudo chown -R "$(whoami):$(whoami)" /data/ir4-backups
+# APP_TIMEZONE=Asia/Riyadh
+# BACKUP_DISK_ROOT=/data/ir4-backups
+# BACKUP_ARCHIVE_PASSWORD=...
+# MYSQL_DUMP_BINARY_PATH=/usr/bin
+
+# 3) Lerd must mount host /data into PHP (listing it in config is not enough)
+grep -A5 '^mounts:' ~/.config/lerd/config.yaml   # must include: - /data
+lerd restart
+# If PHP still has no /data, or host/PHP inodes differ:
+lerd unlink && lerd link     # answer n to optional full "lerd setup" if prompted
+sudo mkdir -p /data/ir4-backups && sudo chown -R "$(whoami):$(whoami)" /data/ir4-backups
+
+# 4) Same disk proof (numbers MUST match)
+stat -c '%i %n' /data/ir4-backups
+php -r 'echo fileinode("/data/ir4-backups"), PHP_EOL;'
+
+# 5) First backup — zip must show on the HOST
+php artisan backup:run
+sudo ls -lah /data/ir4-backups/IR4
+lerd schedule:start && lerd worker list
+```
+
+**Failure mode to avoid:** `backup:run` succeeds but `ls /data/ir4-backups/IR4` fails — PHP wrote into a container-only `/data` (different inode). Fix mounts with `unlink`/`link` before trusting backups. Rescue a PHP-only zip into the app tree first if needed (`storage/app/…`), then remount.
+
+Failures raise in-app `system` alerts (no mail). Full ops/restore drill: `Docs/Doc 20 deployment runbook.md` §8.
+
 ## Production deploy (Hostinger)
 
 **Disable Hostinger Git auto-deploy.** Deploy only via GitHub Actions (`.github/workflows/server-deploy.yml`).

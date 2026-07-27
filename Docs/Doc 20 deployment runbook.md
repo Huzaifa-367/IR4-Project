@@ -104,10 +104,67 @@ e app stores the URL + Sanctum token in secure storage.
 
 ## 8. Backups, restore & wipe (operational — DOC-19)
 
-- Add `/data` to the global Lerd `mounts` list in `~/.config/lerd/config.yaml`, restart Lerd, and verify the backup root is visible inside the PHP runtime.
-- Start the standard persistent worker with `lerd schedule:start`; `Scripts/setup.sh` does this automatically and fails if the schedule worker is missing. Confirm with `lerd worker list` and `php artisan schedule:list`.
-- Schedule (Spatie install order, runs automatically via `schedule:work`): `backup:clean` 01:00 → `backup:run` 01:30 → `backup:monitor` 03:00 → prune 03:15. Archives are AES-256 ZIPs under `/data/ir4-backups/{APP_NAME}`; 30 daily retention. Failures raise in-app `system` alerts via `AlertService` (no mail). Pruning refuses without the current day's success marker.
+### 8.1 One-shot SCC commissioning
+
+Proven path on SCC2 (`/data2/laravel/IR4-Project`, flattened deploy — **not** a git checkout). From the Laravel app root:
+
+```bash
+cd /data2/laravel/IR4-Project
+BACKUP_ARCHIVE_PASSWORD_OVERRIDE='<strong-site-secret>' \
+  bash ~/Desktop/Scripts/setup-backup.sh
+# or: bash Scripts/setup-backup.sh
+```
+
+`Scripts/setup-backup.sh` (also summarized in the repo `README.md`):
+
+1. Ensures `.env`: `APP_TIMEZONE`, `BACKUP_DISK_ROOT=/data/ir4-backups`, `BACKUP_ARCHIVE_PASSWORD`, `MYSQL_DUMP_*`, `DISK_SPACE_WARN_PCT`
+2. If `php artisan list backup` has no `backup:run` → `composer install --no-dev` + package discover / cache clear (common on flattened SCC deploys where vendor lagged the lockfile)
+3. Creates/chowns host `/data/ir4-backups`
+4. Requires `/data` in `~/.config/lerd/config.yaml` mounts; installs `mariadb-connector-c` when needed
+5. Applies bind-mount: `lerd restart`; if `/data` still missing in PHP **or host/PHP inodes differ** → rescue any PHP-only zips → `lerd unlink` + `lerd link` (SCC2: listing `/data` in config alone was not enough)
+6. **Proves same inode** for `BACKUP_DISK_ROOT` and that a PHP-written probe is visible on the host
+7. `backup:run` then **requires** host `ls` to show `ir4-*.zip` under `/data/ir4-backups/{APP_NAME}`
+8. `lerd schedule:start` + schedule worker check
+
+Manual equivalent (SCC2 sequence):
+
+```bash
+# Spatie may be in composer.json/lock but not vendor yet
+grep laravel-backup composer.json
+composer install --no-dev --optimize-autoloader
+php artisan package:discover
+rm -f bootstrap/cache/packages.php bootstrap/cache/services.php bootstrap/cache/config.php
+php artisan optimize:clear
+php artisan list backup
+
+# Volume + env
+sudo mkdir -p /data/ir4-backups && sudo chown -R "$(whoami):$(whoami)" /data/ir4-backups
+# APP_TIMEZONE=Asia/Riyadh  BACKUP_DISK_ROOT=/data/ir4-backups  BACKUP_ARCHIVE_PASSWORD=…
+# MYSQL_DUMP_BINARY_PATH=/usr/bin  MYSQL_DUMP_TIMEOUT=3600
+
+grep -A5 '^mounts:' ~/.config/lerd/config.yaml   # must include: - /data
+lerd restart
+# If PHP /data missing or inode mismatch (e.g. host 63438849 vs php 1077010):
+lerd unlink && lerd link    # optional "Run lerd setup?" → n if app already set up
+sudo mkdir -p /data/ir4-backups && sudo chown -R "$(whoami):$(whoami)" /data/ir4-backups
+
+stat -c '%i %n' /data/ir4-backups
+php -r 'echo fileinode("/data/ir4-backups"), PHP_EOL;'   # MUST match
+
+php artisan backup:run
+sudo ls -lah /data/ir4-backups/IR4   # must list ir4-*.zip on the HOST
+lerd schedule:start && lerd worker list
+php artisan schedule:list | grep backup
+```
+
+If `backup:run` succeeds but host `ls` fails, PHP wrote into a container-private `/data`. Rescue via PHP `copy()` into `/data2/laravel/…/storage/app/`, then fix mounts before trusting backups.
+
+### 8.2 Daily schedule & ops
+
+- Schedule (Spatie order; times use `APP_TIMEZONE` / `general.timezone`, not raw Linux wall clock alone): `backup:clean` 01:00 → `backup:run` 01:30 → `backup:monitor` 03:00 → prune 03:15. Archives are AES-256 ZIPs under `/data/ir4-backups/{APP_NAME}`; 30 daily retention. Failures raise in-app `system` alerts via `AlertService` (no mail). Pruning refuses without the current day's success marker.
+- `Scripts/setup.sh` also starts the schedule worker and fails if `/data` or `mysqldump` is missing.
 - Operational commands: `php artisan backup:run`, `backup:list`, `backup:clean`, `backup:monitor`.
+- After deploy/`optimize`, if artisan fails on `CleanupStrategy`, delete `bootstrap/cache/config.php` then `php artisan optimize:clear`.
 - **Restore drill (staging only):** decrypt/extract with `7z` + `BACKUP_ARCHIVE_PASSWORD`, import SQL into a new staging schema, validate, destroy staging. Never import into live.
 - **End-of-project:** `ir4:export-all` → verify → hand over → `ir4:secure-wipe --confirm` (DOC-19 §6).
 
