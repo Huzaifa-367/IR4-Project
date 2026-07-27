@@ -6,6 +6,16 @@ use App\Services\PermitDetectionService;
 use App\Services\PermitService;
 use Illuminate\Console\Command;
 
+/**
+ * Scheduled Permit-to-Work maintenance tick (DOC-22).
+ *
+ * Expires overdue permits, suspends stale gas tests, and runs RFID/gas
+ * cross-detection (suggests LSR via alerts — never auto-creates LSR rows).
+ * Wired from the scheduler (DOC-01 §A8).
+ *
+ * Usage:
+ *   php artisan ir4:permits-tick
+ */
 final class PermitsTickCommand extends Command
 {
     protected $signature = 'ir4:permits-tick';
@@ -16,6 +26,7 @@ final class PermitsTickCommand extends Command
     {
         $expired = $permits->expireOverdue();
         $suspended = $permits->suspendStaleGasTests();
+        // Cross-detection returns counts of alerts raised this pass.
         $alerts = $detection->run();
 
         $this->info(sprintf(

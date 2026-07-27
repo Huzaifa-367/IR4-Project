@@ -5,6 +5,17 @@ namespace App\Console\Commands;
 use App\Services\Backup\RestoreService;
 use Illuminate\Console\Command;
 
+/**
+ * Decrypt and restore (or verify) an IR4 backup archive (DOC-19).
+ *
+ * Default target connection is ir4_restore (staging), never the live DB.
+ * Live restore requires both --force-live and --confirm=RESTORE-INTO-LIVE.
+ *
+ * Usage:
+ *   php artisan ir4:restore path/to/archive.enc --verify-only
+ *   php artisan ir4:restore path/to/archive.enc
+ *   php artisan ir4:restore path/to/archive.enc --force-live --confirm=RESTORE-INTO-LIVE
+ */
 final class RestoreCommand extends Command
 {
     protected $signature = 'ir4:restore
@@ -23,6 +34,7 @@ final class RestoreCommand extends Command
         $connection = (string) ($this->option('connection') ?: config('backup.restore_connection', 'ir4_restore'));
         $forceLive = (bool) $this->option('force-live');
 
+        // Dual gate before touching the production connection.
         if ($forceLive && $this->option('confirm') !== 'RESTORE-INTO-LIVE') {
             $this->error('Live restore requires --confirm=RESTORE-INTO-LIVE');
 

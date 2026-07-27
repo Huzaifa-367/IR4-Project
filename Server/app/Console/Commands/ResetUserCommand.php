@@ -6,6 +6,15 @@ use App\Models\User;
 use App\Services\AuthLockoutService;
 use Illuminate\Console\Command;
 
+/**
+ * Admin-initiated password reset with no outbound email (DOC-02 §6.3).
+ *
+ * Generates a temporary password, forces must_change_password, clears lockout
+ * counters, and prints the plaintext once to the console for hand-off.
+ *
+ * Usage:
+ *   php artisan ir4:user:reset operator@example.com
+ */
 final class ResetUserCommand extends Command
 {
     protected $signature = 'ir4:user:reset {email : The user email to reset}';
@@ -23,6 +32,7 @@ final class ResetUserCommand extends Command
             return self::FAILURE;
         }
 
+        // Service sets temporary password + must_change_password and audits.
         $plain = $lockout->resetPassword($user);
         $lockout->clearFailures($email);
 

@@ -5,6 +5,17 @@ namespace App\Console\Commands;
 use App\Services\Backup\ExportAllService;
 use Illuminate\Console\Command;
 
+/**
+ * End-of-project encrypted handover archive (DOC-19).
+ *
+ * Packages DB + files into a client-key-encrypted export. The plaintext key is
+ * printed once — store it securely; it is required to open the archive and to
+ * satisfy ir4:secure-wipe's verified-export gate.
+ *
+ * Usage:
+ *   php artisan ir4:export-all
+ *   php artisan ir4:export-all --key=…
+ */
 final class ExportAllCommand extends Command
 {
     protected $signature = 'ir4:export-all

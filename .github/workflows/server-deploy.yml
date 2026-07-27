@@ -1,0 +1,136 @@
+name: Server Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Server/**"
+      - ".github/workflows/server-deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-server-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: Server
+
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, bcmath, ctype, fileinfo, json, openssl, pdo, tokenizer, xml, curl, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: Server/vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('Server/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        run: |
+          composer install \
+            --no-dev \
+            --prefer-dist \
+            --optimize-autoloader \
+            --classmap-authoritative \
+            --no-interaction \
+            --no-progress
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Server/package-lock.json
+
+      - name: Install Node dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build Vite assets
+        run: npm run build
+
+      - name: Prune development files
+        run: |
+          rm -rf \
+            tests \
+            node_modules \
+            resources/js \
+            resources/css \
+            Tasks \
+            database/factories \
+            phpstan.neon \
+            phpunit.xml \
+            pint.json \
+            eslint.config.js \
+            vite.config.ts \
+            tsconfig.json \
+            package.json \
+            package-lock.json \
+            .prettierrc \
+            .prettierignore \
+            .editorconfig
+
+      - name: Upload Laravel project
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USERNAME }}
+          password: ${{ env.SSH_PASSWORD }}
+          port: ${{ env.SSH_PORT }}
+          source: "Server/*"
+          target: ${{ env.DEPLOY_PATH }}
+          strip_components: 1
+          overwrite: true
+
+      - name: Finalize deployment
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USERNAME }}
+          password: ${{ env.SSH_PASSWORD }}
+          port: ${{ env.SSH_PORT }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+
+            cd "${{ env.DEPLOY_PATH }}"
+
+            mkdir -p storage/app/public bootstrap/cache
+            chmod -R 775 storage bootstrap/cache || true
+
+            sh scripts/link-public-storage.sh
+
+            php artisan optimize:clear
+            php artisan migrate --force --no-interaction
+            php artisan optimize
+
+            echo "Deployment completed successfully."

@@ -1,47 +1,25 @@
-# IR4 Platform
+# IR4 Server (Laravel)
 
-On-premise safety command-centre. Monorepo layout:
+Laravel + Inertia operator UI, device ingest API, and public QR pages. Run all `composer`, `php artisan`, and `npm` commands from this directory.
 
-| Path | Contents |
-|---|---|
-| `Server/` | Laravel + Inertia operator UI, device API, public QR pages |
-| `Mobile/` | Android Flutter app (equipment QR scan / checkout / return) |
-| `Docs/` | Authoritative design docs (DOC-01 … DOC-22) |
-
-## Server (Laravel)
+## Local development
 
 ```bash
-cd Server
 composer setup
 php artisan serve --host=0.0.0.0 --port=8000
 # optional: npm run dev  /  php artisan reverb:start
 ```
 
-Copy `Server/.env.example` → `Server/.env` if setup did not already.
-
-## Mobile (Flutter)
-
-```bash
-cd Mobile
-flutter pub get
-flutter run
-# or: flutter build apk --debug
-```
-
-On the login screen, base URL is the LAN address of the Server (e.g. `http://10.0.2.2:8000` for the Android emulator, or `http://<mac-lan-ip>:8000` for a physical device).
-
-## Docs
-
-Start with `Docs/Doc 01 base structure.md`. Conventions for agents: `.cursor/rules/ir4-conventions.mdc`.
+Copy `.env.example` → `.env` if setup did not already.
 
 ## Production deploy (Hostinger)
 
-**Disable Hostinger Git auto-deploy.** Deploy only via GitHub Actions SSH (`.github/workflows/deploy.yml`).
+**Disable Hostinger Git auto-deploy.** Deploy only via GitHub Actions SSH (`.github/workflows/deploy.yml` at the repo root).
 
 ### One-time server setup
 
 1. **hPanel → Git** — turn **off** Auto deployment (disconnect or disable webhook).
-2. **SSH** into the server and clone (or use an existing folder). `DEPLOY_PATH` is the **repo root** (the folder that contains `.git`); Laravel lives in `Server/`.
+2. **SSH** into the server and clone (or use an existing folder). `DEPLOY_PATH` is the **repo root** (the folder that contains `.git`); this `Server/` directory is where `artisan` lives.
 
 Production host: **ir4.ispc-ai.com**
 
@@ -76,7 +54,7 @@ Point the domain document root at `public_html/Server/public` (hPanel → Domain
 
 ### Every push to `main`
 
-GitHub Actions SSHs in → `git pull` (uploads in `Server/storage/app/public` are kept) → symlink `Server/public/storage` → `composer install` → `npm run build` → `migrate` → config/route/view caches.
+GitHub Actions SSHs in → `git pull` (uploads in `storage/app/public` are kept) → symlink `public/storage` → `composer install` → `npm run build` → `migrate` → config/route/view caches.
 
 Check the **Actions** tab for logs.
 
@@ -87,4 +65,3 @@ cd /home/u373214048/domains/ir4.ispc-ai.com/public_html/Server
 ln -sfn "$(pwd)/storage/app/public" public/storage
 ```
 
-See `Server/README.md` for Laravel-specific setup and deploy detail.

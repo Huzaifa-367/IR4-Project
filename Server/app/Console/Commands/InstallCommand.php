@@ -14,6 +14,17 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
+/**
+ * First-time platform bootstrap (DOC-03 §7.3, DOC-20).
+ *
+ * Seeds settings, RBAC, gas thresholds, then creates the initial Super Admin
+ * (interactive or via --name/--email/--password). Demo + permit catalogue
+ * seeders run after the admin exists so demo data can reuse that user.
+ *
+ * Usage:
+ *   php artisan ir4:install
+ *   php artisan ir4:install --name="…" --email="…" --password="…"
+ */
 final class InstallCommand extends Command
 {
     protected $signature = 'ir4:install
@@ -25,22 +36,27 @@ final class InstallCommand extends Command
 
     public function handle(): int
     {
+        // Baseline config + RBAC + gas alarm thresholds (safe to re-run).
         $this->callSilent('db:seed', ['--class' => SettingsSeeder::class, '--force' => true]);
         $this->callSilent('db:seed', ['--class' => RolePermissionSeeder::class, '--force' => true]);
         $this->callSilent('db:seed', ['--class' => GasThresholdSeeder::class, '--force' => true]);
 
-        // Create the first Super Admin before DemoSeeder so demo data reuses it
-        // instead of inventing a different admin and skipping CLI options.
+        // Create Super Admin before DemoSeeder so demo rows attach to this
+        // account instead of inventing a different admin and ignoring CLI options.
         if (! $this->ensureSuperAdmin()) {
             return self::FAILURE;
         }
 
+        // Optional demo site data + dynamic PTW catalogue.
         $this->callSilent('db:seed', ['--class' => DemoSeeder::class, '--force' => true]);
         $this->callSilent('db:seed', ['--class' => PermitCatalogueSeeder::class, '--force' => true]);
 
         return self::SUCCESS;
     }
 
+    /**
+     * Create the first Super Admin if none exists; otherwise skip and succeed.
+     */
     private function ensureSuperAdmin(): bool
     {
         if (User::query()->role('Super Admin')->exists()) {
@@ -49,6 +65,7 @@ final class InstallCommand extends Command
             return true;
         }
 
+        // Options win; otherwise prompt (password hidden). Dev fallback password if empty.
         $name = $this->option('name') ?: $this->ask('Super Admin name', 'Super Admin');
         $email = $this->option('email') ?: $this->ask('Super Admin email', 'admin@gmail.com');
         $password = $this->option('password') ?: $this->secret('Super Admin password') ?: '12345677';
@@ -75,6 +92,7 @@ final class InstallCommand extends Command
             'email' => $email,
             'password' => Hash::make($password),
             'is_active' => true,
+            // DOC-02: first login must change temporary / installer password.
             'must_change_password' => true,
         ]);
 

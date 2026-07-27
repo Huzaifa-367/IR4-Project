@@ -7,6 +7,16 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use ReflectionEnum;
 
+/**
+ * Mirror PHP backed enums into TypeScript (DOC-01).
+ *
+ * Scans App\Enums\*, writes resources/js/types/enums.ts as the single source
+ * of truth for the frontend. Never hand-edit that file — re-run this command
+ * (and ir4:export-permissions for the Permission block).
+ *
+ * Usage:
+ *   php artisan ir4:export-enums
+ */
 final class ExportEnumsCommand extends Command
 {
     protected $signature = 'ir4:export-enums';
@@ -37,6 +47,7 @@ final class ExportEnumsCommand extends Command
 
                 $reflection = new ReflectionEnum($class);
 
+                // Only string/int backed enums — pure unit enums are skipped.
                 if (! $reflection->isBacked()) {
                     continue;
                 }
@@ -50,6 +61,7 @@ final class ExportEnumsCommand extends Command
 
         File::ensureDirectoryExists(dirname($outputPath));
 
+        // Preserve the Permission catalogue block appended by ir4:export-permissions.
         $permissionBlock = '';
         if (File::exists($outputPath)) {
             $existing = File::get($outputPath);
@@ -66,6 +78,8 @@ final class ExportEnumsCommand extends Command
     }
 
     /**
+     * Render one enum as a const object + type, plus Labels map when label() exists.
+     *
      * @param  class-string<BackedEnum>  $class
      * @param  ReflectionEnum<BackedEnum>  $reflection
      */

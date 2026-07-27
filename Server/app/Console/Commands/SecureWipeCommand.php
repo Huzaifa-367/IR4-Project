@@ -6,6 +6,16 @@ use App\Services\Backup\SecureWipeService;
 use Illuminate\Console\Command;
 use Throwable;
 
+/**
+ * Privileged data destruction after a verified ir4:export-all (DOC-19).
+ *
+ * Requires --confirm=WIPE-IR4-PROJECT-DATA and a matching export marker.
+ * Prefer --dry-run first. Uses the ir4_wipe DB account for audit_logs DELETE.
+ *
+ * Usage:
+ *   php artisan ir4:secure-wipe --dry-run --confirm=WIPE-IR4-PROJECT-DATA
+ *   php artisan ir4:secure-wipe --confirm=WIPE-IR4-PROJECT-DATA --export-id=…
+ */
 final class SecureWipeCommand extends Command
 {
     protected $signature = 'ir4:secure-wipe
@@ -26,6 +36,7 @@ final class SecureWipeCommand extends Command
                 dryRun: (bool) $this->option('dry-run'),
             );
         } catch (Throwable $e) {
+            // Guard failures (wrong phrase, missing export) surface as exceptions.
             $this->error($e->getMessage());
 
             return self::FAILURE;
