@@ -22,26 +22,29 @@ return [
      */
     'disk_root' => env('BACKUP_DISK_ROOT') ?: '/data/ir4-backups',
 
+    /** Shared app-volume handoff paths: Lerd and host PHP can both access these. */
+    'staging_root' => env('BACKUP_STAGING_ROOT') ?: storage_path('app/backup-staging'),
+    'restore_inbox' => env('BACKUP_RESTORE_INBOX') ?: storage_path('app/restore-inbox'),
+
+    /** Filesystem-only publisher fallback; normal value is recorded from SettingsService. */
+    'keep_count' => (int) env('BACKUP_KEEP_COUNT', 30),
+
     /** Absolute Laravel app root packed into server/. Defaults to base_path(). */
     'app_root' => env('BACKUP_APP_ROOT') ?: null,
 
     /** Directory names skipped while packing server/. */
     'exclude_directories' => array_values(array_filter(array_map(
         'trim',
-        explode(',', (string) env('BACKUP_EXCLUDE_DIRECTORIES', 'node_modules,.git')),
+        explode(',', (string) env(
+            'BACKUP_EXCLUDE_DIRECTORIES',
+            'node_modules,.git,backup-staging,restore-inbox,tmp',
+        )),
     ))),
-
-    /** Prefer Oracle MySQL client paths on R360; MariaDB shims often fail on caching_sha2_password. */
-    'mysqldump_path' => env('BACKUP_MYSQLDUMP_PATH', 'mysqldump'),
-    'mysql_path' => env('BACKUP_MYSQL_PATH', 'mysql'),
-
-    /** Used only when the default DB driver is sqlite (local/tests). Production is MySQL. */
-    'sqlite_path' => env('BACKUP_SQLITE_PATH', 'sqlite3'),
 
     'disk_space_warn_pct' => (int) env('DISK_SPACE_WARN_PCT', 15),
 
-    /** Staging connection for ir4:restore (never the live DB by default). */
-    'restore_connection' => env('IR4_RESTORE_CONNECTION', 'ir4_restore'),
+    /** Restore target schema on the same MySQL connection; never the live DB by default. */
+    'restore_database' => env('IR4_RESTORE_DATABASE', 'ir4_restore'),
 
     /** Hours without a successful zip before raising backup:missing. */
     'missing_backup_hours' => 36,

@@ -2,39 +2,55 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Backup\BackupPublisher;
 use App\Services\Backup\BackupService;
 use Illuminate\Console\Command;
+use Throwable;
 
 /**
- * Daily full live snapshot: server/ + DB/ as a timestamped zip on the backup volume.
- *
- * On-prem: app on /data2, archives on /data (BACKUP_DISK_ROOT). Scheduled at 02:30
- * before retention prune (03:15) so aged telemetry is still archived that night.
- *
- * Usage:
- *   php artisan ir4:backup
- *   php artisan ir4:backup --no-rotate
- *   php artisan ir4:backup --keep=14
+ * Lerd stages with current DB credentials; host php8.4 publishes to /data.
  */
 final class BackupCommand extends Command
 {
     protected $signature = 'ir4:backup
-                            {--no-rotate : Skip deletion of old archives}
-                            {--keep= : Override backup.keep_count}';
+                            {--publish : Move all staged archives to /data and remove local copies}
+                            {--keep= : Override archive retention when publishing}';
 
-    protected $description = 'Create a timestamped server+DB zip backup on the backup volume';
+    protected $description = 'Stage a server+DB backup, or publish staged backups to /data';
 
-    public function handle(BackupService $backups): int
+    public function handle(BackupService $backups, BackupPublisher $publisher): int
     {
-        $keep = $this->option('keep') !== null ? (int) $this->option('keep') : null;
-        $result = $backups->run(
-            rotate: ! $this->option('no-rotate'),
-            keep: $keep,
-        );
+        try {
+            $keep = $this->option('keep') !== null ? (int) $this->option('keep') : null;
+            if ($this->option('publish')) {
+                return $this->publish($publisher, $keep);
+            }
+            $result = $backups->run(keep: $keep);
+        } catch (Throwable $e) {
+            $this->error($e->getMessage());
 
-        $this->info("Backup written: {$result['absolute_path']} ({$result['bytes']} bytes, kept {$result['kept']})");
-        $this->line("disk root: {$result['disk_root']}");
-        $this->line("sha256: {$result['sha256']}");
+            return self::FAILURE;
+        }
+
+        $this->info('Backup staged: '.$result['path']);
+        $this->line('bytes: '.number_format($result['bytes']));
+        $this->line('sha256: '.$result['sha256']);
+        $this->comment('Publish on host: /usr/bin/php8.4 artisan ir4:backup --publish');
+
+        return self::SUCCESS;
+    }
+
+    private function publish(BackupPublisher $publisher, ?int $keep): int
+    {
+        $result = $publisher->publishAll($keep);
+        if ($result['published'] === []) {
+            $this->info('No staged backups to publish.');
+        } else {
+            foreach ($result['published'] as $path) {
+                $this->info('Published: '.$path);
+            }
+        }
+        $this->line('kept: '.$result['kept']);
 
         return self::SUCCESS;
     }

@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    'default' => 'mysql',
 
     /*
     |--------------------------------------------------------------------------
@@ -31,18 +31,6 @@ return [
     */
 
     'connections' => [
-
-        'sqlite' => [
-            'driver' => 'sqlite',
-            'url' => env('DB_URL'),
-            'database' => env('DB_DATABASE', database_path('database.sqlite')),
-            'prefix' => '',
-            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
-            'transaction_mode' => 'DEFERRED',
-        ],
 
         'mysql' => [
             'driver' => 'mysql',
@@ -59,31 +47,6 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
-        ],
-
-        /*
-        | Staging connection for ir4:restore drills (DOC-19/20).
-        | Never point this at the live database name in production.
-        */
-        'ir4_restore' => [
-            'driver' => env('IR4_RESTORE_DB_DRIVER', env('DB_CONNECTION', 'sqlite')),
-            'url' => env('IR4_RESTORE_DB_URL'),
-            'host' => env('IR4_RESTORE_DB_HOST', env('DB_HOST', '127.0.0.1')),
-            'port' => env('IR4_RESTORE_DB_PORT', env('DB_PORT', '3306')),
-            'database' => env('IR4_RESTORE_DB_DATABASE', database_path('ir4_restore.sqlite')),
-            'username' => env('IR4_RESTORE_DB_USERNAME', env('DB_USERNAME', 'ir4_restore')),
-            'password' => env('IR4_RESTORE_DB_PASSWORD', env('DB_PASSWORD', '')),
-            'unix_socket' => env('DB_SOCKET', ''),
-            'charset' => env('DB_CHARSET', 'utf8mb4'),
-            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
-            'prefix' => '',
-            'prefix_indexes' => true,
-            'strict' => true,
-            'engine' => null,
-            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],

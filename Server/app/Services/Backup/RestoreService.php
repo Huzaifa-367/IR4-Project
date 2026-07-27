@@ -2,18 +2,50 @@
 
 namespace App\Services\Backup;
 
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 use RuntimeException;
 use ZipArchive;
 
 /**
- * Restore DB/database.sql from a site backup zip into a staging connection.
+ * Host imports from /data into shared /data2 inbox; Lerd verifies/restores there.
  */
 final class RestoreService
 {
     public function __construct(
-        private readonly DatabaseDumperFactory $dumpers,
+        private readonly MysqlDumper $dumper,
+        private readonly BackupVolume $volume,
     ) {}
+
+    public function prepare(string $archive): string
+    {
+        $volumeRoot = $this->volume->prepareVolume();
+        $source = str_starts_with($archive, DIRECTORY_SEPARATOR)
+            ? $archive
+            : $volumeRoot.'/'.ltrim($archive, '/');
+        if (! File::exists($source)) {
+            throw new RuntimeException("Archive not found: {$source}");
+        }
+
+        $this->assertValidArchive($source);
+        $destination = $this->volume->restoreInbox().'/'.basename($source);
+        $partial = $destination.'.partial';
+        if (! File::copy($source, $partial)) {
+            throw new RuntimeException("Unable to copy archive into restore inbox: {$partial}");
+        }
+
+        $sourceHash = hash_file('sha256', $source);
+        $targetHash = hash_file('sha256', $partial);
+        if ($sourceHash === false || ! hash_equals($sourceHash, (string) $targetHash)) {
+            File::delete($partial);
+            throw new RuntimeException('Restore archive checksum mismatch during import.');
+        }
+        if (! File::move($partial, $destination)) {
+            File::delete($partial);
+            throw new RuntimeException("Unable to finalize restore inbox file: {$destination}");
+        }
+
+        return $destination;
+    }
 
     /**
      * @return array{meta: array<string, mixed>, files: list<string>}
@@ -28,15 +60,19 @@ final class RestoreService
      */
     public function restore(
         string $archive,
-        string $connection,
+        string $database,
         bool $forceLive = false,
     ): array {
-        $default = (string) config('database.default');
-        if ($connection === $default && ! $forceLive) {
-            throw new RuntimeException('Refusing to restore into the default connection without --force-live.');
+        $liveDatabase = (string) config('database.connections.mysql.database');
+        if ($database === $liveDatabase && ! $forceLive) {
+            throw new RuntimeException('Refusing to restore into the live database without --force-live.');
         }
 
-        return $this->unpack($archive, restore: true, connection: $connection);
+        $localArchive = $this->resolveLocalArchive($archive);
+        $result = $this->unpack($localArchive, restore: true, database: $database);
+        $this->removePreparedArchive($localArchive);
+
+        return $result;
     }
 
     /**
@@ -45,83 +81,133 @@ final class RestoreService
     private function unpack(
         string $archive,
         bool $restore,
-        ?string $connection = null,
+        ?string $database = null,
     ): array {
-        $absolute = $this->resolveArchivePath($archive);
-        $workdir = storage_path('app/tmp/restore-'.uniqid());
-        if (! mkdir($workdir, 0700, true) && ! is_dir($workdir)) {
-            throw new RuntimeException("Unable to create {$workdir}");
-        }
+        $absolute = $this->resolveLocalArchive($archive);
+        $zip = $this->openArchive($absolute);
+        $files = $this->validatedEntries($zip);
+        $meta = $this->manifest($zip);
 
-        try {
-            $contentsDir = $workdir.'/contents';
-            if (! mkdir($contentsDir, 0700, true) && ! is_dir($contentsDir)) {
-                throw new RuntimeException("Unable to create {$contentsDir}");
-            }
-
-            $zip = new ZipArchive;
-            if ($zip->open($absolute) !== true) {
-                throw new RuntimeException('Unable to open backup archive.');
-            }
-            $zip->extractTo($contentsDir);
+        if (! $restore) {
             $zip->close();
 
-            $metaPath = $contentsDir.'/manifest.json';
-            $meta = is_file($metaPath)
-                ? (json_decode((string) file_get_contents($metaPath), true) ?: [])
-                : [];
+            return ['meta' => $meta, 'files' => $files];
+        }
 
-            $files = [];
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($contentsDir, \FilesystemIterator::SKIP_DOTS),
-            );
-            foreach ($iterator as $file) {
-                if ($file->isFile()) {
-                    $files[] = ltrim(str_replace($contentsDir, '', $file->getPathname()), DIRECTORY_SEPARATOR);
-                }
-            }
+        $workdir = storage_path('app/tmp/restore-'.uniqid());
+        File::ensureDirectoryExists($workdir, 0700);
 
-            if ($restore) {
-                $dump = $contentsDir.'/DB/database.sql';
-                if (! is_file($dump)) {
-                    throw new RuntimeException('Archive does not contain DB/database.sql.');
-                }
-                $this->dumpers->forConnection($connection)->restoreFrom($dump, (string) $connection);
-            }
+        try {
+            $dump = $workdir.'/database.sql';
+            $this->extractDatabase($zip, $dump);
+            $this->dumper->restoreFrom($dump, (string) $database);
 
             return ['meta' => $meta, 'files' => $files];
         } finally {
-            $this->removeDirectory($workdir);
+            $zip->close();
+            File::deleteDirectory($workdir);
         }
     }
 
-    private function resolveArchivePath(string $archive): string
+    private function resolveLocalArchive(string $archive): string
     {
-        if (is_file($archive)) {
-            return $archive;
+        if (File::exists($archive)) {
+            return realpath($archive) ?: $archive;
         }
 
-        $disk = Storage::disk((string) config('backup.disk', 'backups'));
-        if ($disk->exists($archive)) {
-            return $disk->path($archive);
+        $inboxPath = $this->volume->restoreInbox().'/'.basename($archive);
+        if (File::exists($inboxPath)) {
+            return $inboxPath;
         }
 
-        throw new RuntimeException("Archive not found: {$archive}");
-    }
-
-    private function removeDirectory(string $directory): void
-    {
-        if (! is_dir($directory)) {
-            return;
-        }
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST,
+        throw new RuntimeException(
+            "Local archive not found: {$archive}. First run on host: "
+            ."/usr/bin/php8.4 artisan ir4:restore {$archive} --prepare"
         );
-        foreach ($iterator as $file) {
-            $path = $file->getPathname();
-            $file->isDir() ? @rmdir($path) : @unlink($path);
+    }
+
+    private function removePreparedArchive(string $archive): void
+    {
+        $inbox = realpath($this->volume->restoreInbox()) ?: $this->volume->restoreInbox();
+        $parent = realpath(dirname($archive)) ?: dirname($archive);
+        if ($parent === $inbox) {
+            File::delete($archive);
         }
-        @rmdir($directory);
+    }
+
+    private function assertValidArchive(string $archive): void
+    {
+        $zip = $this->openArchive($archive);
+        $this->validatedEntries($zip);
+        $this->manifest($zip);
+        $zip->close();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function validatedEntries(ZipArchive $zip): array
+    {
+        $files = [];
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $entry = str_replace('\\', '/', (string) $zip->getNameIndex($index));
+            $segments = explode('/', $entry);
+            if ($entry === '' || str_starts_with($entry, '/') || in_array('..', $segments, true)) {
+                throw new RuntimeException("Unsafe archive entry: {$entry}");
+            }
+            $files[] = $entry;
+        }
+
+        if (! in_array('DB/database.sql', $files, true) || ! in_array('manifest.json', $files, true)) {
+            throw new RuntimeException('Invalid IR4 backup: DB/database.sql or manifest.json is missing.');
+        }
+
+        return $files;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function manifest(ZipArchive $zip): array
+    {
+        $json = $zip->getFromName('manifest.json');
+        $meta = is_string($json) ? json_decode($json, true) : null;
+        if (! is_array($meta) || ($meta['format'] ?? null) !== 'ir4-site-backup/v1') {
+            throw new RuntimeException('Invalid or unsupported IR4 backup manifest.');
+        }
+
+        return $meta;
+    }
+
+    private function extractDatabase(ZipArchive $zip, string $destination): void
+    {
+        $source = $zip->getStream('DB/database.sql');
+        if ($source === false) {
+            throw new RuntimeException('Unable to read DB/database.sql from archive.');
+        }
+        $target = fopen($destination, 'wb');
+        if ($target === false) {
+            fclose($source);
+            throw new RuntimeException("Unable to create restore dump: {$destination}");
+        }
+
+        try {
+            if (stream_copy_to_stream($source, $target) === false) {
+                throw new RuntimeException('Unable to extract database dump.');
+            }
+        } finally {
+            fclose($source);
+            fclose($target);
+        }
+    }
+
+    private function openArchive(string $archive): ZipArchive
+    {
+        $zip = new ZipArchive;
+        if ($zip->open($archive) !== true) {
+            throw new RuntimeException("Unable to open backup archive: {$archive}");
+        }
+
+        return $zip;
     }
 }

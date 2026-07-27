@@ -10,14 +10,19 @@ final class DiskSpaceMonitor
 {
     public function __construct(
         private readonly AlertService $alerts,
+        private readonly BackupVolume $volume,
     ) {}
 
     public function check(): void
     {
         $threshold = max(1, (int) config('backup.disk_space_warn_pct', 15));
 
-        foreach (['private', (string) config('backup.disk', 'backups')] as $diskName) {
-            $root = $this->diskRoot($diskName);
+        $targets = [
+            'private' => $this->configuredRoot('private'),
+            (string) config('backup.disk', 'backups') => $this->volume->volumeRoot(),
+        ];
+
+        foreach ($targets as $diskName => $root) {
             if ($root === null || ! is_dir($root)) {
                 continue;
             }
@@ -48,14 +53,9 @@ final class DiskSpaceMonitor
         }
     }
 
-    private function diskRoot(string $diskName): ?string
+    private function configuredRoot(string $diskName): ?string
     {
-        if ($diskName === (string) config('backup.disk', 'backups')) {
-            $configured = config('backup.disk_root') ?: config("filesystems.disks.{$diskName}.root");
-        } else {
-            $configured = config("filesystems.disks.{$diskName}.root");
-        }
-
+        $configured = config("filesystems.disks.{$diskName}.root");
         if (! is_string($configured) || $configured === '' || $configured === '.') {
             return null;
         }

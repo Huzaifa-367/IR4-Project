@@ -23,6 +23,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $mysql = config('database.connections.mysql');
+        config([
+            'database.default' => 'mysql',
+            'database.connections' => [
+                'mysql' => $mysql,
+            ],
+        ]);
+
         $this->app->singleton(SettingsService::class);
         $this->app->singleton(SignedStorageUrlService::class);
     }

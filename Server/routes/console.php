@@ -43,7 +43,8 @@ Schedule::call(function (TrackingService $tracking): void {
 
 Schedule::job(new FlagOverdueEquipment)->daily()->name('ir4:flag-overdue-equipment');
 
-// Backup before prune so aged telemetry is still in that night's zip (DOC-19).
+// Lerd stages at 02:30 using DB_HOST=lerd-mysql. Host cron publishes at 02:45:
+// /usr/bin/php8.4 artisan ir4:backup --publish
 Schedule::job(new BackupSite)
     ->dailyAt('02:30')
     ->name('ir4:backup-site')

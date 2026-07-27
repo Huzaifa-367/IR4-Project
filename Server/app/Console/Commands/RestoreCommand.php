@@ -4,24 +4,18 @@ namespace App\Console\Commands;
 
 use App\Services\Backup\RestoreService;
 use Illuminate\Console\Command;
+use Throwable;
 
 /**
- * Restore DB/database.sql from a site backup zip into staging (DOC-19).
- *
- * Restoring server/ files is an ops/rsync step — this command only restores the DB.
- * Live restore requires --force-live and --confirm=RESTORE-INTO-LIVE.
- *
- * Usage:
- *   php artisan ir4:restore path/to/ir4-backup-….zip --verify-only
- *   php artisan ir4:restore path/to/ir4-backup-….zip
- *   php artisan ir4:restore path/to/ir4-backup-….zip --force-live --confirm=RESTORE-INTO-LIVE
+ * Host prepares /data archive into /data2 inbox; Lerd restores with lerd-mysql.
  */
 final class RestoreCommand extends Command
 {
     protected $signature = 'ir4:restore
-                            {archive : Absolute path or backups-disk relative path}
-                            {--connection= : Target DB connection (default: ir4_restore)}
-                            {--force-live : Allow restoring into the default connection}
+                            {archive : /data archive, inbox filename, or local path}
+                            {--prepare : Host-only copy from /data to shared restore inbox}
+                            {--database= : Target MySQL database (default: IR4_RESTORE_DATABASE)}
+                            {--force-live : Allow restoring into the live MySQL database}
                             {--confirm= : Exact phrase RESTORE-INTO-LIVE when --force-live}
                             {--verify-only : Open archive and list contents only}';
 
@@ -30,7 +24,7 @@ final class RestoreCommand extends Command
     public function handle(RestoreService $restore): int
     {
         $archive = (string) $this->argument('archive');
-        $connection = (string) ($this->option('connection') ?: config('backup.restore_connection', 'ir4_restore'));
+        $database = (string) ($this->option('database') ?: config('backup.restore_database', 'ir4_restore'));
         $forceLive = (bool) $this->option('force-live');
 
         if ($forceLive && $this->option('confirm') !== 'RESTORE-INTO-LIVE') {
@@ -39,20 +33,33 @@ final class RestoreCommand extends Command
             return self::FAILURE;
         }
 
-        if ($this->option('verify-only')) {
-            $result = $restore->verify($archive);
-            $this->info('Archive verified.');
+        try {
+            if ($this->option('prepare')) {
+                $prepared = $restore->prepare($archive);
+                $this->info('Restore archive prepared: '.$prepared);
+                $this->comment('Restore with Lerd: php artisan ir4:restore '.basename($prepared));
+
+                return self::SUCCESS;
+            }
+
+            if ($this->option('verify-only')) {
+                $result = $restore->verify($archive);
+                $this->info('Archive verified.');
+                $this->line(json_encode($result['meta'], JSON_PRETTY_PRINT) ?: '{}');
+                $this->line('Entries: '.count($result['files']));
+
+                return self::SUCCESS;
+            }
+
+            $result = $restore->restore($archive, $database, $forceLive);
+            $this->info("Restored into MySQL database [{$database}].");
             $this->line(json_encode($result['meta'], JSON_PRETTY_PRINT) ?: '{}');
-            $this->line('Entries: '.count($result['files']));
 
             return self::SUCCESS;
+        } catch (Throwable $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
         }
-
-        $result = $restore->restore($archive, $connection, $forceLive);
-
-        $this->info("Restored DB into connection [{$connection}].");
-        $this->line(json_encode($result['meta'], JSON_PRETTY_PRINT) ?: '{}');
-
-        return self::SUCCESS;
     }
 }

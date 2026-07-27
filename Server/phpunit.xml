@@ -26,12 +26,15 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="3306"/>
+        <env name="DB_DATABASE" value="ir4_test"/>
+        <env name="DB_USERNAME" value="ir4_test"/>
+        <env name="DB_PASSWORD" value=""/>
         <env name="DB_URL" value=""/>
         <env name="BACKUP_DISK_ROOT" value="/data/ir4-backups"/>
-        <env name="IR4_RESTORE_CONNECTION" value="ir4_restore"/>
-        <env name="IR4_RESTORE_DB_DRIVER" value="sqlite"/>
+        <env name="IR4_RESTORE_DATABASE" value="ir4_restore_test"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

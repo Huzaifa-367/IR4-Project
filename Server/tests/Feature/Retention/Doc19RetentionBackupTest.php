@@ -11,6 +11,7 @@ use App\Models\EnvironmentalReading;
 use App\Models\GasReading;
 use App\Models\TagReading;
 use App\Models\WeeklyReport;
+use App\Services\Backup\BackupPublisher;
 use App\Services\Backup\BackupService;
 use App\Services\Backup\RestoreService;
 use App\Services\RetentionService;
@@ -132,27 +133,32 @@ it('removes ad-hoc exports but keeps weekly report PDFs', function () {
         ->and(Storage::disk('private')->exists('reports/1/report.pdf'))->toBeTrue();
 });
 
-it('creates a timestamped server+DB zip backup and rotates to keep_count', function () {
+it('stages a timestamped server+DB zip and publishes with rotation', function () {
     $fixture = storage_path('app/tmp/backup-fixture-'.uniqid());
     mkdir($fixture.'/app', 0700, true);
     mkdir($fixture.'/node_modules/left-pad', 0700, true);
     file_put_contents($fixture.'/app/demo.php', '<?php // fixture');
     file_put_contents($fixture.'/node_modules/left-pad/index.js', 'module.exports=1');
-    config(['backup.app_root' => $fixture]);
+    $staging = storage_path('app/tmp/backup-staging-'.uniqid());
+    config([
+        'backup.app_root' => $fixture,
+        'backup.staging_root' => $staging,
+        'backup.disk_root' => Storage::disk('backups')->path(''),
+    ]);
 
     app(SettingsService::class)->set('backup.keep_count', 2);
     $service = app(BackupService::class);
 
     $first = $service->run();
-    expect(Storage::disk('backups')->exists($first['path']))->toBeTrue()
+    expect(is_file($first['path']))->toBeTrue()
         ->and($first['path'])->toEndWith('.zip')
         ->and($first['sha256'])->not->toBeEmpty();
 
     $local = storage_path('app/tmp/test-site-backup.zip');
     @mkdir(dirname($local), 0700, true);
-    file_put_contents($local, Storage::disk('backups')->get($first['path']));
+    file_put_contents($local, (string) file_get_contents($first['path']));
 
-    $zip = new \ZipArchive;
+    $zip = new ZipArchive;
     expect($zip->open($local))->toBeTrue();
     expect($zip->locateName('DB/database.sql'))->not->toBeFalse()
         ->and($zip->locateName('manifest.json'))->not->toBeFalse()
@@ -162,23 +168,53 @@ it('creates a timestamped server+DB zip backup and rotates to keep_count', funct
 
     $service->run();
     $service->run();
+    app(BackupPublisher::class)->publishAll();
 
-    $files = collect(Storage::disk('backups')->files('daily'))
-        ->filter(fn (string $path): bool => str_ends_with($path, '.zip'));
+    $files = glob(Storage::disk('backups')->path('daily/ir4-backup-*.zip')) ?: [];
 
-    expect($files)->toHaveCount(2);
+    expect($files)->toHaveCount(2)
+        ->and(glob($staging.'/ir4-backup-*.zip') ?: [])->toBe([]);
 });
 
 it('verifies a site backup zip via RestoreService', function () {
     $fixture = storage_path('app/tmp/backup-fixture-'.uniqid());
     mkdir($fixture.'/app', 0700, true);
     file_put_contents($fixture.'/app/demo.php', '<?php');
-    config(['backup.app_root' => $fixture]);
+    config([
+        'backup.app_root' => $fixture,
+        'backup.staging_root' => storage_path('app/tmp/backup-staging-'.uniqid()),
+    ]);
 
-    $path = app(BackupService::class)->run(rotate: false)['path'];
+    $path = app(BackupService::class)->run()['path'];
     $result = app(RestoreService::class)->verify($path);
 
     expect($result['meta']['format'] ?? null)->toBe('ir4-site-backup/v1')
         ->and($result['files'])->toContain('DB/database.sql')
         ->and($result['files'])->toContain('manifest.json');
+});
+
+it('prepares a volume backup in the shared restore inbox', function () {
+    $fixture = storage_path('app/tmp/backup-fixture-'.uniqid());
+    $staging = storage_path('app/tmp/backup-staging-'.uniqid());
+    $volume = storage_path('app/tmp/backup-volume-'.uniqid());
+    $inbox = storage_path('app/tmp/restore-inbox-'.uniqid());
+    mkdir($fixture.'/app', 0700, true);
+    mkdir($volume.'/daily', 0700, true);
+    file_put_contents($fixture.'/app/demo.php', '<?php');
+    config([
+        'backup.app_root' => $fixture,
+        'backup.staging_root' => $staging,
+        'backup.disk_root' => $volume,
+        'backup.restore_inbox' => $inbox,
+    ]);
+
+    $staged = app(BackupService::class)->run()['path'];
+    $volumeArchive = $volume.'/daily/'.basename($staged);
+    copy($staged, $volumeArchive);
+
+    $prepared = app(RestoreService::class)->prepare('daily/'.basename($staged));
+
+    expect($prepared)->toBe($inbox.'/'.basename($staged))
+        ->and(is_file($prepared))->toBeTrue()
+        ->and(hash_file('sha256', $prepared))->toBe(hash_file('sha256', $volumeArchive));
 });
