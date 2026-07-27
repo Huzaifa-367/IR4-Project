@@ -57,10 +57,10 @@ return [
             'report' => false,
         ],
 
-        // Separate volume in production (e.g. BACKUP_DISK_ROOT=/data/ir4-backups).
+        // Separate volume in production (DOC-19/20). Default /data — never the app disk.
         'backups' => [
             'driver' => 'local',
-            'root' => env('BACKUP_DISK_ROOT') ?: storage_path('app/backups'),
+            'root' => env('BACKUP_DISK_ROOT') ?: '/data/ir4-backups',
             'visibility' => 'private',
             'serve' => false,
             'throw' => true,

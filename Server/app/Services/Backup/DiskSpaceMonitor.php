@@ -50,7 +50,12 @@ final class DiskSpaceMonitor
 
     private function diskRoot(string $diskName): ?string
     {
-        $configured = config("filesystems.disks.{$diskName}.root");
+        if ($diskName === (string) config('backup.disk', 'backups')) {
+            $configured = config('backup.disk_root') ?: config("filesystems.disks.{$diskName}.root");
+        } else {
+            $configured = config("filesystems.disks.{$diskName}.root");
+        }
+
         if (! is_string($configured) || $configured === '' || $configured === '.') {
             return null;
         }

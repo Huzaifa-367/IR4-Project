@@ -32,7 +32,8 @@ final class BackupCommand extends Command
             keep: $keep,
         );
 
-        $this->info("Backup written: {$result['path']} ({$result['bytes']} bytes, kept {$result['kept']})");
+        $this->info("Backup written: {$result['absolute_path']} ({$result['bytes']} bytes, kept {$result['kept']})");
+        $this->line("disk root: {$result['disk_root']}");
         $this->line("sha256: {$result['sha256']}");
 
         return self::SUCCESS;

@@ -15,6 +15,13 @@ return [
 
     'disk' => env('BACKUP_DISK', 'backups'),
 
+    /**
+     * Absolute backup volume root (DOC-19/20).
+     * On-prem default is /data/ir4-backups — never the app disk under /data2.
+     * Override in .env for local machines without /data.
+     */
+    'disk_root' => env('BACKUP_DISK_ROOT') ?: '/data/ir4-backups',
+
     /** Absolute Laravel app root packed into server/. Defaults to base_path(). */
     'app_root' => env('BACKUP_APP_ROOT') ?: null,
 
@@ -24,8 +31,11 @@ return [
         explode(',', (string) env('BACKUP_EXCLUDE_DIRECTORIES', 'node_modules,.git')),
     ))),
 
+    /** Prefer Oracle MySQL client paths on R360; MariaDB shims often fail on caching_sha2_password. */
     'mysqldump_path' => env('BACKUP_MYSQLDUMP_PATH', 'mysqldump'),
     'mysql_path' => env('BACKUP_MYSQL_PATH', 'mysql'),
+
+    /** Used only when the default DB driver is sqlite (local/tests). Production is MySQL. */
     'sqlite_path' => env('BACKUP_SQLITE_PATH', 'sqlite3'),
 
     'disk_space_warn_pct' => (int) env('DISK_SPACE_WARN_PCT', 15),

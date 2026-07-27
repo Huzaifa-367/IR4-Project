@@ -31,16 +31,17 @@ final class BackupService
     ) {}
 
     /**
-     * @return array{path: string, bytes: int, kept: int, sha256: string}
+     * @return array{path: string, absolute_path: string, bytes: int, kept: int, sha256: string, disk_root: string}
      */
     public function run(bool $rotate = true, ?int $keep = null): array
     {
         $diskName = (string) config('backup.disk', 'backups');
-        $disk = Storage::disk($diskName);
+        $diskRoot = $this->prepareBackupDisk($diskName);
         $ulid = (string) Str::ulid();
         $stamp = now()->format('Y-m-d-His');
         $relative = "daily/ir4-backup-{$stamp}-{$ulid}.zip";
-        $partial = "{$relative}.partial";
+        $absolutePath = $diskRoot.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relative);
+        $partialAbsolute = $absolutePath.'.partial';
 
         $workdir = storage_path('app/tmp/backup-'.$ulid);
         if (! is_dir($workdir) && ! mkdir($workdir, 0700, true) && ! is_dir($workdir)) {
@@ -52,33 +53,27 @@ final class BackupService
             $this->dumpers->forConnection()->dumpTo($dumpPath);
 
             $zipLocal = $workdir.'/archive.zip';
-            $this->buildArchive($zipLocal, $dumpPath, $ulid);
+            $this->buildArchive($zipLocal, $dumpPath, $ulid, $diskRoot);
 
-            // Stream to the backup disk — never load the zip into PHP memory.
             $sha256 = hash_file('sha256', $zipLocal);
             if ($sha256 === false) {
                 throw new RuntimeException('Unable to hash backup archive.');
             }
 
-            $stream = fopen($zipLocal, 'rb');
-            if ($stream === false) {
-                throw new RuntimeException('Unable to open backup archive for reading.');
-            }
-            try {
-                $disk->writeStream($partial, $stream);
-            } finally {
-                if (is_resource($stream)) {
-                    fclose($stream);
-                }
-            }
-            $disk->move($partial, $relative);
+            $this->publishArchive($zipLocal, $partialAbsolute, $absolutePath);
 
-            $bytes = (int) $disk->size($relative);
+            if (! is_file($absolutePath)) {
+                throw new RuntimeException("Backup zip missing after publish: {$absolutePath}");
+            }
+
+            $bytes = (int) filesize($absolutePath);
             $keptCount = $keep ?? (int) $this->settings->get('backup.keep_count', 30);
             $kept = $rotate ? $this->rotate($keptCount) : $keptCount;
 
             Log::info('ir4.backup.success', [
                 'path' => $relative,
+                'absolute_path' => $absolutePath,
+                'disk_root' => $diskRoot,
                 'bytes' => $bytes,
                 'kept' => $kept,
                 'sha256' => $sha256,
@@ -86,13 +81,15 @@ final class BackupService
 
             return [
                 'path' => $relative,
+                'absolute_path' => $absolutePath,
+                'disk_root' => $diskRoot,
                 'bytes' => $bytes,
                 'kept' => $kept,
                 'sha256' => $sha256,
             ];
         } catch (Throwable $e) {
-            if ($disk->exists($partial)) {
-                $disk->delete($partial);
+            if (is_file($partialAbsolute)) {
+                @unlink($partialAbsolute);
             }
             $this->alerts->raise(
                 type: AlertType::System,
@@ -110,6 +107,7 @@ final class BackupService
     public function raiseIfBackupMissing(): void
     {
         $hours = (int) config('backup.missing_backup_hours', 36);
+        $this->prepareBackupDisk((string) config('backup.disk', 'backups'));
         $disk = Storage::disk((string) config('backup.disk', 'backups'));
         $latest = collect($disk->files('daily'))
             ->filter(fn (string $path): bool => str_ends_with($path, '.zip'))
@@ -146,6 +144,7 @@ final class BackupService
     public function rotate(int $keep): int
     {
         $keep = max(1, $keep);
+        $this->prepareBackupDisk((string) config('backup.disk', 'backups'));
         $disk = Storage::disk((string) config('backup.disk', 'backups'));
         $files = collect($disk->files('daily'))
             ->filter(fn (string $path): bool => str_ends_with($path, '.zip'))
@@ -160,7 +159,126 @@ final class BackupService
         return $files->count() - $remove->count();
     }
 
-    private function buildArchive(string $zipPath, string $dumpPath, string $backupId): void
+    /**
+     * Bind the backups disk to the DOC-20 volume and return its absolute root.
+     */
+    private function prepareBackupDisk(string $diskName): string
+    {
+        if ($this->usingFakeBackupDisk($diskName)) {
+            $root = rtrim(Storage::disk($diskName)->path(''), DIRECTORY_SEPARATOR);
+            $resolved = realpath($root) ?: $root;
+            if ($resolved === '' || ! is_dir($resolved)) {
+                throw new RuntimeException("Fake backup disk root is not usable: {$root}");
+            }
+
+            return $resolved;
+        }
+
+        $root = trim((string) config('backup.disk_root', '/data/ir4-backups'));
+        if ($root === '' || $root === '.') {
+            $root = '/data/ir4-backups';
+        }
+
+        if (! str_starts_with($root, DIRECTORY_SEPARATOR)) {
+            throw new RuntimeException("BACKUP_DISK_ROOT must be an absolute path, got [{$root}].");
+        }
+
+        $appRoot = realpath(base_path()) ?: base_path();
+        $normalizedRoot = rtrim($root, DIRECTORY_SEPARATOR);
+        if ($normalizedRoot === $appRoot || str_starts_with($normalizedRoot, $appRoot.DIRECTORY_SEPARATOR)) {
+            throw new RuntimeException(
+                "BACKUP_DISK_ROOT [{$root}] is inside the app tree. "
+                .'It must be the separate /data volume (e.g. /data/ir4-backups).'
+            );
+        }
+
+        $storageBackups = realpath(storage_path('app/backups')) ?: storage_path('app/backups');
+        if ($normalizedRoot === rtrim($storageBackups, DIRECTORY_SEPARATOR)) {
+            throw new RuntimeException(
+                'BACKUP_DISK_ROOT must not be storage/app/backups on the app volume. '
+                .'Use /data/ir4-backups on the R360.'
+            );
+        }
+
+        if (! is_dir($root) && ! mkdir($root, 0750, true) && ! is_dir($root)) {
+            throw new RuntimeException(
+                "Unable to create backup disk root [{$root}]. "
+                .'Ensure /data is mounted and the app user can write there.'
+            );
+        }
+
+        if (! is_writable($root)) {
+            throw new RuntimeException(
+                "Backup disk root is not writable: {$root}. "
+                .'Fix ownership, e.g. chown the PHP/app user on /data/ir4-backups.'
+            );
+        }
+
+        $resolved = realpath($root);
+        if ($resolved === false) {
+            throw new RuntimeException("Unable to resolve backup disk root: {$root}");
+        }
+
+        config(["filesystems.disks.{$diskName}.root" => $resolved]);
+        Storage::forgetDisk($diskName);
+
+        $live = rtrim(Storage::disk($diskName)->path(''), DIRECTORY_SEPARATOR);
+        $liveResolved = realpath($live) ?: $live;
+        if ($liveResolved !== $resolved) {
+            throw new RuntimeException(
+                "Backup disk rebound mismatch: config={$resolved} live={$liveResolved}"
+            );
+        }
+
+        return $resolved;
+    }
+
+    private function usingFakeBackupDisk(string $diskName): bool
+    {
+        if (! app()->environment('testing')) {
+            return false;
+        }
+
+        $path = str_replace('\\', '/', Storage::disk($diskName)->path(''));
+
+        return str_contains($path, '/framework/testing/disks/');
+    }
+
+    private function publishArchive(string $zipLocal, string $partialAbsolute, string $absolutePath): void
+    {
+        $directory = dirname($absolutePath);
+        if (! is_dir($directory) && ! mkdir($directory, 0750, true) && ! is_dir($directory)) {
+            throw new RuntimeException("Unable to create backup directory: {$directory}");
+        }
+
+        $from = fopen($zipLocal, 'rb');
+        if ($from === false) {
+            throw new RuntimeException('Unable to open backup archive for reading.');
+        }
+
+        $to = fopen($partialAbsolute, 'wb');
+        if ($to === false) {
+            fclose($from);
+            throw new RuntimeException("Unable to open {$partialAbsolute} for writing.");
+        }
+
+        try {
+            $copied = stream_copy_to_stream($from, $to);
+            if ($copied === false) {
+                throw new RuntimeException('Failed streaming backup archive to the backup volume.');
+            }
+        } finally {
+            fclose($from);
+            fclose($to);
+        }
+
+        if (! rename($partialAbsolute, $absolutePath)) {
+            @unlink($partialAbsolute);
+            throw new RuntimeException("Unable to finalize backup archive at {$absolutePath}");
+        }
+    }
+
+    private function buildArchive(string $zipPath, string $dumpPath, string $backupId, string $backupRoot): void
     {
         $zip = new ZipArchive;
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
@@ -178,7 +296,6 @@ final class BackupService
             throw new RuntimeException('Backup app root is not a readable directory.');
         }
 
-        $backupRoot = realpath((string) config('filesystems.disks.'.config('backup.disk', 'backups').'.root')) ?: null;
         $excludeNames = array_values(array_filter(
             (array) config('backup.exclude_directories', ['node_modules', '.git']),
             fn (mixed $name): bool => is_string($name) && $name !== '',
@@ -198,6 +315,7 @@ final class BackupService
             'hostname' => gethostname() ?: 'unknown',
             'db_driver' => (string) config("database.connections.{$default}.driver"),
             'db_name' => (string) config("database.connections.{$default}.database"),
+            'backup_disk_root' => $backupRoot,
             'exclude_directories' => $excludeNames,
         ];
         $manifestPath = dirname($dumpPath).'/manifest.json';
