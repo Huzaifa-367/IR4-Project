@@ -7,9 +7,20 @@ import AuthLayout from '@/layouts/auth-layout';
 import DisplayLayout from '@/layouts/display-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 
-configureEcho({
-    broadcaster: 'reverb',
-});
+const reverbAppKey = import.meta.env.VITE_REVERB_APP_KEY;
+
+// Hostinger / CI builds often have no Reverb key. Never instantiate Pusher
+// without a key (blank dashboard). Null broadcaster + poll fallback (DOC-08).
+if (typeof reverbAppKey === 'string' && reverbAppKey.length > 0) {
+    configureEcho({
+        broadcaster: 'reverb',
+        key: reverbAppKey,
+    });
+} else {
+    configureEcho({
+        broadcaster: 'null',
+    });
+}
 
 const appName = import.meta.env.VITE_APP_NAME || 'IR4';
 

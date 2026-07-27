@@ -20,6 +20,7 @@ vi.mock('@/hooks/use-auth', () => ({
 describe('useReverbChannel poll fallback', () => {
     beforeEach(() => {
         vi.useFakeTimers();
+        vi.stubEnv('VITE_REVERB_APP_KEY', 'test-reverb-key');
         useAuthMock.mockReturnValue({ isAuthenticated: true });
         useSharedSettingsMock.mockReturnValue({
             poll_fallback_seconds: 12,
@@ -31,6 +32,7 @@ describe('useReverbChannel poll fallback', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.unstubAllGlobals();
+        vi.unstubAllEnvs();
     });
 
     it('polls snapshotUrl on mount and on poll_fallback_seconds while offline', async () => {
@@ -96,5 +98,38 @@ describe('useReverbChannel poll fallback', () => {
         });
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps polling when Reverb key is missing (Hostinger / null broadcaster)', async () => {
+        vi.stubEnv('VITE_REVERB_APP_KEY', '');
+        useConnectionStatusMock.mockReturnValue('connected');
+
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ headcount: 1 }),
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        renderHook(() =>
+            useReverbChannel({
+                channel: 'dashboard',
+                events: ['HeadcountUpdated'],
+                onEvent: vi.fn(),
+                snapshotUrl: '/api/dashboard/summary',
+                onSnapshot: vi.fn(),
+            }),
+        );
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(12_000);
+        });
+
+        expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 });

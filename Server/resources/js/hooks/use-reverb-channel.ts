@@ -19,6 +19,13 @@ export type UseReverbChannelResult = {
     refresh: () => Promise<void>;
 };
 
+/** True when Vite baked a Reverb key (on-prem). False on Hostinger-style deploys. */
+export function isReverbClientEnabled(): boolean {
+    const key = import.meta.env.VITE_REVERB_APP_KEY;
+
+    return typeof key === 'string' && key.length > 0;
+}
+
 function mapConnectionStatus(
     connection: ReturnType<typeof useConnectionStatus>,
 ): ReverbLiveStatus {
@@ -51,10 +58,14 @@ export function useReverbChannel<TPayload = unknown>({
     const { poll_fallback_seconds: pollFallbackSeconds } = useSharedSettings();
     const resolvedPollIntervalMs =
         pollIntervalMs ?? Math.max(5, pollFallbackSeconds) * 1000;
+    const reverbEnabled = isReverbClientEnabled();
     const connection = useConnectionStatus();
-    const status = isAuthenticated
-        ? mapConnectionStatus(connection)
-        : 'offline';
+    // Without a Reverb key, null broadcaster reports "connected" — force offline
+    // so DOC-08 poll fallback keeps running on Hostinger.
+    const status: ReverbLiveStatus =
+        isAuthenticated && reverbEnabled
+            ? mapConnectionStatus(connection)
+            : 'offline';
     const prevStatus = useRef<ReverbLiveStatus>(status);
     const onEventRef = useRef(onEvent);
 
@@ -63,6 +74,10 @@ export function useReverbChannel<TPayload = unknown>({
     });
 
     useEcho(channel, events, (payload: TPayload) => {
+        if (!reverbEnabled) {
+            return;
+        }
+
         onEventRef.current(payload);
     });
 

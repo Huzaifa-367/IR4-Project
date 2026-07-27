@@ -106,7 +106,8 @@ jobs:
           username: ${{ env.SSH_USERNAME }}
           password: ${{ env.SSH_PASSWORD }}
           port: ${{ env.SSH_PORT }}
-          source: "Server/*"
+          # Include Server/.htaccess (Hostinger public_html → public/ rewrite); globs skip dotfiles.
+          source: "Server/*,Server/.htaccess,Server/public/.htaccess"
           target: ${{ env.DEPLOY_PATH }}
           strip_components: 1
           overwrite: true

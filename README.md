@@ -36,32 +36,30 @@ Start with `Docs/Doc 01 base structure.md`. Conventions for agents: `.cursor/rul
 
 ## Production deploy (Hostinger)
 
-**Disable Hostinger Git auto-deploy.** Deploy only via GitHub Actions SSH (`.github/workflows/deploy.yml`).
+**Disable Hostinger Git auto-deploy.** Deploy only via GitHub Actions (`.github/workflows/server-deploy.yml`).
 
 ### One-time server setup
 
 1. **hPanel → Git** — turn **off** Auto deployment (disconnect or disable webhook).
-2. **SSH** into the server and clone (or use an existing folder). `DEPLOY_PATH` is the **repo root** (the folder that contains `.git`); Laravel lives in `Server/`.
+2. **SSH** — `DEPLOY_PATH` is the Laravel root on the host (`artisan` lives here). CI uploads `Server/*` into this folder (flat layout).
 
 Production host: **ir4.ispc-ai.com**
 
 | Role | Path |
 |------|------|
 | Domain folder | `/home/u373214048/domains/ir4.ispc-ai.com` |
-| Repo root (`DEPLOY_PATH`, folder with `.git`) | `/home/u373214048/domains/ir4.ispc-ai.com/public_html` |
-| Laravel app (`artisan`) | `/home/u373214048/domains/ir4.ispc-ai.com/public_html/Server` |
-| Document root | `/home/u373214048/domains/ir4.ispc-ai.com/public_html/Server/public` |
+| Deploy target (`DEPLOY_PATH`) | `/home/u373214048/domains/ir4.ispc-ai.com/public_html` |
+| Web document root (hPanel) | `/home/u373214048/domains/ir4.ispc-ai.com/public_html` |
+| Laravel front controller | `/home/u373214048/domains/ir4.ispc-ai.com/public_html/public` |
+
+Leave document root on `public_html`. Root `.htaccess` (from `Server/.htaccess`) rewrites all traffic into `public/`.
 
 ```bash
-cd /home/u373214048/domains/ir4.ispc-ai.com
-# If public_html is empty or you are re-cloning as the monorepo:
-#   rm -rf public_html && git clone https://github.com/Huzaifa-367/IR4-Project.git public_html
-cd public_html/Server
+cd /home/u373214048/domains/ir4.ispc-ai.com/public_html
 cp .env.example .env   # then edit .env for production
 php artisan key:generate
+# ensure root .htaccess is present (next to artisan)
 ```
-
-Point the domain document root at `public_html/Server/public` (hPanel → Domains → ir4.ispc-ai.com → Document root).
 
 3. **GitHub → Settings → Secrets → Actions** — add:
 
@@ -74,17 +72,22 @@ Point the domain document root at `public_html/Server/public` (hPanel → Domain
 | `DEPLOY_PATH` | `/home/u373214048/domains/ir4.ispc-ai.com/public_html` |
 | `GH_DEPLOY_TOKEN` | GitHub PAT, **Contents: Read** — [create token](https://github.com/settings/tokens) |
 
-### Every push to `main`
+### Every push to `main` (Server changes)
 
-GitHub Actions SSHs in → `git pull` (uploads in `Server/storage/app/public` are kept) → symlink `Server/public/storage` → `composer install` → `npm run build` → `migrate` → config/route/view caches.
+GitHub Actions builds in CI → SCP `Server/*` into `DEPLOY_PATH` → storage symlink → migrate → optimize.
 
 Check the **Actions** tab for logs.
 
 ### Manual storage link (SSH)
 
 ```bash
-cd /home/u373214048/domains/ir4.ispc-ai.com/public_html/Server
+cd /home/u373214048/domains/ir4.ispc-ai.com/public_html
 ln -sfn "$(pwd)/storage/app/public" public/storage
 ```
+
+### Hostinger `.htaccess`
+
+- `Server/.htaccess` → deployed as `public_html/.htaccess` (rewrite → `public/`)
+- `Server/public/.htaccess` → Laravel front controller (unchanged)
 
 See `Server/README.md` for Laravel-specific setup and deploy detail.

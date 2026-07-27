@@ -1,0 +1,23 @@
+# Hostinger / shared hosting — document root is public_html (this file's directory).
+# Forward every request into Laravel's public/ front controller.
+# Keep Server/public/.htaccess for Authorization / trailing-slash / index.php routing.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Prefer HTTPS when the host already terminated TLS (Hostinger proxy).
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} =https
+    RewriteRule ^ - [E=HTTPS:on]
+
+    # Already under /public — do nothing (avoid rewrite loops).
+    RewriteRule ^public/ - [L]
+
+    # Send everything else to public/ (app, assets, storage symlink, index.php).
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Deny direct HTTP access to sensitive trees if a rewrite is bypassed.
+<IfModule mod_authz_core.c>
+    RedirectMatch 403 ^/(?:\.env|composer\.(?:json|lock)|artisan|vendor|storage|bootstrap|database|config|routes|app|tests|scripts)(?:/|$)
+</IfModule>

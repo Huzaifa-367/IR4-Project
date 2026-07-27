@@ -14,32 +14,31 @@ Copy `.env.example` → `.env` if setup did not already.
 
 ## Production deploy (Hostinger)
 
-**Disable Hostinger Git auto-deploy.** Deploy only via GitHub Actions SSH (`.github/workflows/deploy.yml` at the repo root).
+**Disable Hostinger Git auto-deploy.** Deploy only via GitHub Actions (`.github/workflows/server-deploy.yml`).
 
 ### One-time server setup
 
 1. **hPanel → Git** — turn **off** Auto deployment (disconnect or disable webhook).
-2. **SSH** into the server and clone (or use an existing folder). `DEPLOY_PATH` is the **repo root** (the folder that contains `.git`); this `Server/` directory is where `artisan` lives.
+2. **SSH** — `DEPLOY_PATH` is the Laravel root on the host (`artisan` lives here).
 
 Production host: **ir4.ispc-ai.com**
 
 | Role | Path |
 |------|------|
 | Domain folder | `/home/u373214048/domains/ir4.ispc-ai.com` |
-| Repo root (`DEPLOY_PATH`, folder with `.git`) | `/home/u373214048/domains/ir4.ispc-ai.com/public_html` |
-| Laravel app (`artisan`) | `/home/u373214048/domains/ir4.ispc-ai.com/public_html/Server` |
-| Document root | `/home/u373214048/domains/ir4.ispc-ai.com/public_html/Server/public` |
+| Deploy target (`DEPLOY_PATH`, Laravel root with `artisan`) | `/home/u373214048/domains/ir4.ispc-ai.com/public_html` |
+| Web document root (hPanel) | `/home/u373214048/domains/ir4.ispc-ai.com/public_html` |
+| Laravel front controller | `/home/u373214048/domains/ir4.ispc-ai.com/public_html/public` |
+
+`server-deploy.yml` uploads `Server/*` into `DEPLOY_PATH` (flat Laravel layout on the host). Leave hPanel document root on `public_html`. Root `.htaccess` (shipped as `Server/.htaccess`) rewrites all traffic into `public/`.
 
 ```bash
-cd /home/u373214048/domains/ir4.ispc-ai.com
-# If public_html is empty or you are re-cloning as the monorepo:
-#   rm -rf public_html && git clone https://github.com/Huzaifa-367/IR4-Project.git public_html
-cd public_html/Server
+cd /home/u373214048/domains/ir4.ispc-ai.com/public_html
 cp .env.example .env   # then edit .env for production
 php artisan key:generate
 ```
 
-Point the domain document root at `public_html/Server/public` (hPanel → Domains → ir4.ispc-ai.com → Document root).
+Confirm `.htaccess` exists next to `artisan` (rewrites → `public/`). Do **not** point the domain at `public/` unless you remove that root rewrite.
 
 3. **GitHub → Settings → Secrets → Actions** — add:
 
@@ -52,16 +51,42 @@ Point the domain document root at `public_html/Server/public` (hPanel → Domain
 | `DEPLOY_PATH` | `/home/u373214048/domains/ir4.ispc-ai.com/public_html` |
 | `GH_DEPLOY_TOKEN` | GitHub PAT, **Contents: Read** — [create token](https://github.com/settings/tokens) |
 
-### Every push to `main`
+### Every push to `main` (Server changes)
 
-GitHub Actions SSHs in → `git pull` (uploads in `storage/app/public` are kept) → symlink `public/storage` → `composer install` → `npm run build` → `migrate` → config/route/view caches.
+GitHub Actions builds in CI → SCP `Server/*` into `DEPLOY_PATH` → storage symlink → migrate → optimize.
 
 Check the **Actions** tab for logs.
 
 ### Manual storage link (SSH)
 
 ```bash
-cd /home/u373214048/domains/ir4.ispc-ai.com/public_html/Server
+cd /home/u373214048/domains/ir4.ispc-ai.com/public_html
 ln -sfn "$(pwd)/storage/app/public" public/storage
+```
+
+### Hostinger `.htaccess`
+
+| Repo path | On server |
+|-----------|-----------|
+| `Server/.htaccess` | `public_html/.htaccess` — rewrite all requests into `public/` |
+| `Server/public/.htaccess` | `public_html/public/.htaccess` — Laravel front controller |
+
+Until the next deploy lands the root file, you can create it manually on SSH:
+
+```bash
+cd /home/u373214048/domains/ir4.ispc-ai.com/public_html
+cat > .htaccess <<'EOF'
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} =https
+    RewriteRule ^ - [E=HTTPS:on]
+    RewriteRule ^public/ - [L]
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+<IfModule mod_authz_core.c>
+    RedirectMatch 403 ^/(?:\.env|composer\.(?:json|lock)|artisan|vendor|storage|bootstrap|database|config|routes|app|tests|scripts)(?:/|$)
+</IfModule>
+EOF
 ```
 
