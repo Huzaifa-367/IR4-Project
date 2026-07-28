@@ -31,6 +31,10 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Hostinger terminates TLS in front of LiteSpeed; trust X-Forwarded-* so
+        // request scheme/host match what browsers use (signed URLs, HTTPS redirects).
+        $middleware->trustProxies(at: '*');
+
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->alias([

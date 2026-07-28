@@ -18,6 +18,10 @@
 </IfModule>
 
 # Deny direct HTTP access to sensitive trees if a rewrite is bypassed.
+# Do NOT blanket-deny /storage — Laravel signed private downloads use
+# /storage/private/{path} and the public disk uses /storage/... via public/storage.
+# Still block real on-disk trees under the app root (logs / framework / app).
 <IfModule mod_authz_core.c>
-    RedirectMatch 403 ^/(?:\.env|composer\.(?:json|lock)|artisan|vendor|storage|bootstrap|database|config|routes|app|tests|scripts)(?:/|$)
+    RedirectMatch 403 ^/(?:\.env|composer\.(?:json|lock)|artisan|vendor|bootstrap|database|config|routes|app|tests|scripts)(?:/|$)
+    RedirectMatch 403 ^/storage/(?:logs|framework|app)(?:/|$)
 </IfModule>

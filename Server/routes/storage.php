@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 Route::get('/storage/private/{path}', function (string $path): StreamedResponse {
+    $path = rawurldecode($path);
     abort_unless(Storage::disk('private')->exists($path), 404);
 
     return Storage::disk('private')->response($path);
