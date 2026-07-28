@@ -1,0 +1,19 @@
+[Unit]
+Description=IR4 MediaMTX camera gateway (live wall)
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Flattened SCC app root (directory that contains artisan + scripts/)
+WorkingDirectory=/data2/laravel/IR4-Project
+ExecStartPre=-/usr/bin/docker rm -f ir4-mediamtx
+ExecStart=/usr/bin/docker run -d --name ir4-mediamtx --network host --restart unless-stopped \
+  -v /data2/laravel/IR4-Project/scripts/mediamtx.yml:/mediamtx.yml:ro \
+  bluenviron/mediamtx:latest
+ExecStop=/usr/bin/docker stop ir4-mediamtx
+
+[Install]
+WantedBy=multi-user.target

@@ -4,12 +4,15 @@
 # Operators only edit RTSP in IR4 Cameras UI.
 # Laravel pushes each Camera.stream_url here via MEDIAMTX_API_URL.
 #
-# Run (Docker example):
-#   docker run --rm -it --network host \
-#     -v "$PWD/deploy/mediamtx.yml:/mediamtx.yml" \
+# On SCC (flattened app root next to artisan):
+#   sudo docker run -d --name ir4-mediamtx --network host --restart unless-stopped \
+#     -v "$PWD/scripts/mediamtx.yml:/mediamtx.yml:ro" \
 #     bluenviron/mediamtx:latest
 #
-# Then in Server/.env:
+# Or: sudo systemctl enable --now ir4-mediamtx
+# (see scripts/ir4-mediamtx.service)
+#
+# .env:
 #   CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://<this-host>:8888/{reference}
 #   MEDIAMTX_API_URL=http://127.0.0.1:9997
 #   php artisan ir4:sync-camera-streams

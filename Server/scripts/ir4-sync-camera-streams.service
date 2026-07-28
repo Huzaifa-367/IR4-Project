@@ -1,0 +1,17 @@
+[Unit]
+Description=IR4 sync camera RTSP paths into MediaMTX
+After=ir4-mediamtx.service network-online.target
+Wants=ir4-mediamtx.service
+Requires=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/data2/laravel/IR4-Project
+# Give MediaMTX a moment to bind :9997
+ExecStartPre=/bin/sleep 3
+ExecStart=/usr/bin/php /data2/laravel/IR4-Project/artisan ir4:sync-camera-streams
+User=scc1
+Group=scc1
+
+[Install]
+WantedBy=multi-user.target

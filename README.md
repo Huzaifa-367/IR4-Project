@@ -30,25 +30,60 @@ flutter run
 
 On the login screen, base URL is the LAN address of the Server (e.g. `http://10.0.2.2:8000` for the Android emulator, or `http://<mac-lan-ip>:8000` for a physical device).
 
-## Live wall cameras (MediaMTX)
+## Live wall cameras (MediaMTX) — permanent multi-feed setup
 
-Operators only set **RTSP** on Hardware → Cameras. IR4 pushes each URL into MediaMTX automatically.
+**Operator UX:** only set RTSP (+ `reference`) on Hardware → Cameras. IR4 pushes each URL into MediaMTX; `/live` iframes `http://<scc>:8888/{reference}`.
 
-1. Start MediaMTX once (see `deploy/mediamtx.yml`):
-   ```bash
-   docker run --rm -it --network host \
-     -v "$PWD/deploy/mediamtx.yml:/mediamtx.yml" \
-     bluenviron/mediamtx:latest
-   ```
-2. In `Server/.env`:
-   ```env
-   CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://127.0.0.1:8888/{reference}
-   MEDIAMTX_API_URL=http://127.0.0.1:9997
-   ```
-3. Optional backfill: `php artisan ir4:sync-camera-streams`
-4. Open `/live` — tiles use `http://…:8888/<camera-reference>`.
+Config and units live under **`Server/scripts/`** (on SCC flattened root: `scripts/`).
 
-No per-camera MediaMTX YAML edits after that.
+### Architecture
+
+```text
+DB cameras.stream_url  --save/sync-->  MediaMTX paths  --HLS-->  /live tiles
+```
+
+1. **MediaMTX** always running (Docker + systemd).
+2. **`MEDIAMTX_API_URL`** set so create/update camera calls MediaMTX API.
+3. **`ir4:sync-camera-streams`** on boot (and after adding cameras offline).
+4. **`CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://<SCC-LAN-IP>:8888/{reference}`** for browsers on other PCs.
+
+### One-time SCC install
+
+```bash
+cd /data2/laravel/IR4-Project   # flattened Server/ (has artisan + scripts/)
+
+sudo cp scripts/ir4-mediamtx.service /etc/systemd/system/
+sudo cp scripts/ir4-sync-camera-streams.service /etc/systemd/system/
+# Edit WorkingDirectory / User / volume path in those units if your path/user differ
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now ir4-mediamtx.service
+sudo systemctl enable --now ir4-sync-camera-streams.service
+```
+
+`.env`:
+
+```env
+CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://192.168.x.x:8888/{reference}
+MEDIAMTX_API_URL=http://127.0.0.1:9997
+```
+
+```bash
+php artisan config:clear
+php artisan ir4:sync-camera-streams
+```
+
+Encode `@` in RTSP passwords as `%40`.
+
+### Day-to-day
+
+| Action | Result |
+|--------|--------|
+| Add/update camera RTSP in UI | Path created/updated in MediaMTX automatically |
+| Open `/live` | One tile per camera via `{reference}` |
+| Reboot SCC | MediaMTX restarts; sync unit re-pushes all DB cameras |
+
+Files: `scripts/mediamtx.yml`, `scripts/ir4-mediamtx.service`, `scripts/ir4-sync-camera-streams.service`.
 
 ## On-prem SCC backups (DOC-19 / DOC-20)
 
