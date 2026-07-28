@@ -90,3 +90,13 @@ cat > .htaccess <<'EOF'
 EOF
 ```
 
+### Private file downloads
+
+Signed private-disk URLs use **`/files/private/{path}`** (not `/storage/...`).
+
+Root `.htaccess` must keep denying `/storage` (real Laravel `storage/` tree on disk). Downloads go through Laravel:
+
+`https://ir4.ispc-ai.com/files/private/reports/19/report.pdf?expires=…&signature=…`
+
+Old `/storage/private/...` links will still 403 by design — open a fresh link from the app after deploy.
+
