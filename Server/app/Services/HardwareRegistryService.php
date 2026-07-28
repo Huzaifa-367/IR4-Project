@@ -18,6 +18,7 @@ final class HardwareRegistryService
 {
     public function __construct(
         private readonly AlertService $alerts,
+        private readonly CameraStreamGatewayService $cameraStreams,
     ) {}
 
     /**
@@ -60,7 +61,7 @@ final class HardwareRegistryService
      */
     public function createCamera(array $data): Camera
     {
-        return Camera::query()->create([
+        $camera = Camera::query()->create([
             'asset_id' => $data['asset_id'],
             'name' => $data['name'],
             'reference' => $data['reference'],
@@ -71,6 +72,10 @@ final class HardwareRegistryService
             'status' => HardwareStatus::Offline,
             'meta' => $data['meta'] ?? null,
         ]);
+
+        $this->cameraStreams->sync($camera);
+
+        return $camera;
     }
 
     /**
@@ -78,9 +83,17 @@ final class HardwareRegistryService
      */
     public function updateCamera(Camera $camera, array $data): Camera
     {
+        $previousReference = $camera->reference;
         $camera->fill($data)->save();
+        $fresh = $camera->fresh() ?? $camera;
 
-        return $camera->fresh() ?? $camera;
+        if ($previousReference !== $fresh->reference) {
+            $this->cameraStreams->remove($previousReference);
+        }
+
+        $this->cameraStreams->sync($fresh);
+
+        return $fresh;
     }
 
     public function toggleCameraAi(Camera $camera): Camera

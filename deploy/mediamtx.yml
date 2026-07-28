@@ -1,0 +1,32 @@
+########################################
+# IR4 MediaMTX — browser gateway for live wall
+########################################
+# Operators only edit RTSP in IR4 Cameras UI.
+# Laravel pushes each Camera.stream_url here via MEDIAMTX_API_URL.
+#
+# Run (Docker example):
+#   docker run --rm -it --network host \
+#     -v "$PWD/deploy/mediamtx.yml:/mediamtx.yml" \
+#     bluenviron/mediamtx:latest
+#
+# Then in Server/.env:
+#   CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://<this-host>:8888/{reference}
+#   MEDIAMTX_API_URL=http://127.0.0.1:9997
+#   php artisan ir4:sync-camera-streams
+
+logLevel: info
+
+api: yes
+apiAddress: :9997
+
+# Browser playback (iframe on /live)
+hls: yes
+hlsAddress: :8888
+hlsAlwaysRemux: no
+hlsVariant: lowLatency
+
+webrtc: yes
+webrtcAddress: :8889
+
+# Paths are created dynamically by IR4 (CameraStreamGatewayService).
+paths: {}

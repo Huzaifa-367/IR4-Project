@@ -30,9 +30,25 @@ flutter run
 
 On the login screen, base URL is the LAN address of the Server (e.g. `http://10.0.2.2:8000` for the Android emulator, or `http://<mac-lan-ip>:8000` for a physical device).
 
-## Docs
+## Live wall cameras (MediaMTX)
 
-Start with `Docs/Doc 01 base structure.md`. Conventions for agents: `.cursor/rules/ir4-conventions.mdc`.
+Operators only set **RTSP** on Hardware → Cameras. IR4 pushes each URL into MediaMTX automatically.
+
+1. Start MediaMTX once (see `deploy/mediamtx.yml`):
+   ```bash
+   docker run --rm -it --network host \
+     -v "$PWD/deploy/mediamtx.yml:/mediamtx.yml" \
+     bluenviron/mediamtx:latest
+   ```
+2. In `Server/.env`:
+   ```env
+   CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://127.0.0.1:8888/{reference}
+   MEDIAMTX_API_URL=http://127.0.0.1:9997
+   ```
+3. Optional backfill: `php artisan ir4:sync-camera-streams`
+4. Open `/live` — tiles use `http://…:8888/<camera-reference>`.
+
+No per-camera MediaMTX YAML edits after that.
 
 ## On-prem SCC backups (DOC-19 / DOC-20)
 
