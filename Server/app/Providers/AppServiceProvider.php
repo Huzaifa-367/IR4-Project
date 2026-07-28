@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Support\Facades\URL;
 use RuntimeException;
 use Spatie\Backup\Events\BackupHasFailed;
 use Spatie\Backup\Events\BackupManifestWasCreated;
@@ -78,15 +77,6 @@ class AppServiceProvider extends ServiceProvider
         Date::use(CarbonImmutable::class);
 
         Model::shouldBeStrict(! app()->isProduction());
-
-        $appUrl = (string) config('app.url');
-        if ($appUrl !== '') {
-            URL::forceRootUrl($appUrl);
-            $scheme = parse_url($appUrl, PHP_URL_SCHEME);
-            if (is_string($scheme) && $scheme !== '') {
-                URL::forceScheme($scheme);
-            }
-        }
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),

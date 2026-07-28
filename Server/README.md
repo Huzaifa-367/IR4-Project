@@ -85,28 +85,8 @@ cat > .htaccess <<'EOF'
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 <IfModule mod_authz_core.c>
-    RedirectMatch 403 ^/(?:\.env|composer\.(?:json|lock)|artisan|vendor|bootstrap|database|config|routes|app|tests|scripts)(?:/|$)
-    RedirectMatch 403 ^/storage/(?:logs|framework|app)(?:/|$)
+    RedirectMatch 403 ^/(?:\.env|composer\.(?:json|lock)|artisan|vendor|storage|bootstrap|database|config|routes|app|tests|scripts)(?:/|$)
 </IfModule>
 EOF
-```
-
-### Private file downloads (`/storage/private/...`)
-
-These are **Laravel signed routes** (not Apache file serving). `public/.htaccess` does not need changes.
-
-Probed on production: unsigned → **403** (Laravel `signed` middleware). A valid signature with a missing file → **404**.
-
-| Status | Meaning |
-|--------|---------|
-| **403** | Missing / invalid / **expired** `signature`, or `APP_URL` / `APP_KEY` mismatch when the link was created. Generate a **new** link from the UI after deploy. |
-| **404** | Signature OK but file not on disk at `storage/app/private/{path}` (e.g. `reports/16/report.pdf`). |
-| **200** | OK |
-
-On the host:
-
-```bash
-ls -la storage/app/private/reports/16/
-grep APP_URL .env   # must be https://ir4.ispc-ai.com
 ```
 
