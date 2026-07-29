@@ -125,6 +125,8 @@ fi
 rsync -a --delete \
   --exclude='.env' \
   --exclude='.env.*' \
+  --exclude='auto.crt' \
+  --exclude='auto.key' \
   --exclude='vendor/' \
   --exclude='node_modules/' \
   --exclude='storage/app/' \
