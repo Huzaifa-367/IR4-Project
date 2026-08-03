@@ -257,7 +257,60 @@ final class CameraStreamGatewayService
 
     private function url(string $path): string
     {
-        return rtrim((string) config('camera_stream.mediamtx.api_url'), '/').$path;
+        return rtrim($this->apiBaseUrl(), '/').$path;
+    }
+
+    /**
+     * Resolve MEDIAMTX_API_URL. Special value `gateway` (or http://gateway:9997)
+     * uses this container's default gateway — the Docker/Podman/Lerd host where
+     * MediaMTX --network host listens on :9997.
+     */
+    public function apiBaseUrl(): string
+    {
+        $raw = trim((string) config('camera_stream.mediamtx.api_url'));
+        $raw = rtrim($raw, '/');
+
+        if ($raw === '' || strcasecmp($raw, 'gateway') === 0 || preg_match('#^https?://gateway(?::\d+)?$#i', $raw) === 1) {
+            $gateway = $this->detectDefaultGateway() ?? '172.17.0.1';
+            $port = 9997;
+            if (preg_match('#^https?://gateway:(\d+)$#i', $raw, $m) === 1) {
+                $port = (int) $m[1];
+            }
+
+            return 'http://'.$gateway.':'.$port;
+        }
+
+        return $raw;
+    }
+
+    public function detectDefaultGateway(): ?string
+    {
+        $routes = @file('/proc/net/route', FILE_IGNORE_NEW_LINES);
+        if ($routes === false) {
+            return null;
+        }
+
+        foreach ($routes as $line) {
+            $parts = preg_split('/\s+/', trim($line));
+            if ($parts === false || count($parts) < 3) {
+                continue;
+            }
+            // Destination 00000000 = default route; Gateway is little-endian hex.
+            if (($parts[1] ?? '') !== '00000000') {
+                continue;
+            }
+            $hex = $parts[2];
+            if (! preg_match('/^[0-9A-Fa-f]{8}$/', $hex)) {
+                continue;
+            }
+            $bytes = array_reverse(str_split($hex, 2));
+            $ip = implode('.', array_map(fn (string $b): int => hexdec($b), $bytes));
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                return $ip;
+            }
+        }
+
+        return null;
     }
 
     private function client(): PendingRequest

@@ -65,22 +65,21 @@ sudo systemctl enable --now ir4-sync-camera-streams.service
 
 ```env
 CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://192.168.x.x:8888/{reference}
-# From Lerd PHP use the MediaMTX container DNS name (NOT 127.0.0.1, NOT usually the LAN IP):
-MEDIAMTX_API_URL=http://ir4-mediamtx:9997
-# Leave empty unless you enabled MediaMTX API auth in mediamtx.yml
-# (these are NOT the camera RTSP credentials):
+# From Lerd PHP: magic value resolves the container default gateway → host MediaMTX :9997
+MEDIAMTX_API_URL=gateway
+# Leave empty (not camera RTSP credentials):
 MEDIAMTX_API_USER=
 MEDIAMTX_API_PASS=
 ```
 
-Start / reattach MediaMTX onto Lerd’s Docker networks:
+Start MediaMTX on the host network (opens anonymous API for sync):
 
 ```bash
 sudo bash scripts/ensure-mediamtx.sh
-# or: sudo systemctl restart ir4-mediamtx
+# Host curl must list paths, not "authentication error"
 lerd artisan config:clear
+lerd artisan ir4:sync-camera-streams --probe
 lerd artisan ir4:sync-camera-streams
-curl -s http://127.0.0.1:9997/v3/config/paths/list
 ```
 
 RTSP passwords with `@` are encoded automatically when syncing (`@` → `%40`).

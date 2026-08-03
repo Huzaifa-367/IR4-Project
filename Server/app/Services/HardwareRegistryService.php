@@ -111,7 +111,7 @@ final class HardwareRegistryService
             'warning',
             'Camera saved, but MediaMTX sync failed'
             .($detail !== '' ? ': '.$detail : '.')
-            .' Live wall will not show this feed until MEDIAMTX_API_URL is reachable from Lerd (use http://ir4-mediamtx:9997) and sync succeeds.'
+            .' Live wall will not show this feed until MEDIAMTX_API_URL is reachable from Lerd (use gateway) and sync succeeds.'
         );
     }
 

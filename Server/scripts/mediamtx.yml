@@ -4,23 +4,32 @@
 # Operators only edit RTSP in IR4 Cameras UI.
 # Laravel pushes each Camera.stream_url here via MEDIAMTX_API_URL.
 #
-# On SCC (flattened app root next to artisan):
-#   sudo docker run -d --name ir4-mediamtx --network host --restart unless-stopped \
-#     -v "$PWD/scripts/mediamtx.yml:/mediamtx.yml:ro" \
-#     bluenviron/mediamtx:latest
+# Start: sudo bash scripts/ensure-mediamtx.sh
 #
-# Or: sudo systemctl enable --now ir4-mediamtx
-# (see scripts/ir4-mediamtx.service)
-#
-# .env (from Lerd/Docker PHP use the host LAN IP, not 127.0.0.1):
-#   CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://<this-host>:8888/{reference}
-#   MEDIAMTX_API_URL=http://<this-host>:9997
+# .env (from Lerd PHP — NOT 127.0.0.1):
+#   CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://<SCC-LAN-IP>:8888/{reference}
+#   MEDIAMTX_API_URL=gateway
+#   MEDIAMTX_API_USER=
+#   MEDIAMTX_API_PASS=
 #   lerd artisan ir4:sync-camera-streams
 
 logLevel: info
 
 api: yes
 apiAddress: :9997
+
+# Newer MediaMTX images deny API by default unless `action: api` is granted.
+# `user: any` + empty pass = anonymous (host curl and Laravel without Basic auth).
+authMethod: internal
+authInternalUsers:
+  - user: any
+    pass:
+    permissions:
+      - action: publish
+      - action: read
+      - action: playback
+      - action: api
+      - action: metrics
 
 # Browser playback (iframe on /live)
 hls: yes
@@ -32,6 +41,5 @@ webrtc: yes
 webrtcAddress: :8889
 
 # Paths are created dynamically by IR4 (CameraStreamGatewayService).
-# Prefer MEDIAMTX_API_URL=http://ir4-mediamtx:9997 from Lerd PHP (same Docker network).
-# Do not use 127.0.0.1 from Lerd — that is the container loopback.
+# From Lerd set MEDIAMTX_API_URL=gateway (resolves Docker/Podman default gateway).
 paths: {}

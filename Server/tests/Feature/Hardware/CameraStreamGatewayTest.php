@@ -134,3 +134,12 @@ it('probes mediamtx api reachability', function () {
     expect($probe['ok'])->toBeTrue()
         ->and($probe['status'])->toBe(200);
 });
+
+it('resolves gateway api url via default gateway', function () {
+    config()->set('camera_stream.mediamtx.api_url', 'gateway');
+
+    $gateway = app(CameraStreamGatewayService::class);
+    $url = $gateway->apiBaseUrl();
+
+    expect($url)->toMatch('#^http://\d{1,3}(?:\.\d{1,3}){3}:9997$#');
+});
