@@ -122,3 +122,15 @@ it('reports failed syncs when mediamtx is unreachable', function () {
         ->and($result['failed'])->toBe(1)
         ->and($result['errors'])->toContain('cam-fail');
 });
+
+it('probes mediamtx api reachability', function () {
+    config()->set('camera_stream.mediamtx.api_url', 'http://mediamtx.test:9997');
+    Http::fake([
+        'mediamtx.test:9997/v3/config/paths/list' => Http::response(['itemCount' => 0, 'items' => []], 200),
+    ]);
+
+    $probe = app(CameraStreamGatewayService::class)->probe();
+
+    expect($probe['ok'])->toBeTrue()
+        ->and($probe['status'])->toBe(200);
+});

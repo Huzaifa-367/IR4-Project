@@ -73,7 +73,7 @@ final class HardwareRegistryService
             'meta' => $data['meta'] ?? null,
         ]);
 
-        $this->cameraStreams->sync($camera);
+        $this->syncCameraStreamOrFlash($camera);
 
         return $camera;
     }
@@ -91,9 +91,28 @@ final class HardwareRegistryService
             $this->cameraStreams->remove($previousReference);
         }
 
-        $this->cameraStreams->sync($fresh);
+        $this->syncCameraStreamOrFlash($fresh);
 
         return $fresh;
+    }
+
+    private function syncCameraStreamOrFlash(Camera $camera): void
+    {
+        if (! $this->cameraStreams->isConfigured()) {
+            return;
+        }
+
+        if ($this->cameraStreams->sync($camera)) {
+            return;
+        }
+
+        $detail = $this->cameraStreams->lastError();
+        session()->flash(
+            'warning',
+            'Camera saved, but MediaMTX sync failed'
+            .($detail !== '' ? ': '.$detail : '.')
+            .' Live wall will not show this feed until MEDIAMTX_API_URL is reachable from Lerd (use http://ir4-mediamtx:9997) and sync succeeds.'
+        );
     }
 
     public function toggleCameraAi(Camera $camera): Camera

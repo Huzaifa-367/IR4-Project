@@ -14,21 +14,76 @@ use Throwable;
  */
 final class CameraStreamGatewayService
 {
+    private string $lastError = '';
+
     public function isConfigured(): bool
     {
         return (string) config('camera_stream.mediamtx.api_url') !== '';
     }
 
-    public function sync(Camera $camera): bool
+    public function lastError(): string
+    {
+        return $this->lastError;
+    }
+
+    /**
+     * GET /v3/config/paths/list — verifies PHP can reach MediaMTX.
+     *
+     * @return array{ok: bool, status: int|null, body: string, message: string}
+     */
+    public function probe(): array
     {
         if (! $this->isConfigured()) {
+            return [
+                'ok' => false,
+                'status' => null,
+                'body' => '',
+                'message' => 'MEDIAMTX_API_URL is not set',
+            ];
+        }
+
+        try {
+            $response = $this->client()->get($this->url('/v3/config/paths/list'));
+
+            return [
+                'ok' => $response->successful(),
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'message' => $response->successful()
+                    ? 'MediaMTX API reachable'
+                    : 'MediaMTX API HTTP '.$response->status().': '.$this->shortBody($response->body()),
+            ];
+        } catch (Throwable $e) {
+            return [
+                'ok' => false,
+                'status' => null,
+                'body' => '',
+                'message' => 'Cannot reach MediaMTX API: '.$e->getMessage(),
+            ];
+        }
+    }
+
+    public function sync(Camera $camera): bool
+    {
+        $this->lastError = '';
+
+        if (! $this->isConfigured()) {
+            $this->lastError = 'MEDIAMTX_API_URL is not set';
+
             return false;
         }
 
         $name = $this->pathName($camera->reference);
+        $source = $this->encodeRtspSource((string) $camera->stream_url);
+        if ($source === '') {
+            $this->lastError = $camera->reference.': empty stream_url';
+
+            return false;
+        }
+
         $payload = [
             // Encode user/password so passwords containing @/: work (ffplay is lenient; MediaMTX is not).
-            'source' => $this->encodeRtspSource($camera->stream_url),
+            'source' => $source,
             'sourceOnDemand' => (bool) config('camera_stream.mediamtx.source_on_demand', true),
         ];
 
@@ -45,6 +100,20 @@ final class CameraStreamGatewayService
                 return true;
             }
 
+            // "already exists" on add after a racing replace — treat as success if get works.
+            if ($add->status() === 400 && str_contains($add->body(), 'already exists')) {
+                return true;
+            }
+
+            $this->lastError = sprintf(
+                '%s: replace HTTP %s (%s); add HTTP %s (%s)',
+                $camera->reference,
+                $replace->status(),
+                $this->shortBody($replace->body()),
+                $add->status(),
+                $this->shortBody($add->body()),
+            );
+
             Log::warning('MediaMTX camera stream sync failed', [
                 'reference' => $camera->reference,
                 'api_url' => (string) config('camera_stream.mediamtx.api_url'),
@@ -55,6 +124,7 @@ final class CameraStreamGatewayService
 
             return false;
         } catch (Throwable $e) {
+            $this->lastError = $camera->reference.': '.$e->getMessage();
             Log::warning('MediaMTX camera stream sync error: '.$e->getMessage(), [
                 'reference' => $camera->reference,
                 'api_url' => (string) config('camera_stream.mediamtx.api_url'),
@@ -84,20 +154,27 @@ final class CameraStreamGatewayService
     /**
      * Push every registered camera RTSP URL into MediaMTX.
      *
-     * @return array{synced: int, failed: int, skipped: bool, errors: list<string>}
+     * @return array{synced: int, failed: int, skipped: bool, errors: list<string>, detail: string}
      */
     public function syncAll(): array
     {
         if (! $this->isConfigured()) {
-            return ['synced' => 0, 'failed' => 0, 'skipped' => true, 'errors' => []];
+            return [
+                'synced' => 0,
+                'failed' => 0,
+                'skipped' => true,
+                'errors' => [],
+                'detail' => '',
+            ];
         }
 
         $synced = 0;
         $failed = 0;
         /** @var list<string> $errors */
         $errors = [];
+        $detail = '';
 
-        Camera::query()->orderBy('id')->each(function (Camera $camera) use (&$synced, &$failed, &$errors): void {
+        Camera::query()->orderBy('id')->each(function (Camera $camera) use (&$synced, &$failed, &$errors, &$detail): void {
             if ($this->sync($camera)) {
                 $synced++;
 
@@ -106,6 +183,9 @@ final class CameraStreamGatewayService
 
             $failed++;
             $errors[] = $camera->reference;
+            if ($detail === '' && $this->lastError !== '') {
+                $detail = $this->lastError;
+            }
         });
 
         return [
@@ -113,6 +193,7 @@ final class CameraStreamGatewayService
             'failed' => $failed,
             'skipped' => false,
             'errors' => $errors,
+            'detail' => $detail,
         ];
     }
 
@@ -187,10 +268,19 @@ final class CameraStreamGatewayService
 
         $user = config('camera_stream.mediamtx.api_user');
         $pass = config('camera_stream.mediamtx.api_pass');
-        if (is_string($user) && $user !== '') {
-            $request = $request->withBasicAuth($user, (string) $pass);
+        // Only send Basic auth when MediaMTX API auth is actually enabled.
+        // Camera RTSP user/pass must NEVER go here — wrong Basic auth → all syncs fail.
+        if (is_string($user) && trim($user) !== '') {
+            $request = $request->withBasicAuth(trim($user), is_string($pass) ? $pass : '');
         }
 
         return $request;
+    }
+
+    private function shortBody(string $body): string
+    {
+        $body = trim(preg_replace('/\s+/', ' ', $body) ?? $body);
+
+        return strlen($body) > 180 ? substr($body, 0, 177).'...' : $body;
     }
 }
