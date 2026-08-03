@@ -61,19 +61,27 @@ sudo systemctl enable --now ir4-mediamtx.service
 sudo systemctl enable --now ir4-sync-camera-streams.service
 ```
 
-`.env`:
+`.env` (critical under Lerd / Docker PHP):
 
 ```env
 CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://192.168.x.x:8888/{reference}
-MEDIAMTX_API_URL=http://127.0.0.1:9997
+# Must be reachable FROM the PHP container (lerd). Do NOT use 127.0.0.1 —
+# that is the container loopback, not MediaMTX on the host. Use the SCC LAN IP:
+MEDIAMTX_API_URL=http://192.168.x.x:9997
+# Leave empty unless you enabled MediaMTX API auth in mediamtx.yml
+# (these are NOT the camera RTSP credentials):
+MEDIAMTX_API_USER=
+MEDIAMTX_API_PASS=
 ```
 
 ```bash
-php artisan config:clear
-php artisan ir4:sync-camera-streams
+lerd artisan config:clear
+lerd artisan ir4:sync-camera-streams
+# Expect "Synced N" with failed=0; then:
+curl -s http://127.0.0.1:9997/v3/config/paths/list
 ```
 
-Encode `@` in RTSP passwords as `%40`.
+RTSP passwords with `@` are encoded automatically when syncing (`@` → `%40`).
 
 ### Day-to-day
 

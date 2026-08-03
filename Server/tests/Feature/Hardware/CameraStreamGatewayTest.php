@@ -83,3 +83,42 @@ it('skips sync when mediamtx api is not configured', function () {
 
     Http::assertNothingSent();
 });
+
+it('encodes rtsp passwords that contain @ before pushing to mediamtx', function () {
+    config()->set('camera_stream.mediamtx.api_url', 'http://mediamtx.test:9997');
+    Http::fake([
+        'mediamtx.test:9997/v3/config/paths/replace/*' => Http::response(['status' => 'ok'], 200),
+    ]);
+
+    $camera = Camera::factory()->create([
+        'reference' => 'cam-ppe-01',
+        'stream_url' => 'rtsp://admin:UNity@320@@192.168.1.64:554/Streaming/Channels/101',
+    ]);
+
+    $gateway = app(CameraStreamGatewayService::class);
+    expect($gateway->encodeRtspSource($camera->stream_url))
+        ->toBe('rtsp://admin:UNity%40320%40@192.168.1.64:554/Streaming/Channels/101');
+
+    $gateway->sync($camera);
+
+    Http::assertSent(fn ($request) => ($request['source'] ?? null)
+        === 'rtsp://admin:UNity%40320%40@192.168.1.64:554/Streaming/Channels/101');
+});
+
+it('reports failed syncs when mediamtx is unreachable', function () {
+    config()->set('camera_stream.mediamtx.api_url', 'http://mediamtx.test:9997');
+    Http::fake([
+        'mediamtx.test:9997/*' => Http::response(['error' => 'no'], 500),
+    ]);
+
+    Camera::factory()->create([
+        'reference' => 'cam-fail',
+        'stream_url' => 'rtsp://10.0.0.1/x',
+    ]);
+
+    $result = app(CameraStreamGatewayService::class)->syncAll();
+
+    expect($result['synced'])->toBe(0)
+        ->and($result['failed'])->toBe(1)
+        ->and($result['errors'])->toContain('cam-fail');
+});

@@ -12,10 +12,10 @@
 # Or: sudo systemctl enable --now ir4-mediamtx
 # (see scripts/ir4-mediamtx.service)
 #
-# .env:
+# .env (from Lerd/Docker PHP use the host LAN IP, not 127.0.0.1):
 #   CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://<this-host>:8888/{reference}
-#   MEDIAMTX_API_URL=http://127.0.0.1:9997
-#   php artisan ir4:sync-camera-streams
+#   MEDIAMTX_API_URL=http://<this-host>:9997
+#   lerd artisan ir4:sync-camera-streams
 
 logLevel: info
 
