@@ -39,8 +39,10 @@ echo "  curl -s http://127.0.0.1:9997/v3/config/paths/list"
 curl -s http://127.0.0.1:9997/v3/config/paths/list || true
 echo
 echo
-echo "From Lerd PHP set in .env:"
-echo "  MEDIAMTX_API_URL=gateway"
+echo "From Lerd PHP set in .env (use SCC LAN IP — not 127.0.0.1, not 10.89.x.x):"
+echo "  MEDIAMTX_API_URL=http://<SCC-LAN-IP>:9997"
+echo "  # or: MEDIAMTX_API_URL=gateway"
+echo "  #      MEDIAMTX_HOST_IP=<SCC-LAN-IP>"
 echo "  MEDIAMTX_API_USER="
 echo "  MEDIAMTX_API_PASS="
 echo "  CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://<SCC-LAN-IP>:8888/{reference}"

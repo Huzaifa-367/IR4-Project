@@ -29,7 +29,10 @@ return [
     |
     */
     'mediamtx' => [
+        // Use `gateway` under Lerd/Podman — resolves a host that can reach MediaMTX on :9997.
         'api_url' => rtrim((string) env('MEDIAMTX_API_URL', ''), '/'),
+        // Optional SCC LAN IP (e.g. 192.168.3.149). Preferred when `api_url=gateway`.
+        'host_ip' => env('MEDIAMTX_HOST_IP'),
         'api_user' => env('MEDIAMTX_API_USER'),
         'api_pass' => env('MEDIAMTX_API_PASS'),
         'timeout' => (int) env('MEDIAMTX_API_TIMEOUT', 5),

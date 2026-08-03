@@ -65,9 +65,10 @@ sudo systemctl enable --now ir4-sync-camera-streams.service
 
 ```env
 CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://192.168.x.x:8888/{reference}
-# From Lerd PHP: magic value resolves the container default gateway → host MediaMTX :9997
-MEDIAMTX_API_URL=gateway
-# Leave empty (not camera RTSP credentials):
+# Prefer explicit SCC LAN IP under Lerd/Podman (pasta gateway ≠ host):
+MEDIAMTX_API_URL=http://192.168.x.x:9997
+# Or: MEDIAMTX_API_URL=gateway with MEDIAMTX_HOST_IP=192.168.x.x
+MEDIAMTX_HOST_IP=
 MEDIAMTX_API_USER=
 MEDIAMTX_API_PASS=
 ```

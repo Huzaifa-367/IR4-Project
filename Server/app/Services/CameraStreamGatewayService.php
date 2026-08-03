@@ -16,6 +16,9 @@ final class CameraStreamGatewayService
 {
     private string $lastError = '';
 
+    /** @var string|null Cached host for MEDIAMTX_API_URL=gateway within this process. */
+    private static ?string $resolvedApiBase = null;
+
     public function isConfigured(): bool
     {
         return (string) config('camera_stream.mediamtx.api_url') !== '';
@@ -261,26 +264,69 @@ final class CameraStreamGatewayService
     }
 
     /**
-     * Resolve MEDIAMTX_API_URL. Special value `gateway` (or http://gateway:9997)
-     * uses this container's default gateway — the Docker/Podman/Lerd host where
-     * MediaMTX --network host listens on :9997.
+     * Resolve MEDIAMTX_API_URL.
+     *
+     * Special value `gateway` probes hosts that can reach MediaMTX on the SCC
+     * (Lerd/Podman pasta gateway 10.89.0.1 is NOT the host — do not use it alone).
      */
     public function apiBaseUrl(): string
     {
-        $raw = trim((string) config('camera_stream.mediamtx.api_url'));
-        $raw = rtrim($raw, '/');
+        $raw = rtrim(trim((string) config('camera_stream.mediamtx.api_url')), '/');
 
-        if ($raw === '' || strcasecmp($raw, 'gateway') === 0 || preg_match('#^https?://gateway(?::\d+)?$#i', $raw) === 1) {
-            $gateway = $this->detectDefaultGateway() ?? '172.17.0.1';
-            $port = 9997;
-            if (preg_match('#^https?://gateway:(\d+)$#i', $raw, $m) === 1) {
-                $port = (int) $m[1];
-            }
-
-            return 'http://'.$gateway.':'.$port;
+        if (! $this->isGatewayMode($raw)) {
+            return $raw;
         }
 
-        return $raw;
+        if (self::$resolvedApiBase !== null) {
+            return self::$resolvedApiBase;
+        }
+
+        $port = 9997;
+        if (preg_match('#^https?://gateway:(\d+)$#i', $raw, $match) === 1) {
+            $port = (int) $match[1];
+        }
+
+        foreach ($this->hostCandidates() as $host) {
+            $base = 'http://'.$host.':'.$port;
+            if ($this->canReachApi($base)) {
+                return self::$resolvedApiBase = $base;
+            }
+        }
+
+        $fallback = $this->configuredHostIp()
+            ?? $this->detectDefaultGateway()
+            ?? 'host.containers.internal';
+
+        return self::$resolvedApiBase = 'http://'.$fallback.':'.$port;
+    }
+
+    public function forgetResolvedApiBase(): void
+    {
+        self::$resolvedApiBase = null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function hostCandidates(): array
+    {
+        $hosts = [];
+        $configured = $this->configuredHostIp();
+        if ($configured !== null) {
+            $hosts[] = $configured;
+        }
+
+        $hosts[] = 'host.containers.internal';
+        $hosts[] = 'host.docker.internal';
+
+        $gateway = $this->detectDefaultGateway();
+        if ($gateway !== null) {
+            $hosts[] = $gateway;
+        }
+
+        $hosts[] = '172.17.0.1';
+
+        return array_values(array_unique($hosts));
     }
 
     public function detectDefaultGateway(): ?string
@@ -311,6 +357,37 @@ final class CameraStreamGatewayService
         }
 
         return null;
+    }
+
+    private function isGatewayMode(string $raw): bool
+    {
+        return $raw === ''
+            || strcasecmp($raw, 'gateway') === 0
+            || preg_match('#^https?://gateway(?::\d+)?$#i', $raw) === 1;
+    }
+
+    private function configuredHostIp(): ?string
+    {
+        $ip = trim((string) config('camera_stream.mediamtx.host_ip', ''));
+        if ($ip === '' || ! filter_var($ip, FILTER_VALIDATE_IP)) {
+            return null;
+        }
+
+        return $ip;
+    }
+
+    private function canReachApi(string $baseUrl): bool
+    {
+        try {
+            $response = $this->client()
+                ->timeout(1)
+                ->connectTimeout(1)
+                ->get(rtrim($baseUrl, '/').'/v3/config/paths/list');
+
+            return $response->successful();
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     private function client(): PendingRequest

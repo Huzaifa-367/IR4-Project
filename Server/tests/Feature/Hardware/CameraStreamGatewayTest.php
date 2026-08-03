@@ -6,6 +6,10 @@ use App\Services\CameraStreamGatewayService;
 use App\Services\HardwareRegistryService;
 use Illuminate\Support\Facades\Http;
 
+beforeEach(function () {
+    app(CameraStreamGatewayService::class)->forgetResolvedApiBase();
+});
+
 it('pushes camera rtsp to mediamtx when api url is configured', function () {
     config()->set('camera_stream.mediamtx.api_url', 'http://mediamtx.test:9997');
     config()->set('camera_stream.mediamtx.source_on_demand', true);
@@ -135,11 +139,18 @@ it('probes mediamtx api reachability', function () {
         ->and($probe['status'])->toBe(200);
 });
 
-it('resolves gateway api url via default gateway', function () {
+it('resolves gateway api url preferring MEDIAMTX_HOST_IP', function () {
     config()->set('camera_stream.mediamtx.api_url', 'gateway');
+    config()->set('camera_stream.mediamtx.host_ip', '192.168.3.149');
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), '192.168.3.149:9997')) {
+            return Http::response(['itemCount' => 0, 'items' => []], 200);
+        }
+
+        return Http::response('unreachable', 500);
+    });
 
     $gateway = app(CameraStreamGatewayService::class);
-    $url = $gateway->apiBaseUrl();
 
-    expect($url)->toMatch('#^http://\d{1,3}(?:\.\d{1,3}){3}:9997$#');
+    expect($gateway->apiBaseUrl())->toBe('http://192.168.3.149:9997');
 });
