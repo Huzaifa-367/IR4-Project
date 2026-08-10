@@ -49,3 +49,6 @@ deploy/            # install, systemd templates, udev
 scripts/           # setup helpers + optional smoke/validate
 docs/              # commissioning / runbook / troubleshooting
 ```
+
+FXR90 lab (WebSocket → local SQLite): `Research/Edge/Zebra FXR90 Configuration/`.  
+Production RFID still uses MQTT into `ir4-rfid-agent` (see `docs/runbook.md`).

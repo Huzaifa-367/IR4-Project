@@ -96,7 +96,8 @@ Max **1000** events/batch. Outages: SQLite buffer keeps `event_uid` and retries.
 | 1 | Gas dry-run on live RS-485 | O₂ ~20.9; agent POSTs ~1×/30s (`poll_interval_seconds: 30`) |
 | 2 | Live gas ingest | Control Room gas panel updates; heartbeats green |
 | 3 | Kill LAN briefly | Events buffer in SQLite; flush on reconnect as backfill (no gas alarms) |
-| 4 | FXR90 → Mosquitto | `mosquitto_sub` sees tag JSON; agent logs EPC |
+| 4 | FXR90 → Mosquitto | `mosquitto_sub -t 'zebra/+/tags'` shows JSON with `idHex`; agent logs EPC |
+| 5 | Lab reader bring-up (optional) | [`Research/…/Zebra FXR90 Configuration`](../../Research/Edge/Zebra%20FXR90%20Configuration/) `read_tags.py` → `tags.db` |
 | 5 | Tag ingest | 202 with `accepted`; assigned tags move live position |
 | 6 | Stop agent >5 min | Device goes stale / `device_offline` alert |
 | 7 | Restart agent | Heartbeat clears health |

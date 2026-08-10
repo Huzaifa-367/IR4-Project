@@ -25,7 +25,7 @@ from ir4_edge.common.config import (
 )
 from ir4_edge.common.heartbeat import HeartbeatLoop
 from ir4_edge.common.logging_setup import setup_logging
-from ir4_edge.rfid.mapper import extract_tag_fields, to_ingest_event
+from ir4_edge.rfid.mapper import events_from_payload
 
 log = logging.getLogger("ir4_edge.rfid")
 
@@ -210,25 +210,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
         except json.JSONDecodeError:
             log.warning("Non-JSON MQTT payload on %s", msg.topic)
             return
-        if not isinstance(payload, dict):
-            return
-        # Some Connector configs wrap multiple tags.
-        items = payload.get("data")
-        candidates: List[Any]
-        if isinstance(items, list):
-            candidates = items
-        else:
-            candidates = [payload]
-        for item in candidates:
-            if not isinstance(item, dict):
-                continue
-            # Nested list item may be the tag object itself.
-            fields = extract_tag_fields(item)
-            if fields is None and "data" not in item:
-                fields = extract_tag_fields({"data": item})
-            if fields is None:
-                continue
-            event = to_ingest_event(fields, reader_ref)
+        for event in events_from_payload(payload, reader_ref):
             log.debug(
                 "TAG epc=%s rssi=%s",
                 event["tag_uid"],

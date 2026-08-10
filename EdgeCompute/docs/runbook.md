@@ -47,22 +47,40 @@ Expect O₂ ≈ 20.9 %VOL, CO₂ ≈ 800–1200 ppm indoors.
 
 ## 4. RFID (FXR90)
 
-MQTT secrets live in `configs/secrets.env`. Default broker is anonymous (`edge.yaml` → `mosquitto.anonymous: true`); passwords are kept for FXR90 / later lock-down.
+Production path: **FXR90 IoT Connector → MQTT → Mosquitto on Orin → `ir4-rfid-agent` → IR4 ingest**.
+
+Lab / bring-up (direct WebSocket + local SQLite, no IR4):  
+[`Research/Edge/Zebra FXR90 Configuration/`](../../Research/Edge/Zebra%20FXR90%20Configuration/) (`find_reader.sh`, `read_tags.py`, RUNBOOK).
+
+### Facts (verified 2026-08-10)
+
+- FXR90 has **no classic LLRP server** (FX9600-era tools / sllurp do not apply). Control = REST (`/cloud/*`); live data = ZIOTC endpoint (MQTT for IR4, or `wss://` for lab).
+- Tag JSON fields: `idHex`, `antenna`, `peakRssi`, `timestamp`. Heartbeats carry `system.temperature` / `radio_control.numTagReads` — agent ignores those for ingest.
+- Only **UHF Gen2 / ISO18000-6C** (860–960 MHz). NFC / wrong band = zero reads.
+- Factory console: `https://<reader-ip>` (self-signed), `admin` / `change` → forced password change.
+
+### Console checklist (once per reader)
+
+1. Find IP: on Orin, `./find_reader.sh admin 'PASS'` from the Research folder (or arp-scan + `curl …/cloud/localRestLogin`).
+2. Regulatory: set region; enable channels as required.
+3. LLRP: **CLIENT** mode.
+4. Operating mode: **SIMPLE** (lab script also `PUT /cloud/mode {"type":"SIMPLE"}`).
+5. **IoT Connector → MQTT** endpoint = Orin LAN IP, port **1883**.  
+   Topic = `mqtt.topic` in `configs/rfid.yaml` (default `zebra/fxr90-01/tags`).  
+   Anonymous broker (`edge.yaml` `mosquitto.anonymous: true`): no MQTT user. With auth: `fxr90` + `IR4_MQTT_FXR90_PASSWORD`.
+6. Start inventory / cloud start; wave a UHF tag at antenna 1.
+
+MQTT secrets in `configs/secrets.env`:
 
 | Secret | Used by |
 |---|---|
-| `IR4_MQTT_FXR90_PASSWORD` | FXR90 IoT Connector (`fxr90` user) when auth is on |
-| `IR4_MQTT_PASSWORD` | `ir4-rfid-agent` (`ir4-rfid` user) when `IR4_MQTT_USE_AUTH=1` |
-
-**FXR90 Admin Console**
-
-1. IoT Connector → MQTT endpoint = Orin LAN IP, port **1883**.
-2. With anonymous broker: no MQTT user/pass. With auth: `fxr90` + `IR4_MQTT_FXR90_PASSWORD`.
-3. Tag Data topic = `mqtt.topic` in `configs/rfid.yaml`.
-4. Start inventory.
+| `IR4_MQTT_FXR90_PASSWORD` | FXR90 → Mosquitto when auth is on |
+| `IR4_MQTT_PASSWORD` | `ir4-rfid-agent` when `IR4_MQTT_USE_AUTH=1` |
 
 ```bash
+mosquitto_sub -h 127.0.0.1 -t 'zebra/+/tags'
 ir4-rfid-agent --dry-run
+ir4-edge logs -f
 ```
 
 ## Config reference

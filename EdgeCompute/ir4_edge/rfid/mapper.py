@@ -1,14 +1,38 @@
-"""Map Zebra FXR90 / ZIOTC MQTT payloads to IR4 tag-reading events."""
+"""Map Zebra FXR90 / ZIOTC payloads (MQTT or WS-shaped JSON) to IR4 tag events.
+
+Verified field names from Research/Edge/Zebra FXR90 Configuration (2026-08-10):
+  idHex, antenna, peakRssi, timestamp — tag reads
+  system / radio_control — reader heartbeats (ignored here; not ingest)
+"""
 
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from ir4_edge.common.timeutil import epoch_ms_to_iso, new_event_uid
 
 
+def iter_tag_objects(payload: object) -> List[Mapping[str, Any]]:
+    """Normalize ZIOTC envelopes to a list of candidate tag dicts."""
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, Mapping)]
+    if not isinstance(payload, Mapping):
+        return []
+    data = payload.get("data", payload)
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, Mapping)]
+    if isinstance(data, Mapping):
+        return [data]
+    return [payload]
+
+
 def extract_tag_fields(payload: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
-    """Return normalized tag fields or None if EPC is missing."""
+    """Return normalized tag fields or None if this event is not a tag read."""
+    # Reader health heartbeats (ambient/pa temp, numTagReads) — not tags.
+    if payload.get("idHex") is None and (
+        "system" in payload or "radio_control" in payload
+    ):
+        return None
     data = payload.get("data", payload)
     if not isinstance(data, Mapping):
         data = payload
@@ -38,3 +62,17 @@ def to_ingest_event(fields: Mapping[str, Any], reader_ref: str) -> Dict[str, Any
     if fields.get("rssi") is not None:
         event["rssi"] = fields["rssi"]
     return event
+
+
+def events_from_payload(
+    payload: object,
+    reader_ref: str,
+) -> Sequence[Dict[str, Any]]:
+    """Parse one MQTT/WS JSON payload into zero or more ingest events."""
+    out: List[Dict[str, Any]] = []
+    for item in iter_tag_objects(payload):
+        fields = extract_tag_fields(item)
+        if fields is None:
+            continue
+        out.append(to_ingest_event(fields, reader_ref))
+    return out

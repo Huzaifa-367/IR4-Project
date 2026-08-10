@@ -1,5 +1,8 @@
 # IR4 RFID agent — FXR90 ZIOTC → Mosquitto → ingest
-# Secrets/tokens: configs/secrets.env. All knobs live here.
+# Secrets: configs/secrets.env. Lab WebSocket bring-up: Research/Edge/Zebra FXR90 Configuration/
+#
+# Tag JSON (verified): idHex, antenna, peakRssi, timestamp
+# Reader must publish Tag Data to this MQTT topic (not LLRP).
 
 mqtt:
   broker: "127.0.0.1"
