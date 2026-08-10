@@ -77,16 +77,15 @@ jobs:
 
       # Wayfinder bakes APP_URL into JS (e.g. form action). CI without a proper
       # APP_URL embeds http://localhost/... which breaks Hostinger (CORS / wrong host).
+      # This creates a CI-only .env — it must be deleted before SCP so the live
+      # Hostinger .env is never overwritten.
       - name: Prepare Laravel env for asset build
         env:
           APP_URL: https://ir4.ispc-ai.com
         run: |
           set -euo pipefail
-          if [[ ! -f .env ]]; then
-            cp .env.example .env
-            php artisan key:generate --force --no-interaction
-          fi
-          # Force production public URL (no trailing slash).
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
           perl -i -pe 's|^APP_URL=.*|APP_URL=https://ir4.ispc-ai.com|' .env
           grep -E '^APP_URL=' .env
           php artisan wayfinder:generate --with-form
@@ -98,6 +97,8 @@ jobs:
 
       - name: Prune development files
         run: |
+          # Never ship CI secrets / APP_KEY onto Hostinger — keep server .env intact.
+          rm -f .env .env.backup .env.production
           rm -rf \
             tests \
             node_modules \
@@ -125,6 +126,7 @@ jobs:
           password: ${{ env.SSH_PASSWORD }}
           port: ${{ env.SSH_PORT }}
           # Include Server/.htaccess (Hostinger public_html → public/ rewrite); globs skip dotfiles.
+          # .env is removed in the prune step so live Hostinger config is preserved.
           source: "Server/*,Server/.htaccess,Server/public/.htaccess"
           target: ${{ env.DEPLOY_PATH }}
           strip_components: 1
@@ -143,12 +145,18 @@ jobs:
 
             cd "${{ env.DEPLOY_PATH }}"
 
+            if [[ ! -f .env ]]; then
+              echo "ERROR: ${DEPLOY_PATH}/.env is missing. Create it once on the host; deploys must not create/overwrite it." >&2
+              exit 1
+            fi
+
             mkdir -p storage/app/public bootstrap/cache
             chmod -R 775 storage bootstrap/cache || true
 
             # Drop cached config/routes before artisan boots. A stale config.php
             # from before spatie/laravel-backup was installed binds CleanupStrategy
             # to null and makes every artisan command fail.
+            # Re-cache from the existing Hostinger .env (untouched by upload).
             rm -f bootstrap/cache/config.php \
               bootstrap/cache/routes-v7.php \
               bootstrap/cache/events.php \
@@ -160,4 +168,4 @@ jobs:
             php artisan migrate --force --no-interaction
             php artisan optimize
 
-            echo "Deployment completed successfully."
+            echo "Deployment completed successfully (.env preserved)."

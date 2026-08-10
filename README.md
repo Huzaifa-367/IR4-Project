@@ -180,6 +180,8 @@ SESSION_DOMAIN=ir4.ispc-ai.com
 SESSION_SECURE_COOKIE=true
 ```
 
+**Deploys never overwrite Hostinger `.env`.** CI builds assets with a temporary `.env` that is deleted before upload; the live file on the server is left intact. Create/edit `.env` only over SSH.
+
 CI builds frontend assets with `APP_URL=https://ir4.ispc-ai.com` so Wayfinder does **not** bake `http://localhost/...` into JS. After changing that, redeploy (push to `main` or Actions → Server Deploy → Run workflow), then hard-refresh the browser.
 
 | Role | Path |
