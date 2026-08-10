@@ -1,0 +1,471 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "IR4 Platform API",
+    "description": "REST/JSON surfaces for IR4 (DOC-01 / DOC-02 / DOC-08 / DOC-13).\n\n**Three entry surfaces**\n- **A. Operator JSON helpers** — session cookie (Fortify). Poll fallbacks for live screens.\n- **B. Device API** — `X-Device-Token` header. `/api/ingest/*` + heartbeat.\n- **C. Public** — unauthenticated LAN QR page (read-only).\n- **Mobile** — Sanctum Bearer token under `/api/mobile/*` (operator app; not device auth).\n\nSuccess envelope (most endpoints): `{ \"data\": { … } }`\nIngest batch response (202): `{ \"accepted\", \"duplicates\", \"rejected\": [] }`\nErrors: `{ \"error\": { \"code\", \"message\", \"details?\" } }`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8000" },
+    { "key": "deviceToken", "value": "" },
+    { "key": "deviceUuid", "value": "00000000-0000-4000-8000-000000000010" },
+    { "key": "readerRef", "value": "reader-01" },
+    { "key": "cameraRef", "value": "cam-01" },
+    { "key": "deviceRef", "value": "gas-01" },
+    { "key": "tagUid", "value": "TAG-001" },
+    { "key": "mobileToken", "value": "" },
+    { "key": "mobileEmail", "value": "admin@example.com" },
+    { "key": "mobilePassword", "value": "password" },
+    { "key": "qrToken", "value": "00000000-0000-4000-8000-000000000001" },
+    { "key": "equipmentUuid", "value": "00000000-0000-4000-8000-000000000020" },
+    { "key": "workerId", "value": "1" },
+    { "key": "zoneId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/health",
+            "description": "Unauthenticated liveness probe. Returns `{ data: { status: \"ok\" } }`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Device API (auth.device)",
+      "description": "Surface B — DOC-02 / DOC-08.\n\nHeader: `X-Device-Token: <plain token>` (shown once when the device is created/rotated in Hardware settings).\n\nIngest body shape: `{ \"events\": [ … ] }` (max `ingest.max_batch`, default 1000).\nResponse: **202 Accepted** with per-event outcomes — never all-or-nothing.",
+      "item": [
+        {
+          "name": "Heartbeat",
+          "item": [
+            {
+              "name": "POST /api/devices/{device}/heartbeat",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Device-Token", "value": "{{deviceToken}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"online\",\n  \"meta\": {\n    \"firmware\": \"1.0.0\"\n  }\n}"
+                },
+                "url": "{{baseUrl}}/api/devices/{{deviceUuid}}/heartbeat",
+                "description": "Liveness ping (DOC-05). `{device}` is the device **UUID** (route key), not the integer id.\n\nOptional body: `status` (`online`|`offline`|`degraded`|`fault`|`maintenance`), `meta` (object, merged into `devices.config`).\nToken must belong to this device or 403. Empty body is also valid."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ingest",
+          "item": [
+            {
+              "name": "POST /api/ingest/tag-readings",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {",
+                      "  const r = Math.random() * 16 | 0;",
+                      "  return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);",
+                      "});",
+                      "pm.variables.set('eventUid', uuid());",
+                      "pm.variables.set('recordedAt', new Date().toISOString());"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Device-Token", "value": "{{deviceToken}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"events\": [\n    {\n      \"event_uid\": \"{{eventUid}}\",\n      \"reader_ref\": \"{{readerRef}}\",\n      \"tag_uid\": \"{{tagUid}}\",\n      \"recorded_at\": \"{{recordedAt}}\",\n      \"rssi\": -62\n    }\n  ]\n}"
+                },
+                "url": "{{baseUrl}}/api/ingest/tag-readings",
+                "description": "RFID tag reads (DOC-09).\n\nPer event: `event_uid` (uuid), `reader_ref`, `tag_uid`, `recorded_at`, optional `rssi`.\n`reader_ref` must resolve to a registered device/reader reference."
+              }
+            },
+            {
+              "name": "POST /api/ingest/ppe-violations",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {",
+                      "  const r = Math.random() * 16 | 0;",
+                      "  return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);",
+                      "});",
+                      "pm.variables.set('eventUid', uuid());",
+                      "pm.variables.set('detectedAt', new Date().toISOString());"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Device-Token", "value": "{{deviceToken}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"events\": [\n    {\n      \"event_uid\": \"{{eventUid}}\",\n      \"camera_ref\": \"{{cameraRef}}\",\n      \"event_type\": \"missing_helmet\",\n      \"detected_at\": \"{{detectedAt}}\",\n      \"worker_count\": 1,\n      \"confidence\": 0.92,\n      \"snapshot\": null\n    }\n  ]\n}"
+                },
+                "url": "{{baseUrl}}/api/ingest/ppe-violations",
+                "description": "Single ingest endpoint for PPE + fall detections (DOC-10 / DOC-14).\n\n`event_type`: `missing_helmet` | `missing_vest` | `missing_harness` | `missing_mask` | `fall`\n\nRequired: `event_uid`, `camera_ref`, `event_type`, `detected_at`, `confidence` (0–1).\nOptional: `worker_count`, `snapshot` (base64 string). For `fall`, omit `worker_count`."
+              }
+            },
+            {
+              "name": "POST /api/ingest/gas-readings",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {",
+                      "  const r = Math.random() * 16 | 0;",
+                      "  return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);",
+                      "});",
+                      "pm.variables.set('eventUid', uuid());",
+                      "pm.variables.set('recordedAt', new Date().toISOString());"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Device-Token", "value": "{{deviceToken}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"events\": [\n    {\n      \"event_uid\": \"{{eventUid}}\",\n      \"device_ref\": \"{{deviceRef}}\",\n      \"recorded_at\": \"{{recordedAt}}\",\n      \"lel_pct\": 2.5,\n      \"h2s_ppm\": 1.2,\n      \"o2_pct\": 20.8,\n      \"co_ppm\": 5,\n      \"co2_ppm\": 450\n    }\n  ]\n}"
+                },
+                "url": "{{baseUrl}}/api/ingest/gas-readings",
+                "description": "Gas / CO₂ readings (DOC-11). Include any subset of channels:\n`lel_pct`, `h2s_ppm`, `o2_pct`, `co_ppm`, `co2_ppm`.\nOptional `device_ref` for gateway relays."
+              }
+            },
+            {
+              "name": "POST /api/ingest/environmental-readings",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {",
+                      "  const r = Math.random() * 16 | 0;",
+                      "  return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);",
+                      "});",
+                      "pm.variables.set('eventUid', uuid());",
+                      "pm.variables.set('recordedAt', new Date().toISOString());"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Device-Token", "value": "{{deviceToken}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"events\": [\n    {\n      \"event_uid\": \"{{eventUid}}\",\n      \"device_ref\": \"{{deviceRef}}\",\n      \"recorded_at\": \"{{recordedAt}}\",\n      \"temperature_c\": 34.2,\n      \"humidity_pct\": 48.5,\n      \"wind_speed_ms\": 3.1,\n      \"extra\": {\n        \"source\": \"rs485\"\n      }\n    }\n  ]\n}"
+                },
+                "url": "{{baseUrl}}/api/ingest/environmental-readings",
+                "description": "Environmental telemetry (DOC-12).\nOptional: `temperature_c`, `humidity_pct`, `wind_speed_ms`, `extra` (object)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Mobile API (Sanctum)",
+      "description": "Android operator app — DOC-02 / DOC-13.\n\n1. Run **Login** — saves `mobileToken` from the response.\n2. Other requests send `Authorization: Bearer {{mobileToken}}`.\n\nDevice tokens never authorize these routes (and vice versa).",
+      "item": [
+        {
+          "name": "POST /api/mobile/login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const token = body?.data?.token;",
+                  "  if (token) {",
+                  "    pm.collectionVariables.set('mobileToken', token);",
+                  "    pm.environment.set('mobileToken', token);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{mobileEmail}}\",\n  \"password\": \"{{mobilePassword}}\",\n  \"device_name\": \"Postman\"\n}"
+            },
+            "url": "{{baseUrl}}/api/mobile/login",
+            "description": "Returns `{ data: { token, token_type: \"Bearer\", user, permissions } }`.\nThrottled (`mobile-login`). Saves token into collection/environment variables."
+          }
+        },
+        {
+          "name": "GET /api/mobile/me",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{mobileToken}}" }]
+            },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/mobile/me",
+            "description": "Bootstrap: current user + permission catalogue."
+          }
+        },
+        {
+          "name": "GET /api/mobile/equipment/by-token/{qrToken}",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{mobileToken}}" }]
+            },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/mobile/equipment/by-token/{{qrToken}}",
+            "description": "Resolve equipment by permanent QR UUID. Returns equipment, active workers, zones, `can_checkout`.\nRequires `view-equipment`. Worker names stripped without `view-worker-identity`."
+          }
+        },
+        {
+          "name": "POST /api/mobile/equipment/{equipment}/checkout",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{mobileToken}}" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"worker_id\": {{workerId}},\n  \"reason\": \"Task inspection\",\n  \"zone_id\": {{zoneId}},\n  \"expected_return_at\": null,\n  \"condition_out\": \"ok\",\n  \"notes\": null\n}"
+            },
+            "url": "{{baseUrl}}/api/mobile/equipment/{{equipmentUuid}}/checkout",
+            "description": "Check out equipment to a worker. `{equipment}` is the equipment **UUID**.\n`worker_id` / `zone_id` are integer PKs. Requires checkout permission.\n409/422 when already checked out, not checkoutable, or not in service. Returns 201."
+          }
+        },
+        {
+          "name": "POST /api/mobile/equipment/{equipment}/return",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{mobileToken}}" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"return_status\": \"ok\",\n  \"return_reason\": null,\n  \"condition_in\": \"ok\",\n  \"notes\": null\n}"
+            },
+            "url": "{{baseUrl}}/api/mobile/equipment/{{equipmentUuid}}/return",
+            "description": "Return open checkout for the equipment (**UUID** route key). Resolves open checkout server-side.\n`return_status`: `ok` | `damaged` | `needs_service`. 409 when no open checkout."
+          }
+        },
+        {
+          "name": "POST /api/mobile/logout",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{mobileToken}}" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/mobile/logout",
+            "description": "Deletes the current Sanctum access token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Operator JSON helpers (session)",
+      "description": "Surface A poll/snapshot helpers used by live Inertia screens when Reverb is down.\n\n**Auth:** Fortify session cookie — log in via the web UI first (or import the session cookie into Postman). These are not device/mobile token routes.\n\nSend `Accept: application/json` and enable Postman’s cookie jar.",
+      "item": [
+        {
+          "name": "GET /api/dashboard/summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/dashboard/summary",
+            "description": "Permission-filtered dashboard aggregate (DOC-16). Requires `view-dashboard`."
+          }
+        },
+        {
+          "name": "GET /api/alerts/open",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/alerts/open",
+            "description": "Open alerts poll fallback (DOC-07). Authenticated session."
+          }
+        },
+        {
+          "name": "GET /api/environment/live",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/environment/live",
+            "description": "Latest environmental values per sensor (DOC-12)."
+          }
+        },
+        {
+          "name": "GET /api/environment/trends",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/environment/trends?parameter=temperature_c&range=day",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "environment", "trends"],
+              "query": [
+                { "key": "parameter", "value": "temperature_c" },
+                { "key": "range", "value": "day", "description": "day | week | custom" }
+              ]
+            },
+            "description": "Environmental trend series. `range=day|week|custom`."
+          }
+        },
+        {
+          "name": "GET /api/live/violations",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/live/violations",
+            "description": "Live wall PPE violation snapshot. Requires `view-live-cameras`."
+          }
+        },
+        {
+          "name": "GET /tracking/api/headcount",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/tracking/api/headcount",
+            "description": "On-site headcount totals (DOC-09). Requires `view-tracking`."
+          }
+        },
+        {
+          "name": "GET /tracking/api/positions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/tracking/api/positions",
+            "description": "Active tag positions (identity-stripped without `view-worker-identity`)."
+          }
+        },
+        {
+          "name": "GET /gas/api/live",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/gas/api/live",
+            "description": "Live gas panel snapshot (DOC-11). Requires `view-gas`."
+          }
+        },
+        {
+          "name": "GET /ppe/api/violations/summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/ppe/api/violations/summary?range=daily&group_by=type",
+              "host": ["{{baseUrl}}"],
+              "path": ["ppe", "api", "violations", "summary"],
+              "query": [
+                { "key": "range", "value": "daily", "description": "daily | weekly | custom" },
+                { "key": "group_by", "value": "type", "description": "type | camera | hour" },
+                { "key": "from", "value": "", "disabled": true },
+                { "key": "to", "value": "", "disabled": true }
+              ]
+            },
+            "description": "PPE aggregates for trends / weekly report. Excludes `false_positive`."
+          }
+        },
+        {
+          "name": "GET /ppe/api/violations/recent",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/ppe/api/violations/recent",
+            "description": "Recent PPE violations for live/poll UIs."
+          }
+        },
+        {
+          "name": "GET /api/equipment/by-token/{qrToken}",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/equipment/by-token/{{qrToken}}",
+            "description": "Desktop session resolve-by-QR (DOC-13). Distinct from mobile Sanctum route and public `/e/{token}`."
+          }
+        },
+        {
+          "name": "GET /lsr-violations/api/summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/lsr-violations/api/summary",
+            "description": "LSR summary JSON helper (DOC-14)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public (LAN QR)",
+      "description": "Surface C — unauthenticated, rate-limited. Read-only HTML page for field scanners.",
+      "item": [
+        {
+          "name": "GET /e/{qrToken}",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/html" }],
+            "url": "{{baseUrl}}/e/{{qrToken}}",
+            "description": "Public equipment QR page (Inertia/HTML). Writes are rejected (405/403)."
+          }
+        }
+      ]
+    }
+  ]
+}

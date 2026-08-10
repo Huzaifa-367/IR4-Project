@@ -306,6 +306,33 @@ final class CameraStreamGatewayService
     }
 
     /**
+     * Upstream HLS base (MediaMTX :8888), reachable from Lerd PHP.
+     * Prefer MEDIAMTX_HLS_URL; else derive from the resolved API host on port 8888.
+     */
+    public function hlsUpstreamBaseUrl(): string
+    {
+        $configured = rtrim(trim((string) config('camera_stream.mediamtx.hls_url', '')), '/');
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        if (! $this->isConfigured()) {
+            return '';
+        }
+
+        $api = $this->apiBaseUrl();
+        if ($api === '') {
+            return '';
+        }
+
+        if (preg_match('#^(https?://[^/:]+)(?::\d+)?#i', $api, $match) === 1) {
+            return $match[1].':8888';
+        }
+
+        return '';
+    }
+
+    /**
      * @return list<string>
      */
     public function hostCandidates(): array

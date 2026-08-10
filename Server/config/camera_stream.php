@@ -33,6 +33,8 @@ return [
         'api_url' => rtrim((string) env('MEDIAMTX_API_URL', ''), '/'),
         // Optional SCC LAN IP (e.g. 192.168.3.149). Preferred when `api_url=gateway`.
         'host_ip' => env('MEDIAMTX_HOST_IP'),
+        // Optional direct HLS upstream. Default: same host as API on port 8888.
+        'hls_url' => rtrim((string) env('MEDIAMTX_HLS_URL', ''), '/'),
         'api_user' => env('MEDIAMTX_API_USER'),
         'api_pass' => env('MEDIAMTX_API_PASS'),
         'timeout' => (int) env('MEDIAMTX_API_TIMEOUT', 5),

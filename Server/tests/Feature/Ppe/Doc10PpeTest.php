@@ -12,6 +12,7 @@ use App\Models\PpeViolation;
 use App\Models\User;
 use App\Models\Zone;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -243,8 +244,39 @@ it('serves browser playback urls without exposing rtsp credentials', function ()
         ->get(route('live.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->where('cameras.0.playback_url', 'http://127.0.0.1:8888/cam-test-01')
+            ->where('cameras.0.playback_url', 'http://127.0.0.1:8888/cam-test-01/')
             ->missing('cameras.0.stream_url'));
+});
+
+it('uses same-origin hls proxy template on the live wall', function () {
+    config()->set('camera_stream.browser_url_template', '/hls/{reference}/');
+    $operator = User::factory()->withRole('SCC Operator')->create();
+    Camera::factory()->create(['reference' => 'cam-proxy-01']);
+
+    $this->actingAs($operator)
+        ->get(route('live.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('cameras.0.playback_url', '/hls/cam-proxy-01/'));
+});
+
+it('proxies mediamtx hls through same-origin /hls', function () {
+    config()->set('camera_stream.mediamtx.api_url', 'http://192.168.3.149:9997');
+    config()->set('camera_stream.mediamtx.hls_url', 'http://mediamtx.test:8888');
+    Http::fake([
+        'mediamtx.test:8888/*' => Http::response('<html>player</html>', 200, [
+            'Content-Type' => 'text/html',
+        ]),
+    ]);
+
+    $operator = User::factory()->withRole('SCC Operator')->create();
+
+    $this->actingAs($operator)
+        ->get('/hls/cam-ppe-01/')
+        ->assertOk()
+        ->assertSee('player', false);
+
+    Http::assertSent(fn ($request) => $request->url() === 'http://mediamtx.test:8888/cam-ppe-01/');
 });
 
 it('exports csv excluding false positives', function () {

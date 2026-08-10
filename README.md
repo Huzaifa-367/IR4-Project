@@ -6,6 +6,8 @@ On-premise safety command-centre. Monorepo layout:
 |---|---|
 | `Server/` | Laravel + Inertia operator UI, device API, public QR pages |
 | `Mobile/` | Android Flutter app (equipment QR scan / checkout / return) |
+| `EdgeCompute/` | Orin J4012 production gas + RFID ingest agents |
+| `Research/Edge/` | Lab prototypes / vendor manuals (not deployed) |
 | `Docs/` | Authoritative design docs (DOC-01 … DOC-22) |
 
 ## Server (Laravel)
@@ -64,7 +66,8 @@ sudo systemctl enable --now ir4-sync-camera-streams.service
 `.env` (critical under Lerd / Docker PHP):
 
 ```env
-CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://192.168.x.x:8888/{reference}
+# Same-origin proxy (required when IR4 is HTTPS — browsers block http://…:8888 iframes)
+CAMERA_BROWSER_STREAM_URL_TEMPLATE=/hls/{reference}/
 # Prefer explicit SCC LAN IP under Lerd/Podman (pasta gateway ≠ host):
 MEDIAMTX_API_URL=http://192.168.x.x:9997
 # Or: MEDIAMTX_API_URL=gateway with MEDIAMTX_HOST_IP=192.168.x.x
@@ -168,6 +171,16 @@ Failures raise in-app `system` alerts (no mail). Full ops/restore drill: `Docs/D
 2. **SSH** — `DEPLOY_PATH` is the Laravel root on the host (`artisan` lives here). CI uploads `Server/*` into this folder (flat layout).
 
 Production host: **ir4.ispc-ai.com**
+
+Hostinger `.env` must use (no trailing slash):
+
+```env
+APP_URL=https://ir4.ispc-ai.com
+SESSION_DOMAIN=ir4.ispc-ai.com
+SESSION_SECURE_COOKIE=true
+```
+
+CI builds frontend assets with `APP_URL=https://ir4.ispc-ai.com` so Wayfinder does **not** bake `http://localhost/...` into JS. After changing that, redeploy (push to `main` or Actions → Server Deploy → Run workflow), then hard-refresh the browser.
 
 | Role | Path |
 |------|------|

@@ -71,12 +71,18 @@ it('authenticates with issued token and updates asset heartbeat', function () {
     $result = app(HardwareRegistryService::class)->issueToken($device);
     $plain = $result['plain_token'];
 
-    $this->postJson(route('api.devices.heartbeat', $device), [], [
+    $this->postJson(route('api.devices.heartbeat', $device), [
+        'status' => 'degraded',
+        'meta' => ['firmware' => '1.0.0'],
+    ], [
         'X-Device-Token' => $plain,
     ])->assertOk()
-        ->assertJsonPath('data.status', 'online');
+        ->assertJsonPath('data.status', 'degraded')
+        ->assertJsonPath('data.device_uuid', $device->uuid);
 
     expect($device->fresh()->last_seen_at)->not->toBeNull()
+        ->and($device->fresh()->status)->toBe(HardwareStatus::Degraded)
+        ->and($device->fresh()->config)->toMatchArray(['firmware' => '1.0.0'])
         ->and($device->fresh()->asset?->fresh()->last_heartbeat_at)->not->toBeNull();
 });
 

@@ -1,0 +1,12 @@
+# Stable symlink for the YT-98H USB–RS485 adapter.
+# Copy to /etc/udev/rules.d/ then: sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# After plugging the adapter, find the vendor/product with:
+#   udevadm info -a -n /dev/ttyUSB0 | grep -E 'idVendor|idProduct|serial'
+# Adjust ATTRS below to match your dongle so the symlink is unique.
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="yt98h-rs485", MODE="0660", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", SYMLINK+="yt98h-rs485", MODE="0660", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="yt98h-rs485", MODE="0660", GROUP="dialout"
+
+# Prefer /dev/serial/by-id/... or /dev/yt98h-rs485 in configs/gas.yaml.

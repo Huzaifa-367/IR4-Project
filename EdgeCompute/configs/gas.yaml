@@ -1,0 +1,25 @@
+# IR4 gas agent — YT-98H Modbus RTU
+# Secrets/tokens: configs/secrets.env (auto-loaded). Edit device_ref after commissioning.
+
+serial:
+  # Prefer /dev/yt98h-rs485 (udev) or /dev/serial/by-id/...
+  port: "/dev/yt98h-rs485"
+  baud: 9600
+  parity: "N"
+  stopbits: 1
+
+modbus_addresses: [1, 2, 3, 4, 5]
+
+field_map:
+  1: h2s_ppm
+  2: co_ppm
+  3: o2_pct
+  4: lel_pct
+  5: co2_ppm
+
+agent:
+  device_ref: "pole1-gas"
+  poll_interval_seconds: 5
+  heartbeat_interval_seconds: 60
+  # Relative paths resolve under EdgeCompute/var/
+  buffer_path: "gas_buffer.sqlite"

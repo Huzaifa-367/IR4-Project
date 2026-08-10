@@ -1,0 +1,26 @@
+[Unit]
+Description=IR4 FXR90 MQTT RFID ingest agent
+Documentation=file:///opt/ir4-edge/EdgeCompute/docs/runbook.md
+After=network-online.target mosquitto.service
+Wants=network-online.target
+Requires=mosquitto.service
+
+[Service]
+Type=simple
+User=ir4edge
+Group=ir4edge
+WorkingDirectory=/opt/ir4-edge/EdgeCompute
+EnvironmentFile=-/opt/ir4-edge/EdgeCompute/configs/secrets.env
+EnvironmentFile=-/opt/ir4-edge/EdgeCompute/configs/secrets.local.env
+ExecStart=/opt/ir4-edge/venv/bin/ir4-rfid-agent
+Restart=on-failure
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ir4-rfid-agent
+
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

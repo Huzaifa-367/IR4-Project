@@ -1,0 +1,18 @@
+# IR4 RFID agent — FXR90 ZIOTC → Mosquitto → ingest
+# Secrets/tokens: configs/secrets.env (auto-loaded). Edit reader_ref + topic after commissioning.
+
+mqtt:
+  broker: "127.0.0.1"
+  port: 1883
+  # Must match FXR90 IoT Connector Tag Data Interface topic.
+  topic: "zebra/fxr90-01/tags"
+  # username/password come from secrets.env (IR4_MQTT_*)
+
+agent:
+  reader_ref: "pole1-reader"
+  debounce_seconds: 2
+  max_batch: 50
+  flush_interval_seconds: 1
+  heartbeat_interval_seconds: 60
+  buffer_path: "rfid_buffer.sqlite"
+  log_raw: false

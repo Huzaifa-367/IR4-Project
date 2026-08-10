@@ -75,7 +75,25 @@ jobs:
       - name: Install Node dependencies
         run: npm ci --no-audit --no-fund
 
+      # Wayfinder bakes APP_URL into JS (e.g. form action). CI without a proper
+      # APP_URL embeds http://localhost/... which breaks Hostinger (CORS / wrong host).
+      - name: Prepare Laravel env for asset build
+        env:
+          APP_URL: https://ir4.ispc-ai.com
+        run: |
+          set -euo pipefail
+          if [[ ! -f .env ]]; then
+            cp .env.example .env
+            php artisan key:generate --force --no-interaction
+          fi
+          # Force production public URL (no trailing slash).
+          perl -i -pe 's|^APP_URL=.*|APP_URL=https://ir4.ispc-ai.com|' .env
+          grep -E '^APP_URL=' .env
+          php artisan wayfinder:generate --with-form
+
       - name: Build Vite assets
+        env:
+          APP_URL: https://ir4.ispc-ai.com
         run: npm run build
 
       - name: Prune development files

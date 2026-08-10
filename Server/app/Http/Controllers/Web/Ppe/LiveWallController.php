@@ -32,9 +32,7 @@ final class LiveWallController extends BaseController
                 'uuid' => $camera->uuid,
                 'name' => $camera->name,
                 'reference' => $camera->reference,
-                'playback_url' => is_string($playbackUrlTemplate) && $playbackUrlTemplate !== ''
-                    ? str_replace('{reference}', rawurlencode($camera->reference), $playbackUrlTemplate)
-                    : null,
+                'playback_url' => $this->playbackUrl($playbackUrlTemplate, $camera->reference),
                 'ai_enabled' => $camera->ai_enabled,
                 'status' => $camera->status->value,
                 'is_online' => $camera->status === HardwareStatus::Online
@@ -65,5 +63,20 @@ final class LiveWallController extends BaseController
             ->values();
 
         return ApiResponse::ok(['violations' => $recent]);
+    }
+
+    private function playbackUrl(mixed $template, string $reference): ?string
+    {
+        if (! is_string($template) || $template === '') {
+            return null;
+        }
+
+        $url = str_replace('{reference}', rawurlencode($reference), $template);
+        // MediaMTX HLS reader expects a trailing slash on path roots.
+        if (! str_contains(parse_url($url, PHP_URL_PATH) ?: $url, '.') && ! str_ends_with($url, '/')) {
+            $url .= '/';
+        }
+
+        return $url;
     }
 }

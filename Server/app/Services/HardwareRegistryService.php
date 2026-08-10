@@ -209,18 +209,38 @@ final class HardwareRegistryService
         ];
     }
 
-    public function recordHeartbeat(Device $device): Device
-    {
+    /**
+     * @param  array<string, mixed>|null  $meta
+     */
+    public function recordHeartbeat(
+        Device $device,
+        ?HardwareStatus $status = null,
+        ?array $meta = null,
+    ): Device {
         if ($device->isRetired()) {
             throw new HttpException(403, 'Device is retired.');
         }
 
-        $device->forceFill([
+        if ($status === HardwareStatus::Retired) {
+            throw new HttpException(422, 'Heartbeat cannot retire a device.');
+        }
+
+        $nextStatus = match (true) {
+            $status !== null => $status,
+            $device->status === HardwareStatus::Maintenance => HardwareStatus::Maintenance,
+            default => HardwareStatus::Online,
+        };
+
+        $attributes = [
             'last_seen_at' => now(),
-            'status' => $device->status === HardwareStatus::Maintenance
-                ? HardwareStatus::Maintenance
-                : HardwareStatus::Online,
-        ])->save();
+            'status' => $nextStatus,
+        ];
+
+        if ($meta !== null) {
+            $attributes['config'] = array_merge($device->config ?? [], $meta);
+        }
+
+        $device->forceFill($attributes)->save();
 
         if ($device->asset_id !== null) {
             Asset::query()->whereKey($device->asset_id)->update([

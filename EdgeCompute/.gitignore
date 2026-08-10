@@ -1,0 +1,14 @@
+# EdgeCompute local artifacts (never commit)
+.DS_Store
+# Machine-specific secret overrides (optional)
+configs/secrets.local.env
+var/
+*.sqlite
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/

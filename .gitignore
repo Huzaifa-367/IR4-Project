@@ -35,6 +35,12 @@ Server/auth.json
 Server/npm-debug.log
 Server/yarn-error.log
 
+# EdgeCompute local artifacts
+EdgeCompute/configs/secrets.local.env
+EdgeCompute/var/
+EdgeCompute/.venv/
+EdgeCompute/**/__pycache__/
+
 # Flutter
 Mobile/.dart_tool/
 Mobile/build/
