@@ -5,36 +5,41 @@ Do this on the IR4 Server **before** enabling agents on the Orin.
 ## Server (DOC-05 / DOC-08)
 
 1. Create/select the pole (or gate) **asset**.
-2. Add a device of type **`gas_detector`** with a stable `reference` (e.g. `pole1-gas`).
-3. Add a device of type **`rfid_reader`** with a stable `reference` (e.g. `pole1-reader`).
+2. Add a device of type **`gas_detector`** with a stable `reference` (e.g. `DEV-GAS-01` — Gas Skid Hot Work).
+3. Add a device of type **`rfid_reader`** with a stable `reference` (e.g. `DEV-RFID-01` — Pole P-01 North RFID).
 4. Bind the RFID reader to the correct zone(s) (DOC-06).
 5. Issue an API token for **each** device (Settings → Devices → Token). Keep the
-   plaintext and each device **UUID** for `./scripts/configure.sh`.
-6. Confirm the Orin can reach `http://192.168.3.149:9100` (device LAN / DOC-20).
+   plaintext and each device **UUID** for `ir4-edge setup`.
+6. Confirm the Orin can reach `https://ir4.ispc-ai.com` (Hostinger test). On-site later use SCC1 LAN `http://192.168.3.149:9100`.
 7. For RFID live tracking: register physical tags in `rfid_tags` and assign them.
    Unknown EPCs are rejected as `UNKNOWN_TAG` (HTTP still 202).
 
-## LAN URLs (SCC workstation vs Orin)
+## LAN URLs (test vs on-site)
 
-| Who | URL | Why |
+| Who / phase | URL | Why |
 |---|---|---|
-| **Orin edge agents** | `http://192.168.3.149:9100` | Lerd LAN-exposed HTTP; no DNS or TLS trust needed |
-| **Operator browsers** | `https://ir4-project.test` | `APP_URL`; dnsmasq `*.test` → `192.168.3.149` |
+| **Orin agents (current test)** | `https://ir4.ispc-ai.com` | Hostinger; edge and SCC1 are not on the same LAN yet |
+| **Orin agents (on-site later)** | `http://192.168.3.149:9100` | SCC1 Lerd LAN expose |
+| **Operator browsers (Hostinger)** | `https://ir4.ispc-ai.com` | Production test host |
+| **Operator browsers (SCC1)** | `https://ir4-project.test` | dnsmasq `*.test` → `192.168.3.149` |
 
-Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.3.149:9100/`
+Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' https://ir4.ispc-ai.com/api/health`
 
 ## Config files (no copy step)
 
 | File | Role |
 |---|---|
-| [`../configs/secrets.env`](../configs/secrets.env) | Base URL + empty token placeholders (tracked) |
-| `../configs/secrets.local.env` | Filled by `configure.sh` (gitignored) |
+| [`../configs/edge.yaml`](../configs/edge.yaml) | Boot enable / install root / Mosquitto listener |
+| [`../configs/secrets.example.env`](../configs/secrets.example.env) | Tracked template |
+| `../configs/secrets.env` | Live secrets (gitignored) — gas + RFID + MQTT |
 | [`../configs/gas.yaml`](../configs/gas.yaml) | Serial / Modbus / `device_ref` |
 | [`../configs/rfid.yaml`](../configs/rfid.yaml) | MQTT topic / `reader_ref` |
 
 ```bash
 cd EdgeCompute
-./scripts/configure.sh
+cp configs/secrets.example.env configs/secrets.env   # or: ir4-edge setup
+sudo ir4-edge install
+ir4-edge doctor
 ```
 
 | Variable | Used by |
@@ -42,10 +47,11 @@ cd EdgeCompute
 | `IR4_BASE_URL` | both |
 | `IR4_GAS_DEVICE_TOKEN` / `IR4_GAS_DEVICE_UUID` | gas |
 | `IR4_RFID_DEVICE_TOKEN` / `IR4_RFID_DEVICE_UUID` | RFID |
-| `IR4_MQTT_USERNAME` / `IR4_MQTT_PASSWORD` | RFID |
+| `IR4_MQTT_USERNAME` / `IR4_MQTT_PASSWORD` | RFID agent ↔ Mosquitto |
+| `IR4_MQTT_FXR90_PASSWORD` | FXR90 ↔ Mosquitto |
 | `IR4_DRY_RUN` | both (`1` = no HTTP) |
 
-Agents auto-load `secrets.env` then `secrets.local.env` (local wins).
+Agents load a single `configs/secrets.env`.
 
 ## Ingest contracts (DOC-08)
 
@@ -58,7 +64,7 @@ Max **1000** events/batch. Outages: SQLite buffer keeps `event_uid` and retries.
 {
   "events": [{
     "event_uid": "<uuid>",
-    "device_ref": "pole1-gas",
+    "device_ref": "DEV-GAS-01",
     "recorded_at": "2026-08-10T08:45:01Z",
     "lel_pct": 0.0,
     "h2s_ppm": 0.0,
@@ -75,7 +81,7 @@ Max **1000** events/batch. Outages: SQLite buffer keeps `event_uid` and retries.
 {
   "events": [{
     "event_uid": "<uuid>",
-    "reader_ref": "pole1-reader",
+    "reader_ref": "DEV-RFID-01",
     "tag_uid": "E280116060000203ABC12345",
     "recorded_at": "2026-08-10T08:45:01Z",
     "rssi": -62
@@ -87,7 +93,7 @@ Max **1000** events/batch. Outages: SQLite buffer keeps `event_uid` and retries.
 
 | # | Check | Pass criteria |
 |---|---|---|
-| 1 | Gas dry-run on live RS-485 | O₂ ~20.9, CO₂ updating every 15–45 s |
+| 1 | Gas dry-run on live RS-485 | O₂ ~20.9; agent POSTs ~1×/30s (`poll_interval_seconds: 30`) |
 | 2 | Live gas ingest | Control Room gas panel updates; heartbeats green |
 | 3 | Kill LAN briefly | Events buffer in SQLite; flush on reconnect as backfill (no gas alarms) |
 | 4 | FXR90 → Mosquitto | `mosquitto_sub` sees tag JSON; agent logs EPC |

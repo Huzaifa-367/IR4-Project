@@ -1,16 +1,15 @@
-# Deploy — Orin host install
+# Deploy
 
 ```bash
 cd EdgeCompute
-sudo ./deploy/orin_bootstrap.sh
-./scripts/configure.sh
+cp configs/secrets.example.env configs/secrets.env
+sudo ir4-edge install
+ir4-edge doctor
 ```
 
-| Path | Purpose |
+| Path | Role |
 |---|---|
-| [`orin_bootstrap.sh`](orin_bootstrap.sh) | Packages, `ir4edge` user, venv, Mosquitto, udev, systemd |
-| [`systemd/`](systemd/) | `ir4-gas-agent` / `ir4-rfid-agent` (no CLI flags needed) |
-| [`udev/99-yt98h-rs485.rules`](udev/99-yt98h-rs485.rules) | `/dev/yt98h-rs485` |
-| [`mosquitto/ir4-edge.conf`](mosquitto/ir4-edge.conf) | Password MQTT on `:1883` |
-
-Install root: `/opt/ir4-edge` (`IR4_EDGE_INSTALL_ROOT` to override).
+| `orin_bootstrap.sh` | Host install (`ir4-edge install`) — installs only what `edge.yaml` enables |
+| `lib.sh` | Shared helpers |
+| `systemd/*.service.in` | Unit templates (rendered at install) |
+| `udev/` | `/dev/yt98h-rs485` (gas only) |

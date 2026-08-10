@@ -1,17 +1,10 @@
-# Scripts
+# Scripts — prefer `ir4-edge`
 
-| Script | Purpose |
+| Command | Script |
 |---|---|
-| [`configure.sh`](configure.sh) | Interactive tokens / refs → `configs/secrets.local.env` |
-| [`validate_api_contract.py`](validate_api_contract.py) | Static (+ optional `--live`) Edge ↔ Server API check |
-| [`smoke_gas_dry_run.py`](smoke_gas_dry_run.py) | Print one gas ingest payload |
-| [`smoke_rfid_dry_run.py`](smoke_rfid_dry_run.py) | Print one RFID ingest payload |
+| `ir4-edge install` | `deploy/orin_bootstrap.sh` |
+| `ir4-edge setup` | `scripts/configure.sh` |
+| `ir4-edge up` | `scripts/enable_services.sh` |
+| `ir4-edge doctor` / `status` / `logs` | `ir4_edge/ctl.py` |
 
-```bash
-./scripts/configure.sh
-.venv/bin/python scripts/validate_api_contract.py
-.venv/bin/python scripts/validate_api_contract.py --live
-ir4-gas-agent --dry-run
-```
-
-Host bootstrap: [`../deploy/orin_bootstrap.sh`](../deploy/orin_bootstrap.sh).
+Optional: `validate_api_contract.py`, `smoke_gas_dry_run.py`, `smoke_rfid_dry_run.py`

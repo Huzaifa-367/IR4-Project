@@ -22,7 +22,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Smoke POST one tag-readings batch")
     parser.add_argument(
         "--base-url",
-        default=os.environ.get("IR4_BASE_URL", "http://192.168.3.149:9100"),
+        default=os.environ.get("IR4_BASE_URL", "https://ir4.ispc-ai.com"),
     )
     parser.add_argument(
         "--token",
@@ -34,7 +34,7 @@ def main() -> int:
         default=os.environ.get("IR4_RFID_DEVICE_UUID")
         or os.environ.get("IR4_DEVICE_UUID", ""),
     )
-    parser.add_argument("--reader-ref", default="pole1-reader")
+    parser.add_argument("--reader-ref", default="DEV-RFID-01")
     parser.add_argument("--live", action="store_true", help="Actually POST (requires token)")
     args = parser.parse_args()
 
@@ -52,7 +52,7 @@ def main() -> int:
     print(json.dumps({"events": [event]}, indent=2))
 
     client = Ir4Client(
-        base_url=args.base_url or "http://localhost",
+        base_url=args.base_url or "https://ir4.ispc-ai.com",
         device_token=args.token,
         device_uuid=args.uuid,
         dry_run=not args.live,

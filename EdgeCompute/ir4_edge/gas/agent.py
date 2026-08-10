@@ -57,7 +57,10 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     stopbits = int(serial_cfg.get("stopbits", yt98h.STOPBITS))
 
     agent_cfg = dict(config.get("agent") or {})
-    poll_interval = float(agent_cfg.get("poll_interval_seconds", 5))
+    if agent_cfg.get("enabled") is False:
+        log.info("agent.enabled=false in gas.yaml — exiting cleanly")
+        return 0
+    poll_interval = float(agent_cfg.get("poll_interval_seconds", 30))
     heartbeat_interval = float(agent_cfg.get("heartbeat_interval_seconds", 60))
     device_ref = agent_cfg.get("device_ref")
     buffer_path = resolve_buffer_path(
@@ -74,7 +77,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     ser = yt98h.open_port(resolved_port, baud, parity, stopbits)
 
     client = Ir4Client(
-        base_url=ir4.get("base_url") or "http://192.168.3.149:9100",
+        base_url=ir4.get("base_url") or "https://ir4.ispc-ai.com",
         device_token=ir4.get("device_token") or "",
         device_uuid=ir4.get("device_uuid") or "",
         dry_run=bool(ir4.get("dry_run")),

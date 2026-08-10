@@ -1,0 +1,18 @@
+# IR4 Edge host control — edit, then: sudo ir4-edge install / apply
+# Gas and RFID are independent: set either services.* flag to false.
+
+install:
+  root: "/opt/ir4-edge"
+  service_user: "ir4edge"
+  path_links: true
+
+services:
+  gas: true
+  rfid: true
+  auto_start: true
+
+mosquitto:                 # used only when services.rfid=true
+  listener: "1883 0.0.0.0"
+  anonymous: true          # false → require IR4_MQTT_* in secrets.env
+  fxr90_user: "fxr90"
+  agent_user: "ir4-rfid"

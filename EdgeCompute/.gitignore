@@ -1,7 +1,7 @@
 # EdgeCompute local artifacts (never commit)
 .DS_Store
-# Machine-specific secret overrides (optional)
-configs/secrets.local.env
+configs/secrets.env
+configs/secrets.*.local.env
 var/
 *.sqlite
 .venv/

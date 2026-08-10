@@ -1,40 +1,51 @@
-# IR4 Edge Compute
+# IR4 Edge Compute (Orin)
 
-Production agents for the **reComputer Super J4012** (Ubuntu 20.04 / Orin NX):
+Gas (YT-98H) and RFID (FXR90) ingest agents. Each runs as its **own** systemd unit —
+turning one off does not affect the other.
 
-- **Gas** — YT-98H Modbus RTU → `POST /api/ingest/gas-readings`
-- **RFID** — Zebra FXR90 ZIOTC MQTT → `POST /api/ingest/tag-readings`
-
-```
-FXR90 ──MQTT──► Mosquitto (Orin) ──► ir4-rfid-agent ──► /api/ingest/tag-readings
-YT-98H ─RS485─► ir4-gas-agent ──────────────────────► /api/ingest/gas-readings
-```
-
-## Quick start
+## Setup
 
 ```bash
 cd EdgeCompute
-sudo ./deploy/orin_bootstrap.sh
-./scripts/configure.sh          # tokens + device refs (writes secrets.local.env)
-ir4-gas-agent --dry-run
-ir4-rfid-agent --dry-run
-sudo systemctl enable --now ir4-gas-agent ir4-rfid-agent
+cp configs/secrets.example.env configs/secrets.env   # or: ir4-edge setup
+# edit configs/edge.yaml → services.gas / services.rfid
+sudo ir4-edge install
+ir4-edge doctor
 ```
 
-Default IR4 base URL: `http://192.168.3.149:9100` (Lerd LAN).  
-Browsers still use `https://ir4-project.test`.
+## Day-2
+
+```bash
+ir4-edge status | restart | logs -f | doctor
+ir4-edge up | down          # only agents enabled in edge.yaml
+```
+
+## Independence
+
+| Switch | Effect |
+|---|---|
+| `configs/edge.yaml` → `services.gas: false` | No gas unit, no udev, doctor skips gas |
+| `configs/edge.yaml` → `services.rfid: false` | No RFID unit, no Mosquitto install |
+| `gas.yaml` / `rfid.yaml` → `agent.enabled: false` | Process exits cleanly if started |
+
+Secrets stay in **one** file (`secrets.env`) with namespaced keys (`IR4_GAS_*`, `IR4_RFID_*`, `IR4_MQTT_*`). Missing RFID tokens never block gas, and vice versa.
+
+## Config
+
+| File | Role |
+|---|---|
+| `configs/edge.yaml` | Which agents + Mosquitto mode |
+| `configs/gas.yaml` | Serial / Modbus / `device_ref` |
+| `configs/rfid.yaml` | MQTT topic / `reader_ref` |
+| `configs/secrets.env` | Live tokens (gitignored) |
+| `configs/secrets.example.env` | Template |
 
 ## Layout
 
-| Path | Role |
-|---|---|
-| [`configs/gas.yaml`](configs/gas.yaml) | Gas hardware / poll settings |
-| [`configs/rfid.yaml`](configs/rfid.yaml) | MQTT topic / RFID settings |
-| [`configs/secrets.env`](configs/secrets.env) | Shared base URL + token placeholders |
-| `configs/secrets.local.env` | Machine overrides from `configure.sh` (gitignored) |
-| [`ir4_edge/`](ir4_edge/) | Python package |
-| [`deploy/`](deploy/) | Bootstrap, systemd, udev, Mosquitto |
-| [`docs/`](docs/) | Commissioning / runbook / troubleshooting |
-| [`scripts/`](scripts/) | `configure.sh` + smoke helpers |
-
-Lab research: [`Research/Edge/`](../Research/Edge/).
+```
+ir4_edge/          # Python package (gas / rfid / common / ctl)
+configs/           # YAML + secrets
+deploy/            # install, systemd templates, udev
+scripts/           # setup helpers + optional smoke/validate
+docs/              # commissioning / runbook / troubleshooting
+```

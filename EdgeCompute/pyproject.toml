@@ -18,6 +18,7 @@ dependencies = [
 [project.scripts]
 ir4-gas-agent = "ir4_edge.gas.agent:main"
 ir4-rfid-agent = "ir4_edge.rfid.agent:main"
+ir4-edge = "ir4_edge.ctl:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

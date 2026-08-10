@@ -1,0 +1,26 @@
+[Unit]
+Description=IR4 YT-98H gas ingest agent
+Documentation=file://@EDGE_ROOT@/docs/runbook.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@EDGE_USER@
+Group=@EDGE_USER@
+SupplementaryGroups=dialout
+WorkingDirectory=@EDGE_ROOT@
+Environment=IR4_EDGE_CONFIG_DIR=@EDGE_ROOT@/configs
+Environment=IR4_EDGE_VAR_DIR=@INSTALL_ROOT@/var
+EnvironmentFile=-@EDGE_ROOT@/configs/secrets.env
+ExecStart=@INSTALL_ROOT@/venv/bin/ir4-gas-agent
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=0
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ir4-gas-agent
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -105,6 +105,9 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     ir4 = require_ir4(config)
 
     agent_cfg = dict(config.get("agent") or {})
+    if agent_cfg.get("enabled") is False:
+        log.info("agent.enabled=false in rfid.yaml — exiting cleanly")
+        return 0
     reader_ref = str(agent_cfg.get("reader_ref") or "").strip()
     if not reader_ref:
         raise ValueError("agent.reader_ref is required")
@@ -126,9 +129,10 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
         raise ValueError("mqtt.topic is required")
     username = mqtt_cfg.get("username")
     password = mqtt_cfg.get("password")
+    use_auth = bool(mqtt_cfg.get("use_auth", False))
 
     client = Ir4Client(
-        base_url=ir4.get("base_url") or "http://192.168.3.149:9100",
+        base_url=ir4.get("base_url") or "https://ir4.ispc-ai.com",
         device_token=ir4.get("device_token") or "",
         device_uuid=ir4.get("device_uuid") or "",
         dry_run=bool(ir4.get("dry_run")),
@@ -237,8 +241,11 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
         mqtt.CallbackAPIVersion.VERSION2,
         client_id="ir4-rfid-agent",
     )
-    if username:
+    if use_auth and username:
         mqtt_client.username_pw_set(str(username), str(password) if password else None)
+        log.info("MQTT auth enabled (user=%s)", username)
+    else:
+        log.info("MQTT anonymous mode (IR4_MQTT_USE_AUTH=0; credentials kept in secrets.env)")
     mqtt_client.on_connect = on_connect
     mqtt_client.on_disconnect = on_disconnect
     mqtt_client.on_message = on_message

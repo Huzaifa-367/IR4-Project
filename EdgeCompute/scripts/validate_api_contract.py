@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate EdgeCompute payloads against Server DOC-08 ingest contracts.
 
-Static checks always run. With tokens in secrets.env / secrets.local.env,
+Static checks always run. With tokens in secrets.env,
 optional --live probes the SCC at IR4_BASE_URL.
 """
 
@@ -99,7 +99,7 @@ def run_static() -> int:
             "lel_pct": 0.0,
             "co2_ppm": 900.0,
         },
-        "pole1-gas",
+        "DEV-GAS-01",
     )
     zebra = {
         "data": {
@@ -111,7 +111,7 @@ def run_static() -> int:
     }
     fields = extract_tag_fields(zebra)
     assert fields is not None
-    tag = to_ingest_event(fields, "pole1-reader")
+    tag = to_ingest_event(fields, "DEV-RFID-01")
 
     rows: List[Tuple[str, bool, str]] = []
     rows.extend(validate_paths())
@@ -140,8 +140,8 @@ def run_live(base_url: str) -> int:
     gas_uuid = os.environ.get("IR4_GAS_DEVICE_UUID") or os.environ.get("IR4_DEVICE_UUID") or ""
     rfid_token = os.environ.get("IR4_RFID_DEVICE_TOKEN") or os.environ.get("IR4_DEVICE_TOKEN") or ""
     rfid_uuid = os.environ.get("IR4_RFID_DEVICE_UUID") or os.environ.get("IR4_DEVICE_UUID") or ""
-    device_ref = os.environ.get("IR4_GAS_DEVICE_REF", "pole1-gas")
-    reader_ref = os.environ.get("IR4_RFID_READER_REF", "pole1-reader")
+    device_ref = os.environ.get("IR4_GAS_DEVICE_REF", "DEV-GAS-01")
+    reader_ref = os.environ.get("IR4_RFID_READER_REF", "DEV-RFID-01")
     tag_uid = os.environ.get("IR4_SMOKE_TAG_UID", "").upper()
 
     failed = 0
@@ -236,7 +236,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--base-url",
-        default=os.environ.get("IR4_BASE_URL", "http://192.168.3.149:9100"),
+        default=os.environ.get("IR4_BASE_URL", "https://ir4.ispc-ai.com"),
     )
     args = parser.parse_args()
     failed = run_static()

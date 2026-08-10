@@ -1,34 +1,31 @@
 #!/usr/bin/env bash
-# Orin J4012 (Ubuntu 20.04) host bootstrap for IR4 edge agents.
-#   cd EdgeCompute && sudo ./deploy/orin_bootstrap.sh
-# Then: ./scripts/configure.sh
+# Install IR4 edge on Orin. Prefer: sudo ir4-edge install
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EDGE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-INSTALL_ROOT="${IR4_EDGE_INSTALL_ROOT:-/opt/ir4-edge}"
-EDGE_USER="${IR4_EDGE_USER:-ir4edge}"
+CONFIG_DIR="${EDGE_ROOT}/configs"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib.sh"
 
-echo "==> IR4 Orin edge bootstrap"
-echo "    EdgeCompute source : ${EDGE_ROOT}"
-echo "    Install root       : ${INSTALL_ROOT}"
-echo "    Service user       : ${EDGE_USER}"
+load_edge_yaml
+load_secret_env
 
-if [[ "$(id -u)" -ne 0 ]]; then
-  echo "Re-run with sudo: sudo $0" >&2
-  exit 1
-fi
+INSTALL_ROOT="${IR4_EDGE_INSTALL_ROOT:-${EDGE_INSTALL_ROOT}}"
+EDGE_USER="${IR4_EDGE_USER:-${EDGE_SERVICE_USER}}"
+
+echo "==> ir4-edge install"
+echo "    source=${EDGE_ROOT}"
+echo "    root=${INSTALL_ROOT}  user=${EDGE_USER}"
+echo "    gas=${EDGE_ENABLE_GAS} rfid=${EDGE_ENABLE_RFID} mqtt_anon=${EDGE_MQTT_ANONYMOUS}"
+
+[[ "$(id -u)" -eq 0 ]] || { echo "Use sudo" >&2; exit 1; }
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y \
-  python3 \
-  python3-venv \
-  python3-pip \
-  mosquitto \
-  mosquitto-clients \
-  git \
-  ca-certificates
+apt-get update -qq
+PKGS=(python3 python3-venv python3-pip ca-certificates)
+[[ "${EDGE_ENABLE_RFID}" == "true" ]] && PKGS+=(mosquitto mosquitto-clients)
+apt-get install -y -qq "${PKGS[@]}"
 
 if ! id -u "${EDGE_USER}" >/dev/null 2>&1; then
   useradd --system --create-home --home-dir "/home/${EDGE_USER}" \
@@ -36,62 +33,46 @@ if ! id -u "${EDGE_USER}" >/dev/null 2>&1; then
 else
   usermod -aG dialout "${EDGE_USER}"
 fi
-
-if [[ -n "${SUDO_USER:-}" ]]; then
-  usermod -aG dialout "${SUDO_USER}" || true
-fi
+[[ -n "${SUDO_USER:-}" ]] && usermod -aG dialout "${SUDO_USER}" || true
 
 mkdir -p "${INSTALL_ROOT}/var"
-if [[ ! -e "${INSTALL_ROOT}/EdgeCompute" ]]; then
-  ln -sfn "${EDGE_ROOT}" "${INSTALL_ROOT}/EdgeCompute"
-fi
-
+ln -sfn "${EDGE_ROOT}" "${INSTALL_ROOT}/EdgeCompute"
 python3 -m venv "${INSTALL_ROOT}/venv"
-"${INSTALL_ROOT}/venv/bin/pip" install --upgrade pip
-"${INSTALL_ROOT}/venv/bin/pip" install -e "${EDGE_ROOT}"
-
-install -d -m 0755 /etc/mosquitto/conf.d
-install -m 0644 "${EDGE_ROOT}/deploy/mosquitto/ir4-edge.conf" /etc/mosquitto/conf.d/ir4-edge.conf
-
-if [[ ! -f /etc/mosquitto/ir4_passwd ]]; then
-  echo "==> Creating Mosquitto users (you will be prompted for passwords)"
-  mosquitto_passwd -c /etc/mosquitto/ir4_passwd fxr90
-  mosquitto_passwd /etc/mosquitto/ir4_passwd ir4-rfid
-  chown mosquitto:mosquitto /etc/mosquitto/ir4_passwd
-  chmod 0640 /etc/mosquitto/ir4_passwd
-else
-  echo "==> Mosquitto password file already exists; leaving it unchanged"
-fi
-
-install -m 0644 "${EDGE_ROOT}/deploy/udev/99-yt98h-rs485.rules" /etc/udev/rules.d/99-yt98h-rs485.rules
-udevadm control --reload-rules
-udevadm trigger || true
+"${INSTALL_ROOT}/venv/bin/pip" install -q --upgrade pip
+"${INSTALL_ROOT}/venv/bin/pip" install -q -e "${EDGE_ROOT}"
 
 install -d -m 0755 /etc/systemd/system
-install -m 0644 "${EDGE_ROOT}/deploy/systemd/ir4-gas-agent.service" /etc/systemd/system/ir4-gas-agent.service
-install -m 0644 "${EDGE_ROOT}/deploy/systemd/ir4-rfid-agent.service" /etc/systemd/system/ir4-rfid-agent.service
 
-# Main configs already live in the repo (gas.yaml / rfid.yaml / secrets.env).
-chmod 600 "${EDGE_ROOT}/configs/secrets.env" || true
-if [[ -f "${EDGE_ROOT}/configs/secrets.local.env" ]]; then
-  chmod 600 "${EDGE_ROOT}/configs/secrets.local.env"
+if [[ "${EDGE_ENABLE_GAS}" == "true" ]]; then
+  install -m 0644 "${EDGE_ROOT}/deploy/udev/99-yt98h-rs485.rules" \
+    /etc/udev/rules.d/99-yt98h-rs485.rules
+  udevadm control --reload-rules; udevadm trigger || true
+  render_unit "${EDGE_ROOT}/deploy/systemd/ir4-gas-agent.service.in" \
+    /etc/systemd/system/ir4-gas-agent.service
 fi
-chown -R "${EDGE_USER}:${EDGE_USER}" "${INSTALL_ROOT}/var" || true
-chown "${EDGE_USER}:${EDGE_USER}" \
-  "${EDGE_ROOT}/configs/secrets.env" \
-  "${EDGE_ROOT}/configs/secrets.local.env" 2>/dev/null || true
 
-systemctl daemon-reload
-systemctl enable --now mosquitto
-systemctl restart mosquitto
+if [[ "${EDGE_ENABLE_RFID}" == "true" ]]; then
+  install -d -m 0755 /etc/mosquitto/conf.d
+  render_mosquitto_conf /etc/mosquitto/conf.d/ir4-edge.conf \
+    "${EDGE_MQTT_LISTENER}" "${EDGE_MQTT_ANONYMOUS}"
+  ensure_mosquitto_users \
+    "${EDGE_MQTT_FXR90_USER}" "${EDGE_MQTT_AGENT_USER}" \
+    "${IR4_MQTT_FXR90_PASSWORD:-}" "${IR4_MQTT_PASSWORD:-}"
+  render_unit "${EDGE_ROOT}/deploy/systemd/ir4-rfid-agent.service.in" \
+    /etc/systemd/system/ir4-rfid-agent.service
+  start_mosquitto
+fi
+
+if [[ "${EDGE_PATH_LINKS}" == "true" ]]; then
+  ln -sfn "${INSTALL_ROOT}/venv/bin/ir4-edge" /usr/local/bin/ir4-edge
+  [[ "${EDGE_ENABLE_GAS}" == "true" ]] && \
+    ln -sfn "${INSTALL_ROOT}/venv/bin/ir4-gas-agent" /usr/local/bin/ir4-gas-agent
+  [[ "${EDGE_ENABLE_RFID}" == "true" ]] && \
+    ln -sfn "${INSTALL_ROOT}/venv/bin/ir4-rfid-agent" /usr/local/bin/ir4-rfid-agent
+fi
+
+fix_config_permissions
+enable_selected_services
 
 echo
-echo "==> Bootstrap complete."
-echo "Next (as a normal user in EdgeCompute/):"
-echo "  1. ./scripts/configure.sh          # tokens, UUIDs, device refs"
-echo "  2. ir4-gas-agent --dry-run          # or: ${INSTALL_ROOT}/venv/bin/ir4-gas-agent --dry-run"
-echo "  3. ir4-rfid-agent --dry-run"
-echo "  4. sudo systemctl enable --now ir4-gas-agent ir4-rfid-agent"
-echo "  5. journalctl -u ir4-gas-agent -f"
-echo
-echo "If you were added to dialout, log out and back in before using the serial port."
+echo "==> Done. Next: ir4-edge setup && ir4-edge doctor"
