@@ -2,7 +2,6 @@
 
 use App\Jobs\FlagOverdueEquipment;
 use App\Jobs\GenerateWeeklyReport;
-use App\Jobs\PruneExpiredCache;
 use App\Jobs\PruneExportFiles;
 use App\Jobs\PruneRawSensorData;
 use App\Services\AssetHealthService;
@@ -73,8 +72,9 @@ Schedule::job(new PruneExportFiles)
     ->name('ir4:prune-export-files')
     ->withoutOverlapping(60);
 
-// Expired Laravel DB cache/locks — hourly so Hostinger `cache` cannot balloon.
-Schedule::job(new PruneExpiredCache)
+// Expired Laravel DB cache/locks — runs inline (not queued) every hour.
+// Hostinger: requires cron `* * * * * php artisan schedule:run` and DELETE on `cache`.
+Schedule::command('ir4:prune-expired-cache')
     ->hourly()
     ->name('ir4:prune-expired-cache')
     ->withoutOverlapping(10);

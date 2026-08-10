@@ -5,7 +5,6 @@ use App\Enums\AlertStatus;
 use App\Enums\AlertType;
 use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
-use App\Jobs\PruneExpiredCache;
 use App\Jobs\PruneRawSensorData;
 use App\Models\Alert;
 use App\Models\Device;
@@ -155,11 +154,9 @@ it('prunes expired database cache and lock rows only', function () {
         ['key' => 'ir4-lock-live', 'owner' => 't', 'expiration' => $future],
     ]);
 
-    $removed = app(RetentionService::class)->pruneExpiredDatabaseCache();
-    app(PruneExpiredCache::class)->handle(app(RetentionService::class));
+    $this->artisan('ir4:prune-expired-cache')->assertSuccessful();
 
-    expect($removed)->toBe(2)
-        ->and(DB::table('cache')->where('key', 'ir4-test-expired')->exists())->toBeFalse()
+    expect(DB::table('cache')->where('key', 'ir4-test-expired')->exists())->toBeFalse()
         ->and(DB::table('cache')->where('key', 'ir4-test-live')->exists())->toBeTrue()
         ->and(DB::table('cache_locks')->where('key', 'ir4-lock-expired')->exists())->toBeFalse()
         ->and(DB::table('cache_locks')->where('key', 'ir4-lock-live')->exists())->toBeTrue();

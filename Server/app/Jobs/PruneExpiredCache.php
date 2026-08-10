@@ -3,10 +3,13 @@
 namespace App\Jobs;
 
 use App\Services\RetentionService;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
-final class PruneExpiredCache implements ShouldQueue
+/**
+ * Synchronous prune (no ShouldQueue) so Schedule::job / artisan both run inline.
+ * Hostinger often has no queue:work — queued prunes never execute.
+ */
+final class PruneExpiredCache
 {
     use Queueable;
 

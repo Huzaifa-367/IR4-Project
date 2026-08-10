@@ -40,7 +40,15 @@ php artisan key:generate
 
 Confirm `.htaccess` exists next to `artisan` (rewrites → `public/`). Do **not** point the domain at `public/` unless you remove that root rewrite.
 
-3. **GitHub → Settings → Secrets → Actions** — add:
+3. **Cron (required on Hostinger)** — hPanel → Cron Jobs → every minute:
+
+```bash
+cd /home/u373214048/domains/ir4.ispc-ai.com/public_html && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Without this, hourly jobs such as `ir4:prune-expired-cache` never run. Also set `CACHE_STORE=file` in `.env` so the MySQL `cache` table is not used for runtime cache.
+
+4. **GitHub → Settings → Secrets → Actions** — add:
 
 | Secret | Value |
 |--------|--------|
