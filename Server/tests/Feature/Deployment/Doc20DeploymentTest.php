@@ -4,6 +4,8 @@ use App\Models\Equipment;
 use App\Services\EquipmentLabelService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schedule;
+use Spatie\Backup\Commands\CleanupCommand;
+use Spatie\Backup\Tasks\Cleanup\Strategies\DefaultStrategy;
 
 uses(RefreshDatabase::class);
 
@@ -25,6 +27,7 @@ it('registers DOC-19/20 scheduled jobs including backup-before-prune', function 
         'ir4:backup-monitor',
         'ir4:prune-raw-sensor-data',
         'ir4:prune-export-files',
+        'ir4:prune-expired-cache',
         'ir4:check-disk-space',
         'ir4:generate-weekly-report',
     ] as $name) {
@@ -48,12 +51,12 @@ it('registers DOC-19/20 scheduled jobs including backup-before-prune', function 
 
 it('resolves Spatie backup cleanup command after config cache', function () {
     expect(config('backup.cleanup.strategy'))->toBe(
-        \Spatie\Backup\Tasks\Cleanup\Strategies\DefaultStrategy::class,
+        DefaultStrategy::class,
     );
 
-    $command = app(\Spatie\Backup\Commands\CleanupCommand::class);
+    $command = app(CleanupCommand::class);
 
-    expect($command)->toBeInstanceOf(\Spatie\Backup\Commands\CleanupCommand::class);
+    expect($command)->toBeInstanceOf(CleanupCommand::class);
 });
 
 it('exposes health and classifies unauthenticated surfaces', function () {

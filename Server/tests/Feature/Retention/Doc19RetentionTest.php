@@ -5,6 +5,7 @@ use App\Enums\AlertStatus;
 use App\Enums\AlertType;
 use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
+use App\Jobs\PruneExpiredCache;
 use App\Jobs\PruneRawSensorData;
 use App\Models\Alert;
 use App\Models\Device;
@@ -18,6 +19,7 @@ use App\Services\SettingsService;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SettingsSeeder;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Backup\Events\BackupHasFailed;
 use Spatie\Backup\Events\BackupWasSuccessful;
@@ -138,6 +140,29 @@ it('removes ad-hoc exports but keeps weekly report PDFs', function () {
     expect($removed)->toBeGreaterThan(0)
         ->and(Storage::disk('private')->exists('exports/tmp/old.csv'))->toBeFalse()
         ->and(Storage::disk('private')->exists('reports/1/report.pdf'))->toBeTrue();
+});
+
+it('prunes expired database cache and lock rows only', function () {
+    $past = now()->subHour()->getTimestamp();
+    $future = now()->addHour()->getTimestamp();
+
+    DB::table('cache')->insert([
+        ['key' => 'ir4-test-expired', 'value' => 'old', 'expiration' => $past],
+        ['key' => 'ir4-test-live', 'value' => 'live', 'expiration' => $future],
+    ]);
+    DB::table('cache_locks')->insert([
+        ['key' => 'ir4-lock-expired', 'owner' => 't', 'expiration' => $past],
+        ['key' => 'ir4-lock-live', 'owner' => 't', 'expiration' => $future],
+    ]);
+
+    $removed = app(RetentionService::class)->pruneExpiredDatabaseCache();
+    app(PruneExpiredCache::class)->handle(app(RetentionService::class));
+
+    expect($removed)->toBe(2)
+        ->and(DB::table('cache')->where('key', 'ir4-test-expired')->exists())->toBeFalse()
+        ->and(DB::table('cache')->where('key', 'ir4-test-live')->exists())->toBeTrue()
+        ->and(DB::table('cache_locks')->where('key', 'ir4-lock-expired')->exists())->toBeFalse()
+        ->and(DB::table('cache_locks')->where('key', 'ir4-lock-live')->exists())->toBeTrue();
 });
 
 it('configures encrypted Spatie backups for MySQL on the backups disk without mail', function () {

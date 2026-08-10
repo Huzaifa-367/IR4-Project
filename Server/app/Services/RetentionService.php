@@ -7,7 +7,9 @@ use App\Models\GasReading;
 use App\Models\TagReading;
 use App\Models\WeeklyReport;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -131,6 +133,49 @@ final class RetentionService
         ]);
 
         return $removed;
+    }
+
+    /**
+     * Delete expired Laravel database-cache rows (and locks).
+     * Safe for Hostinger: keeps `cache` from growing without bound when CACHE_STORE=database.
+     * No-op when the tables are absent; never touches domain/compliance data.
+     */
+    public function pruneExpiredDatabaseCache(?\DateTimeInterface $now = null): int
+    {
+        $cutoff = Carbon::instance($now ?? now())->getTimestamp();
+        $deleted = 0;
+
+        if (Schema::hasTable('cache')) {
+            $deleted += $this->deleteExpiredCacheRows('cache', $cutoff);
+        }
+        if (Schema::hasTable('cache_locks')) {
+            $deleted += $this->deleteExpiredCacheRows('cache_locks', $cutoff);
+        }
+
+        Log::info('ir4.retention.cache_pruned', ['removed' => $deleted]);
+
+        return $deleted;
+    }
+
+    private function deleteExpiredCacheRows(string $table, int $cutoff): int
+    {
+        $deleted = 0;
+
+        do {
+            $keys = DB::table($table)
+                ->where('expiration', '<', $cutoff)
+                ->orderBy('key')
+                ->limit(self::CHUNK)
+                ->pluck('key');
+
+            if ($keys->isEmpty()) {
+                break;
+            }
+
+            $deleted += DB::table($table)->whereIn('key', $keys)->delete();
+        } while ($keys->count() === self::CHUNK);
+
+        return $deleted;
     }
 
     private function pruneTagReadings(\DateTimeInterface $before): int
