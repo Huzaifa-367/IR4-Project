@@ -2,6 +2,7 @@
 
 | Symptom | Likely cause |
 |---|---|
+| `orin_bootstrap.sh` dies on `nvidia-l4t-kernel` / dpkg | Jetson L4T package half-configured — bootstrap now skips apt when python/mosquitto already installed. If apt is still required: `sudo apt-mark hold nvidia-l4t-kernel nvidia-l4t-kernel-headers nvidia-l4t-kernel-dtbs nvidia-l4t-display-kernel` then retry, or install packages by hand without `apt-get update` |
 | Cannot reach IR4 from Orin | Wrong base URL — use `https://ir4.ispc-ai.com` for Hostinger test (or SCC1 `http://192.168.3.149:9100` on-site); run `ir4-edge setup` |
 | Missing device token | Run `ir4-edge setup` or fill `configs/secrets.env` |
 | `ERR_NAME_NOT_RESOLVED` on workstation | Point DNS at `192.168.3.149` (or hosts: `192.168.3.149 ir4-project.test`) and open `https://ir4-project.test` |
@@ -12,7 +13,7 @@
 | FXR90 HTTPS OK but no MQTT tags | IoT Connector not mapped to MQTT endpoint; topic ≠ `rfid.yaml`; inventory not started; mode not SIMPLE |
 | Agent connected, zero EPCs | Wrong tag type (need UHF Gen2); antenna/TX; check `mosquitto_sub` for JSON with `idHex` |
 | `ws://` connection refused (lab) | Use `wss://` — see Research FXR90 RUNBOOK |
-| `FORBIDDEN_REFERENCE` | `device_ref` / `reader_ref` ≠ authenticated device |
+| `FORBIDDEN_REFERENCE` | `device_ref` / `reader_ref` ≠ authenticated device (wrong pole number in yaml vs secrets) |
 | `UNKNOWN_TAG` | EPC not in `rfid_tags` |
 | `UNAUTHENTICATED` | Bad/rotated token |
 | Rate limited `429` | Inventory flood — lower reader rate or raise `debounce_seconds` |

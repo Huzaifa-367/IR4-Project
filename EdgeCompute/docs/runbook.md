@@ -4,10 +4,30 @@ After [commissioning.md](commissioning.md). Host details: [../deploy/README.md](
 
 ## 1. Configure + bootstrap (once)
 
+Pick the pole number **NN** (`01`…`04`). Edit configs **before** starting agents:
+
+| File | Set to (example pole 02) |
+|---|---|
+| `configs/secrets.env` | `IR4_GAS_*` + `IR4_RFID_*` for `DEV-GAS-02` / `DEV-RFID-02` |
+| `configs/gas.yaml` → `agent.device_ref` | `DEV-GAS-02` |
+| `configs/rfid.yaml` → `agent.reader_ref` | `DEV-RFID-02` |
+| `configs/rfid.yaml` → `mqtt.topic` | `zebra/fxr90-02/tags` |
+
+| Pole | `device_ref` | `reader_ref` | MQTT topic |
+|------|--------------|--------------|------------|
+| 1 | `DEV-GAS-01` | `DEV-RFID-01` | `zebra/fxr90-01/tags` |
+| 2 | `DEV-GAS-02` | `DEV-RFID-02` | `zebra/fxr90-02/tags` |
+| 3 | `DEV-GAS-03` | `DEV-RFID-03` | `zebra/fxr90-03/tags` |
+| 4 | `DEV-GAS-04` | `DEV-RFID-04` | `zebra/fxr90-04/tags` |
+
+Token authenticates the device; `device_ref` / `reader_ref` in the payload must be **that same** reference or ingest returns `FORBIDDEN_REFERENCE` (HTTP still 202).
+
 ```bash
-cd /path/to/IR4-Project/EdgeCompute
-cp configs/secrets.example.env configs/secrets.env   # edit tokens, or: ir4-edge setup
-sudo ir4-edge install                                  # only installs what edge.yaml enables
+cd ~/Downloads/EdgeCompute
+cp configs/secrets.example.env configs/secrets.env   # edit tokens for this pole
+# edit gas.yaml + rfid.yaml refs/topic for this pole (table above)
+sudo ./deploy/orin_bootstrap.sh                      # first time — installs ir4-edge onto PATH
+# later: sudo ir4-edge install | apply
 ```
 
 If secrets are already filled, install **starts** the agents immediately (`services.auto_start` in `configs/edge.yaml`).
@@ -66,7 +86,8 @@ Lab / bring-up (direct WebSocket + local SQLite, no IR4):
 3. LLRP: **CLIENT** mode.
 4. Operating mode: **SIMPLE** (lab script also `PUT /cloud/mode {"type":"SIMPLE"}`).
 5. **IoT Connector → MQTT** endpoint = Orin LAN IP, port **1883**.  
-   Topic = `mqtt.topic` in `configs/rfid.yaml` (default `zebra/fxr90-01/tags`).  
+   Topic = `mqtt.topic` in `configs/rfid.yaml` for **this** pole  
+   (`zebra/fxr90-01/tags` … `zebra/fxr90-04/tags` — must match `reader_ref` pole number).  
    Anonymous broker (`edge.yaml` `mosquitto.anonymous: true`): no MQTT user. With auth: `fxr90` + `IR4_MQTT_FXR90_PASSWORD`.
 6. Start inventory / cloud start; wave a UHF tag at antenna 1.
 
@@ -88,8 +109,8 @@ ir4-edge logs -f
 | File | Purpose |
 |---|---|
 | `configs/edge.yaml` | Boot / install / Mosquitto listener |
-| `configs/gas.yaml` | Serial, Modbus map, `device_ref` |
-| `configs/rfid.yaml` | MQTT topic, `reader_ref`, debounce |
+| `configs/gas.yaml` | Serial, Modbus map, **per-pole** `device_ref` (`DEV-GAS-NN`) |
+| `configs/rfid.yaml` | **Per-pole** MQTT topic `zebra/fxr90-NN/tags`, `reader_ref` (`DEV-RFID-NN`) |
 | `configs/secrets.example.env` | Tracked template |
 | `configs/secrets.env` | Live secrets (`ir4-edge setup`, gitignored) |
 

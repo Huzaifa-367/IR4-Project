@@ -19,8 +19,8 @@ field_map:
 
 agent:
   enabled: true
-  # Matches SCC device reference (Gas Skid Hot Work / SN-GAS-201)
-  device_ref: "DEV-GAS-01"
+  # Per pole: DEV-GAS-01 … DEV-GAS-04 (must match secrets.env token → else FORBIDDEN_REFERENCE)
+  device_ref: "DEV-GAS-02"
   poll_interval_seconds: 30   # 1 reading / 30s → POST /api/ingest/gas-readings
   heartbeat_interval_seconds: 60
   # Relative paths resolve under IR4_EDGE_VAR_DIR (default /opt/ir4-edge/var)

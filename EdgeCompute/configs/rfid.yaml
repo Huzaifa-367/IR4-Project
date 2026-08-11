@@ -7,14 +7,14 @@
 mqtt:
   broker: "127.0.0.1"
   port: 1883
-  # Must match FXR90 IoT Connector Tag Data Interface topic.
-  topic: "zebra/fxr90-01/tags"
+  # Per pole: zebra/fxr90-01/tags … zebra/fxr90-04/tags (FXR90 IoT Connector must match)
+  topic: "zebra/fxr90-02/tags"
   # username/password from secrets.env; used only if IR4_MQTT_USE_AUTH=1
 
 agent:
   enabled: true
-  # Matches SCC device reference (Pole P-01 North RFID / SN-RDR-1000)
-  reader_ref: "DEV-RFID-01"
+  # Per pole: DEV-RFID-01 … DEV-RFID-04 (must match secrets.env token → else FORBIDDEN_REFERENCE)
+  reader_ref: "DEV-RFID-02"
   debounce_seconds: 2
   max_batch: 50
   flush_interval_seconds: 1

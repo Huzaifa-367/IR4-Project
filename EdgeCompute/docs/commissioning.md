@@ -32,13 +32,21 @@ Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' https://ir4.is
 | [`../configs/edge.yaml`](../configs/edge.yaml) | Boot enable / install root / Mosquitto listener |
 | [`../configs/secrets.example.env`](../configs/secrets.example.env) | Tracked template |
 | `../configs/secrets.env` | Live secrets (gitignored) — gas + RFID + MQTT |
-| [`../configs/gas.yaml`](../configs/gas.yaml) | Serial / Modbus / `device_ref` |
-| [`../configs/rfid.yaml`](../configs/rfid.yaml) | MQTT topic / `reader_ref` |
+| [`../configs/gas.yaml`](../configs/gas.yaml) | Serial / Modbus / **per-pole** `device_ref` |
+| [`../configs/rfid.yaml`](../configs/rfid.yaml) | **Per-pole** MQTT topic + `reader_ref` |
+
+Before bootstrap, set refs for this Orin’s pole (`NN` = `01`…`04`):
+
+- `gas.yaml` → `device_ref: DEV-GAS-NN`
+- `rfid.yaml` → `reader_ref: DEV-RFID-NN`, `mqtt.topic: zebra/fxr90-NN/tags`
+- `secrets.env` → tokens/UUIDs for those same devices
+
+Mismatch → ingest `FORBIDDEN_REFERENCE`. See [runbook.md](runbook.md) and [../README.md](../README.md).
 
 ```bash
-cd EdgeCompute
-cp configs/secrets.example.env configs/secrets.env   # or: ir4-edge setup
-sudo ir4-edge install
+cd ~/Downloads/EdgeCompute
+cp configs/secrets.example.env configs/secrets.env   # edit tokens for this pole
+sudo ./deploy/orin_bootstrap.sh                      # first time (creates ir4-edge)
 ir4-edge doctor
 ```
 
