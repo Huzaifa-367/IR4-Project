@@ -9,9 +9,11 @@ import SettingsLayout from '@/layouts/settings/layout';
 
 const reverbAppKey = import.meta.env.VITE_REVERB_APP_KEY;
 
-// Hostinger / CI builds often have no Reverb key. Never instantiate Pusher
-// without a key (blank dashboard). Null broadcaster + poll fallback (DOC-08).
-if (typeof reverbAppKey === 'string' && reverbAppKey.length > 0) {
+// Never open WebSockets during Node SSR (DOC-08 poll fallback covers downtime).
+// Hostinger / CI builds with no Reverb key also stay on null + poll.
+if (import.meta.env.SSR) {
+    configureEcho({ broadcaster: 'null' });
+} else if (typeof reverbAppKey === 'string' && reverbAppKey.length > 0) {
     configureEcho({
         broadcaster: 'reverb',
         key: reverbAppKey,

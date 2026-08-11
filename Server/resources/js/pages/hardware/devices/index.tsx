@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { MoreHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import {
@@ -183,6 +184,20 @@ export default function DevicesIndex({
                             }}
                         >
                             Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onClick={async () => {
+                                try {
+                                    await navigator.clipboard.writeText(
+                                        device.uuid,
+                                    );
+                                    toast.success('UUID copied');
+                                } catch {
+                                    toast.error('Could not copy UUID');
+                                }
+                            }}
+                        >
+                            Copy UUID
                         </DropdownMenuItem>
                         <DropdownMenuItem
                             disabled={device.status === 'retired'}

@@ -5,51 +5,78 @@ import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, type ServerOptions } from 'vite';
 
 /**
- * Dev server must match the browser hostname (ir4-project.test via hosts/DNS),
- * not the LAN IP — otherwise the TLS cert SAN fails and Firefox reports a
- * bogus CORS error with status (null).
+ * Local default: HTTP Vite on 127.0.0.1 (matches `php artisan serve`).
  *
- * Generate certs on the machine that runs Vite (do not reuse MediaMTX certs):
- *   mkcert -cert-file auto.crt -key-file auto.key \
- *     ir4-project.test "*.ir4-project.test" localhost 127.0.0.1 ::1
- *
- * Override host with VITE_DEV_HOST if needed.
+ * Herd HTTPS (optional):
+ *   VITE_DEV_HTTPS=1 VITE_DEV_HOST=ir4-project.test npm run dev
+ *   with mkcert auto.crt / auto.key for ir4-project.test
  */
-const devHost: string = process.env.VITE_DEV_HOST ?? 'ir4-project.test';
-const keyPath: string = './auto.key';
-const certPath: string = './auto.crt';
-const hasTls: boolean = fs.existsSync(keyPath) && fs.existsSync(certPath);
+const useHttps: boolean =
+    process.env.VITE_DEV_HTTPS === '1' &&
+    fs.existsSync('./auto.key') &&
+    fs.existsSync('./auto.crt');
+
+const devHost: string =
+    process.env.VITE_DEV_HOST ?? (useHttps ? 'ir4-project.test' : '127.0.0.1');
+
+const rootDir: string = path.dirname(fileURLToPath(import.meta.url));
 
 const server: ServerOptions = {
     host: '0.0.0.0',
     port: 5173,
     strictPort: true,
+    origin: `${useHttps ? 'https' : 'http'}://${devHost}:5173`,
     cors: {
-        origin: [`https://${devHost}`, `http://${devHost}`],
+        origin: [
+            'http://127.0.0.1:8000',
+            'http://127.0.0.1:8001',
+            'http://localhost:8000',
+            'http://localhost:8001',
+            'https://localhost:8000',
+            'https://localhost:8001',
+            'http://ir4-project.test',
+            'https://ir4-project.test',
+            `http://${devHost}`,
+            `https://${devHost}`,
+        ],
     },
     hmr: {
         host: devHost,
         port: 5173,
-        protocol: hasTls ? 'wss' : 'ws',
         clientPort: 5173,
+        protocol: useHttps ? 'wss' : 'ws',
     },
 };
 
-if (hasTls) {
+if (useHttps) {
     server.https = {
-        key: fs.readFileSync(keyPath),
-        cert: fs.readFileSync(certPath),
+        key: fs.readFileSync('./auto.key'),
+        cert: fs.readFileSync('./auto.crt'),
     };
-    server.origin = `https://${devHost}:5173`;
-} else {
-    server.origin = `http://${devHost}:5173`;
 }
 
 export default defineConfig({
     server,
+    optimizeDeps: {
+        include: ['pusher-js', 'laravel-echo', '@laravel/echo-react'],
+    },
+    ssr: {
+        // Real pusher-js Node build uses require() and breaks Vite SSR. Stub it;
+        // app.tsx configures Echo with the null broadcaster during SSR.
+        resolve: {
+            alias: {
+                'pusher-js': path.resolve(
+                    rootDir,
+                    'resources/js/shims/pusher-js-ssr.ts',
+                ),
+            },
+        },
+    },
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],

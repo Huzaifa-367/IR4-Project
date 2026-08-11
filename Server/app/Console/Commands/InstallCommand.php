@@ -18,8 +18,8 @@ use Illuminate\Support\Facades\Validator;
  * First-time platform bootstrap (DOC-03 §7.3, DOC-20).
  *
  * Seeds settings, RBAC, gas thresholds, then creates the initial Super Admin
- * (interactive or via --name/--email/--password). Demo + permit catalogue
- * seeders run after the admin exists so demo data can reuse that user.
+ * (interactive or via --name/--email/--password). Initial site registry +
+ * permit catalogue run after the admin exists so rows attach to that user.
  *
  * Usage:
  *   php artisan ir4:install
@@ -41,13 +41,13 @@ final class InstallCommand extends Command
         $this->callSilent('db:seed', ['--class' => RolePermissionSeeder::class, '--force' => true]);
         $this->callSilent('db:seed', ['--class' => GasThresholdSeeder::class, '--force' => true]);
 
-        // Create Super Admin before DemoSeeder so demo rows attach to this
+        // Create Super Admin before site registry so hardware rows attach to this
         // account instead of inventing a different admin and ignoring CLI options.
         if (! $this->ensureSuperAdmin()) {
             return self::FAILURE;
         }
 
-        // Optional demo site data + dynamic PTW catalogue.
+        // Initial site registry (poles/devices/cameras) + PTW catalogue.
         $this->callSilent('db:seed', ['--class' => DemoSeeder::class, '--force' => true]);
         $this->callSilent('db:seed', ['--class' => PermitCatalogueSeeder::class, '--force' => true]);
 
