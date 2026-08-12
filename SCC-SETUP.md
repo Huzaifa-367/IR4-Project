@@ -174,43 +174,38 @@ CACHE_STORE=database
 
 **Always set MediaMTX to this SCC’s LAN IP** — do not copy `MEDIAMTX_*` / `CAMERA_BROWSER_*` from another box (e.g. SCC1 `192.168.3.149` will break live wall on SCC2).
 
-Discover this host’s IP:
+Permanent contract (auto-applied by `scripts/ensure-mediamtx-env.sh` and by `03-ensure-mediamtx.sh`):
 
 ```bash
-hostname -I | awk '{print $1}'
-# or:
-ip -4 route get 1.1.1.1 | awk '{print $7; exit}'
+cd /data2/laravel/IR4-Project
+bash scripts/ensure-mediamtx-env.sh
 ```
 
-Example for this site (`192.168.8.38` — replace if yours differs):
+That detects this host’s LAN IP and writes:
 
 ```env
 CAMERA_BROWSER_STREAM_URL_TEMPLATE=/hls/{reference}/
-MEDIAMTX_API_URL=http://192.168.8.38:9997
-MEDIAMTX_HOST_IP=192.168.8.38
+MEDIAMTX_API_URL=http://<this-SCC-IP>:9997
+MEDIAMTX_HOST_IP=<this-SCC-IP>
 MEDIAMTX_API_USER=
 MEDIAMTX_API_PASS=
+MEDIAMTX_SOURCE_ON_DEMAND=false
+MEDIAMTX_RTSP_TRANSPORT=tcp
 BACKUP_DISK_ROOT=/data/ir4-backups
 BACKUP_ARCHIVE_PASSWORD=<strong-site-secret>
 MYSQL_DUMP_BINARY_PATH=/usr/bin
 ```
 
-| Key | Value on this SCC |
+| Key | Permanent value |
 | --- | ----------------- |
-| `MEDIAMTX_HOST_IP` | Output of `hostname -I` (this machine) |
-| `MEDIAMTX_API_URL` | `http://<that-IP>:9997` (preferred), or `gateway` **with** correct `MEDIAMTX_HOST_IP` |
-| `CAMERA_BROWSER_STREAM_URL_TEMPLATE` | **`/hls/{reference}/` only** (same-origin proxy — required for HTTPS and for IP vs hostname) |
-| `MEDIAMTX_API_USER` / `PASS` | Leave empty (matches `scripts/mediamtx.yml`) |
+| `CAMERA_BROWSER_STREAM_URL_TEMPLATE` | **`/hls/{reference}/`** (same-origin HLS `<video>` — works on LAN IP and HTTPS) |
+| `MEDIAMTX_API_URL` | `http://<this-SCC-IP>:9997` |
+| `MEDIAMTX_HOST_IP` | This SCC LAN IP |
+| `MEDIAMTX_SOURCE_ON_DEMAND` | `false` (warm RTSP for live wall) |
+| `MEDIAMTX_RTSP_TRANSPORT` | `tcp` |
+| `MEDIAMTX_API_USER` / `PASS` | Empty |
 
-**Do not** set the browser template to `http://<SCC-IP>:8888/{reference}`:
-
-| How you open IR4 | Absolute `:8888` template | `/hls/{reference}/` |
-| ---------------- | ------------------------- | ------------------- |
-| `http://192.168.8.38:9100/live` | Often works | Works |
-| `https://ir4-project.test/live` | **Blank** (mixed content — HTTPS page blocked from loading HTTP iframe) | Works |
-| Another SCC’s IP in the template | Blank / wrong box | Works |
-
-Browsers cannot play RTSP. IR4 proxies MediaMTX HLS at `/hls/…` so the iframe stays on the **same host and scheme** as the dashboard.
+**Do not** use `http://<SCC-IP>:8888/{reference}` in the browser template (breaks HTTPS / mixed content). Live wall plays via `hls.js` → `/hls/{reference}/index.m3u8` → MediaMTX.
 
 Apply:
 
@@ -342,24 +337,17 @@ systemctl status ir4.target
 
 ## 8. Live wall — MediaMTX (`03-ensure-mediamtx.sh`)
 
-Prerequisites: §4c MediaMTX IPs point at **this** SCC (not another SCC’s IP).
+Permanent path: same-origin `/hls/{reference}/` + MediaMTX on this SCC + `hls.js` player (already in the app build).
 
 ```bash
 export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
 cd /data2/laravel/IR4-Project
 
-# Confirm / fix IP if you cloned .env from another SCC
-SCC_IP="$(ip -4 route get 1.1.1.1 | awk '{print $7; exit}')"
-echo "This SCC LAN IP: $SCC_IP"
-grep -E '^(MEDIAMTX_|CAMERA_BROWSER_)' .env
-
-# If wrong, set (example):
-#   MEDIAMTX_API_URL=http://$SCC_IP:9997
-#   MEDIAMTX_HOST_IP=$SCC_IP
-#   CAMERA_BROWSER_STREAM_URL_TEMPLATE=/hls/{reference}/
+# Writes MEDIAMTX_* + CAMERA_BROWSER_* for THIS host’s LAN IP
+bash scripts/ensure-mediamtx-env.sh
 lerd artisan config:clear
 
-sudo bash scripts/03-ensure-mediamtx.sh
+sudo bash scripts/03-ensure-mediamtx.sh   # also re-runs ensure-mediamtx-env.sh
 curl -sS -o /dev/null -w 'API %{http_code}\n' http://127.0.0.1:9997/v3/config/paths/list
 
 lerd artisan ir4:sync-camera-streams --probe
@@ -367,40 +355,24 @@ lerd artisan ir4:sync-camera-streams
 ```
 
 Camera `stream_url` in the UI is **RTSP** (e.g. `rtsp://admin:Unity@320@@192.168.1.185:554/Streaming/Channels/101`).  
-Browsers use **HLS** via MediaMTX (`/hls/{reference}/`) — `ffplay` on RTSP working is not enough until sync succeeds.
+Browsers use **HLS** via `/hls/{reference}/` — `ffplay` on RTSP working is not enough until sync succeeds.
 
-After changing live-wall frontend (HLS `<video>` player), rebuild assets on SCC:
-
-```bash
-cd /data2/laravel/IR4-Project
-export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
-export WAYFINDER_COMMAND="lerd artisan wayfinder:generate"
-npm run build
-lerd restart
-```
-
-### Smoothness / delay
-
-HLS always has a few seconds of lag. To reduce stutter on SCC:
-
-```env
-MEDIAMTX_SOURCE_ON_DEMAND=false
-MEDIAMTX_RTSP_TRANSPORT=tcp
-CAMERA_BROWSER_STREAM_URL_TEMPLATE=/hls/{reference}/
-```
-
-Then recreate MediaMTX with the tuned config and re-sync:
+After pulling live-wall frontend changes, rebuild once:
 
 ```bash
+bash scripts/05-update.sh
+# or: npm run build && lerd restart
+```
+
+### Smoothness
+
+HLS always has a few seconds of lag. Defaults from `ensure-mediamtx-env.sh` + `scripts/mediamtx.yml` (warm RTSP, TCP, LL-HLS, streaming PHP proxy) are the permanent tuning. Re-apply after cloning `.env` from another SCC:
+
+```bash
+bash scripts/ensure-mediamtx-env.sh
 sudo bash scripts/03-ensure-mediamtx.sh
 lerd artisan config:clear
 lerd artisan ir4:sync-camera-streams
-```
-
-Optional (LAN HTTP only — smoother, but **breaks HTTPS** live wall):
-
-```env
-CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://192.168.8.38:8888/{reference}/
 ```
 
 ### Edge / workstation cannot open `/live`
@@ -639,6 +611,7 @@ Common causes:
 | `Server/scripts/01-setup.sh`                 | `scripts/01-setup.sh`                 | First install (clone, build, scheduler) |
 | `Server/scripts/02-install-systemd-units.sh` | `scripts/02-install-systemd-units.sh` | `ir4.target` → `/etc/systemd/system/`   |
 | `Server/scripts/03-ensure-mediamtx.sh`       | `scripts/03-ensure-mediamtx.sh`       | MediaMTX Docker/Podman                  |
+| `Server/scripts/ensure-mediamtx-env.sh`      | `scripts/ensure-mediamtx-env.sh`      | Permanent MediaMTX `.env` for this SCC  |
 | `Server/scripts/04-setup-backup.sh`          | `scripts/04-setup-backup.sh`          | Backup volume + first run               |
 | `Server/scripts/05-update.sh`                | `scripts/05-update.sh`                | Pull + rebuild                          |
 | `Server/scripts/systemd/*`                   | `scripts/systemd/*`                   | Unit templates                          |

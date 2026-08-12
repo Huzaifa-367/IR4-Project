@@ -155,6 +155,7 @@ if [ ! -f ".env" ]; then
 fi
 
 bash "$APP_ROOT/scripts/ensure-storage-dirs.sh" "$APP_ROOT"
+bash "$APP_ROOT/scripts/ensure-mediamtx-env.sh" "$APP_ROOT" || true
 
 ir4_artisan key:generate --force
 

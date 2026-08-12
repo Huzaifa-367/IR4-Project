@@ -105,8 +105,21 @@ echo "  curl -s http://127.0.0.1:9997/v3/config/paths/list"
 curl -s http://127.0.0.1:9997/v3/config/paths/list || true
 echo
 echo
-echo "From Lerd PHP set in .env (use SCC LAN IP — not 127.0.0.1):"
-echo "  MEDIAMTX_API_URL=http://<SCC-LAN-IP>:9997"
-echo "  CAMERA_BROWSER_STREAM_URL_TEMPLATE=/hls/{reference}/"
-echo
-echo "Then: lerd artisan config:clear && lerd artisan ir4:sync-camera-streams"
+
+# Permanent .env: this SCC's LAN IP + same-origin /hls template + warm TCP RTSP.
+if [[ -f "$ROOT/.env" ]]; then
+  bash "$ROOT/scripts/ensure-mediamtx-env.sh" "$ROOT" || true
+  echo
+  echo "Apply Laravel config + push camera paths:"
+  echo "  lerd artisan config:clear && lerd artisan ir4:sync-camera-streams"
+else
+  echo "From Lerd PHP set in .env (use SCC LAN IP — not 127.0.0.1):"
+  echo "  bash scripts/ensure-mediamtx-env.sh"
+  echo "  # or manually:"
+  echo "  MEDIAMTX_API_URL=http://<SCC-LAN-IP>:9997"
+  echo "  CAMERA_BROWSER_STREAM_URL_TEMPLATE=/hls/{reference}/"
+  echo "  MEDIAMTX_SOURCE_ON_DEMAND=false"
+  echo "  MEDIAMTX_RTSP_TRANSPORT=tcp"
+  echo
+  echo "Then: lerd artisan config:clear && lerd artisan ir4:sync-camera-streams"
+fi
