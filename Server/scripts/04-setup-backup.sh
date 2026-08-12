@@ -12,6 +12,24 @@
 set -euo pipefail
 
 APP_ROOT="$(pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Lerd CLI + fnm (non-login shells often omit both).
+export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
+if command -v fnm >/dev/null 2>&1 || [ -x "$HOME/.local/share/fnm/fnm" ]; then
+  export PATH="$HOME/.local/share/fnm:$PATH"
+  eval "$(fnm env --use-on-cd)" 2>/dev/null || true
+fi
+
+# shellcheck source=resolve-artisan.sh
+source "$SCRIPT_DIR/resolve-artisan.sh"
+
+if ! command -v lerd >/dev/null 2>&1; then
+  echo "ERROR: lerd not found on PATH." >&2
+  echo "Install Lerd or run: export PATH=\"\$HOME/.local/share/lerd/bin:\$PATH\"" >&2
+  exit 1
+fi
+
 BACKUP_ROOT="${BACKUP_DISK_ROOT_OVERRIDE:-}"
 ARCHIVE_PASSWORD="${BACKUP_ARCHIVE_PASSWORD_OVERRIDE:-}"
 
@@ -79,15 +97,15 @@ if ! grep -q 'spatie/laravel-backup' "$APP_ROOT/composer.json"; then
   exit 1
 fi
 
-if ! php artisan list backup 2>/dev/null | grep -q 'backup:run'; then
+if ! ir4_artisan list backup 2>/dev/null | grep -q 'backup:run'; then
   echo "    backup:* commands missing — running composer install --no-dev"
   composer install --no-dev --optimize-autoloader --no-interaction
-  php artisan package:discover --ansi
+  ir4_artisan package:discover --ansi
   rm -f bootstrap/cache/packages.php bootstrap/cache/services.php bootstrap/cache/config.php
-  php artisan optimize:clear
+  ir4_artisan optimize:clear
 fi
 
-if ! php artisan list backup 2>/dev/null | grep -q 'backup:run'; then
+if ! ir4_artisan list backup 2>/dev/null | grep -q 'backup:run'; then
   echo "ERROR: backup:* still missing after composer install." >&2
   exit 1
 fi
@@ -253,14 +271,15 @@ fi
 #########################################
 
 echo "==> Clearing caches"
+bash "$SCRIPT_DIR/ensure-storage-dirs.sh" "$APP_ROOT"
 rm -f bootstrap/cache/config.php bootstrap/cache/packages.php bootstrap/cache/services.php \
   bootstrap/cache/routes-v7.php bootstrap/cache/events.php
-php artisan optimize:clear
-php artisan config:clear
+ir4_artisan optimize:clear
+ir4_artisan config:clear
 
 echo "==> Running first backup:run (must appear on the HOST under $BACKUP_DISK_ROOT)"
-php artisan backup:run
-php artisan backup:list
+ir4_artisan backup:run
+ir4_artisan backup:list
 
 sudo mkdir -p "$BACKUP_DISK_ROOT/$APP_NAME"
 echo "==> Host archive listing (must show ir4-*.zip):"
@@ -283,7 +302,7 @@ if ! lerd worker list 2>/dev/null | grep -qi 'schedule'; then
   exit 1
 fi
 
-php artisan schedule:list | grep -E 'backup:(clean|run|monitor)' || true
+ir4_artisan schedule:list | grep -E 'backup:(clean|run|monitor)' || true
 
 #########################################
 # 9. Survive system reboot
