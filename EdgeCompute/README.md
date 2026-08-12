@@ -54,7 +54,7 @@ cp configs/secrets.pole-NN.env configs/secrets.env
 | 3    | `cp configs/secrets.pole-03.env configs/secrets.env` |
 | 4    | `cp configs/secrets.pole-04.env configs/secrets.env` |
 
-On-site `IR4_BASE_URL` is `http://192.168.1.245:9100` (SCC on the pole/camera LAN). Operator UI stays on `http://192.168.8.38:9100`.
+On-site `IR4_BASE_URL` is `http://192.168.8.40:9100` (SCC2). Operator UI may use the same URL or `https://ir4-project.test`.
 
 YAML `device_ref` / `reader_ref` / `mqtt.topic` are fallbacks only. Token UUID must match the ref — mismatch → `FORBIDDEN_REFERENCE`.
 

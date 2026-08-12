@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Validator;
  * Seeds settings, RBAC, gas thresholds, then creates the initial Super Admin
  * (interactive or via --name/--email/--password). Initial site registry +
  * permit catalogue run after the admin exists so rows attach to that user.
+ * DemoSeeder output is shown (device credentials for EdgeCompute).
  *
  * Usage:
  *   php artisan ir4:install
@@ -47,8 +48,9 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
-        // Initial site registry (poles/devices/cameras) + PTW catalogue.
-        $this->callSilent('db:seed', ['--class' => DemoSeeder::class, '--force' => true]);
+        // Initial site registry (poles/devices/cameras) — not silent so device
+        // credentials (UUID + plaintext token) print for EdgeCompute secrets.
+        $this->call('db:seed', ['--class' => DemoSeeder::class, '--force' => true]);
         $this->callSilent('db:seed', ['--class' => PermitCatalogueSeeder::class, '--force' => true]);
 
         return self::SUCCESS;

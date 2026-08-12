@@ -28,8 +28,8 @@ Design rules: `Docs/` DOC-01…22 · Full ops depth: [DOC-20](Docs/Doc%2020%20de
 Example for this site (replace IP if yours differs):
 
 ```text
-SCC IP:     192.168.8.38
-LAN URL:    http://192.168.8.38:9100
+SCC IP:     192.168.8.40
+LAN URL:    http://192.168.8.40:9100
 HTTPS URL:  https://ir4-project.test   (after step 8)
 ```
 
@@ -78,7 +78,7 @@ sudo usermod -aG docker "$USER"   # re-login after this
 Copy the bootstrap script **before** the app tree exists:
 
 ```bash
-scp Server/scripts/01-setup.sh scc2@192.168.8.38:~/Desktop/
+scp Server/scripts/01-setup.sh scc2@192.168.8.40:~/Desktop/
 ```
 
 ---
@@ -133,10 +133,10 @@ Edit `/data2/laravel/IR4-Project/.env`:
 
 ### 4a. URL + session (required — fixes login loops)
 
-**LAN HTTP commissioning** (open `http://192.168.8.38:9100` in the browser):
+**LAN HTTP commissioning** (open `http://192.168.8.40:9100` in the browser):
 
 ```env
-APP_URL=http://192.168.8.38:9100
+APP_URL=http://192.168.8.40:9100
 SESSION_SECURE_COOKIE=false
 SESSION_DOMAIN=
 ```
@@ -242,10 +242,10 @@ lerd artisan ir4:install
 ```
 
 `ir4:install` seeds RBAC, settings, gas thresholds, **DemoSeeder** (4 poles + device tokens), and PTW catalogue.  
-**Save the device credential table** printed at the end — copy tokens into `EdgeCompute/configs/secrets.pole-NN.env`.
+**Save the device credential table** printed during install — copy tokens into `EdgeCompute/configs/secrets.pole-NN.env`.
 
-> Do **not** run `db:seed` separately if you already ran `ir4:install` — it duplicates work.  
-> Re-running `DemoSeeder` generates **new random device tokens** (update Orin secrets after).
+> `DemoSeeder` is idempotent: if `AST-POLE-01` already exists it skips and **does not** print new tokens.  
+> Fresh install (empty registry) is when the credential table appears.
 
 
 
@@ -275,7 +275,7 @@ echo 'OK';
 
 ## 6. Log in (verify before continuing)
 
-1. Open `http://192.168.8.38:9100/login` (same scheme/host/port as `APP_URL`).
+1. Open `http://192.168.8.40:9100/login` (same scheme/host/port as `APP_URL`).
 2. Email: `admin@ir4.local` (or the email you passed to `ir4:install`).
 3. Password: `Password123!` (or your chosen password).
 4. First login forces a **password change** — that is expected.
@@ -290,17 +290,21 @@ App\Models\User::role('Super Admin')->get(['email','is_active'])->each(
 );"
 
 # Health endpoint
-curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.38:9100/up
+curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.40:9100/up
 
 # Session config loaded
 grep -E '^(APP_URL|SESSION_SECURE_COOKIE|SESSION_DOMAIN)=' .env
-lerd artisan config:show session.secure session.domain app.url
+lerd artisan config:show app.url
+lerd artisan config:show session.secure
+lerd artisan config:show session.domain
 ```
 
 
 | Symptom                   | Fix                                                             |
 | ------------------------- | --------------------------------------------------------------- |
 | Page refreshes, no error  | `APP_URL` / `SESSION_SECURE_COOKIE` mismatch — see §4a          |
+| Login **419** / cookies rejected as “secure” on HTTP | `.env` still has HTTPS settings — set §4a LAN HTTP values, then `lerd artisan config:clear` |
+| Assets load from `https://ir4-project.test` / Vite `ws://127.0.0.1:5173` | Wrong `APP_URL`, or leftover Vite hot file: `rm -f public/hot` then `npm run build` (or `bash scripts/05-update.sh`) |
 | “Credentials don’t match” | Wrong email — check `ir4:install` output or reset command above |
 | Locked account            | `lerd artisan ir4:user:reset <email>`                           |
 
@@ -377,9 +381,9 @@ lerd artisan ir4:sync-camera-streams
 
 ### Edge / workstation cannot open `/live`
 
-1. Open `http://192.168.8.38:9100/login` first (must be logged in — `/hls` requires auth).  
-2. `APP_URL` must match how you browse (`http://192.168.8.38:9100` for LAN).  
-3. From the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.1.245:9100/up` → `200`.  
+1. Open `http://192.168.8.40:9100/login` first (must be logged in — `/hls` requires auth).  
+2. `APP_URL` must match how you browse (`http://192.168.8.40:9100` for LAN).  
+3. From the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.40:9100/up` → `200`.  
 4. Hard-refresh `/live` after login.
 
 Config template: `scripts/mediamtx.yml`.
@@ -445,21 +449,21 @@ scp "$(mkcert -CAROOT)/rootCA.pem" operator@192.168.8.100:~/Downloads/lerd-rootC
 
 ### 10b. On each operator PC
 
-Replace `192.168.8.38` if your SCC IP differs.
+Replace `192.168.8.40` if your SCC IP differs.
 
 #### 1) Hosts file — map `ir4-project.test` → SCC
 
 **Windows (PowerShell as Administrator):**
 
 ```powershell
-Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "`n192.168.8.38`tir4-project.test"
+Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "`n192.168.8.40`tir4-project.test"
 ping ir4-project.test
 ```
 
 **macOS / Linux:**
 
 ```bash
-echo '192.168.8.38 ir4-project.test' | sudo tee -a /etc/hosts
+echo '192.168.8.40 ir4-project.test' | sudo tee -a /etc/hosts
 ping -c 1 ir4-project.test
 ```
 
@@ -508,7 +512,7 @@ In the browser (not on the SCC):
 https://ir4-project.test/login
 ```
 
-Do **not** use `http://192.168.8.38:9100` after switching to HTTPS mode — sessions and redirects expect `https://ir4-project.test`.
+Do **not** use `http://192.168.8.40:9100` after switching to HTTPS mode — sessions and redirects expect `https://ir4-project.test`.
 
 **Verify from operator PC:**
 
@@ -526,7 +530,7 @@ sudo reboot
 # after reboot:
 systemctl is-active ir4.target
 lerd worker list
-curl -sk https://ir4-project.test/up    # or http://192.168.8.38:9100/up on LAN HTTP
+curl -sk https://ir4-project.test/up    # or http://192.168.8.40:9100/up on LAN HTTP
 ls -lah /data/ir4-backups/IR4/
 ```
 
@@ -541,10 +545,10 @@ Full acceptance: [DOC-20 §10](Docs/Doc%2020%20deployment%20runbook.md).
 SCC must be reachable from each Orin at the same base URL used in pole secrets:
 
 ```env
-IR4_BASE_URL=http://192.168.1.245:9100
+IR4_BASE_URL=http://192.168.8.40:9100
 ```
 
-(Operators still use `http://192.168.8.38:9100` / `https://ir4-project.test`.)
+(Operators still use `http://192.168.8.40:9100` / `https://ir4-project.test`.)
 
 On **each Orin** (`NN` = `01` … `04`):
 
@@ -558,7 +562,7 @@ git pull    # or re-copy after SCC re-seed
 cp configs/secrets.pole-NN.env configs/secrets.env
 sudo ./deploy/orin_bootstrap.sh
 ir4-edge doctor
-curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.1.245:9100/up
+curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.40:9100/up
 ```
 
 Full detail: [EdgeCompute/README.md](EdgeCompute/README.md) · [EdgeCompute/docs/commissioning.md](EdgeCompute/docs/commissioning.md).

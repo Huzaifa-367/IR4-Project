@@ -10,7 +10,7 @@ Do this on the IR4 Server **before** enabling agents on the Orin.
 4. Bind the RFID reader to the correct zone(s) (DOC-06).
 5. Issue an API token for **each** device (Settings → Devices → Token). Keep the
    plaintext and each device **UUID** for `ir4-edge setup`.
-6. Confirm the Orin can reach SCC. On-site: `http://192.168.1.245:9100`. Hostinger test: `https://ir4.ispc-ai.com`.
+6. Confirm the Orin can reach SCC. On-site: `http://192.168.8.40:9100`. Hostinger test: `https://ir4.ispc-ai.com`.
 7. For RFID live tracking: register physical tags in `rfid_tags` and assign them.
    Unknown EPCs are rejected as `UNKNOWN_TAG` (HTTP still 202).
 
@@ -19,10 +19,10 @@ Do this on the IR4 Server **before** enabling agents on the Orin.
 | Who / phase | URL | Why |
 |---|---|---|
 | **Orin agents (Hostinger test)** | `https://ir4.ispc-ai.com` | Off-site test host |
-| **Orin agents (SCC2 on-site)** | `http://192.168.1.245:9100` | SCC address on pole/camera LAN (`IR4_BASE_URL`) |
-| **Operator browsers (SCC2)** | `http://192.168.8.38:9100` or `https://ir4-project.test` | Operator / MediaMTX LAN |
+| **Orin agents (SCC2 on-site)** | `http://192.168.8.40:9100` | SCC2 LAN (`IR4_BASE_URL`) |
+| **Operator browsers (SCC2)** | `http://192.168.8.40:9100` or `https://ir4-project.test` | Operator / MediaMTX LAN |
 
-Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.1.245:9100/up`
+Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.40:9100/up`
 
 ## Config files (no copy step)
 
