@@ -379,6 +379,37 @@ npm run build
 lerd restart
 ```
 
+### Smoothness / delay
+
+HLS always has a few seconds of lag. To reduce stutter on SCC:
+
+```env
+MEDIAMTX_SOURCE_ON_DEMAND=false
+MEDIAMTX_RTSP_TRANSPORT=tcp
+CAMERA_BROWSER_STREAM_URL_TEMPLATE=/hls/{reference}/
+```
+
+Then recreate MediaMTX with the tuned config and re-sync:
+
+```bash
+sudo bash scripts/03-ensure-mediamtx.sh
+lerd artisan config:clear
+lerd artisan ir4:sync-camera-streams
+```
+
+Optional (LAN HTTP only — smoother, but **breaks HTTPS** live wall):
+
+```env
+CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://192.168.8.38:8888/{reference}/
+```
+
+### Edge / workstation cannot open `/live`
+
+1. Open `http://192.168.8.38:9100/login` first (must be logged in — `/hls` requires auth).  
+2. `APP_URL` must match how you browse (`http://192.168.8.38:9100` for LAN).  
+3. From the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.38:9100/up` → `200`.  
+4. Hard-refresh `/live` after login.
+
 Config template: `scripts/mediamtx.yml`.
 
 ---

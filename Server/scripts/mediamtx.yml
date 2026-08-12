@@ -7,10 +7,10 @@
 # Start: sudo bash scripts/03-ensure-mediamtx.sh
 #
 # .env (from Lerd PHP — NOT 127.0.0.1):
-#   CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://<SCC-LAN-IP>:8888/{reference}
-#   MEDIAMTX_API_URL=gateway
-#   MEDIAMTX_API_USER=
-#   MEDIAMTX_API_PASS=
+#   CAMERA_BROWSER_STREAM_URL_TEMPLATE=/hls/{reference}/
+#   MEDIAMTX_API_URL=http://<SCC-LAN-IP>:9997
+#   MEDIAMTX_HOST_IP=<SCC-LAN-IP>
+#   MEDIAMTX_SOURCE_ON_DEMAND=false
 #   lerd artisan ir4:sync-camera-streams
 
 logLevel: info
@@ -31,15 +31,23 @@ authInternalUsers:
       - action: api
       - action: metrics
 
-# Browser playback (iframe on /live)
+# Browser playback (live wall /hls proxy or direct :8888 on LAN HTTP)
 hls: yes
 hlsAddress: :8888
-hlsAlwaysRemux: no
+# Pre-generate HLS so the first viewer is not stuck waiting for remux.
+hlsAlwaysRemux: yes
 hlsVariant: lowLatency
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
 
 webrtc: yes
 webrtcAddress: :8889
 
+# Default for paths created via API (RTSP pull from cameras).
+pathDefaults:
+  # TCP is more reliable across VLANs/firewalls than UDP RTP.
+  rtspTransport: tcp
+
 # Paths are created dynamically by IR4 (CameraStreamGatewayService).
-# From Lerd set MEDIAMTX_API_URL=gateway (resolves Docker/Podman default gateway).
 paths: {}

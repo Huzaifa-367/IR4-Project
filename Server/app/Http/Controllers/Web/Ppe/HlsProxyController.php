@@ -11,8 +11,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 /**
- * Same-origin reverse proxy for MediaMTX HLS so /live iframes work on HTTPS
+ * Same-origin reverse proxy for MediaMTX HLS so /live works on HTTPS
  * (browsers block http://host:8888 inside an https:// IR4 page).
+ *
+ * Streams the upstream body (does not buffer whole .ts/.m4s segments in PHP)
+ * so the live wall stays smoother under load.
  */
 final class HlsProxyController extends BaseController
 {
@@ -41,10 +44,10 @@ final class HlsProxyController extends BaseController
 
         try {
             $upstreamResponse = Http::withOptions([
-                // Let the browser follow redirects after we rewrite Location.
                 'allow_redirects' => false,
+                'stream' => true,
             ])
-                ->timeout(30)
+                ->timeout(60)
                 ->connectTimeout(5)
                 ->withHeaders($this->forwardHeaders($request))
                 ->send($request->method(), $target, [
@@ -55,7 +58,7 @@ final class HlsProxyController extends BaseController
         }
 
         $headers = [];
-        foreach (['Content-Type', 'Cache-Control', 'Accept-Ranges', 'Content-Length', 'Set-Cookie'] as $header) {
+        foreach (['Content-Type', 'Cache-Control', 'Accept-Ranges'] as $header) {
             $value = $upstreamResponse->header($header);
             if (is_string($value) && $value !== '') {
                 $headers[$header] = $value;
@@ -67,7 +70,18 @@ final class HlsProxyController extends BaseController
             $headers['Location'] = $this->rewriteLocationForProxy($location);
         }
 
-        return response($upstreamResponse->body(), $upstreamResponse->status(), $headers);
+        $status = $upstreamResponse->status();
+        $psrBody = $upstreamResponse->toPsrResponse()->getBody();
+
+        return response()->stream(function () use ($psrBody): void {
+            while (! $psrBody->eof()) {
+                echo $psrBody->read(8192);
+                if (function_exists('ob_flush')) {
+                    @ob_flush();
+                }
+                flush();
+            }
+        }, $status, $headers);
     }
 
     /**

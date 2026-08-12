@@ -38,9 +38,11 @@ return [
         'api_user' => env('MEDIAMTX_API_USER'),
         'api_pass' => env('MEDIAMTX_API_PASS'),
         'timeout' => (int) env('MEDIAMTX_API_TIMEOUT', 5),
+        // false = keep RTSP warm for live wall (smoother); true = connect only when viewed.
         'source_on_demand' => filter_var(
-            env('MEDIAMTX_SOURCE_ON_DEMAND', true),
+            env('MEDIAMTX_SOURCE_ON_DEMAND', false),
             FILTER_VALIDATE_BOOL,
         ),
+        'rtsp_transport' => env('MEDIAMTX_RTSP_TRANSPORT', 'tcp'),
     ],
 ];

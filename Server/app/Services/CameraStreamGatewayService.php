@@ -87,7 +87,10 @@ final class CameraStreamGatewayService
         $payload = [
             // Encode user/password so passwords containing @/: work (ffplay is lenient; MediaMTX is not).
             'source' => $source,
-            'sourceOnDemand' => (bool) config('camera_stream.mediamtx.source_on_demand', true),
+            // Keep RTSP pulled warm for the live wall (avoids cold-start gaps).
+            'sourceOnDemand' => (bool) config('camera_stream.mediamtx.source_on_demand', false),
+            // TCP is more stable across site VLANs than UDP RTP.
+            'rtspTransport' => (string) config('camera_stream.mediamtx.rtsp_transport', 'tcp'),
         ];
 
         try {

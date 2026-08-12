@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
+import { useEffect, useRef, useState } from 'react';
 
 type Props = {
     playbackUrl: string;
@@ -13,12 +13,15 @@ type Props = {
  */
 function resolvePlaylistUrl(playbackUrl: string): string {
     const base = playbackUrl.trim();
+
     if (base === '') {
         return '';
     }
+
     if (/\.m3u8(\?|$)/i.test(base)) {
         return base;
     }
+
     return base.endsWith('/') ? `${base}index.m3u8` : `${base}/index.m3u8`;
 }
 
@@ -29,6 +32,7 @@ export function LiveCameraFeed({ playbackUrl, title }: Props) {
 
     useEffect(() => {
         const video = videoRef.current;
+
         if (!video || playlistUrl === '') {
             return;
         }
@@ -47,30 +51,51 @@ export function LiveCameraFeed({ playbackUrl, title }: Props) {
             hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: true,
+                backBufferLength: 30,
+                maxBufferLength: 20,
+                maxMaxBufferLength: 40,
+                liveSyncDurationCount: 3,
+                liveMaxLatencyDurationCount: 10,
             });
             hls.loadSource(playlistUrl);
             hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                void video.play().catch(() => undefined);
+            });
             hls.on(Hls.Events.ERROR, (_event, data) => {
-                if (data.fatal) {
-                    onFatal(data.type || 'HLS playback failed');
-                    hls?.destroy();
+                if (!data.fatal || hls === null) {
+                    return;
                 }
+
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                    hls.startLoad();
+
+                    return;
+                }
+
+                if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                    hls.recoverMediaError();
+
+                    return;
+                }
+
+                onFatal(data.type || 'HLS playback failed');
+                hls.destroy();
             });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = playlistUrl;
+            void video.play().catch(() => undefined);
         } else {
             onFatal('HLS is not supported in this browser');
         }
 
-        void video.play().catch(() => {
-            // Autoplay may be blocked until user gesture; muted should usually allow it.
-        });
-
         return () => {
             cancelled = true;
+
             if (hls !== null) {
                 hls.destroy();
             }
+
             video.removeAttribute('src');
             video.load();
         };
