@@ -72,8 +72,14 @@ PKGS=(python3 python3-venv python3-pip ca-certificates)
 ensure_host_packages "${PKGS[@]}"
 
 if ! id -u "${EDGE_USER}" >/dev/null 2>&1; then
-  useradd --system --create-home --home-dir "/home/${EDGE_USER}" \
-    --shell /usr/sbin/nologin --groups dialout "${EDGE_USER}"
+  # Reinstall after uninstall often leaves group ${EDGE_USER} behind (userdel
+  # does not always remove it). Reuse that group instead of failing.
+  user_args=(--system --create-home --home-dir "/home/${EDGE_USER}"
+    --shell /usr/sbin/nologin)
+  if getent group "${EDGE_USER}" >/dev/null 2>&1; then
+    user_args+=(-g "${EDGE_USER}")
+  fi
+  useradd "${user_args[@]}" --groups dialout "${EDGE_USER}"
 else
   usermod -aG dialout "${EDGE_USER}"
 fi
