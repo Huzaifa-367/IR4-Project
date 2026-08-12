@@ -4,7 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "prebuild": "php artisan wayfinder:generate --with-form",
+        "prebuild": "bash scripts/wayfinder-generate.sh",
         "build:ssr": "vite build && vite build --ssr",
         "dev": "vite",
         "format": "prettier --write resources/",

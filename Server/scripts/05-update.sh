@@ -13,6 +13,8 @@ if command -v fnm >/dev/null 2>&1 || [ -x "$HOME/.local/share/fnm/fnm" ]; then
   eval "$(fnm env --use-on-cd)" 2>/dev/null || true
 fi
 
+export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
+
 if [ ! -d "$REPO_CACHE/.git" ]; then
   echo "ERROR: Repo cache missing at $REPO_CACHE"
   echo "Run scripts/01-setup.sh first (or Server/scripts/01-setup.sh from the monorepo)."
@@ -57,17 +59,36 @@ rsync -a --delete \
 
 cd "$APP_ROOT"
 
+# shellcheck source=resolve-artisan.sh
+source "$APP_ROOT/scripts/resolve-artisan.sh"
+
+if [ ! -f ".env" ]; then
+  echo "ERROR: .env missing at $APP_ROOT/.env" >&2
+  echo "Run scripts/01-setup.sh first, or: cp .env.example .env && ir4_artisan key:generate --force" >&2
+  exit 1
+fi
+
+bash "$APP_ROOT/scripts/ensure-storage-dirs.sh" "$APP_ROOT"
+
 echo "Installing Composer dependencies..."
 composer install
 
+echo "Refreshing Laravel bootstrap cache..."
+ir4_artisan package:discover --ansi
+ir4_artisan optimize:clear
+
 echo "Installing Node dependencies..."
 npm install
+
+echo "Generating Wayfinder types (${IR4_ARTISAN})..."
+export WAYFINDER_COMMAND
+ir4_artisan wayfinder:generate --with-form
 
 echo "Building frontend..."
 npm run build
 
 echo "Running migrations..."
-php artisan migrate --force
+ir4_artisan migrate --force
 
 echo "Restarting Lerd..."
 lerd restart

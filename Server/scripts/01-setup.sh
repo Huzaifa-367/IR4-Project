@@ -86,7 +86,8 @@ fi
 
 # Lerd's Alpine MySQL client needs this plugin to authenticate to MySQL 8
 # accounts that use caching_sha2_password.
-lerd php:pkg add mariadb-connector-c --php 8.4
+lerd php:pkg add mariadb-connector-c
+lerd php:rebuild 8.4
 
 #########################################
 # Workspace
@@ -144,19 +145,26 @@ rsync -a --delete \
 
 cd "$APP_ROOT"
 
+# shellcheck source=resolve-artisan.sh
+source "$APP_ROOT/scripts/resolve-artisan.sh"
+
 composer install
 
 if [ ! -f ".env" ]; then
   cp .env.example .env
 fi
 
-php artisan key:generate --force
+bash "$APP_ROOT/scripts/ensure-storage-dirs.sh" "$APP_ROOT"
+
+ir4_artisan key:generate --force
 
 #########################################
 # Frontend
 #########################################
 
 npm install
+export WAYFINDER_COMMAND
+ir4_artisan wayfinder:generate --with-form
 npm run build
 
 #########################################
@@ -166,7 +174,7 @@ npm run build
 read -r -p "Run migrations? (y/N): " MIGRATE
 
 if [[ "$MIGRATE" =~ ^[Yy]$ ]]; then
-  php artisan migrate
+  ir4_artisan migrate
 fi
 
 #########################################
