@@ -1,6 +1,6 @@
 # IR4 encoded server release
 
-Built by `php Scripts/build-encoded-release.php`.
+Built by `php Server/scripts/build-encoded-release.php`.
 
 ## What this is
 
@@ -29,5 +29,5 @@ Rebuild (from repo root; runs `npm run build` if `public/build` is missing):
 
 ```bash
 cd Server && npm ci && npm run build && cd ..
-php Scripts/build-encoded-release.php
+php Server/scripts/build-encoded-release.php
 ```

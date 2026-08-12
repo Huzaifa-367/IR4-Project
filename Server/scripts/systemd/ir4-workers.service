@@ -1,0 +1,22 @@
+[Unit]
+Description=IR4 Lerd workers (schedule, queue, reverb)
+After=ir4-lerd.service network-online.target
+Requires=ir4-lerd.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=__IR4_USER__
+Group=__IR4_GROUP__
+WorkingDirectory=__IR4_APP_ROOT__
+Environment=HOME=__IR4_HOME__
+Environment=XDG_RUNTIME_DIR=__IR4_XDG_RUNTIME_DIR__
+Environment=PATH=__IR4_HOME__/.local/share/lerd/bin:__IR4_HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin
+# Nightly Spatie backups need schedule; queue/reverb best-effort.
+ExecStart=/bin/bash -lc 'lerd schedule:start; lerd queue:start || true; lerd reverb:start || true'
+ExecStop=/bin/bash -lc 'lerd schedule:stop || true; lerd queue:stop || true; lerd reverb:stop || true'
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target

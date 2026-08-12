@@ -47,7 +47,7 @@ Mobile/build/
 Mobile/.flutter-plugins-dependencies
 Mobile/.packages
 
-# Encoded SCC release tree (rebuild: php Scripts/build-encoded-release.php)
+# Encoded SCC release tree (rebuild: php Server/scripts/build-encoded-release.php)
 # Keep Release/README.md tracked; ignore generated payload.
 Release/server/
 Release/MANIFEST.sha256

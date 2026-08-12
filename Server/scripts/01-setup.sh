@@ -195,10 +195,20 @@ if ! lerd worker list 2>/dev/null | grep -qi 'schedule'; then
   exit 1
 fi
 
+INSTALLER="$APP_ROOT/scripts/02-install-systemd-units.sh"
+if [ -f "$INSTALLER" ]; then
+  echo "==> Installing system units (ir4.target → /etc/systemd/system/)"
+  APP_ROOT="$APP_ROOT" bash "$INSTALLER"
+else
+  echo "WARN: missing $INSTALLER — boot units not installed." >&2
+fi
+
 echo
 echo "=================================="
 echo "Setup Complete"
 echo "App root: $APP_ROOT"
 echo "(Server/ contents flattened; Mobile/Docs skipped)"
 echo "Lerd scheduler: running (daily backup:clean 01:00, backup:run 01:30, backup:monitor 03:00)"
+echo "Boot: systemctl status ir4.target"
+echo "Next: follow SCC-SETUP.md (monorepo root) steps 02–04 if not already done"
 echo "=================================="

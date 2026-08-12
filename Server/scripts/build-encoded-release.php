@@ -10,11 +10,13 @@ declare(strict_types=1);
  * PHP app/: gzip+base64 wrappers. Weak at-rest obfuscation, not strong IP protection.
  *
  * Usage (from repo root):
- *   php Scripts/build-encoded-release.php
+ *   php Server/scripts/build-encoded-release.php
+ * Or from Server/:
+ *   php scripts/build-encoded-release.php
  */
 
-$repoRoot = dirname(__DIR__);
-$serverRoot = $repoRoot.'/Server';
+$serverRoot = dirname(__DIR__);
+$repoRoot = dirname($serverRoot);
 $releaseRoot = $repoRoot.'/Release';
 $outRoot = $releaseRoot.'/server';
 
@@ -138,7 +140,7 @@ echo "==> Writing Release metadata\n";
 $readme = <<<'MD'
 # IR4 encoded server release
 
-Built by `php Scripts/build-encoded-release.php`.
+Built by `php Server/scripts/build-encoded-release.php`.
 
 ## What this is
 
@@ -167,7 +169,7 @@ Rebuild (from repo root; runs `npm run build` if `public/build` is missing):
 
 ```bash
 cd Server && npm ci && npm run build && cd ..
-php Scripts/build-encoded-release.php
+php Server/scripts/build-encoded-release.php
 ```
 MD;
 file_put_contents($releaseRoot.'/README.md', $readme);

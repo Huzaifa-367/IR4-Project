@@ -1,0 +1,21 @@
+[Unit]
+Description=IR4 sync camera RTSP paths into MediaMTX
+After=ir4-mediamtx.service ir4-lerd.service network-online.target
+Wants=ir4-mediamtx.service ir4-lerd.service
+Requires=network-online.target
+
+[Service]
+Type=oneshot
+User=__IR4_USER__
+Group=__IR4_GROUP__
+WorkingDirectory=__IR4_APP_ROOT__
+Environment=HOME=__IR4_HOME__
+Environment=XDG_RUNTIME_DIR=__IR4_XDG_RUNTIME_DIR__
+Environment=PATH=__IR4_HOME__/.local/share/lerd/bin:__IR4_HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin
+# Give MediaMTX a moment to bind :9997
+ExecStartPre=/bin/sleep 8
+# Run inside Lerd PHP so DB hostnames like lerd-mysql resolve.
+ExecStart=/bin/bash -lc 'cd "__IR4_APP_ROOT__" && lerd artisan ir4:sync-camera-streams'
+
+[Install]
+WantedBy=multi-user.target

@@ -1,11 +1,19 @@
 # IR4 Edge Compute (Orin)
 
-Gas (YT-98H) and RFID (FXR90) ingest agents. Each runs as its **own** systemd unit —
-turning one off does not affect the other.
+Gas (YT-98H) and RFID (FXR90) ingest agents. Each runs as its **own** systemd unit — turning one off does not affect the other.
+
+| Doc | Path |
+|-----|------|
+| Commissioning | [`docs/commissioning.md`](docs/commissioning.md) |
+| Day-2 runbook | [`docs/runbook.md`](docs/runbook.md) |
+| Troubleshooting | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
+| Credentials notes | [`credentials.md`](credentials.md) |
+
+---
 
 ## Setup
 
-First install (no `ir4-edge` on PATH yet — bootstrap creates it):
+First install (bootstrap creates `ir4-edge` on PATH):
 
 ```bash
 cd ~/Downloads/EdgeCompute
@@ -16,7 +24,7 @@ sudo ./deploy/orin_bootstrap.sh
 ir4-edge doctor
 ```
 
-### Per-pole config (required)
+### Per-pole config
 
 Each Orin is one pole. Token UUID must match the `*_ref` you send — mismatch → `FORBIDDEN_REFERENCE`.
 
@@ -29,13 +37,15 @@ Each Orin is one pole. Token UUID must match the `*_ref` you send — mismatch �
 
 FXR90 IoT Connector MQTT topic must equal `mqtt.topic` on that Orin.
 
-After that, day-2 uses the CLI:
+Day-2 CLI:
 
 ```bash
 sudo ir4-edge install   # or: sudo ir4-edge apply
 ir4-edge setup          # interactive secrets
 ir4-edge doctor
 ```
+
+---
 
 ## Day-2
 
@@ -44,34 +54,36 @@ ir4-edge status | restart | logs -f | doctor
 ir4-edge up | down          # only agents enabled in edge.yaml
 ```
 
+---
+
 ## Independence
 
 | Switch | Effect |
-|---|---|
-| `configs/edge.yaml` → `services.gas: false` | No gas unit, no udev, doctor skips gas |
+|--------|--------|
+| `configs/edge.yaml` → `services.gas: false` | No gas unit, no udev; doctor skips gas |
 | `configs/edge.yaml` → `services.rfid: false` | No RFID unit, no Mosquitto install |
 | `gas.yaml` / `rfid.yaml` → `agent.enabled: false` | Process exits cleanly if started |
 
 Secrets stay in **one** file (`secrets.env`) with namespaced keys (`IR4_GAS_*`, `IR4_RFID_*`, `IR4_MQTT_*`). Missing RFID tokens never block gas, and vice versa.
 
-## Config
+---
+
+## Config & layout
 
 | File | Role |
-|---|---|
+|------|------|
 | `configs/edge.yaml` | Which agents + Mosquitto mode |
 | `configs/gas.yaml` | Serial / Modbus / `device_ref` |
 | `configs/rfid.yaml` | MQTT topic / `reader_ref` |
 | `configs/secrets.env` | Live tokens (gitignored) |
 | `configs/secrets.example.env` | Template |
 
-## Layout
-
 ```
-ir4_edge/          # Python package (gas / rfid / common / ctl)
-configs/           # YAML + secrets
-deploy/            # install, systemd templates, udev
-scripts/           # setup helpers + optional smoke/validate
-docs/              # commissioning / runbook / troubleshooting
+ir4_edge/     Python package (gas / rfid / common / ctl)
+configs/      YAML + secrets
+deploy/       install, systemd templates, udev
+scripts/      setup helpers + optional smoke/validate
+docs/         commissioning / runbook / troubleshooting
 ```
 
 FXR90 lab (WebSocket → local SQLite): `Research/Edge/Zebra FXR90 Configuration/`.  

@@ -15,7 +15,7 @@ fi
 
 if [ ! -d "$REPO_CACHE/.git" ]; then
   echo "ERROR: Repo cache missing at $REPO_CACHE"
-  echo "Run Scripts/setup.sh first."
+  echo "Run scripts/01-setup.sh first (or Server/scripts/01-setup.sh from the monorepo)."
   exit 1
 fi
 

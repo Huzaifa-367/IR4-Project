@@ -5,7 +5,7 @@
 # (flattened Server/ — often not a git checkout):
 #
 #   cd /data2/laravel/IR4-Project
-#   BACKUP_ARCHIVE_PASSWORD_OVERRIDE='<secret>' bash ~/Desktop/Scripts/setup-backup.sh
+#   BACKUP_ARCHIVE_PASSWORD_OVERRIDE='<secret>' bash scripts/04-setup-backup.sh
 #
 # Prerequisites: app tree present, .env present, Lerd installed.
 
@@ -285,11 +285,25 @@ fi
 
 php artisan schedule:list | grep -E 'backup:(clean|run|monitor)' || true
 
+#########################################
+# 9. Survive system reboot
+#########################################
+
+INSTALLER="$APP_ROOT/scripts/02-install-systemd-units.sh"
+if [ -f "$INSTALLER" ]; then
+  echo "==> Installing system units (ir4.target → /etc/systemd/system/)"
+  APP_ROOT="$APP_ROOT" bash "$INSTALLER"
+else
+  echo "WARN: missing $INSTALLER — run after deploy:" >&2
+  echo "  bash $APP_ROOT/scripts/02-install-systemd-units.sh" >&2
+fi
+
 echo
 echo "=================================="
 echo "Backup module ready on $(hostname)"
 echo "  Disk:      $BACKUP_DISK_ROOT/$APP_NAME/"
 echo "  Schedule:  clean 01:00 → run 01:30 → monitor 03:00 (APP_TIMEZONE)"
 echo "  Alerts:    system alerts via AlertService (no mail)"
-echo "  Next:      optional staging restore drill (DOC-20 §8)"
+echo "  Boot:      systemctl status ir4.target"
+echo "  Next:      SCC-SETUP.md (monorepo) · DOC-20 §8 restore drill"
 echo "=================================="

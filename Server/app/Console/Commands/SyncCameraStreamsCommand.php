@@ -78,7 +78,7 @@ final class SyncCameraStreamsCommand extends Command
     private function printHints(bool $apiAuthEnabled): void
     {
         $this->warn(
-            'Hints: (1) sudo bash scripts/ensure-mediamtx.sh. '
+            'Hints: (1) sudo bash scripts/03-ensure-mediamtx.sh. '
             .'(2) Set MEDIAMTX_API_URL=http://<SCC-LAN-IP>:9997 (e.g. http://192.168.3.149:9997) — Lerd/Podman cannot use 127.0.0.1 or pasta gateway 10.89.x.x. '
             .'(3) Or MEDIAMTX_API_URL=gateway with MEDIAMTX_HOST_IP=<SCC-LAN-IP>. '
             .'(4) Leave MEDIAMTX_API_USER/PASS empty. '

@@ -3,6 +3,8 @@
 > **Depends on:** DOC-01 (stack, queues, scheduler, storage), DOC-02/08 (device + display auth on the LAN), DOC-05 (printer as a device), DOC-13 (public QR page + ZT411 printing), DOC-17 (append-only audit → DB grants), DOC-18 (config-vs-`.env`), DOC-19 (backups, restore, wipe). **Feeds:** the field-engineering team standing the system up; the acceptance sign-off.
 >
 > **Scope:** the **on-prem deployment and operations runbook** — server preparation (Dell R360), the app/queue/Reverb/scheduler process model, reverse-proxy + firewall LAN enforcement (public QR page and device ingest), ZT411 printer setup, database-permission hardening (append-only audit, wipe privileges), backup/restore/wipe drills, monitoring, and the **Phase-3 commissioning acceptance checklist**. **Out of scope:** application behavior (owned by the module DOCs) — this doc gets it running and keeps it running.
+>
+> **Fresh box (ordered field steps):** [`SCC-SETUP.md`](../SCC-SETUP.md) (repo root) — OS → Lerd → `Server/scripts/01-setup.sh` → `.env` → migrate → **`ir4.target`** → MediaMTX → backups → reboot proof. This DOC-20 file holds the deeper rationale and acceptance checklist.
 
 ---
 
@@ -36,23 +38,24 @@ The Laravel/Inertia app lives under **`Server/`** in the monorepo (Flutter under
 6. `php artisan ir4:export-permissions` → commit-checked `Server/PERMISSIONS.md` (DOC-03).
 
 Nginx/php-fpm document root is `Server/public`.
+
 ---
 
-## 4. Process model (Supervisor)
+## 4. Process model
 
-Long-running processes use Lerd's persistent workers. The scheduler is Lerd's built-in Laravel worker, which runs `schedule:work` as a user-level systemd service and restarts with the site.
+Long-running processes are brought up by **`ir4.target`** (system systemd — templates in `Server/scripts/systemd/`, installer `Server/scripts/02-install-systemd-units.sh`). Inside Lerd, workers run as the deploy user’s units; linger is required on a headless SCC so `/run/user/<uid>` exists at boot.
 
-| Process | Command | Notes |
+| Process | How it starts | Notes |
 |---|---|---|
-| **php-fpm** | systemd `php8.4-fpm` | serves the app + API behind Nginx |
-| **reverb** | `php artisan reverb:start` | self-hosted WebSockets (DOC-08); LAN only |
-| **queue: default** | `php artisan queue:work --queue=default` | imports, general jobs, pruning |
-| **queue: ingest** | `php artisan queue:work --queue=ingest` | reserved for ingest post-processing bursts (DOC-08) |
-| **queue: reports** | `php artisan queue:work --queue=reports` | PDF/CSV generation (DOC-15), exports |
-| **scheduler** | `lerd schedule:start` | persistent Laravel `schedule:work` worker with `DB_HOST=lerd-mysql` |
+| **Lerd stack** | `ir4-lerd.service` → `lerd start` | nginx, PHP-FPM, MySQL, Redis |
+| **scheduler** | `ir4-workers.service` → `lerd schedule:start` | Spatie backups + prune; `DB_HOST=lerd-mysql` |
+| **queue / reverb** | same workers unit | default / ingest / reports queues; WebSockets |
+| **MediaMTX** | `ir4-mediamtx.service` | live-wall HLS gateway |
+| **camera sync** | `ir4-sync-camera-streams.service` | after MediaMTX + Lerd |
 
 - Redis backs cache, queues, and Reverb scaling.
-- Worker counts tuned to the box; the `ingest` queue gets the most workers (backfill floods, DOC-08). Restart workers on deploy (`queue:restart`).
+- Restart queue workers on deploy (`php artisan queue:restart` / `lerd` worker restart).
+- Verify after reboot: `systemctl status ir4.target && lerd worker list`.
 
 ---
 
@@ -95,8 +98,7 @@ The Android APK under `Mobile/` is **surface A** over Sanctum bearer tokens (DOC
 
 1. **Build:** on a Flutter-capable machine, `cd Mobile && flutter pub get && flutter build apk --release` (debug: `flutter build apk --debug`). Artifact: `Mobile/build/app/outputs/flutter-apk/app-release.apk`.
 2. **Sideload:** install on operator handsets over USB / MDM / shared LAN drop — no Play Store, no public internet.
-3. **Base URL:** at first login the operator enters the on-prem host (e.g. `https://10.0.0.10` or the LAN hostname). Th
-e app stores the URL + Sanctum token in secure storage.
+3. **Base URL:** at first login the operator enters the on-prem host (e.g. `https://10.0.0.10` or the LAN hostname). The app stores the URL + Sanctum token in secure storage.
 4. **TLS / self-signed:** Nginx uses a self-signed or client-CA cert (§5.1). The app's network security config permits cleartext only for private LAN ranges, trusts user-added CAs, and accepts the configured host's certificate (so a commissioning `auto.crt`-style cert works without shipping a public CA). Prefer installing the site CA on the handset when available.
 5. **Commissioning check:** log in as a user with `view-equipment` + `update-equipment`, scan a printed `/e/{qr_token}` label, confirm detail → checkout → rescan → return.
 
@@ -104,32 +106,33 @@ e app stores the URL + Sanctum token in secure storage.
 
 ## 8. Backups, restore & wipe (operational — DOC-19)
 
+Ordered field path: **[`SCC-SETUP.md`](../SCC-SETUP.md)** steps **02–04** (systemd boot → MediaMTX → backups). This section is the commissioning detail.
+
 ### 8.1 One-shot SCC commissioning
 
-Proven path on SCC2 (`/data2/laravel/IR4-Project`, flattened deploy — **not** a git checkout). From the Laravel app root:
+Proven on SCC2 (`/data2/laravel/IR4-Project`, flattened deploy — **not** a git checkout):
 
 ```bash
 cd /data2/laravel/IR4-Project
 BACKUP_ARCHIVE_PASSWORD_OVERRIDE='<strong-site-secret>' \
-  bash ~/Desktop/Scripts/setup-backup.sh
-# or: bash Scripts/setup-backup.sh
+  bash scripts/04-setup-backup.sh
+# ends with scripts/02-install-systemd-units.sh when present (ir4.target)
 ```
 
-`Scripts/setup-backup.sh` (also summarized in the repo `README.md`):
+`scripts/04-setup-backup.sh`:
 
-1. Ensures `.env`: `APP_TIMEZONE`, `BACKUP_DISK_ROOT=/data/ir4-backups`, `BACKUP_ARCHIVE_PASSWORD`, `MYSQL_DUMP_*`, `DISK_SPACE_WARN_PCT`
-2. If `php artisan list backup` has no `backup:run` → `composer install --no-dev` + package discover / cache clear (common on flattened SCC deploys where vendor lagged the lockfile)
-3. Creates/chowns host `/data/ir4-backups`
+1. `.env`: `APP_TIMEZONE`, `BACKUP_DISK_ROOT=/data/ir4-backups`, `BACKUP_ARCHIVE_PASSWORD`, `MYSQL_DUMP_*`, `DISK_SPACE_WARN_PCT`
+2. If `backup:run` missing → `composer install --no-dev` + package discover / cache clear
+3. Creates/chowns `/data/ir4-backups`
 4. Requires `/data` in `~/.config/lerd/config.yaml` mounts; installs `mariadb-connector-c` when needed
-5. Applies bind-mount: `lerd restart`; if `/data` still missing in PHP **or host/PHP inodes differ** → rescue any PHP-only zips → `lerd unlink` + `lerd link` (SCC2: listing `/data` in config alone was not enough)
-6. **Proves same inode** for `BACKUP_DISK_ROOT` and that a PHP-written probe is visible on the host
-7. `backup:run` then **requires** host `ls` to show `ir4-*.zip` under `/data/ir4-backups/{APP_NAME}`
-8. `lerd schedule:start` + schedule worker check
+5. Bind-mount: `lerd restart`; on missing `/data` or **inode mismatch** → rescue PHP-only zips → `lerd unlink` + `lerd link`
+6. Same-inode proof for `BACKUP_DISK_ROOT`
+7. `backup:run` — host `ls` must show `ir4-*.zip` under `/data/ir4-backups/{APP_NAME}`
+8. `scripts/02-install-systemd-units.sh` — installs **root** units into `/etc/systemd/system/` (`ir4.target`) and enables linger for rootless Podman
 
-Manual equivalent (SCC2 sequence):
+Manual equivalent:
 
 ```bash
-# Spatie may be in composer.json/lock but not vendor yet
 grep laravel-backup composer.json
 composer install --no-dev --optimize-autoloader
 php artisan package:discover
@@ -137,32 +140,32 @@ rm -f bootstrap/cache/packages.php bootstrap/cache/services.php bootstrap/cache/
 php artisan optimize:clear
 php artisan list backup
 
-# Volume + env
 sudo mkdir -p /data/ir4-backups && sudo chown -R "$(whoami):$(whoami)" /data/ir4-backups
 # APP_TIMEZONE=Asia/Riyadh  BACKUP_DISK_ROOT=/data/ir4-backups  BACKUP_ARCHIVE_PASSWORD=…
 # MYSQL_DUMP_BINARY_PATH=/usr/bin  MYSQL_DUMP_TIMEOUT=3600
 
 grep -A5 '^mounts:' ~/.config/lerd/config.yaml   # must include: - /data
 lerd restart
-# If PHP /data missing or inode mismatch (e.g. host 63438849 vs php 1077010):
-lerd unlink && lerd link    # optional "Run lerd setup?" → n if app already set up
+# If PHP /data missing or inode mismatch:
+lerd unlink && lerd link    # optional "Run lerd setup?" → n
 sudo mkdir -p /data/ir4-backups && sudo chown -R "$(whoami):$(whoami)" /data/ir4-backups
 
 stat -c '%i %n' /data/ir4-backups
 php -r 'echo fileinode("/data/ir4-backups"), PHP_EOL;'   # MUST match
 
 php artisan backup:run
-sudo ls -lah /data/ir4-backups/IR4   # must list ir4-*.zip on the HOST
+sudo ls -lah /data/ir4-backups/IR4
 lerd schedule:start && lerd worker list
 php artisan schedule:list | grep backup
+bash scripts/02-install-systemd-units.sh
 ```
 
-If `backup:run` succeeds but host `ls` fails, PHP wrote into a container-private `/data`. Rescue via PHP `copy()` into `/data2/laravel/…/storage/app/`, then fix mounts before trusting backups.
+If `backup:run` succeeds but host `ls` fails, PHP wrote into a container-private `/data`. Rescue into `storage/app/`, then fix mounts before trusting backups.
 
 ### 8.2 Daily schedule & ops
 
 - Schedule (Spatie order; times use `APP_TIMEZONE` / `general.timezone`, not raw Linux wall clock alone): `backup:clean` 01:00 → `backup:run` 01:30 → `backup:monitor` 03:00 → prune 03:15. Archives are AES-256 ZIPs under `/data/ir4-backups/{APP_NAME}`; 30 daily retention. Failures raise in-app `system` alerts via `AlertService` (no mail). Pruning refuses without the current day's success marker.
-- `Scripts/setup.sh` also starts the schedule worker and fails if `/data` or `mysqldump` is missing.
+- `scripts/01-setup.sh` also starts the schedule worker and fails if `/data` or `mysqldump` is missing.
 - Operational commands: `php artisan backup:run`, `backup:list`, `backup:clean`, `backup:monitor`.
 - After deploy/`optimize`, if artisan fails on `CleanupStrategy`, delete `bootstrap/cache/config.php` then `php artisan optimize:clear`.
 - **Restore drill (staging only):** decrypt/extract with `7z` + `BACKUP_ARCHIVE_PASSWORD`, import SQL into a new staging schema, validate, destroy staging. Never import into live.
@@ -187,6 +190,7 @@ Sign-off that the deployment is production-ready:
 - [ ] Server prepped (OS, packages, NTP, LUKS on data volume, disk sized per DOC-19).
 - [ ] App deployed, migrated, seeded (permissions + Super Admin + settings defaults; **no** seeded hardware/zones).
 - [ ] Lerd PHP-FPM, Reverb, queues, and default scheduler worker are healthy.
+- [ ] Boot persistence: `systemctl enable --now ir4.target` (`scripts/02-install-systemd-units.sh`); recovers after cold reboot.
 - [ ] Nginx TLS up; LAN segmentation verified (device path device-only, public QR LAN-only, no internet egress in/out).
 - [ ] DB grants: app user INSERT/SELECT-only on `audit_logs`; separate wipe account.
 

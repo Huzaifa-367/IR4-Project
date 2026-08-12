@@ -4,7 +4,7 @@
 # Operators only edit RTSP in IR4 Cameras UI.
 # Laravel pushes each Camera.stream_url here via MEDIAMTX_API_URL.
 #
-# Start: sudo bash scripts/ensure-mediamtx.sh
+# Start: sudo bash scripts/03-ensure-mediamtx.sh
 #
 # .env (from Lerd PHP — NOT 127.0.0.1):
 #   CAMERA_BROWSER_STREAM_URL_TEMPLATE=http://<SCC-LAN-IP>:8888/{reference}

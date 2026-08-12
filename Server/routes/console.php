@@ -42,7 +42,7 @@ Schedule::call(function (TrackingService $tracking): void {
 Schedule::job(new FlagOverdueEquipment)->daily()->name('ir4:flag-overdue-equipment');
 
 // Spatie docs: clean before run; avoid 02:00–03:00 DST window.
-// Requires a persistent scheduler worker: `lerd schedule:start` (see Scripts/setup.sh).
+// Requires a persistent scheduler worker: `lerd schedule:start` (see scripts/01-setup.sh).
 // Times use APP_TIMEZONE / general.timezone.
 Schedule::command('backup:clean')
     ->dailyAt('01:00')

@@ -7,9 +7,8 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# Flattened SCC app root (directory that contains artisan + scripts/)
-WorkingDirectory=/data2/laravel/IR4-Project
-ExecStart=/bin/bash /data2/laravel/IR4-Project/scripts/ensure-mediamtx.sh
+WorkingDirectory=__IR4_APP_ROOT__
+ExecStart=/bin/bash __IR4_APP_ROOT__/scripts/03-ensure-mediamtx.sh
 ExecStop=/usr/bin/docker stop ir4-mediamtx
 
 [Install]
