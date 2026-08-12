@@ -30,17 +30,17 @@ Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' https://ir4.is
 | File | Role |
 |---|---|
 | [`../configs/edge.yaml`](../configs/edge.yaml) | Boot enable / install root / Mosquitto listener |
-| [`../configs/secrets.example.env`](../configs/secrets.example.env) | Tracked template |
-| `../configs/secrets.env` | Live secrets (gitignored) — gas + RFID + MQTT |
+| [`../configs/secrets.pole-01.env`](../configs/secrets.pole-01.env) … `secrets.pole-04.env` | Pre-filled per pole — copy to `secrets.env` |
+| [`../configs/secrets.example.env`](../configs/secrets.example.env) | Empty template |
+| `../configs/secrets.env` | Live secrets (gitignored) |
 | [`../configs/gas.yaml`](../configs/gas.yaml) | Serial / Modbus / **per-pole** `device_ref` |
 | [`../configs/rfid.yaml`](../configs/rfid.yaml) | **Per-pole** MQTT topic + `reader_ref` |
 
-Before bootstrap, set per-pole values in **`secrets.env`** (`NN` = `01`…`04`):
+Before bootstrap, copy the pole file (`NN` = `01`…`04`):
 
-- `IR4_GAS_DEVICE_REF=DEV-GAS-NN`
-- `IR4_RFID_READER_REF=DEV-RFID-NN`
-- `IR4_RFID_MQTT_TOPIC=zebra/fxr90-NN/tags`
-- matching `IR4_GAS_*` / `IR4_RFID_*` token + UUID
+```bash
+cp configs/secrets.pole-NN.env configs/secrets.env
+```
 
 YAML `device_ref` / `reader_ref` / `topic` are fallbacks only. Mismatch → ingest `FORBIDDEN_REFERENCE`. See [runbook.md](runbook.md) and [../README.md](../README.md).
 
@@ -48,7 +48,7 @@ YAML `device_ref` / `reader_ref` / `topic` are fallbacks only. Mismatch → inge
 sudo mkdir -p /opt/ir4-edge
 # Place EdgeCompute at /opt/ir4-edge/EdgeCompute (clone/copy from monorepo)
 cd /opt/ir4-edge/EdgeCompute
-cp configs/secrets.example.env configs/secrets.env   # edit tokens for this pole
+cp configs/secrets.pole-01.env configs/secrets.env
 sudo ./deploy/orin_bootstrap.sh                      # in-place install
 ir4-edge doctor
 ```

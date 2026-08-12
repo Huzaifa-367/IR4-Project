@@ -19,14 +19,12 @@ Install lives at **`/opt/ir4-edge/EdgeCompute`** (code) with `venv/` + `var/` be
 # Place the EdgeCompute folder (from the IR4 monorepo) at the install path:
 sudo mkdir -p /opt/ir4-edge
 # Example from a full clone:
-#   git clone https://github.com/Huzaifa-367/IR4-Project.git /tmp/IR4-Project
-#   sudo rm -rf /opt/ir4-edge/EdgeCompute
-#   sudo cp -a /tmp/IR4-Project/EdgeCompute /opt/ir4-edge/EdgeCompute
+  git clone https://github.com/Huzaifa-367/IR4-Project /tmp/IR4-Project
+  sudo rm -rf /opt/ir4-edge/EdgeCompute
+  sudo cp -a /tmp/IR4-Project/EdgeCompute /opt/ir4-edge/EdgeCompute
 
 cd /opt/ir4-edge/EdgeCompute
-sudo cp configs/secrets.example.env configs/secrets.env
-# 1) fill IR4_* tokens/UUIDs for THIS pole (credentials.md / SCC Hardware)
-# 2) set per-pole refs in gas.yaml + rfid.yaml (table below)
+cp configs/secrets.pole-02.env configs/secrets.env   # NN = this pole (01 … 04)
 sudo ./deploy/orin_bootstrap.sh
 hash -r
 ir4-edge doctor
@@ -34,16 +32,20 @@ ir4-edge doctor
 
 Bootstrap refuses to run from other paths (e.g. `~/Downloads/EdgeCompute`).
 
-### Per-pole config
+### Per-pole secrets
 
-Each Orin is one pole. Set refs in **`secrets.env`** (preferred) so they stay with the tokens:
+Copy the file for **this** Orin (`NN` = `01` … `04`):
 
-| Pole | `IR4_GAS_DEVICE_REF` | `IR4_RFID_READER_REF` | `IR4_RFID_MQTT_TOPIC` |
-|------|----------------------|------------------------|------------------------|
-| 1 | `DEV-GAS-01` | `DEV-RFID-01` | `zebra/fxr90-01/tags` |
-| 2 | `DEV-GAS-02` | `DEV-RFID-02` | `zebra/fxr90-02/tags` |
-| 3 | `DEV-GAS-03` | `DEV-RFID-03` | `zebra/fxr90-03/tags` |
-| 4 | `DEV-GAS-04` | `DEV-RFID-04` | `zebra/fxr90-04/tags` |
+```bash
+cp configs/secrets.pole-NN.env configs/secrets.env
+```
+
+| Pole | Copy command |
+|------|----------------|
+| 1 | `cp configs/secrets.pole-01.env configs/secrets.env` |
+| 2 | `cp configs/secrets.pole-02.env configs/secrets.env` |
+| 3 | `cp configs/secrets.pole-03.env configs/secrets.env` |
+| 4 | `cp configs/secrets.pole-04.env configs/secrets.env` |
 
 YAML `device_ref` / `reader_ref` / `mqtt.topic` are fallbacks only. Token UUID must match the ref — mismatch → `FORBIDDEN_REFERENCE`.
 
@@ -94,8 +96,9 @@ Secrets stay in **one** file (`secrets.env`) with namespaced keys (`IR4_GAS_*`, 
 | `configs/edge.yaml` | Which agents + Mosquitto mode |
 | `configs/gas.yaml` | Serial / Modbus / `device_ref` |
 | `configs/rfid.yaml` | MQTT topic / `reader_ref` |
-| `configs/secrets.env` | Live tokens (gitignored) |
-| `configs/secrets.example.env` | Template |
+| `configs/secrets.env` | Live secrets (gitignored) |
+| `configs/secrets.pole-01.env` … `secrets.pole-04.env` | Pre-filled per pole |
+| `configs/secrets.example.env` | Empty template |
 
 **On-device layout** (`install.root` in `edge.yaml`, default `/opt/ir4-edge`):
 

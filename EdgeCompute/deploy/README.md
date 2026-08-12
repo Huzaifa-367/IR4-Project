@@ -6,7 +6,7 @@ Canonical install path: **`/opt/ir4-edge/EdgeCompute`**.
 sudo mkdir -p /opt/ir4-edge
 # put EdgeCompute tree at /opt/ir4-edge/EdgeCompute (clone/copy from monorepo)
 cd /opt/ir4-edge/EdgeCompute
-cp configs/secrets.example.env configs/secrets.env   # edit for this pole
+cp configs/secrets.pole-01.env configs/secrets.env
 sudo ./deploy/orin_bootstrap.sh
 ir4-edge doctor
 ```
