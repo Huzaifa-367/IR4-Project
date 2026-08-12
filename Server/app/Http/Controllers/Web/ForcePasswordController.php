@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Requests\Auth\ForcePasswordUpdateRequest;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,7 +20,7 @@ final class ForcePasswordController extends BaseController
         assert($user !== null);
 
         $user->forceFill([
-            'password' => Hash::make($request->string('password')->toString()),
+            'password' => $request->string('password')->toString(),
             'must_change_password' => false,
             'password_changed_at' => now(),
         ])->save();

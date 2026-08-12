@@ -9,7 +9,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { useSettingsTimeoutMinutes } from '@/hooks/use-auth';
+import { useAuth, useSettingsTimeoutMinutes } from '@/hooks/use-auth';
 
 type Options = {
     /** Display/kiosk: heartbeat keeps the session alive while the page is open. */
@@ -46,8 +46,9 @@ function postHeartbeat(): Promise<Response> {
  * Returns a warning dialog element to render in the layout.
  */
 export function useIdleLogout(options: Options = {}): React.ReactNode {
+    const { isAuthenticated } = useAuth();
     const timeoutMinutes = useSettingsTimeoutMinutes();
-    const timeoutMs = timeoutMinutes * 60 * 1000;
+    const timeoutMs = Math.max(1, timeoutMinutes) * 60 * 1000;
     const warningMs = 60_000;
     const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
     const lastActivity = useRef(0);
@@ -60,6 +61,10 @@ export function useIdleLogout(options: Options = {}): React.ReactNode {
     }, []);
 
     useEffect(() => {
+        if (!isAuthenticated) {
+            return;
+        }
+
         lastActivity.current = Date.now();
 
         const mark = (): void => {
@@ -120,7 +125,7 @@ export function useIdleLogout(options: Options = {}): React.ReactNode {
 
             window.clearInterval(tick);
         };
-    }, [options.keepAlive, timeoutMs]);
+    }, [isAuthenticated, options.keepAlive, timeoutMs]);
 
     return (
         <Dialog open={secondsLeft !== null}>

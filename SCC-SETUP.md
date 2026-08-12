@@ -73,7 +73,9 @@ Sparse-clones `Server/` → `/data2/laravel/IR4-Project`, composer/npm, schedule
 Edit `/data2/laravel/IR4-Project/.env`:
 
 ```env
-APP_URL=https://ir4-project.test
+APP_URL=http://192.168.8.38:9100
+SESSION_SECURE_COOKIE=false
+SESSION_DOMAIN=
 APP_TIMEZONE=Asia/Riyadh
 DB_HOST=lerd-mysql
 REDIS_HOST=lerd-redis
@@ -83,6 +85,8 @@ BACKUP_DISK_ROOT=/data/ir4-backups
 BACKUP_ARCHIVE_PASSWORD=<strong-site-secret>
 MYSQL_DUMP_BINARY_PATH=/usr/bin
 ```
+
+When using **HTTPS** via `https://ir4-project.test` (lerd secure + hosts file), set `APP_URL=https://ir4-project.test` and `SESSION_SECURE_COOKIE=true` instead.
 
 Then: `lerd artisan config:clear`
 

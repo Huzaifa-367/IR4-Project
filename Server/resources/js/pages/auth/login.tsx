@@ -49,6 +49,15 @@ export default function Login({ status, timeout, locked }: Props) {
             >
                 {({ processing, errors }) => (
                     <>
+                        {errors.email && (
+                            <div
+                                role="alert"
+                                className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-foreground"
+                            >
+                                {errors.email}
+                            </div>
+                        )}
+
                         <div className="grid gap-6">
                             <div className="grid gap-2">
                                 <Label htmlFor="email">Email address</Label>

@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 final class AuthLockoutService
@@ -61,7 +60,7 @@ final class AuthLockoutService
         $plain = $temporaryPassword ?? Str::password(16);
 
         $user->forceFill([
-            'password' => Hash::make($plain),
+            'password' => $plain,
             'must_change_password' => true,
             'password_changed_at' => null,
             'remember_token' => Str::random(60),
