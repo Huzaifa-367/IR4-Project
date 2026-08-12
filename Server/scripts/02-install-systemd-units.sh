@@ -67,23 +67,37 @@ for unit in "${UNITS[@]}"; do
   echo "    installed $UNIT_DST/$unit"
 done
 
-if command -v docker >/dev/null 2>&1; then
-  echo "==> Enabling Docker on boot"
-  sudo systemctl enable --now docker 2>/dev/null \
-    || sudo systemctl enable --now docker.service 2>/dev/null \
-    || true
+# MediaMTX needs a container runtime. Prefer existing docker/podman; do not fail install.
+if systemctl list-unit-files docker.service >/dev/null 2>&1; then
+  echo "==> Enabling docker.service on boot"
+  sudo systemctl enable --now docker.service 2>/dev/null || true
+elif command -v docker >/dev/null 2>&1; then
+  echo "==> docker CLI present (no docker.service unit — OK)"
+elif command -v podman >/dev/null 2>&1; then
+  echo "==> Using Podman for MediaMTX (no docker.service required)"
+else
+  echo "WARN: neither docker nor podman found — ir4-mediamtx will fail until one is installed." >&2
+  echo "  sudo apt install -y docker.io" >&2
 fi
 
 echo "==> Reloading systemd and enabling ir4.target"
 sudo systemctl daemon-reload
 sudo systemctl enable ir4-lerd.service ir4-workers.service \
   ir4-mediamtx.service ir4-sync-camera-streams.service ir4.target
+
+# Start core first, then MediaMTX (optional), then target.
+sudo systemctl start ir4-lerd.service ir4-workers.service
+if ! sudo systemctl start ir4-mediamtx.service; then
+  echo "WARN: ir4-mediamtx failed — live wall unavailable until Docker/Podman works." >&2
+  echo "  journalctl -u ir4-mediamtx -b --no-pager | tail -40" >&2
+fi
+sudo systemctl start ir4-sync-camera-streams.service 2>/dev/null || true
 sudo systemctl start ir4.target
 
 echo
 echo "=================================="
 echo "System units installed under $UNIT_DST"
+systemctl is-active ir4-lerd.service ir4-workers.service ir4-mediamtx.service ir4.target || true
 echo "  systemctl status ir4.target"
 echo "  systemctl list-dependencies ir4.target"
-echo "  After reboot: ir4.* start via multi-user.target"
 echo "=================================="

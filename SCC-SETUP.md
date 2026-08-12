@@ -24,7 +24,7 @@ After **01**, run **02–05** from the app root.
 
 | Order | Action |
 |-------|--------|
-| A | OS baseline (Ubuntu, Docker, disks) — manual |
+| A | OS baseline (Ubuntu, Docker **or** Podman, disks) — manual |
 | B | Lerd install + `/data` in mounts — manual |
 | **01** | `bash ~/Desktop/01-setup.sh` |
 | C | Edit `.env` |
@@ -43,9 +43,11 @@ After **01**, run **02–05** from the app root.
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y docker.io git rsync unzip curl
-sudo systemctl enable --now docker
-sudo usermod -aG docker "$USER"   # re-login after
+sudo apt install -y git rsync unzip curl
+# MediaMTX needs one container runtime (either is fine):
+sudo apt install -y docker.io && sudo systemctl enable --now docker
+# or use Podman if already present (typical on Lerd hosts — no docker.service required)
+sudo usermod -aG docker "$USER" 2>/dev/null || true   # only if docker.io installed; re-login
 ```
 
 ---

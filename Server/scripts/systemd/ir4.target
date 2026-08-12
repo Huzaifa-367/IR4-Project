@@ -1,7 +1,8 @@
 [Unit]
 Description=IR4 SiteGuard full stack
-Requires=ir4-lerd.service ir4-workers.service ir4-mediamtx.service
-Wants=ir4-sync-camera-streams.service
+# Core stack must come up even if MediaMTX runtime (Docker/Podman) is missing.
+Requires=ir4-lerd.service ir4-workers.service
+Wants=ir4-mediamtx.service ir4-sync-camera-streams.service
 After=ir4-lerd.service ir4-workers.service ir4-mediamtx.service ir4-sync-camera-streams.service
 
 [Install]
