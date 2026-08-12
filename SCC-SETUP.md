@@ -379,7 +379,7 @@ lerd artisan ir4:sync-camera-streams
 
 1. Open `http://192.168.8.38:9100/login` first (must be logged in — `/hls` requires auth).  
 2. `APP_URL` must match how you browse (`http://192.168.8.38:9100` for LAN).  
-3. From the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.38:9100/up` → `200`.  
+3. From the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.1.245:9100/up` → `200`.  
 4. Hard-refresh `/live` after login.
 
 Config template: `scripts/mediamtx.yml`.
@@ -538,7 +538,13 @@ Full acceptance: [DOC-20 §10](Docs/Doc%2020%20deployment%20runbook.md).
 
 ## 12. Edge poles (Orins — separate hosts)
 
-SCC must be reachable from each Orin at the same base URL used in pole secrets.
+SCC must be reachable from each Orin at the same base URL used in pole secrets:
+
+```env
+IR4_BASE_URL=http://192.168.1.245:9100
+```
+
+(Operators still use `http://192.168.8.38:9100` / `https://ir4-project.test`.)
 
 On **each Orin** (`NN` = `01` … `04`):
 
@@ -552,9 +558,9 @@ git pull    # or re-copy after SCC re-seed
 cp configs/secrets.pole-NN.env configs/secrets.env
 sudo ./deploy/orin_bootstrap.sh
 ir4-edge doctor
+curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.1.245:9100/up
 ```
 
-Ensure `IR4_BASE_URL` in the pole file matches SCC (`http://192.168.8.38:9100` on LAN).  
 Full detail: [EdgeCompute/README.md](EdgeCompute/README.md) · [EdgeCompute/docs/commissioning.md](EdgeCompute/docs/commissioning.md).
 
 ---

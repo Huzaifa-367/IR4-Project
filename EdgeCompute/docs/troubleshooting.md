@@ -3,9 +3,9 @@
 | Symptom | Likely cause |
 |---|---|
 | `orin_bootstrap.sh` dies on `nvidia-l4t-kernel` / dpkg | Jetson L4T package half-configured — bootstrap now skips apt when python/mosquitto already installed. If apt is still required: `sudo apt-mark hold nvidia-l4t-kernel nvidia-l4t-kernel-headers nvidia-l4t-kernel-dtbs nvidia-l4t-display-kernel` then retry, or install packages by hand without `apt-get update` |
-| Cannot reach IR4 from Orin | Wrong base URL — use `https://ir4.ispc-ai.com` for Hostinger test (or SCC1 `http://192.168.3.149:9100` on-site); run `ir4-edge setup` |
+| Cannot reach IR4 from Orin | Wrong base URL — on-site poles use `http://192.168.1.245:9100` (`IR4_BASE_URL` in secrets); Hostinger test uses `https://ir4.ispc-ai.com`. Do not use `http://192.168.8.38:9100` from the camera/pole LAN. |
 | Missing device token | Run `ir4-edge setup` or fill `configs/secrets.env` |
-| `ERR_NAME_NOT_RESOLVED` on workstation | Point DNS at `192.168.3.149` (or hosts: `192.168.3.149 ir4-project.test`) and open `https://ir4-project.test` |
+| `ERR_NAME_NOT_RESOLVED` on workstation | Point hosts/DNS at SCC (`192.168.8.38 ir4-project.test`) and open `https://ir4-project.test`, or use `http://192.168.8.38:9100` on LAN HTTP |
 | Permission denied on `/dev/ttyUSB*` | User not in `dialout`; re-login after bootstrap |
 | Modbus “silence” with good wiring | A/B swapped; warm-up; wrong port; stock pymodbus often fails on YT-98H quirks — use `ir4_edge.gas.yt98h` |
 | CO₂ looks frozen | NDIR averages 15–45 s — wait a minute |
