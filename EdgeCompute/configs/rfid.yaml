@@ -1,5 +1,6 @@
 # IR4 RFID agent — FXR90 ZIOTC → Mosquitto → ingest
-# Secrets: configs/secrets.env. Lab WebSocket bring-up: Research/Edge/Zebra FXR90 Configuration/
+# Secrets / per-pole refs: configs/secrets.env (IR4_RFID_*).
+# Lab WebSocket bring-up: Research/Edge/Zebra FXR90 Configuration/
 #
 # Tag JSON (verified): idHex, antenna, peakRssi, timestamp
 # Reader must publish Tag Data to this MQTT topic (not LLRP).
@@ -7,14 +8,14 @@
 mqtt:
   broker: "127.0.0.1"
   port: 1883
-  # Per pole: zebra/fxr90-01/tags … zebra/fxr90-04/tags (FXR90 IoT Connector must match)
-  topic: "zebra/fxr90-02/tags"
+  # Overridden by IR4_RFID_MQTT_TOPIC in secrets.env when set (zebra/fxr90-NN/tags)
+  topic: "zebra/fxr90-01/tags"
   # username/password from secrets.env; used only if IR4_MQTT_USE_AUTH=1
 
 agent:
   enabled: true
-  # Per pole: DEV-RFID-01 … DEV-RFID-04 (must match secrets.env token → else FORBIDDEN_REFERENCE)
-  reader_ref: "DEV-RFID-02"
+  # Overridden by IR4_RFID_READER_REF in secrets.env when set (DEV-RFID-01 … DEV-RFID-04)
+  reader_ref: "DEV-RFID-01"
   debounce_seconds: 2
   max_batch: 50
   flush_interval_seconds: 1

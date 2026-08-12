@@ -8,13 +8,11 @@ Pick the pole number **NN** (`01`…`04`). Edit configs **before** starting agen
 
 | File | Set to (example pole 02) |
 |---|---|
-| `configs/secrets.env` | `IR4_GAS_*` + `IR4_RFID_*` for `DEV-GAS-02` / `DEV-RFID-02` |
-| `configs/gas.yaml` → `agent.device_ref` | `DEV-GAS-02` |
-| `configs/rfid.yaml` → `agent.reader_ref` | `DEV-RFID-02` |
-| `configs/rfid.yaml` → `mqtt.topic` | `zebra/fxr90-02/tags` |
+| `configs/secrets.env` | `IR4_GAS_DEVICE_REF=DEV-GAS-02`, `IR4_RFID_READER_REF=DEV-RFID-02`, `IR4_RFID_MQTT_TOPIC=zebra/fxr90-02/tags`, plus tokens/UUIDs |
+| `configs/gas.yaml` / `rfid.yaml` | Optional fallbacks only — env wins when set |
 
-| Pole | `device_ref` | `reader_ref` | MQTT topic |
-|------|--------------|--------------|------------|
+| Pole | `IR4_GAS_DEVICE_REF` | `IR4_RFID_READER_REF` | `IR4_RFID_MQTT_TOPIC` |
+|------|----------------------|------------------------|------------------------|
 | 1 | `DEV-GAS-01` | `DEV-RFID-01` | `zebra/fxr90-01/tags` |
 | 2 | `DEV-GAS-02` | `DEV-RFID-02` | `zebra/fxr90-02/tags` |
 | 3 | `DEV-GAS-03` | `DEV-RFID-03` | `zebra/fxr90-03/tags` |
@@ -23,11 +21,15 @@ Pick the pole number **NN** (`01`…`04`). Edit configs **before** starting agen
 Token authenticates the device; `device_ref` / `reader_ref` in the payload must be **that same** reference or ingest returns `FORBIDDEN_REFERENCE` (HTTP still 202).
 
 ```bash
-cd ~/Downloads/EdgeCompute
+sudo mkdir -p /opt/ir4-edge
+# Place EdgeCompute at /opt/ir4-edge/EdgeCompute (clone/copy from monorepo)
+cd /opt/ir4-edge/EdgeCompute
 cp configs/secrets.example.env configs/secrets.env   # edit tokens for this pole
 # edit gas.yaml + rfid.yaml refs/topic for this pole (table above)
-sudo ./deploy/orin_bootstrap.sh                      # first time — installs ir4-edge onto PATH
-# later: sudo ir4-edge install | apply
+sudo ./deploy/orin_bootstrap.sh
+# In-place install: venv + var under /opt/ir4-edge/; code stays here
+# later: sudo ir4-edge apply
+# Day-2 config: /opt/ir4-edge/EdgeCompute/configs/
 ```
 
 If secrets are already filled, install **starts** the agents immediately (`services.auto_start` in `configs/edge.yaml`).

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Install IR4 edge on Orin. Prefer: sudo ir4-edge install
+# Install IR4 edge on Orin — run from /opt/ir4-edge/EdgeCompute (in-place).
+# Prefer: sudo ./deploy/orin_bootstrap.sh   or later: sudo ir4-edge apply
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,13 +14,24 @@ load_secret_env
 
 INSTALL_ROOT="${IR4_EDGE_INSTALL_ROOT:-${EDGE_INSTALL_ROOT}}"
 EDGE_USER="${IR4_EDGE_USER:-${EDGE_SERVICE_USER}}"
+EXPECTED_ROOT="${INSTALL_ROOT}/EdgeCompute"
 
-echo "==> ir4-edge install"
-echo "    source=${EDGE_ROOT}"
+echo "==> ir4-edge install (in-place)"
+echo "    code=${EDGE_ROOT}"
 echo "    root=${INSTALL_ROOT}  user=${EDGE_USER}"
 echo "    gas=${EDGE_ENABLE_GAS} rfid=${EDGE_ENABLE_RFID} mqtt_anon=${EDGE_MQTT_ANONYMOUS}"
 
 [[ "$(id -u)" -eq 0 ]] || { echo "Use sudo" >&2; exit 1; }
+
+edge_real="$(realpath "${EDGE_ROOT}")"
+expected_real="$(realpath -m "${EXPECTED_ROOT}")"
+if [[ "${edge_real}" != "${expected_real}" ]]; then
+  echo "ERROR: EdgeCompute must live at ${EXPECTED_ROOT}" >&2
+  echo "       This tree is at ${edge_real}" >&2
+  echo "       Clone/copy EdgeCompute there, then run:" >&2
+  echo "         cd ${EXPECTED_ROOT} && sudo ./deploy/orin_bootstrap.sh" >&2
+  exit 1
+fi
 
 pkg_ok() { dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q 'install ok installed'; }
 
@@ -68,7 +80,7 @@ fi
 [[ -n "${SUDO_USER:-}" ]] && usermod -aG dialout "${SUDO_USER}" || true
 
 mkdir -p "${INSTALL_ROOT}/var"
-ln -sfn "${EDGE_ROOT}" "${INSTALL_ROOT}/EdgeCompute"
+
 python3 -m venv "${INSTALL_ROOT}/venv"
 "${INSTALL_ROOT}/venv/bin/pip" install -q --upgrade pip
 "${INSTALL_ROOT}/venv/bin/pip" install -q -e "${EDGE_ROOT}"
@@ -79,7 +91,7 @@ if [[ ! -x "${INSTALL_ROOT}/venv/bin/ir4-edge" ]]; then
   exit 1
 fi
 
-# Link CLI immediately so a later Mosquitto/udev failure still leaves ir4-edge on PATH.
+# Link CLI early so a later Mosquitto/udev failure still leaves ir4-edge on PATH.
 ln -sfn "${INSTALL_ROOT}/venv/bin/ir4-edge" /usr/local/bin/ir4-edge
 if [[ "${EDGE_PATH_LINKS}" == "true" ]]; then
   [[ "${EDGE_ENABLE_GAS}" == "true" ]] && \
@@ -114,7 +126,11 @@ fix_config_permissions
 enable_selected_services
 
 echo
-echo "==> Linked CLI:"
+echo "==> Install layout:"
+echo "    code:   ${EDGE_ROOT}"
+echo "    venv:   ${INSTALL_ROOT}/venv"
+echo "    var:    ${INSTALL_ROOT}/var"
+echo "    config: ${CONFIG_DIR}"
 ls -la /usr/local/bin/ir4-edge "${INSTALL_ROOT}/venv/bin/ir4-edge"
 echo "==> Done. Run: hash -r && ir4-edge doctor"
-echo "    (or: ${INSTALL_ROOT}/venv/bin/ir4-edge doctor)"
+echo "    Upgrade: cd ${EDGE_ROOT} && git pull && sudo ./deploy/orin_bootstrap.sh"

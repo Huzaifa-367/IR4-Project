@@ -35,26 +35,29 @@ Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' https://ir4.is
 | [`../configs/gas.yaml`](../configs/gas.yaml) | Serial / Modbus / **per-pole** `device_ref` |
 | [`../configs/rfid.yaml`](../configs/rfid.yaml) | **Per-pole** MQTT topic + `reader_ref` |
 
-Before bootstrap, set refs for this Orin’s pole (`NN` = `01`…`04`):
+Before bootstrap, set per-pole values in **`secrets.env`** (`NN` = `01`…`04`):
 
-- `gas.yaml` → `device_ref: DEV-GAS-NN`
-- `rfid.yaml` → `reader_ref: DEV-RFID-NN`, `mqtt.topic: zebra/fxr90-NN/tags`
-- `secrets.env` → tokens/UUIDs for those same devices
+- `IR4_GAS_DEVICE_REF=DEV-GAS-NN`
+- `IR4_RFID_READER_REF=DEV-RFID-NN`
+- `IR4_RFID_MQTT_TOPIC=zebra/fxr90-NN/tags`
+- matching `IR4_GAS_*` / `IR4_RFID_*` token + UUID
 
-Mismatch → ingest `FORBIDDEN_REFERENCE`. See [runbook.md](runbook.md) and [../README.md](../README.md).
+YAML `device_ref` / `reader_ref` / `topic` are fallbacks only. Mismatch → ingest `FORBIDDEN_REFERENCE`. See [runbook.md](runbook.md) and [../README.md](../README.md).
 
 ```bash
-cd ~/Downloads/EdgeCompute
+sudo mkdir -p /opt/ir4-edge
+# Place EdgeCompute at /opt/ir4-edge/EdgeCompute (clone/copy from monorepo)
+cd /opt/ir4-edge/EdgeCompute
 cp configs/secrets.example.env configs/secrets.env   # edit tokens for this pole
-sudo ./deploy/orin_bootstrap.sh                      # first time (creates ir4-edge)
+sudo ./deploy/orin_bootstrap.sh                      # in-place install
 ir4-edge doctor
 ```
 
 | Variable | Used by |
 |---|---|
 | `IR4_BASE_URL` | both |
-| `IR4_GAS_DEVICE_TOKEN` / `IR4_GAS_DEVICE_UUID` | gas |
-| `IR4_RFID_DEVICE_TOKEN` / `IR4_RFID_DEVICE_UUID` | RFID |
+| `IR4_GAS_DEVICE_REF` / `IR4_GAS_DEVICE_TOKEN` / `IR4_GAS_DEVICE_UUID` | gas |
+| `IR4_RFID_READER_REF` / `IR4_RFID_MQTT_TOPIC` / `IR4_RFID_DEVICE_TOKEN` / `IR4_RFID_DEVICE_UUID` | RFID |
 | `IR4_MQTT_USERNAME` / `IR4_MQTT_PASSWORD` | RFID agent ↔ Mosquitto |
 | `IR4_MQTT_FXR90_PASSWORD` | FXR90 ↔ Mosquitto |
 | `IR4_DRY_RUN` | both (`1` = no HTTP) |

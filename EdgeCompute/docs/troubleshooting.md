@@ -13,7 +13,7 @@
 | FXR90 HTTPS OK but no MQTT tags | IoT Connector not mapped to MQTT endpoint; topic ≠ `rfid.yaml`; inventory not started; mode not SIMPLE |
 | Agent connected, zero EPCs | Wrong tag type (need UHF Gen2); antenna/TX; check `mosquitto_sub` for JSON with `idHex` |
 | `ws://` connection refused (lab) | Use `wss://` — see Research FXR90 RUNBOOK |
-| `FORBIDDEN_REFERENCE` | `device_ref` / `reader_ref` ≠ authenticated device (wrong pole number in yaml vs secrets) |
+| `FORBIDDEN_REFERENCE` | `IR4_GAS_DEVICE_REF` / `IR4_RFID_READER_REF` ≠ authenticated device (wrong pole in secrets.env) |
 | `UNKNOWN_TAG` | EPC not in `rfid_tags` |
 | `UNAUTHENTICATED` | Bad/rotated token |
 | Rate limited `429` | Inventory flood — lower reader rate or raise `debounce_seconds` |

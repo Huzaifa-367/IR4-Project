@@ -3,15 +3,18 @@ Description=IR4 MediaMTX camera gateway (live wall)
 After=network-online.target
 Wants=network-online.target
 # Do NOT Requires=docker.service — SCC hosts often have only Podman (Lerd).
-# Optional ordering if Docker/Podman units exist:
 After=docker.service docker.socket podman.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=__IR4_APP_ROOT__
+# systemd default PATH is minimal; script also resets PATH.
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=/bin/bash __IR4_APP_ROOT__/scripts/03-ensure-mediamtx.sh
-ExecStop=/bin/bash -lc 'docker stop ir4-mediamtx 2>/dev/null || podman stop ir4-mediamtx 2>/dev/null || true'
+ExecStop=/bin/bash -lc 'export PATH=/usr/bin:/bin; docker stop ir4-mediamtx 2>/dev/null || podman stop ir4-mediamtx 2>/dev/null || true'
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

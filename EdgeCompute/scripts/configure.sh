@@ -59,15 +59,15 @@ export IR4_SETUP_ENABLE_GAS="${EDGE_ENABLE_GAS}"
 export IR4_SETUP_ENABLE_RFID="${EDGE_ENABLE_RFID}"
 
 if [[ "${EDGE_ENABLE_GAS}" == "true" ]]; then
-  GAS_REF="$(prompt "Gas device_ref" "$(yaml_val "${GAS_YAML}" device_ref)")"
+  GAS_REF="$(prompt "IR4_GAS_DEVICE_REF" "${IR4_GAS_DEVICE_REF:-$(yaml_val "${GAS_YAML}" device_ref)}")"
   export IR4_SETUP_GAS_REF="${GAS_REF}"
   export IR4_SETUP_GAS_UUID="$(prompt "IR4_GAS_DEVICE_UUID" "${IR4_GAS_DEVICE_UUID:-}")"
   export IR4_SETUP_GAS_TOKEN="$(prompt_secret "IR4_GAS_DEVICE_TOKEN" "${IR4_GAS_DEVICE_TOKEN:-}")"
 fi
 
 if [[ "${EDGE_ENABLE_RFID}" == "true" ]]; then
-  RFID_REF="$(prompt "RFID reader_ref" "$(yaml_val "${RFID_YAML}" reader_ref)")"
-  MQTT_TOPIC="$(prompt "MQTT topic" "$(yaml_val "${RFID_YAML}" topic)")"
+  RFID_REF="$(prompt "IR4_RFID_READER_REF" "${IR4_RFID_READER_REF:-$(yaml_val "${RFID_YAML}" reader_ref)}")"
+  MQTT_TOPIC="$(prompt "IR4_RFID_MQTT_TOPIC" "${IR4_RFID_MQTT_TOPIC:-$(yaml_val "${RFID_YAML}" topic)}")"
   export IR4_SETUP_RFID_REF="${RFID_REF}"
   export IR4_SETUP_MQTT_TOPIC="${MQTT_TOPIC}"
   export IR4_SETUP_RFID_UUID="$(prompt "IR4_RFID_DEVICE_UUID" "${IR4_RFID_DEVICE_UUID:-}")"
@@ -79,15 +79,12 @@ if [[ "${EDGE_ENABLE_RFID}" == "true" ]]; then
 fi
 
 umask 077
-python3 - "${SECRETS}" "${GAS_YAML}" "${RFID_YAML}" <<'PY'
+python3 - "${SECRETS}" <<'PY'
 import os
-import re
 import sys
 from pathlib import Path
 
 secrets_path = Path(sys.argv[1])
-gas_yaml = Path(sys.argv[2])
-rfid_yaml = Path(sys.argv[3])
 
 existing = {}
 if secrets_path.is_file():
@@ -100,9 +97,12 @@ if secrets_path.is_file():
 
 existing["IR4_BASE_URL"] = os.environ["IR4_SETUP_BASE_URL"]
 if os.environ.get("IR4_SETUP_ENABLE_GAS") == "true":
+    existing["IR4_GAS_DEVICE_REF"] = os.environ.get("IR4_SETUP_GAS_REF", "")
     existing["IR4_GAS_DEVICE_TOKEN"] = os.environ.get("IR4_SETUP_GAS_TOKEN", "")
     existing["IR4_GAS_DEVICE_UUID"] = os.environ.get("IR4_SETUP_GAS_UUID", "")
 if os.environ.get("IR4_SETUP_ENABLE_RFID") == "true":
+    existing["IR4_RFID_READER_REF"] = os.environ.get("IR4_SETUP_RFID_REF", "")
+    existing["IR4_RFID_MQTT_TOPIC"] = os.environ.get("IR4_SETUP_MQTT_TOPIC", "")
     existing["IR4_RFID_DEVICE_TOKEN"] = os.environ.get("IR4_SETUP_RFID_TOKEN", "")
     existing["IR4_RFID_DEVICE_UUID"] = os.environ.get("IR4_SETUP_RFID_UUID", "")
     existing["IR4_MQTT_USE_AUTH"] = os.environ.get("IR4_SETUP_MQTT_AUTH", "0")
@@ -112,8 +112,11 @@ if os.environ.get("IR4_SETUP_ENABLE_RFID") == "true":
 
 order = [
     "IR4_BASE_URL",
+    "IR4_GAS_DEVICE_REF",
     "IR4_GAS_DEVICE_TOKEN",
     "IR4_GAS_DEVICE_UUID",
+    "IR4_RFID_READER_REF",
+    "IR4_RFID_MQTT_TOPIC",
     "IR4_RFID_DEVICE_TOKEN",
     "IR4_RFID_DEVICE_UUID",
     "IR4_MQTT_USE_AUTH",
@@ -137,29 +140,7 @@ for key, value in sorted(existing.items()):
     lines.append('{}="{}"'.format(key, escaped))
 secrets_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 print("Wrote", secrets_path)
-
-
-def set_yaml_key(path: Path, key: str, value: str) -> None:
-    text = path.read_text(encoding="utf-8")
-    new, count = re.subn(
-        r"(^\s*{}\s*:\s*).*$".format(re.escape(key)),
-        r'\1"{}"'.format(value),
-        text,
-        count=1,
-        flags=re.M,
-    )
-    if not count:
-        raise SystemExit("missing {} in {}".format(key, path))
-    path.write_text(new, encoding="utf-8")
-
-
-if os.environ.get("IR4_SETUP_ENABLE_GAS") == "true":
-    set_yaml_key(gas_yaml, "device_ref", os.environ["IR4_SETUP_GAS_REF"])
-    print("Updated gas.yaml")
-if os.environ.get("IR4_SETUP_ENABLE_RFID") == "true":
-    set_yaml_key(rfid_yaml, "reader_ref", os.environ["IR4_SETUP_RFID_REF"])
-    set_yaml_key(rfid_yaml, "topic", os.environ["IR4_SETUP_MQTT_TOPIC"])
-    print("Updated rfid.yaml")
+print("Per-pole refs live in secrets.env (IR4_GAS_DEVICE_REF / IR4_RFID_READER_REF / IR4_RFID_MQTT_TOPIC).")
 PY
 chmod 640 "${SECRETS}"
 

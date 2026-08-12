@@ -1,5 +1,5 @@
 # IR4 gas agent — YT-98H Modbus RTU
-# Secrets/tokens: configs/secrets.env. All knobs live here.
+# Secrets / per-pole refs: configs/secrets.env (IR4_GAS_*).
 
 serial:
   # Prefer /dev/yt98h-rs485 (udev) or /dev/serial/by-id/...
@@ -19,8 +19,8 @@ field_map:
 
 agent:
   enabled: true
-  # Per pole: DEV-GAS-01 … DEV-GAS-04 (must match secrets.env token → else FORBIDDEN_REFERENCE)
-  device_ref: "DEV-GAS-02"
+  # Overridden by IR4_GAS_DEVICE_REF in secrets.env when set (DEV-GAS-01 … DEV-GAS-04)
+  device_ref: "DEV-GAS-01"
   poll_interval_seconds: 30   # 1 reading / 30s → POST /api/ingest/gas-readings
   heartbeat_interval_seconds: 60
   # Relative paths resolve under IR4_EDGE_VAR_DIR (default /opt/ir4-edge/var)

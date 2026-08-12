@@ -115,9 +115,23 @@ def apply_env_overrides(
         ir4["base_url"] = "https://ir4.ispc-ai.com"
     config["ir4"] = ir4
 
+    agent = dict(config.get("agent") or {})
+    # Per-pole refs from secrets.env (preferred over yaml defaults).
+    gas_ref = _env("IR4_GAS_DEVICE_REF")
+    if gas_ref and token_env == "IR4_GAS_DEVICE_TOKEN":
+        agent["device_ref"] = gas_ref
+    rfid_ref = _env("IR4_RFID_READER_REF") or _env("IR4_RFID_DEVICE_REF")
+    if rfid_ref and token_env == "IR4_RFID_DEVICE_TOKEN":
+        agent["reader_ref"] = rfid_ref
+    if agent:
+        config["agent"] = agent
+
     # MQTT secrets only apply when the agent config has an mqtt section (RFID).
     if "mqtt" in config:
         mqtt = dict(config.get("mqtt") or {})
+        topic = _env("IR4_RFID_MQTT_TOPIC")
+        if topic:
+            mqtt["topic"] = topic
         if _env("IR4_MQTT_USERNAME"):
             mqtt["username"] = _env("IR4_MQTT_USERNAME")
         if _env("IR4_MQTT_PASSWORD"):
