@@ -40,7 +40,11 @@ final class HlsProxyController extends BaseController
         }
 
         try {
-            $upstreamResponse = Http::timeout(30)
+            $upstreamResponse = Http::withOptions([
+                // Let the browser follow redirects after we rewrite Location.
+                'allow_redirects' => false,
+            ])
+                ->timeout(30)
                 ->connectTimeout(5)
                 ->withHeaders($this->forwardHeaders($request))
                 ->send($request->method(), $target, [
@@ -51,14 +55,40 @@ final class HlsProxyController extends BaseController
         }
 
         $headers = [];
-        foreach (['Content-Type', 'Cache-Control', 'Accept-Ranges', 'Content-Length'] as $header) {
+        foreach (['Content-Type', 'Cache-Control', 'Accept-Ranges', 'Content-Length', 'Set-Cookie'] as $header) {
             $value = $upstreamResponse->header($header);
             if (is_string($value) && $value !== '') {
                 $headers[$header] = $value;
             }
         }
 
+        $location = $upstreamResponse->header('Location');
+        if (is_string($location) && $location !== '') {
+            $headers['Location'] = $this->rewriteLocationForProxy($location);
+        }
+
         return response($upstreamResponse->body(), $upstreamResponse->status(), $headers);
+    }
+
+    /**
+     * MediaMTX redirects use root paths (/CAM-…/). Prefix /hls so the browser
+     * stays on the same-origin proxy.
+     */
+    private function rewriteLocationForProxy(string $location): string
+    {
+        if (preg_match('#^https?://[^/]+(/.*)$#i', $location, $match) === 1) {
+            $location = $match[1];
+        }
+
+        if (str_starts_with($location, '/hls/') || str_starts_with($location, '/hls?')) {
+            return $location;
+        }
+
+        if (str_starts_with($location, '/')) {
+            return '/hls'.$location;
+        }
+
+        return $location;
     }
 
     /**

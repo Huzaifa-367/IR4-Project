@@ -172,13 +172,45 @@ CACHE_STORE=database
 
 ### 4c. Cameras + backups
 
+**Always set MediaMTX to this SCC’s LAN IP** — do not copy `MEDIAMTX_*` / `CAMERA_BROWSER_*` from another box (e.g. SCC1 `192.168.3.149` will break live wall on SCC2).
+
+Discover this host’s IP:
+
+```bash
+hostname -I | awk '{print $1}'
+# or:
+ip -4 route get 1.1.1.1 | awk '{print $7; exit}'
+```
+
+Example for this site (`192.168.8.38` — replace if yours differs):
+
 ```env
 CAMERA_BROWSER_STREAM_URL_TEMPLATE=/hls/{reference}/
 MEDIAMTX_API_URL=http://192.168.8.38:9997
+MEDIAMTX_HOST_IP=192.168.8.38
+MEDIAMTX_API_USER=
+MEDIAMTX_API_PASS=
 BACKUP_DISK_ROOT=/data/ir4-backups
 BACKUP_ARCHIVE_PASSWORD=<strong-site-secret>
 MYSQL_DUMP_BINARY_PATH=/usr/bin
 ```
+
+| Key | Value on this SCC |
+| --- | ----------------- |
+| `MEDIAMTX_HOST_IP` | Output of `hostname -I` (this machine) |
+| `MEDIAMTX_API_URL` | `http://<that-IP>:9997` (preferred), or `gateway` **with** correct `MEDIAMTX_HOST_IP` |
+| `CAMERA_BROWSER_STREAM_URL_TEMPLATE` | **`/hls/{reference}/` only** (same-origin proxy — required for HTTPS and for IP vs hostname) |
+| `MEDIAMTX_API_USER` / `PASS` | Leave empty (matches `scripts/mediamtx.yml`) |
+
+**Do not** set the browser template to `http://<SCC-IP>:8888/{reference}`:
+
+| How you open IR4 | Absolute `:8888` template | `/hls/{reference}/` |
+| ---------------- | ------------------------- | ------------------- |
+| `http://192.168.8.38:9100/live` | Often works | Works |
+| `https://ir4-project.test/live` | **Blank** (mixed content — HTTPS page blocked from loading HTTP iframe) | Works |
+| Another SCC’s IP in the template | Blank / wrong box | Works |
+
+Browsers cannot play RTSP. IR4 proxies MediaMTX HLS at `/hls/…` so the iframe stays on the **same host and scheme** as the dashboard.
 
 Apply:
 
@@ -310,11 +342,41 @@ systemctl status ir4.target
 
 ## 8. Live wall — MediaMTX (`03-ensure-mediamtx.sh`)
 
+Prerequisites: §4c MediaMTX IPs point at **this** SCC (not another SCC’s IP).
+
 ```bash
+export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
 cd /data2/laravel/IR4-Project
+
+# Confirm / fix IP if you cloned .env from another SCC
+SCC_IP="$(ip -4 route get 1.1.1.1 | awk '{print $7; exit}')"
+echo "This SCC LAN IP: $SCC_IP"
+grep -E '^(MEDIAMTX_|CAMERA_BROWSER_)' .env
+
+# If wrong, set (example):
+#   MEDIAMTX_API_URL=http://$SCC_IP:9997
+#   MEDIAMTX_HOST_IP=$SCC_IP
+#   CAMERA_BROWSER_STREAM_URL_TEMPLATE=/hls/{reference}/
+lerd artisan config:clear
+
 sudo bash scripts/03-ensure-mediamtx.sh
+curl -sS -o /dev/null -w 'API %{http_code}\n' http://127.0.0.1:9997/v3/config/paths/list
+
 lerd artisan ir4:sync-camera-streams --probe
 lerd artisan ir4:sync-camera-streams
+```
+
+Camera `stream_url` in the UI is **RTSP** (e.g. `rtsp://admin:Unity@320@@192.168.1.185:554/Streaming/Channels/101`).  
+Browsers use **HLS** via MediaMTX (`/hls/{reference}/`) — `ffplay` on RTSP working is not enough until sync succeeds.
+
+After changing live-wall frontend (HLS `<video>` player), rebuild assets on SCC:
+
+```bash
+cd /data2/laravel/IR4-Project
+export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
+export WAYFINDER_COMMAND="lerd artisan wayfinder:generate"
+npm run build
+lerd restart
 ```
 
 Config template: `scripts/mediamtx.yml`.

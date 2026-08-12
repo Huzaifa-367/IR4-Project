@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { toast } from 'sonner';
 import Heading from '@/components/heading';
+import { LiveCameraFeed } from '@/components/ir4/live-camera-feed';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
@@ -103,12 +104,9 @@ export default function LiveWall({
                             </div>
                             <div className="aspect-video bg-black">
                                 {camera.playback_url ? (
-                                    <iframe
-                                        src={camera.playback_url}
+                                    <LiveCameraFeed
+                                        playbackUrl={camera.playback_url}
                                         title={`${camera.name} live feed`}
-                                        className="size-full border-0"
-                                        allow="autoplay; fullscreen; picture-in-picture"
-                                        allowFullScreen
                                     />
                                 ) : (
                                     <div className="flex size-full items-center justify-center text-xs text-text-faint">

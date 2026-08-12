@@ -70,6 +70,7 @@
         "concurrently": "^9.0.1",
         "date-fns": "^4.4.0",
         "globals": "^15.14.0",
+        "hls.js": "^1.7.0",
         "input-otp": "^1.4.2",
         "laravel-echo": "^2.4.0",
         "laravel-vite-plugin": "^3.0.0",
