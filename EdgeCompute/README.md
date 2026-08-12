@@ -68,7 +68,94 @@ ir4-edge doctor
 
 ---
 
+## Verify after install (pole bring-up)
 
+Use this when configuring a pole (e.g. **pole 1**). Gas today uses a **USB–RS485** dongle; onboard VGA/UART RS485 is not commissioned yet.
+
+### USB / serial hardware
+
+**Plug the YT-98H USB–RS485 adapter into USB port 3** on the Orin (the port that works for the gas sensor on this hardware). Other USB ports may not enumerate the dongle reliably.
+
+```bash
+# Serial access (log out/in after first time)
+sudo usermod -aG dialout "$USER"
+groups | grep dialout || echo "re-login needed for dialout"
+
+# USB adapter present?
+ls -l /dev/ttyUSB* /dev/yt98h-rs485 2>/dev/null
+
+# Expect something like:
+#   /dev/ttyUSB0
+#   /dev/yt98h-rs485 -> ttyUSB0
+```
+
+If the symlink is missing but `ttyUSB0` exists:
+
+```bash
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+ls -l /dev/yt98h-rs485 /dev/ttyUSB*
+```
+
+Confirm gas agent port (default USB path):
+
+```bash
+grep -A5 '^serial:' /opt/ir4-edge/EdgeCompute/configs/gas.yaml
+# port should be: "/dev/yt98h-rs485"
+```
+
+Reset to USB default if it was changed during UART probing:
+
+```bash
+cd /opt/ir4-edge/EdgeCompute
+sudo sed -i 's|^  port: .*|  port: "/dev/yt98h-rs485"|' configs/gas.yaml
+```
+
+### Secrets + SCC reachability (pole 1 example)
+
+```bash
+cd /opt/ir4-edge/EdgeCompute
+cp configs/secrets.pole-01.env configs/secrets.env   # pole 2/3/4 → pole-NN
+grep -E '^(IR4_BASE_URL|IR4_GAS_|IR4_RFID_)' configs/secrets.env | sed 's/=.*/=***/'
+
+# SCC must answer (use the URL in secrets.env)
+source <(grep -E '^IR4_BASE_URL=' configs/secrets.env | sed 's/^/export /')
+curl -sS -o /dev/null -w '%{http_code}\n' "${IR4_BASE_URL}/up"
+# expect 200
+```
+
+### Gas dry-run + agents
+
+Meter: **24 V**, Output Mode = **RS485**, warm-up **2–5 min**.
+
+```bash
+cd /opt/ir4-edge/EdgeCompute
+# Avoid permission noise on var/ when dry-running as operator:
+export IR4_EDGE_VAR_DIR=/tmp/ir4-edge-var
+mkdir -p "$IR4_EDGE_VAR_DIR"
+
+timeout 45 ir4-gas-agent --dry-run
+# Success: gas fields / DRY-RUN ingest — not "No Modbus response"
+
+sudo systemctl restart ir4-gas-agent ir4-rfid-agent
+ir4-edge doctor
+ir4-edge status
+journalctl -u ir4-gas-agent -n 40 --no-pager
+ir4-edge logs -f
+```
+
+### Quick failure table
+
+| Symptom | Check |
+| -------- | ----- |
+| No `/dev/ttyUSB*` | Wrong USB port — use **USB port 3**; reseat dongle |
+| No `/dev/yt98h-rs485` | Reload udev (commands above) or set `port: "/dev/ttyUSB0"` |
+| `Permission denied` on serial | User not in `dialout` — re-login |
+| `No Modbus response` | Meter power / RS485 mode / cable; USB on port 3 |
+| `FORBIDDEN_REFERENCE` | Wrong pole secrets file (`secrets.pole-NN.env`) |
+| `ir4-edge: command not found` | Bootstrap incomplete — re-run `sudo ./deploy/orin_bootstrap.sh` |
+
+---
 
 ## Day-2
 

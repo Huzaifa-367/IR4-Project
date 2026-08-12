@@ -54,11 +54,13 @@ Agents start on every reboot. To run **gas only** or **RFID only**: set `service
 ## 3. Gas (YT-98H)
 
 - 24 V, Output Mode = RS485, warm-up 2–5 min.
-- USB–RS485 → `/dev/yt98h-rs485` (or set `serial.port` in `configs/gas.yaml`).
+- USB–RS485 dongle → plug into **USB port 3** on the Orin → `/dev/yt98h-rs485` (udev) or `/dev/ttyUSB0`.
+- Set `serial.port` in `configs/gas.yaml` (default `/dev/yt98h-rs485`).
 - **9600 8N1**, slaves **1–5**, FC03 `start=0 count=32`.
 - Ingest rate: `poll_interval_seconds: 30` in `configs/gas.yaml` (1 POST/30s). Server has no min interval; live panel goes stale after `health.gas_stale_minutes` (default **5**).
 
 ```bash
+ls -l /dev/yt98h-rs485 /dev/ttyUSB*
 ir4-gas-agent --dry-run
 ir4-edge logs -f
 ```

@@ -1,4 +1,5 @@
 # Stable symlink for the YT-98H USB–RS485 adapter.
+# On Orin poles: plug the dongle into USB port 3 (verified working for gas).
 # Copy to /etc/udev/rules.d/ then: sudo udevadm control --reload-rules && sudo udevadm trigger
 #
 # After plugging the adapter, find the vendor/product with:

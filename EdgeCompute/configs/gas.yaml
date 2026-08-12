@@ -2,6 +2,7 @@
 # Secrets / per-pole refs: configs/secrets.env (IR4_GAS_*).
 
 serial:
+  # USB–RS485 on Orin USB port 3 → /dev/yt98h-rs485 (udev) or /dev/ttyUSB0
   # Prefer /dev/yt98h-rs485 (udev) or /dev/serial/by-id/...
   port: "/dev/yt98h-rs485"
   baud: 9600
