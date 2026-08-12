@@ -2,18 +2,20 @@
 
 Gas (YT-98H) and RFID (FXR90) ingest agents. Each runs as its **own** systemd unit — turning one off does not affect the other.
 
-| Doc | Path |
-|-----|------|
-| Commissioning | [`docs/commissioning.md`](docs/commissioning.md) |
-| Day-2 runbook | [`docs/runbook.md`](docs/runbook.md) |
-| Troubleshooting | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
-| Credentials notes | [`credentials.md`](credentials.md) |
+
+| Doc               | Path                                                 |
+| ----------------- | ---------------------------------------------------- |
+| Commissioning     | `[docs/commissioning.md](docs/commissioning.md)`     |
+| Day-2 runbook     | `[docs/runbook.md](docs/runbook.md)`                 |
+| Troubleshooting   | `[docs/troubleshooting.md](docs/troubleshooting.md)` |
+| Credentials notes | `[credentials.md](credentials.md)`                   |
+
 
 ---
 
 ## Setup
 
-Install lives at **`/opt/ir4-edge/EdgeCompute`** (code) with `venv/` + `var/` beside it. Clone or copy the `EdgeCompute` tree there, then bootstrap in place.
+Install lives at `/opt/ir4-edge/EdgeCompute` (code) with `venv/` + `var/` beside it. Clone or copy the `EdgeCompute` tree there, then bootstrap in place.
 
 ```bash
 # Place the EdgeCompute folder (from the IR4 monorepo) at the install path:
@@ -24,7 +26,7 @@ sudo mkdir -p /opt/ir4-edge
   sudo cp -a /tmp/IR4-Project/EdgeCompute /opt/ir4-edge/EdgeCompute
 
 cd /opt/ir4-edge/EdgeCompute
-cp configs/secrets.pole-02.env configs/secrets.env   # NN = this pole (01 … 04)
+cp configs/secrets.pole-03.env configs/secrets.env   # NN = this pole (01 … 04)
 sudo ./deploy/orin_bootstrap.sh
 hash -r
 ir4-edge doctor
@@ -40,12 +42,14 @@ Copy the file for **this** Orin (`NN` = `01` … `04`):
 cp configs/secrets.pole-NN.env configs/secrets.env
 ```
 
-| Pole | Copy command |
-|------|----------------|
-| 1 | `cp configs/secrets.pole-01.env configs/secrets.env` |
-| 2 | `cp configs/secrets.pole-02.env configs/secrets.env` |
-| 3 | `cp configs/secrets.pole-03.env configs/secrets.env` |
-| 4 | `cp configs/secrets.pole-04.env configs/secrets.env` |
+
+| Pole | Copy command                                         |
+| ---- | ---------------------------------------------------- |
+| 1    | `cp configs/secrets.pole-01.env configs/secrets.env` |
+| 2    | `cp configs/secrets.pole-02.env configs/secrets.env` |
+| 3    | `cp configs/secrets.pole-03.env configs/secrets.env` |
+| 4    | `cp configs/secrets.pole-04.env configs/secrets.env` |
+
 
 YAML `device_ref` / `reader_ref` / `mqtt.topic` are fallbacks only. Token UUID must match the ref — mismatch → `FORBIDDEN_REFERENCE`.
 
@@ -59,6 +63,8 @@ ir4-edge doctor
 ```
 
 ---
+
+
 
 ## Day-2
 
@@ -77,28 +83,36 @@ sudo ./deploy/orin_bootstrap.sh
 
 ---
 
+
+
 ## Independence
 
-| Switch | Effect |
-|--------|--------|
-| `configs/edge.yaml` → `services.gas: false` | No gas unit, no udev; doctor skips gas |
-| `configs/edge.yaml` → `services.rfid: false` | No RFID unit, no Mosquitto install |
-| `gas.yaml` / `rfid.yaml` → `agent.enabled: false` | Process exits cleanly if started |
 
-Secrets stay in **one** file (`secrets.env`) with namespaced keys (`IR4_GAS_*`, `IR4_RFID_*`, `IR4_MQTT_*`). Missing RFID tokens never block gas, and vice versa.
+| Switch                                            | Effect                                 |
+| ------------------------------------------------- | -------------------------------------- |
+| `configs/edge.yaml` → `services.gas: false`       | No gas unit, no udev; doctor skips gas |
+| `configs/edge.yaml` → `services.rfid: false`      | No RFID unit, no Mosquitto install     |
+| `gas.yaml` / `rfid.yaml` → `agent.enabled: false` | Process exits cleanly if started       |
+
+
+Secrets stay in **one** file (`secrets.env`) with namespaced keys (`IR4_GAS_`*, `IR4_RFID_*`, `IR4_MQTT_*`). Missing RFID tokens never block gas, and vice versa.
 
 ---
 
+
+
 ## Config & layout
 
-| File | Role |
-|------|------|
-| `configs/edge.yaml` | Which agents + Mosquitto mode |
-| `configs/gas.yaml` | Serial / Modbus / `device_ref` |
-| `configs/rfid.yaml` | MQTT topic / `reader_ref` |
-| `configs/secrets.env` | Live secrets (gitignored) |
-| `configs/secrets.pole-01.env` … `secrets.pole-04.env` | Pre-filled per pole |
-| `configs/secrets.example.env` | Empty template |
+
+| File                                                  | Role                           |
+| ----------------------------------------------------- | ------------------------------ |
+| `configs/edge.yaml`                                   | Which agents + Mosquitto mode  |
+| `configs/gas.yaml`                                    | Serial / Modbus / `device_ref` |
+| `configs/rfid.yaml`                                   | MQTT topic / `reader_ref`      |
+| `configs/secrets.env`                                 | Live secrets (gitignored)      |
+| `configs/secrets.pole-01.env` … `secrets.pole-04.env` | Pre-filled per pole            |
+| `configs/secrets.example.env`                         | Empty template                 |
+
 
 **On-device layout** (`install.root` in `edge.yaml`, default `/opt/ir4-edge`):
 
