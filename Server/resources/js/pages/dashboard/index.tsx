@@ -27,6 +27,7 @@ import alerts from '@/routes/alerts';
 import { summary as dashboardSummary } from '@/routes/dashboard';
 import hse from '@/routes/hse';
 import ppe from '@/routes/ppe';
+import settings from '@/routes/settings';
 import tracking from '@/routes/tracking';
 import type {
     DashboardPermissions,
@@ -223,7 +224,7 @@ export default function DashboardIndex({
                 severity: alert.severity,
                 meta: metaParts.join(' · ') || alert.status,
                 raisedAt: alert.raised_at,
-                href: '/alerts',
+                href: alerts.index.url(),
             };
         });
     }, [summary.alerts?.latest, alertFilter]);
@@ -406,7 +407,9 @@ export default function DashboardIndex({
                                         occupancy={summary.headcount?.by_zone}
                                         onSelect={(zone) =>
                                             router.visit(
-                                                `/settings/zones/${zone.uuid}`,
+                                                settings.zones.show.url(
+                                                    zone.uuid,
+                                                ),
                                             )
                                         }
                                     />

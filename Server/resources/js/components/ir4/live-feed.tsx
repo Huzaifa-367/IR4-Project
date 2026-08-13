@@ -1,9 +1,6 @@
 import { Link } from '@inertiajs/react';
-import {
-    StatusPill
-    
-} from '@/components/ir4/status-pill';
-import type {StatusPillTone} from '@/components/ir4/status-pill';
+import { StatusPill } from '@/components/ir4/status-pill';
+import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { cn } from '@/lib/utils';
 
 export type LiveFeedItem = {

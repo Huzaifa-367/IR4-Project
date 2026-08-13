@@ -95,9 +95,7 @@ export function formatNumber(
         return '—';
     }
 
-    return Number.isInteger(value)
-        ? String(value)
-        : value.toFixed(digits);
+    return Number.isInteger(value) ? String(value) : value.toFixed(digits);
 }
 
 export function sumBy<T>(
@@ -107,9 +105,7 @@ export function sumBy<T>(
     return rows.reduce((total, row) => total + (pick(row) ?? 0), 0);
 }
 
-export function avgOf(
-    values: Array<number | null | undefined>,
-): number | null {
+export function avgOf(values: Array<number | null | undefined>): number | null {
     const nums = values.filter(
         (value): value is number =>
             typeof value === 'number' && !Number.isNaN(value),
@@ -122,9 +118,7 @@ export function avgOf(
     return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
 
-export function minOf(
-    values: Array<number | null | undefined>,
-): number | null {
+export function minOf(values: Array<number | null | undefined>): number | null {
     const nums = values.filter(
         (value): value is number =>
             typeof value === 'number' && !Number.isNaN(value),
@@ -133,9 +127,7 @@ export function minOf(
     return nums.length === 0 ? null : Math.min(...nums);
 }
 
-export function maxOf(
-    values: Array<number | null | undefined>,
-): number | null {
+export function maxOf(values: Array<number | null | undefined>): number | null {
     const nums = values.filter(
         (value): value is number =>
             typeof value === 'number' && !Number.isNaN(value),

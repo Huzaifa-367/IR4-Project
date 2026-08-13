@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import {
-    permitTypeBarClass,
-    permitTypeSoftClass,
-} from '@/lib/permit-colours';
+import { permitTypeBarClass, permitTypeSoftClass } from '@/lib/permit-colours';
 import { cn } from '@/lib/utils';
+import permits from '@/routes/permits';
+import tracking from '@/routes/tracking';
+import workOrders from '@/routes/work-orders';
 import type {
     PermitDetail,
     PermitOption,
@@ -161,12 +161,7 @@ function checklistAnswered(
 ): boolean {
     const value = checklist?.[code] ?? checklist?.[String(id)];
 
-    return (
-        value === true ||
-        value === 1 ||
-        value === '1' ||
-        value === 'true'
-    );
+    return value === true || value === 1 || value === '1' || value === 'true';
 }
 
 function eligibilityFor(
@@ -323,7 +318,8 @@ export default function PermitShow({
         return initial;
     });
 
-    const isEditable = canUpdate && ['draft', 'rejected'].includes(permit.status);
+    const isEditable =
+        canUpdate && ['draft', 'rejected'].includes(permit.status);
     const permitTypeId = permit.type?.id;
     const flowSteps = useMemo(() => buildFlowSteps(permit), [permit]);
 
@@ -392,7 +388,10 @@ export default function PermitShow({
 
         const items: string[] = [];
 
-        if (!checklistComplete && checklistItems.some((item) => item.is_mandatory)) {
+        if (
+            !checklistComplete &&
+            checklistItems.some((item) => item.is_mandatory)
+        ) {
             items.push('Complete all mandatory checklist / JSA items');
         }
 
@@ -433,7 +432,10 @@ export default function PermitShow({
                         blockers.length > 0
                             ? 'Finish the items below, save, then submit for the next gate.'
                             : 'Checklist and crew look ready. Submit to start inspection / gas / issue.',
-                    tone: blockers.length > 0 ? ('warn' as const) : ('ok' as const),
+                    tone:
+                        blockers.length > 0
+                            ? ('warn' as const)
+                            : ('ok' as const),
                 };
             case 'pending_inspection':
                 return {
@@ -529,9 +531,7 @@ export default function PermitShow({
     }
 
     async function loadGasSuggestion(): Promise<void> {
-        const response = await fetch(
-            `/workforce/permits/${permit.uuid}/gas-suggestion`,
-        );
+        const response = await fetch(permits.gasSuggestion.url(permit.uuid));
         const payload = (await response.json()) as {
             readings: Record<string, number>;
         };
@@ -611,7 +611,9 @@ export default function PermitShow({
                                     <>
                                         {' · '}
                                         <Link
-                                            href={`/workforce/work-orders/${permit.work_order.uuid}`}
+                                            href={workOrders.show(
+                                                permit.work_order.uuid,
+                                            )}
                                             className="text-[color:var(--accent)] underline-offset-2 hover:underline"
                                         >
                                             {permit.work_order.reference}
@@ -621,7 +623,7 @@ export default function PermitShow({
                             </p>
                         </div>
                         <Button asChild variant="outline">
-                            <Link href="/workforce/permits">All permits</Link>
+                            <Link href={permits.index()}>All permits</Link>
                         </Button>
                     </div>
 
@@ -770,9 +772,7 @@ export default function PermitShow({
                             <Button
                                 type="button"
                                 onClick={() =>
-                                    postAction(
-                                        `/workforce/permits/${permit.uuid}/submit`,
-                                    )
+                                    postAction(permits.submit.url(permit.uuid))
                                 }
                             >
                                 Submit for authorization
@@ -789,7 +789,9 @@ export default function PermitShow({
                                                 type="button"
                                                 onClick={() =>
                                                     postAction(
-                                                        `/workforce/permits/${permit.uuid}/inspection`,
+                                                        permits.inspect.url(
+                                                            permit.uuid,
+                                                        ),
                                                         { as: 'issuer' },
                                                     )
                                                 }
@@ -809,7 +811,9 @@ export default function PermitShow({
                                                 }
                                                 onClick={() =>
                                                     postAction(
-                                                        `/workforce/permits/${permit.uuid}/inspection`,
+                                                        permits.inspect.url(
+                                                            permit.uuid,
+                                                        ),
                                                         { as: 'receiver' },
                                                     )
                                                 }
@@ -828,29 +832,27 @@ export default function PermitShow({
                                 </>
                             )}
 
-                        {canApprove &&
-                            permit.status === 'pending_approval' && (
-                                <Button
-                                    type="button"
-                                    onClick={() =>
-                                        postAction(
-                                            `/workforce/permits/${permit.uuid}/approve`,
-                                            { note: note || undefined },
-                                        )
-                                    }
-                                >
-                                    Approve
-                                </Button>
-                            )}
+                        {canApprove && permit.status === 'pending_approval' && (
+                            <Button
+                                type="button"
+                                onClick={() =>
+                                    postAction(
+                                        permits.approve.url(permit.uuid),
+                                        { note: note || undefined },
+                                    )
+                                }
+                            >
+                                Approve
+                            </Button>
+                        )}
 
                         {canIssue && permit.status === 'pending_issue' && (
                             <Button
                                 type="button"
                                 onClick={() =>
-                                    postAction(
-                                        `/workforce/permits/${permit.uuid}/issue`,
-                                        { note: note || undefined },
-                                    )
+                                    postAction(permits.issue.url(permit.uuid), {
+                                        note: note || undefined,
+                                    })
                                 }
                             >
                                 Issue permit
@@ -864,7 +866,7 @@ export default function PermitShow({
                                     variant="outline"
                                     onClick={() =>
                                         postAction(
-                                            `/workforce/permits/${permit.uuid}/renew`,
+                                            permits.renew.url(permit.uuid),
                                         )
                                     }
                                 >
@@ -875,10 +877,9 @@ export default function PermitShow({
                                     variant="outline"
                                     onClick={() =>
                                         postAction(
-                                            `/workforce/permits/${permit.uuid}/close`,
+                                            permits.close.url(permit.uuid),
                                             {
-                                                note:
-                                                    note || 'Work complete',
+                                                note: note || 'Work complete',
                                             },
                                         )
                                     }
@@ -890,7 +891,7 @@ export default function PermitShow({
                                     variant="destructive"
                                     onClick={() =>
                                         postAction(
-                                            `/workforce/permits/${permit.uuid}/suspend`,
+                                            permits.suspend.url(permit.uuid),
                                             {
                                                 note: note || 'Suspended',
                                             },
@@ -904,7 +905,7 @@ export default function PermitShow({
                                     variant="destructive"
                                     onClick={() =>
                                         postAction(
-                                            `/workforce/permits/${permit.uuid}/cancel`,
+                                            permits.cancel.url(permit.uuid),
                                             {
                                                 note: note || 'Cancelled',
                                             },
@@ -920,9 +921,7 @@ export default function PermitShow({
                             <Button
                                 type="button"
                                 onClick={() =>
-                                    postAction(
-                                        `/workforce/permits/${permit.uuid}/resume`,
-                                    )
+                                    postAction(permits.resume.url(permit.uuid))
                                 }
                             >
                                 Resume
@@ -942,7 +941,7 @@ export default function PermitShow({
                                     variant="destructive"
                                     onClick={() =>
                                         postAction(
-                                            `/workforce/permits/${permit.uuid}/reject`,
+                                            permits.reject.url(permit.uuid),
                                             {
                                                 note: note || 'Rejected',
                                             },
@@ -960,7 +959,9 @@ export default function PermitShow({
                             <Input
                                 id="action-note"
                                 value={note}
-                                onChange={(event) => setNote(event.target.value)}
+                                onChange={(event) =>
+                                    setNote(event.target.value)
+                                }
                                 placeholder="Optional note for approve / issue / close…"
                                 className="bg-surface"
                             />
@@ -970,7 +971,7 @@ export default function PermitShow({
 
                 {isEditable ? (
                     <Form
-                        action={`/workforce/permits/${permit.uuid}`}
+                        action={permits.update.url(permit.uuid)}
                         method="put"
                         className="space-y-6"
                         transform={(data) => ({
@@ -990,7 +991,7 @@ export default function PermitShow({
                     >
                         {({ processing, errors }) => (
                             <>
-                                <section className="space-y-4 rounded-[var(--radius)] border border-border border-l-[3px] border-l-[color:var(--accent)] bg-surface p-4 shadow-[var(--shadow-card)]">
+                                <section className="space-y-4 rounded-[var(--radius)] border border-l-[3px] border-border border-l-[color:var(--accent)] bg-surface p-4 shadow-[var(--shadow-card)]">
                                     <div className="flex items-center gap-2.5">
                                         <SectionBadge step={1} tone="accent" />
                                         <div>
@@ -1054,16 +1055,18 @@ export default function PermitShow({
                                                 }
                                                 className="rounded border-input"
                                             />
-                                            Extended permit (requires
-                                            approver)
+                                            Extended permit (requires approver)
                                         </label>
                                     )}
                                 </section>
 
-                                <section className="space-y-4 rounded-[var(--radius)] border border-border border-l-[3px] border-l-[color:var(--warn)] bg-surface p-4 shadow-[var(--shadow-card)]">
+                                <section className="space-y-4 rounded-[var(--radius)] border border-l-[3px] border-border border-l-[color:var(--warn)] bg-surface p-4 shadow-[var(--shadow-card)]">
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex items-center gap-2.5">
-                                            <SectionBadge step={2} tone="warn" />
+                                            <SectionBadge
+                                                step={2}
+                                                tone="warn"
+                                            />
                                             <div>
                                                 <p className="eyebrow">Crew</p>
                                                 <h2 className="text-sm font-semibold text-text">
@@ -1216,7 +1219,7 @@ export default function PermitShow({
                                 </section>
 
                                 {checklistItems.length > 0 && (
-                                    <section className="space-y-4 rounded-[var(--radius)] border border-border border-l-[3px] border-l-[color:var(--ok)] bg-surface p-4 shadow-[var(--shadow-card)]">
+                                    <section className="space-y-4 rounded-[var(--radius)] border border-l-[3px] border-border border-l-[color:var(--ok)] bg-surface p-4 shadow-[var(--shadow-card)]">
                                         <div className="flex items-center gap-2.5">
                                             <SectionBadge step={3} tone="ok" />
                                             <div>
@@ -1283,10 +1286,7 @@ export default function PermitShow({
                                 )}
 
                                 <div className="flex justify-end gap-2">
-                                    <Button
-                                        type="submit"
-                                        disabled={processing}
-                                    >
+                                    <Button type="submit" disabled={processing}>
                                         Save draft
                                     </Button>
                                 </div>
@@ -1295,7 +1295,10 @@ export default function PermitShow({
                     </Form>
                 ) : (
                     <div className="grid gap-4 lg:grid-cols-2">
-                        <Panel title="Task" subtitle="Work scope and signatories">
+                        <Panel
+                            title="Task"
+                            subtitle="Work scope and signatories"
+                        >
                             <p className="rounded-md border border-border bg-surface-2/40 px-3 py-2.5 text-sm leading-relaxed text-text">
                                 {permit.task_description}
                             </p>
@@ -1327,7 +1330,10 @@ export default function PermitShow({
                             </dl>
                         </Panel>
 
-                        <Panel title="Crew" subtitle="Assigned roles and document readiness">
+                        <Panel
+                            title="Crew"
+                            subtitle="Assigned roles and document readiness"
+                        >
                             {permit.personnel.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
                                     No personnel assigned.
@@ -1378,7 +1384,10 @@ export default function PermitShow({
                 )}
 
                 {checklistItems.length > 0 && !isEditable && (
-                    <Panel title="Checklist / JSA" subtitle="Hazards and precautions">
+                    <Panel
+                        title="Checklist / JSA"
+                        subtitle="Hazards and precautions"
+                    >
                         <ul className="space-y-2 text-sm">
                             {checklistItems.map((item) => {
                                 const answered = checklistAnswered(
@@ -1481,7 +1490,9 @@ export default function PermitShow({
                         title="Record gas test"
                         subtitle="Enter channel readings or prefill from live sensors"
                         className="border-[color:var(--warn)]/40"
-                    >                        <div className="mb-3 flex flex-wrap gap-2">
+                    >
+                        {' '}
+                        <div className="mb-3 flex flex-wrap gap-2">
                             <Button
                                 type="button"
                                 variant="outline"
@@ -1536,8 +1547,8 @@ export default function PermitShow({
                         </div>
                         {gasChannels.length === 0 && (
                             <p className="text-sm text-muted-foreground">
-                                No gas channels configured for this permit
-                                type. Add them under Catalogue → Permit types.
+                                No gas channels configured for this permit type.
+                                Add them under Catalogue → Permit types.
                             </p>
                         )}
                         <div className="mt-3 grid gap-2 sm:max-w-xs">
@@ -1555,7 +1566,7 @@ export default function PermitShow({
                             disabled={gasChannels.length === 0}
                             onClick={() =>
                                 postAction(
-                                    `/workforce/permits/${permit.uuid}/gas-tests`,
+                                    permits.gasTests.store.url(permit.uuid),
                                     {
                                         readings: gasReadings,
                                         source: 'manual',
@@ -1569,9 +1580,11 @@ export default function PermitShow({
                     </Panel>
                 )}
 
-                {(permit.gas_tests.length > 0 ||
-                    permit.gas_test_required) && (
-                    <Panel title="Gas tests" subtitle="Atmospheric test history">
+                {(permit.gas_tests.length > 0 || permit.gas_test_required) && (
+                    <Panel
+                        title="Gas tests"
+                        subtitle="Atmospheric test history"
+                    >
                         {permit.gas_tests.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
                                 No gas tests recorded yet.
@@ -1619,9 +1632,7 @@ export default function PermitShow({
                                                         className="flex justify-between gap-2"
                                                     >
                                                         <dt>{code}</dt>
-                                                        <dd>
-                                                            {String(value)}
-                                                        </dd>
+                                                        <dd>{String(value)}</dd>
                                                     </div>
                                                 ))}
                                             </dl>
@@ -1650,7 +1661,7 @@ export default function PermitShow({
                                             {approval.action_label}
                                         </span>{' '}
                                         · {approval.user_name ?? 'System'} ·{' '}
-                                        <span className="tabular-nums text-text-dim">
+                                        <span className="text-text-dim tabular-nums">
                                             {formatDate(approval.signed_at)}
                                         </span>
                                         {approval.note ? (
@@ -1685,7 +1696,7 @@ export default function PermitShow({
                                                 {event.event}
                                             </span>{' '}
                                             · {event.user_name ?? 'System'}
-                                            <p className="text-xs tabular-nums text-text-dim">
+                                            <p className="text-xs text-text-dim tabular-nums">
                                                 {formatDate(event.occurred_at)}
                                             </p>
                                         </div>
@@ -1702,7 +1713,7 @@ export default function PermitShow({
 
 PermitShow.layout = {
     breadcrumbs: [
-        { title: 'Workforce', href: '/workforce/workers' },
-        { title: 'Permits', href: '/workforce/permits' },
+        { title: 'Workforce', href: tracking.workers.index() },
+        { title: 'Permits', href: permits.index() },
     ],
 };

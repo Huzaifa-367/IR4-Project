@@ -5,6 +5,7 @@ import { Panel } from '@/components/ir4/panel';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import tracking from '@/routes/tracking';
 
 type Entry = {
     id: number;
@@ -80,7 +81,7 @@ export default function EvacuationIndex({
                     >
                         <Button asChild size="sm">
                             <Link
-                                href={`/tracking/evacuation/${openReport.uuid}`}
+                                href={tracking.evacuation.show(openReport.uuid)}
                             >
                                 Open board
                             </Link>
@@ -96,7 +97,7 @@ export default function EvacuationIndex({
                                 className="flex items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
                             >
                                 <Link
-                                    href={`/tracking/evacuation/${report.uuid}`}
+                                    href={tracking.evacuation.show(report.uuid)}
                                     className="text-[color:var(--accent)] hover:underline"
                                 >
                                     Evacuation #{report.id}
@@ -134,7 +135,7 @@ export default function EvacuationIndex({
                 onOpenChange={setConfirmOpen}
                 title="Trigger site evacuation"
                 description="This freezes every on-site worker into a live muster report and hard-navigates every operator screen to the evacuation board. This cannot be undone."
-                action="/tracking/evacuation"
+                action={tracking.evacuation.store.url()}
                 method="post"
                 confirmLabel="Trigger evacuation"
                 destructive
@@ -144,5 +145,5 @@ export default function EvacuationIndex({
 }
 
 EvacuationIndex.layout = {
-    breadcrumbs: [{ title: 'Evacuation', href: '/tracking/evacuation' }],
+    breadcrumbs: [{ title: 'Evacuation', href: tracking.evacuation.index() }],
 };

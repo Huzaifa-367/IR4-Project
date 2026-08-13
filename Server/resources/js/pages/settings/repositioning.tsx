@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import settings from '@/routes/settings';
 
 type ReaderCard = {
     id: number;
@@ -53,7 +54,7 @@ export default function RepositioningPage({ readers, zones, flash }: Props) {
                         description="Rebind RFID readers when poles move. History stays time-correct."
                     />
                     <Button asChild variant="outline">
-                        <Link href="/settings/zones">Zones</Link>
+                        <Link href={settings.zones.index()}>Zones</Link>
                     </Button>
                 </div>
 
@@ -104,7 +105,9 @@ export default function RepositioningPage({ readers, zones, flash }: Props) {
                                     : ''}
                             </p>
                             <Form
-                                action={`/settings/readers/${reader.uuid}/rebind`}
+                                action={settings.readers.rebind.url(
+                                    reader.uuid,
+                                )}
                                 method="post"
                                 className="space-y-2 border-t border-border pt-3"
                                 transform={(data) => ({
@@ -215,7 +218,9 @@ export default function RepositioningPage({ readers, zones, flash }: Props) {
                                                 size="sm"
                                             >
                                                 <Link
-                                                    href={`/settings/readers/${reader.uuid}/bindings`}
+                                                    href={settings.readers.bindings(
+                                                        reader.uuid,
+                                                    )}
                                                 >
                                                     History
                                                 </Link>

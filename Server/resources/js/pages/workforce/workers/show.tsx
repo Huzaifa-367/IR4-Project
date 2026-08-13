@@ -1,19 +1,17 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { FactTile, DetailField } from '@/components/ir4/fact-tile';
 import { Panel } from '@/components/ir4/panel';
 import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
-import { WorkerForm } from '@/components/ir4/worker-form';
-import {
-    WorkerDocumentsPanel,
-} from '@/components/ir4/worker-documents-panel';
+import { WorkerDocumentsPanel } from '@/components/ir4/worker-documents-panel';
 import type {
     DocumentChecklistItem,
     DocumentRow,
     PermitReadinessRow,
     ReadinessSummary,
 } from '@/components/ir4/worker-documents-panel';
+import { WorkerForm } from '@/components/ir4/worker-form';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -23,6 +21,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import tracking from '@/routes/tracking';
 import type { Worker } from '@/types/worker';
 
 type TagHistoryRow = {
@@ -151,13 +150,7 @@ export default function WorkersShow({
     readinessSummary = null,
     workerTypes,
 }: Props) {
-    const [editOpen, setEditOpen] = useState(false);
-
-    useEffect(() => {
-        if (openEdit && canManage) {
-            setEditOpen(true);
-        }
-    }, [openEdit, canManage]);
+    const [editOpen, setEditOpen] = useState(openEdit && canManage);
 
     const activeTag = tagHistory.find((tag) => tag.status === 'assigned');
     const heroTone = !worker.is_active
@@ -241,9 +234,7 @@ export default function WorkersShow({
                                                 ? 'On site'
                                                 : 'Off site'
                                         }
-                                        tone={
-                                            worker.present ? 'ok' : 'neutral'
-                                        }
+                                        tone={worker.present ? 'ok' : 'neutral'}
                                     />
                                     <StatusPill
                                         label={
@@ -251,9 +242,7 @@ export default function WorkersShow({
                                                 ? 'Active'
                                                 : 'Inactive'
                                         }
-                                        tone={
-                                            worker.is_active ? 'ok' : 'crit'
-                                        }
+                                        tone={worker.is_active ? 'ok' : 'crit'}
                                     />
                                     {worker.role_title ? (
                                         <StatusPill
@@ -264,15 +253,16 @@ export default function WorkersShow({
                                     ) : null}
                                 </div>
                                 {worker.last_seen_at ? (
-                                    <p className="text-xs tabular-nums text-text-faint">
-                                        Last seen {formatDate(worker.last_seen_at)}
+                                    <p className="text-xs text-text-faint tabular-nums">
+                                        Last seen{' '}
+                                        {formatDate(worker.last_seen_at)}
                                     </p>
                                 ) : null}
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <Button asChild variant="outline">
-                                <Link href="/workforce/workers">
+                                <Link href={tracking.workers.index()}>
                                     All workers
                                 </Link>
                             </Button>
@@ -389,7 +379,7 @@ export default function WorkersShow({
                                         {tag.tag_uid}
                                     </span>
                                     <span className="flex items-center gap-2">
-                                        <span className="text-xs tabular-nums text-text-faint">
+                                        <span className="text-xs text-text-faint tabular-nums">
                                             {formatDate(tag.assigned_at)}
                                         </span>
                                         <StatusPill
@@ -416,7 +406,7 @@ export default function WorkersShow({
                             className="xl:col-span-6"
                             action={
                                 <Link
-                                    href="/tracking/entry-exit"
+                                    href={tracking.entryExit.index()}
                                     className="text-xs text-[color:var(--accent)] hover:underline"
                                 >
                                     Full log ›
@@ -451,7 +441,7 @@ export default function WorkersShow({
                                                 {log.gate_zone_name ?? '—'}
                                             </span>
                                         </span>
-                                        <span className="text-xs tabular-nums text-text-faint">
+                                        <span className="text-xs text-text-faint tabular-nums">
                                             {formatDate(log.occurred_at)}
                                         </span>
                                     </li>
@@ -472,7 +462,7 @@ export default function WorkersShow({
                             className="xl:col-span-6"
                             action={
                                 <Link
-                                    href="/workforce/portable-devices"
+                                    href={tracking.portableDevices.index()}
                                     className="text-xs text-[color:var(--accent)] hover:underline"
                                 >
                                     All devices ›
@@ -586,8 +576,10 @@ export default function WorkersShow({
                                                     LSR #{lsr.id} ·{' '}
                                                     {lsr.category_label}
                                                 </Link>
-                                                <p className="text-xs tabular-nums text-text-faint">
-                                                    {formatDate(lsr.occurred_at)}
+                                                <p className="text-xs text-text-faint tabular-nums">
+                                                    {formatDate(
+                                                        lsr.occurred_at,
+                                                    )}
                                                 </p>
                                             </div>
                                             <StatusPill
@@ -641,7 +633,9 @@ export default function WorkersShow({
                             {worker.is_active ? (
                                 <>
                                     <Form
-                                        action={`/workforce/workers/${worker.uuid}/deactivate`}
+                                        action={tracking.workers.deactivate.url(
+                                            worker.uuid,
+                                        )}
                                         method="post"
                                     >
                                         {({ processing }) => (
@@ -649,8 +643,7 @@ export default function WorkersShow({
                                                 type="submit"
                                                 variant="secondary"
                                                 disabled={
-                                                    processing ||
-                                                    worker.present
+                                                    processing || worker.present
                                                 }
                                             >
                                                 Deactivate
@@ -658,7 +651,9 @@ export default function WorkersShow({
                                         )}
                                     </Form>
                                     <Form
-                                        action={`/workforce/workers/${worker.uuid}/offboard`}
+                                        action={tracking.workers.offboard.url(
+                                            worker.uuid,
+                                        )}
                                         method="post"
                                     >
                                         {({ processing }) => (
@@ -666,8 +661,7 @@ export default function WorkersShow({
                                                 type="submit"
                                                 variant="destructive"
                                                 disabled={
-                                                    processing ||
-                                                    worker.present
+                                                    processing || worker.present
                                                 }
                                             >
                                                 Offboard
@@ -677,7 +671,9 @@ export default function WorkersShow({
                                 </>
                             ) : (
                                 <Form
-                                    action={`/workforce/workers/${worker.uuid}/reactivate`}
+                                    action={tracking.workers.reactivate.url(
+                                        worker.uuid,
+                                    )}
                                     method="post"
                                 >
                                     {({ processing }) => (
@@ -705,7 +701,7 @@ export default function WorkersShow({
                             </DialogDescription>
                         </DialogHeader>
                         <WorkerForm
-                            action={`/workforce/workers/${worker.uuid}`}
+                            action={tracking.workers.update.url(worker.uuid)}
                             method="put"
                             workerTypes={workerTypes}
                             defaults={{
@@ -731,7 +727,7 @@ export default function WorkersShow({
 
 WorkersShow.layout = {
     breadcrumbs: [
-        { title: 'Workforce', href: '/workforce/workers' },
-        { title: 'Workers', href: '/workforce/workers' },
+        { title: 'Workforce', href: tracking.workers.index() },
+        { title: 'Workers', href: tracking.workers.index() },
     ],
 };

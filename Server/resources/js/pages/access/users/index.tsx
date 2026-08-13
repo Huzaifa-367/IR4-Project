@@ -5,9 +5,7 @@ import { toast } from 'sonner';
 import { RequirePermission } from '@/components/ir4/require-permission';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
-import {
-    SettingsDataTable,
-} from '@/components/ir4/settings/settings-data-table';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { StatusPill } from '@/components/ir4/status-pill';
@@ -30,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
+import settings from '@/routes/settings';
 import type { RoleOption, UserRow } from '@/types/settings-admin';
 
 type TemporaryPassword = {
@@ -45,9 +44,7 @@ type Props = {
     temporaryPassword: TemporaryPassword | null;
 };
 
-type UserFormState =
-    | { mode: 'create' }
-    | { mode: 'edit'; user: UserRow };
+type UserFormState = { mode: 'create' } | { mode: 'edit'; user: UserRow };
 
 export default function UsersIndex({
     users,
@@ -55,8 +52,9 @@ export default function UsersIndex({
     temporaryPassword: initialTemp,
 }: Props) {
     const page = usePage();
-    const authUserId = (page.props.auth as { user?: { id: number } } | undefined)
-        ?.user?.id;
+    const authUserId = (
+        page.props.auth as { user?: { id: number } } | undefined
+    )?.user?.id;
     const [form, setForm] = useState<UserFormState | null>(null);
     const [lifecycleTarget, setLifecycleTarget] = useState<UserRow | null>(
         null,
@@ -98,7 +96,11 @@ export default function UsersIndex({
             cell: (user) => (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" aria-label="Actions">
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Actions"
+                        >
                             <MoreHorizontal />
                         </Button>
                     </DropdownMenuTrigger>
@@ -170,7 +172,7 @@ export default function UsersIndex({
                 }}
                 title="Add user"
                 description="A temporary password is shown once after creation."
-                action="/access/users"
+                action={settings.users.store.url()}
                 method="post"
                 submitLabel="Create user"
                 transform={(data) => ({
@@ -184,7 +186,7 @@ export default function UsersIndex({
                             <Label htmlFor="user-name">Name</Label>
                             <Input id="user-name" name="name" required />
                             {errors.name ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.name}
                                 </p>
                             ) : null}
@@ -198,7 +200,7 @@ export default function UsersIndex({
                                 required
                             />
                             {errors.email ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.email}
                                 </p>
                             ) : null}
@@ -225,7 +227,7 @@ export default function UsersIndex({
                                 }))}
                             />
                             {errors.role ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.role}
                                 </p>
                             ) : null}
@@ -244,8 +246,8 @@ export default function UsersIndex({
                 title="Edit user"
                 action={
                     form?.mode === 'edit'
-                        ? `/access/users/${form.user.uuid}`
-                        : '/access/users'
+                        ? settings.users.update.url(form.user.uuid)
+                        : settings.users.store.url()
                 }
                 method="put"
                 submitLabel="Save user"
@@ -267,7 +269,7 @@ export default function UsersIndex({
                                 }
                             />
                             {errors.name ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.name}
                                 </p>
                             ) : null}
@@ -284,7 +286,7 @@ export default function UsersIndex({
                                 }))}
                             />
                             {errors.role ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.role}
                                 </p>
                             ) : null}
@@ -319,7 +321,7 @@ export default function UsersIndex({
                 }
                 action={
                     lifecycleTarget
-                        ? `/access/users/${lifecycleTarget.uuid}`
+                        ? settings.users.update.url(lifecycleTarget.uuid)
                         : undefined
                 }
                 method="put"
@@ -390,5 +392,8 @@ export default function UsersIndex({
 }
 
 UsersIndex.layout = {
-    breadcrumbs: [{ title: 'Access', href: '/access/users' }, { title: 'Users', href: '/access/users' }],
+    breadcrumbs: [
+        { title: 'Access', href: settings.users.index() },
+        { title: 'Users', href: settings.users.index() },
+    ],
 };

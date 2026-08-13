@@ -1,15 +1,8 @@
 import { Link } from '@inertiajs/react';
-import {
-    Area,
-    AreaChart,
-    ResponsiveContainer,
-} from 'recharts';
+import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 import { LiveNumber } from '@/components/ir4/live-number';
-import {
-    SectionInfo
-    
-} from '@/components/ir4/section-info';
-import type {SectionInfoContent} from '@/components/ir4/section-info';
+import { SectionInfo } from '@/components/ir4/section-info';
+import type { SectionInfoContent } from '@/components/ir4/section-info';
 import { cn } from '@/lib/utils';
 
 type Props = {

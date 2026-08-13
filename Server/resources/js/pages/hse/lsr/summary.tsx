@@ -3,6 +3,7 @@ import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { visitFilters } from '@/lib/visit-filters';
+import hse from '@/routes/hse';
 
 type Props = {
     summary: {
@@ -29,7 +30,7 @@ export default function LsrSummary({ summary, filters }: Props) {
                         description={`${summary.open} open across the selected range.`}
                     />
                     <Button asChild variant="outline">
-                        <Link href="/lsr-violations">Back</Link>
+                        <Link href={hse.lsr.index()}>Back</Link>
                     </Button>
                 </div>
 
@@ -38,7 +39,7 @@ export default function LsrSummary({ summary, filters }: Props) {
                     onSubmit={(event) => {
                         event.preventDefault();
                         const form = new FormData(event.currentTarget);
-                        visitFilters('/lsr-violations/summary', {
+                        visitFilters(hse.lsr.summary.url(), {
                             from: String(form.get('from') ?? ''),
                             to: String(form.get('to') ?? ''),
                         });

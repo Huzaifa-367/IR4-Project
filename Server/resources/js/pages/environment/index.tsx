@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { CloudSun, Droplets, Radio, Wind } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { AnalyticalChart } from '@/components/ir4/analytical-chart';
 import { CardHeading } from '@/components/ir4/card-heading';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
@@ -16,6 +16,7 @@ import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import { environmentInfo } from '@/lib/analytics-info';
 import { visitFilters } from '@/lib/visit-filters';
 import { dashboard } from '@/routes';
+import environment from '@/routes/environment';
 import type {
     EnvironmentDashboardSnapshot,
     EnvironmentSensor,
@@ -42,16 +43,12 @@ export default function EnvironmentTrends({
     snapshot: initialSnapshot,
     filters,
 }: Props) {
-    const [snapshot, setSnapshot] = useState(initialSnapshot);
+    const [snapshot, setSnapshot] = usePropSyncedState(initialSnapshot);
     const [range, setRange] = usePropSyncedState<RangeValue>(
         (filters.range as RangeValue) || 'day',
     );
     const [from, setFrom] = usePropSyncedState(filters.from);
     const [to, setTo] = usePropSyncedState(filters.to);
-
-    useEffect(() => {
-        setSnapshot(initialSnapshot);
-    }, [initialSnapshot]);
 
     const liveUrl = useMemo(() => {
         const params = new URLSearchParams();
@@ -67,28 +64,33 @@ export default function EnvironmentTrends({
             }
         }
 
-        return `/api/environment/live?${params.toString()}`;
+        return environment.live.url({
+            query: Object.fromEntries(params.entries()),
+        });
     }, [range, from, to]);
 
-    const onSnapshot = useCallback((payload: unknown) => {
-        const response = payload as {
-            data: {
-                sensors: EnvironmentSensor[];
-                snapshot?: EnvironmentDashboardSnapshot;
+    const onSnapshot = useCallback(
+        (payload: unknown) => {
+            const response = payload as {
+                data: {
+                    sensors: EnvironmentSensor[];
+                    snapshot?: EnvironmentDashboardSnapshot;
+                };
             };
-        };
 
-        if (response.data.snapshot) {
-            setSnapshot(response.data.snapshot);
+            if (response.data.snapshot) {
+                setSnapshot(response.data.snapshot);
 
-            return;
-        }
+                return;
+            }
 
-        setSnapshot((current) => ({
-            ...current,
-            sensors: response.data.sensors,
-        }));
-    }, []);
+            setSnapshot((current) => ({
+                ...current,
+                sensors: response.data.sensors,
+            }));
+        },
+        [setSnapshot],
+    );
 
     const { status } = useReverbChannel({
         channel: 'environment',
@@ -153,9 +155,7 @@ export default function EnvironmentTrends({
 
     const chartSeries = snapshot.trend.series.map((metric, index) => ({
         key: metric.key,
-        label: metric.unit
-            ? `${metric.label} (${metric.unit})`
-            : metric.label,
+        label: metric.unit ? `${metric.label} (${metric.unit})` : metric.label,
         type: (index === 0 ? 'area' : 'line') as 'area' | 'line',
     }));
 
@@ -177,7 +177,7 @@ export default function EnvironmentTrends({
         }
 
         visitFilters(
-            '/environment',
+            environment.index.url(),
             { range: nextRange },
             { only: ['snapshot', 'filters'] },
         );
@@ -185,7 +185,7 @@ export default function EnvironmentTrends({
 
     const applyCustomRange = (): void => {
         visitFilters(
-            '/environment',
+            environment.index.url(),
             { range: 'custom', from, to },
             { only: ['snapshot', 'filters'] },
         );
@@ -535,6 +535,6 @@ function SensorMetric({
 EnvironmentTrends.layout = {
     breadcrumbs: [
         { title: 'Dashboard', href: dashboard() },
-        { title: 'Environment', href: '/environment' },
+        { title: 'Environment', href: environment.index() },
     ],
 };

@@ -10,10 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import settings from '@/routes/settings';
 import type { AuditEvent, AuditLog } from '@/types/audit';
 import type { PaginatedMeta } from '@/types/hardware';
 
@@ -69,7 +67,7 @@ export default function AuditLogIndex({
         const nextFrom = patch.from ?? from;
         const nextTo = patch.to ?? to;
 
-        visitFilters('/settings/audit-log', {
+        visitFilters(settings.auditLog.index.url(), {
             search: nextSearch || undefined,
             event: nextEvent === ALL ? undefined : nextEvent,
             user_id: nextUserId === ALL ? undefined : nextUserId,
@@ -85,11 +83,11 @@ export default function AuditLogIndex({
         FILTER_SEARCH_DEBOUNCE_MS,
     );
 
-    const exportQuery = new URLSearchParams(
+    const exportQuery = Object.fromEntries(
         Object.entries(queryParams).filter((entry): entry is [string, string] =>
             Boolean(entry[1]),
         ),
-    ).toString();
+    );
 
     return (
         <RequirePermission permission="view-audit-log">
@@ -99,7 +97,11 @@ export default function AuditLogIndex({
                 description={`${auditLogs.meta.total} append-only events. Sensitive values are masked before persistence.`}
                 actions={
                     <Button asChild variant="outline">
-                        <a href={`/settings/audit-log/export?${exportQuery}`}>
+                        <a
+                            href={settings.auditLog.export.url({
+                                query: exportQuery,
+                            })}
+                        >
                             <Download className="size-4" />
                             Export CSV
                         </a>
@@ -284,7 +286,7 @@ export default function AuditLogIndex({
                     )}
                     <Pagination
                         meta={auditLogs.meta}
-                        pageUrl="/settings/audit-log"
+                        pageUrl={settings.auditLog.index.url()}
                         params={queryParams}
                     />
                 </div>

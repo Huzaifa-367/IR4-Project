@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import reports from '@/routes/reports';
+import settingsRoutes from '@/routes/settings';
 import type { ReportSettings } from '@/types/report';
 
 type Props = {
@@ -33,13 +35,13 @@ export default function ReportSettingsPage({ settings }: Props) {
                 description="Weekly report schedule and completeness threshold."
                 actions={
                     <Button variant="outline" asChild>
-                        <Link href="/reports">Weekly reports</Link>
+                        <Link href={reports.index()}>Weekly reports</Link>
                     </Button>
                 }
             >
                 <Form
                     method="put"
-                    action="/settings/reports"
+                    action={settingsRoutes.reports.update.url()}
                     className="mx-auto grid max-w-xl gap-4 rounded-[var(--radius)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] md:p-5"
                     transform={(data) => ({
                         ...data,
@@ -137,7 +139,7 @@ export default function ReportSettingsPage({ settings }: Props) {
 
 ReportSettingsPage.layout = {
     breadcrumbs: [
-        { title: 'Settings', href: '/settings/general' },
-        { title: 'Report settings', href: '/settings/reports' },
+        { title: 'Settings', href: settingsRoutes.general.edit() },
+        { title: 'Report settings', href: settingsRoutes.reports.edit() },
     ],
 };

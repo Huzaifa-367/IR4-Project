@@ -45,7 +45,7 @@ export function ConfirmActionDialog({
                 <AlertDialogHeader>
                     <AlertDialogTitle>{title}</AlertDialogTitle>
                     <AlertDialogDescription asChild>
-                        <div className="text-muted-foreground text-sm">
+                        <div className="text-sm text-muted-foreground">
                             {description}
                         </div>
                     </AlertDialogDescription>
@@ -61,21 +61,24 @@ export function ConfirmActionDialog({
                         {({ processing }) => (
                             <>
                                 {data
-                                    ? Object.entries(data).map(([key, value]) =>
-                                          value === null || value === undefined ? null : (
-                                              <input
-                                                  key={key}
-                                                  type="hidden"
-                                                  name={key}
-                                                  value={
-                                                      typeof value === 'boolean'
-                                                          ? value
-                                                              ? '1'
-                                                              : '0'
-                                                          : String(value)
-                                                  }
-                                              />
-                                          ),
+                                    ? Object.entries(data).map(
+                                          ([key, value]) =>
+                                              value === null ||
+                                              value === undefined ? null : (
+                                                  <input
+                                                      key={key}
+                                                      type="hidden"
+                                                      name={key}
+                                                      value={
+                                                          typeof value ===
+                                                          'boolean'
+                                                              ? value
+                                                                  ? '1'
+                                                                  : '0'
+                                                              : String(value)
+                                                      }
+                                                  />
+                                              ),
                                       )
                                     : null}
                                 <AlertDialogFooter>
@@ -99,7 +102,9 @@ export function ConfirmActionDialog({
                     </Form>
                 ) : (
                     <AlertDialogFooter>
-                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogCancel type="button">
+                            Cancel
+                        </AlertDialogCancel>
                         <Button
                             type="button"
                             variant={destructive ? 'destructive' : 'default'}

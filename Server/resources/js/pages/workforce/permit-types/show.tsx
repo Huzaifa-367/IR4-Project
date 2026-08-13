@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState  } from 'react';
-import type {ReactNode} from 'react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import settings from '@/routes/settings';
 
 type Option = { id: number; code: string; name: string };
 
@@ -122,7 +123,6 @@ export default function PermitTypeShow({
     const [conflictSeverity, setConflictSeverity] = useState('warn');
     const [docTypeId, setDocTypeId] = useState('');
     const [docRoleCode, setDocRoleCode] = useState('');
-    const base = `/workforce/permit-types/${permitType.uuid}`;
 
     const roleColumns: SettingsColumn<CrewRole>[] = [
         {
@@ -167,7 +167,7 @@ export default function PermitTypeShow({
                         onClick={() => {
                             if (confirm(`Remove “${row.label}”?`)) {
                                 router.delete(
-                                    `/workforce/crew-roles/${row.uuid}`,
+                                    settings.crewRoles.destroy.url(row.uuid),
                                 );
                             }
                         }}
@@ -227,7 +227,9 @@ export default function PermitTypeShow({
                         onClick={() => {
                             if (confirm(`Remove “${row.label}”?`)) {
                                 router.delete(
-                                    `${base}/checklist-items/${row.uuid}`,
+                                    settings.permitTypes.checklistItems.destroy.url(
+                                        { permitType, checklistItem: row },
+                                    ),
                                 );
                             }
                         }}
@@ -250,8 +252,7 @@ export default function PermitTypeShow({
         {
             key: 'label',
             header: 'Label',
-            cell: (row) =>
-                `${row.label}${row.unit ? ` (${row.unit})` : ''}`,
+            cell: (row) => `${row.label}${row.unit ? ` (${row.unit})` : ''}`,
         },
         {
             key: 'alarms',
@@ -286,7 +287,11 @@ export default function PermitTypeShow({
                         variant="ghost"
                         onClick={() => {
                             if (confirm(`Remove “${row.label}”?`)) {
-                                router.delete(`${base}/gas-channels/${row.uuid}`);
+                                router.delete(
+                                    settings.permitTypes.gasChannels.destroy.url(
+                                        { permitType, gasChannel: row },
+                                    ),
+                                );
                             }
                         }}
                     >
@@ -349,7 +354,12 @@ export default function PermitTypeShow({
                         variant="ghost"
                         onClick={() => {
                             if (confirm('Remove this SIMOPS conflict?')) {
-                                router.delete(`${base}/conflicts/${row.uuid}`);
+                                router.delete(
+                                    settings.permitTypes.conflicts.destroy.url({
+                                        permitType,
+                                        conflict: row,
+                                    }),
+                                );
                             }
                         }}
                     >
@@ -396,9 +406,7 @@ export default function PermitTypeShow({
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                            setDocTypeId(
-                                String(row.worker_document_type_id),
-                            );
+                            setDocTypeId(String(row.worker_document_type_id));
                             setDocRoleCode(row.role_code ?? '');
                             setDialog({
                                 kind: 'edit-doc-req',
@@ -415,7 +423,12 @@ export default function PermitTypeShow({
                         onClick={() => {
                             if (confirm('Remove this document requirement?')) {
                                 router.delete(
-                                    `${base}/document-requirements/${row.uuid}`,
+                                    settings.permitTypes.documentRequirements.destroy.url(
+                                        {
+                                            permitType,
+                                            documentRequirement: row,
+                                        },
+                                    ),
                                 );
                             }
                         }}
@@ -440,7 +453,9 @@ export default function PermitTypeShow({
                 actions={
                     <div className="flex flex-wrap gap-2">
                         <Button asChild variant="outline">
-                            <Link href="/workforce/permit-types">Back</Link>
+                            <Link href={settings.permitTypes.index()}>
+                                Back
+                            </Link>
                         </Button>
                         <Button
                             type="button"
@@ -450,7 +465,9 @@ export default function PermitTypeShow({
                             Edit type
                         </Button>
                         <Button asChild variant="outline">
-                            <Link href="/workforce/crew-roles">All crew roles</Link>
+                            <Link href={settings.crewRoles.index()}>
+                                All crew roles
+                            </Link>
                         </Button>
                     </div>
                 }
@@ -575,122 +592,132 @@ export default function PermitTypeShow({
                     }
                 }}
                 title="Edit permit type"
-                action={base}
+                action={settings.permitTypes.update.url(permitType)}
                 method="put"
                 submitLabel="Save type"
             >
                 {() => (
                     <>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label="Name" htmlFor="edit_name">
-                            <Input
-                                id="edit_name"
-                                name="name"
-                                defaultValue={permitType.name}
-                                required
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Name" htmlFor="edit_name">
+                                <Input
+                                    id="edit_name"
+                                    name="name"
+                                    defaultValue={permitType.name}
+                                    required
+                                />
+                            </Field>
+                            <Field label="SA form code" htmlFor="edit_sa">
+                                <Input
+                                    id="edit_sa"
+                                    name="sa_form_code"
+                                    defaultValue={permitType.sa_form_code ?? ''}
+                                />
+                            </Field>
+                            <Field
+                                label="Description"
+                                htmlFor="edit_description"
+                                className="sm:col-span-2"
+                            >
+                                <Input
+                                    id="edit_description"
+                                    name="description"
+                                    defaultValue={permitType.description ?? ''}
+                                />
+                            </Field>
+                            <Field label="Colour token" htmlFor="edit_colour">
+                                <Input
+                                    id="edit_colour"
+                                    name="colour_token"
+                                    defaultValue={permitType.colour_token ?? ''}
+                                />
+                            </Field>
+                            <Field
+                                label="Validity (minutes)"
+                                htmlFor="edit_validity"
+                            >
+                                <Input
+                                    id="edit_validity"
+                                    name="default_validity_minutes"
+                                    type="number"
+                                    min={1}
+                                    defaultValue={
+                                        permitType.default_validity_minutes
+                                    }
+                                />
+                            </Field>
+                            <Field label="Max renewals" htmlFor="edit_renewals">
+                                <Input
+                                    id="edit_renewals"
+                                    name="max_renewals"
+                                    type="number"
+                                    min={0}
+                                    defaultValue={permitType.max_renewals}
+                                />
+                            </Field>
+                            <Field
+                                label="Max total minutes"
+                                htmlFor="edit_total"
+                            >
+                                <Input
+                                    id="edit_total"
+                                    name="max_total_minutes"
+                                    type="number"
+                                    min={1}
+                                    defaultValue={permitType.max_total_minutes}
+                                />
+                            </Field>
+                            <Field
+                                label="Retest interval (minutes)"
+                                htmlFor="edit_retest"
+                            >
+                                <Input
+                                    id="edit_retest"
+                                    name="retest_interval_minutes"
+                                    type="number"
+                                    min={1}
+                                    defaultValue={
+                                        permitType.retest_interval_minutes ?? ''
+                                    }
+                                />
+                            </Field>
+                            <Field label="Sort order" htmlFor="edit_sort">
+                                <Input
+                                    id="edit_sort"
+                                    name="sort_order"
+                                    type="number"
+                                    min={0}
+                                    defaultValue={permitType.sort_order}
+                                />
+                            </Field>
+                            <FlagCheckbox
+                                name="requires_gas_test"
+                                label="Requires gas test"
+                                defaultChecked={permitType.requires_gas_test}
                             />
-                        </Field>
-                        <Field label="SA form code" htmlFor="edit_sa">
-                            <Input
-                                id="edit_sa"
-                                name="sa_form_code"
-                                defaultValue={permitType.sa_form_code ?? ''}
-                            />
-                        </Field>
-                        <Field
-                            label="Description"
-                            htmlFor="edit_description"
-                            className="sm:col-span-2"
-                        >
-                            <Input
-                                id="edit_description"
-                                name="description"
-                                defaultValue={permitType.description ?? ''}
-                            />
-                        </Field>
-                        <Field label="Colour token" htmlFor="edit_colour">
-                            <Input
-                                id="edit_colour"
-                                name="colour_token"
-                                defaultValue={permitType.colour_token ?? ''}
-                            />
-                        </Field>
-                        <Field label="Validity (minutes)" htmlFor="edit_validity">
-                            <Input
-                                id="edit_validity"
-                                name="default_validity_minutes"
-                                type="number"
-                                min={1}
-                                defaultValue={permitType.default_validity_minutes}
-                            />
-                        </Field>
-                        <Field label="Max renewals" htmlFor="edit_renewals">
-                            <Input
-                                id="edit_renewals"
-                                name="max_renewals"
-                                type="number"
-                                min={0}
-                                defaultValue={permitType.max_renewals}
-                            />
-                        </Field>
-                        <Field label="Max total minutes" htmlFor="edit_total">
-                            <Input
-                                id="edit_total"
-                                name="max_total_minutes"
-                                type="number"
-                                min={1}
-                                defaultValue={permitType.max_total_minutes}
-                            />
-                        </Field>
-                        <Field
-                            label="Retest interval (minutes)"
-                            htmlFor="edit_retest"
-                        >
-                            <Input
-                                id="edit_retest"
-                                name="retest_interval_minutes"
-                                type="number"
-                                min={1}
-                                defaultValue={
-                                    permitType.retest_interval_minutes ?? ''
+                            <FlagCheckbox
+                                name="requires_joint_inspection"
+                                label="Requires joint inspection"
+                                defaultChecked={
+                                    permitType.requires_joint_inspection
                                 }
                             />
-                        </Field>
-                        <Field label="Sort order" htmlFor="edit_sort">
-                            <Input
-                                id="edit_sort"
-                                name="sort_order"
-                                type="number"
-                                min={0}
-                                defaultValue={permitType.sort_order}
+                            <FlagCheckbox
+                                name="requires_approver"
+                                label="Requires approver"
+                                defaultChecked={permitType.requires_approver}
                             />
-                        </Field>
-                        <FlagCheckbox
-                            name="requires_gas_test"
-                            label="Requires gas test"
-                            defaultChecked={permitType.requires_gas_test}
-                        />
-                        <FlagCheckbox
-                            name="requires_joint_inspection"
-                            label="Requires joint inspection"
-                            defaultChecked={permitType.requires_joint_inspection}
-                        />
-                        <FlagCheckbox
-                            name="requires_approver"
-                            label="Requires approver"
-                            defaultChecked={permitType.requires_approver}
-                        />
-                        <FlagCheckbox
-                            name="allows_extended"
-                            label="Allows extended"
-                            defaultChecked={permitType.allows_extended}
-                        />
-                        <FlagCheckbox
-                            name="is_active"
-                            label="Active"
-                            defaultChecked={permitType.is_active}
-                        />
-                    </div>
+                            <FlagCheckbox
+                                name="allows_extended"
+                                label="Allows extended"
+                                defaultChecked={permitType.allows_extended}
+                            />
+                            <FlagCheckbox
+                                name="is_active"
+                                label="Active"
+                                defaultChecked={permitType.is_active}
+                            />
+                        </div>
                     </>
                 )}
             </CrudFormDialog>
@@ -711,85 +738,85 @@ export default function PermitTypeShow({
                 }
                 action={
                     dialog?.kind === 'edit-role'
-                        ? `/workforce/crew-roles/${dialog.role.uuid}`
-                        : '/workforce/crew-roles'
+                        ? settings.crewRoles.update.url(dialog.role.uuid)
+                        : settings.crewRoles.store.url()
                 }
                 method={dialog?.kind === 'edit-role' ? 'put' : 'post'}
                 submitLabel="Save role"
             >
                 {() => (
                     <>
-                    {dialog?.kind !== 'edit-role' ? (
-                        <input
-                            type="hidden"
-                            name="permit_type_id"
-                            value={permitType.id}
-                        />
-                    ) : null}
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label="Code" htmlFor="role_code">
-                            <Input
-                                id="role_code"
-                                name="role_code"
-                                required
-                                placeholder="fire_watch"
-                                pattern="[a-z][a-z0-9_]*"
-                                defaultValue={
+                        {dialog?.kind !== 'edit-role' ? (
+                            <input
+                                type="hidden"
+                                name="permit_type_id"
+                                value={permitType.id}
+                            />
+                        ) : null}
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Code" htmlFor="role_code">
+                                <Input
+                                    id="role_code"
+                                    name="role_code"
+                                    required
+                                    placeholder="fire_watch"
+                                    pattern="[a-z][a-z0-9_]*"
+                                    defaultValue={
+                                        dialog?.kind === 'edit-role'
+                                            ? dialog.role.role_code
+                                            : ''
+                                    }
+                                />
+                            </Field>
+                            <Field label="Label" htmlFor="role_label">
+                                <Input
+                                    id="role_label"
+                                    name="label"
+                                    required
+                                    defaultValue={
+                                        dialog?.kind === 'edit-role'
+                                            ? dialog.role.label
+                                            : ''
+                                    }
+                                />
+                            </Field>
+                            <Field label="Min count" htmlFor="role_min">
+                                <Input
+                                    id="role_min"
+                                    name="min_count"
+                                    type="number"
+                                    min={0}
+                                    defaultValue={
+                                        dialog?.kind === 'edit-role'
+                                            ? dialog.role.min_count
+                                            : 1
+                                    }
+                                    required
+                                />
+                            </Field>
+                            <Field label="Sort order" htmlFor="role_sort">
+                                <Input
+                                    id="role_sort"
+                                    name="sort_order"
+                                    type="number"
+                                    min={0}
+                                    defaultValue={
+                                        dialog?.kind === 'edit-role'
+                                            ? dialog.role.sort_order
+                                            : 0
+                                    }
+                                />
+                            </Field>
+                            <FlagCheckbox
+                                name="is_mandatory"
+                                label="Mandatory"
+                                defaultChecked={
                                     dialog?.kind === 'edit-role'
-                                        ? dialog.role.role_code
-                                        : ''
+                                        ? dialog.role.is_mandatory
+                                        : true
                                 }
                             />
-                        </Field>
-                        <Field label="Label" htmlFor="role_label">
-                            <Input
-                                id="role_label"
-                                name="label"
-                                required
-                                defaultValue={
-                                    dialog?.kind === 'edit-role'
-                                        ? dialog.role.label
-                                        : ''
-                                }
-                            />
-                        </Field>
-                        <Field label="Min count" htmlFor="role_min">
-                            <Input
-                                id="role_min"
-                                name="min_count"
-                                type="number"
-                                min={0}
-                                defaultValue={
-                                    dialog?.kind === 'edit-role'
-                                        ? dialog.role.min_count
-                                        : 1
-                                }
-                                required
-                            />
-                        </Field>
-                        <Field label="Sort order" htmlFor="role_sort">
-                            <Input
-                                id="role_sort"
-                                name="sort_order"
-                                type="number"
-                                min={0}
-                                defaultValue={
-                                    dialog?.kind === 'edit-role'
-                                        ? dialog.role.sort_order
-                                        : 0
-                                }
-                            />
-                        </Field>
-                        <FlagCheckbox
-                            name="is_mandatory"
-                            label="Mandatory"
-                            defaultChecked={
-                                dialog?.kind === 'edit-role'
-                                    ? dialog.role.is_mandatory
-                                    : true
-                            }
-                        />
-                    </div>
+                        </div>
                     </>
                 )}
             </CrudFormDialog>
@@ -811,59 +838,64 @@ export default function PermitTypeShow({
                 }
                 action={
                     dialog?.kind === 'edit-checklist'
-                        ? `${base}/checklist-items/${dialog.item.uuid}`
-                        : `${base}/checklist-items`
+                        ? settings.permitTypes.checklistItems.update.url({
+                              permitType,
+                              checklistItem: dialog.item,
+                          })
+                        : settings.permitTypes.checklistItems.store.url(
+                              permitType,
+                          )
                 }
                 method={dialog?.kind === 'edit-checklist' ? 'put' : 'post'}
                 submitLabel="Save"
             >
                 {() => (
                     <>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label="Code" htmlFor="cl_code">
-                            <Input
-                                id="cl_code"
-                                name="code"
-                                required
-                                pattern="[a-z][a-z0-9_]*"
-                                defaultValue={
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Code" htmlFor="cl_code">
+                                <Input
+                                    id="cl_code"
+                                    name="code"
+                                    required
+                                    pattern="[a-z][a-z0-9_]*"
+                                    defaultValue={
+                                        dialog?.kind === 'edit-checklist'
+                                            ? dialog.item.code
+                                            : ''
+                                    }
+                                />
+                            </Field>
+                            <Field label="Label" htmlFor="cl_label">
+                                <Input
+                                    id="cl_label"
+                                    name="label"
+                                    required
+                                    defaultValue={
+                                        dialog?.kind === 'edit-checklist'
+                                            ? dialog.item.label
+                                            : ''
+                                    }
+                                />
+                            </Field>
+                            <FlagCheckbox
+                                name="is_mandatory"
+                                label="Mandatory"
+                                defaultChecked={
                                     dialog?.kind === 'edit-checklist'
-                                        ? dialog.item.code
-                                        : ''
+                                        ? dialog.item.is_mandatory
+                                        : true
                                 }
                             />
-                        </Field>
-                        <Field label="Label" htmlFor="cl_label">
-                            <Input
-                                id="cl_label"
-                                name="label"
-                                required
-                                defaultValue={
+                            <FlagCheckbox
+                                name="is_active"
+                                label="Active"
+                                defaultChecked={
                                     dialog?.kind === 'edit-checklist'
-                                        ? dialog.item.label
-                                        : ''
+                                        ? dialog.item.is_active
+                                        : true
                                 }
                             />
-                        </Field>
-                        <FlagCheckbox
-                            name="is_mandatory"
-                            label="Mandatory"
-                            defaultChecked={
-                                dialog?.kind === 'edit-checklist'
-                                    ? dialog.item.is_mandatory
-                                    : true
-                            }
-                        />
-                        <FlagCheckbox
-                            name="is_active"
-                            label="Active"
-                            defaultChecked={
-                                dialog?.kind === 'edit-checklist'
-                                    ? dialog.item.is_active
-                                    : true
-                            }
-                        />
-                    </div>
+                        </div>
                     </>
                 )}
             </CrudFormDialog>
@@ -882,105 +914,108 @@ export default function PermitTypeShow({
                 }
                 action={
                     dialog?.kind === 'edit-gas'
-                        ? `${base}/gas-channels/${dialog.channel.uuid}`
-                        : `${base}/gas-channels`
+                        ? settings.permitTypes.gasChannels.update.url({
+                              permitType,
+                              gasChannel: dialog.channel,
+                          })
+                        : settings.permitTypes.gasChannels.store.url(permitType)
                 }
                 method={dialog?.kind === 'edit-gas' ? 'put' : 'post'}
                 submitLabel="Save"
             >
                 {() => (
                     <>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label="Channel code" htmlFor="gas_code">
-                            <Input
-                                id="gas_code"
-                                name="channel_code"
-                                required
-                                pattern="[a-z][a-z0-9_]*"
-                                placeholder="o2_pct"
-                                defaultValue={
-                                    dialog?.kind === 'edit-gas'
-                                        ? dialog.channel.channel_code
-                                        : ''
-                                }
-                            />
-                        </Field>
-                        <Field label="Label" htmlFor="gas_label">
-                            <Input
-                                id="gas_label"
-                                name="label"
-                                required
-                                defaultValue={
-                                    dialog?.kind === 'edit-gas'
-                                        ? dialog.channel.label
-                                        : ''
-                                }
-                            />
-                        </Field>
-                        <Field label="Unit" htmlFor="gas_unit">
-                            <Input
-                                id="gas_unit"
-                                name="unit"
-                                defaultValue={
-                                    dialog?.kind === 'edit-gas'
-                                        ? (dialog.channel.unit ?? '')
-                                        : ''
-                                }
-                            />
-                        </Field>
-                        <Field label="Alarm below" htmlFor="gas_ab">
-                            <Input
-                                id="gas_ab"
-                                name="alarm_below"
-                                type="number"
-                                step="any"
-                                defaultValue={
-                                    dialog?.kind === 'edit-gas'
-                                        ? (dialog.channel.alarm_below ?? '')
-                                        : ''
-                                }
-                            />
-                        </Field>
-                        <Field label="Alarm above" htmlFor="gas_aa">
-                            <Input
-                                id="gas_aa"
-                                name="alarm_above"
-                                type="number"
-                                step="any"
-                                defaultValue={
-                                    dialog?.kind === 'edit-gas'
-                                        ? (dialog.channel.alarm_above ?? '')
-                                        : ''
-                                }
-                            />
-                        </Field>
-                        <Field label="Warn below" htmlFor="gas_wb">
-                            <Input
-                                id="gas_wb"
-                                name="warn_below"
-                                type="number"
-                                step="any"
-                                defaultValue={
-                                    dialog?.kind === 'edit-gas'
-                                        ? (dialog.channel.warn_below ?? '')
-                                        : ''
-                                }
-                            />
-                        </Field>
-                        <Field label="Warn above" htmlFor="gas_wa">
-                            <Input
-                                id="gas_wa"
-                                name="warn_above"
-                                type="number"
-                                step="any"
-                                defaultValue={
-                                    dialog?.kind === 'edit-gas'
-                                        ? (dialog.channel.warn_above ?? '')
-                                        : ''
-                                }
-                            />
-                        </Field>
-                    </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Channel code" htmlFor="gas_code">
+                                <Input
+                                    id="gas_code"
+                                    name="channel_code"
+                                    required
+                                    pattern="[a-z][a-z0-9_]*"
+                                    placeholder="o2_pct"
+                                    defaultValue={
+                                        dialog?.kind === 'edit-gas'
+                                            ? dialog.channel.channel_code
+                                            : ''
+                                    }
+                                />
+                            </Field>
+                            <Field label="Label" htmlFor="gas_label">
+                                <Input
+                                    id="gas_label"
+                                    name="label"
+                                    required
+                                    defaultValue={
+                                        dialog?.kind === 'edit-gas'
+                                            ? dialog.channel.label
+                                            : ''
+                                    }
+                                />
+                            </Field>
+                            <Field label="Unit" htmlFor="gas_unit">
+                                <Input
+                                    id="gas_unit"
+                                    name="unit"
+                                    defaultValue={
+                                        dialog?.kind === 'edit-gas'
+                                            ? (dialog.channel.unit ?? '')
+                                            : ''
+                                    }
+                                />
+                            </Field>
+                            <Field label="Alarm below" htmlFor="gas_ab">
+                                <Input
+                                    id="gas_ab"
+                                    name="alarm_below"
+                                    type="number"
+                                    step="any"
+                                    defaultValue={
+                                        dialog?.kind === 'edit-gas'
+                                            ? (dialog.channel.alarm_below ?? '')
+                                            : ''
+                                    }
+                                />
+                            </Field>
+                            <Field label="Alarm above" htmlFor="gas_aa">
+                                <Input
+                                    id="gas_aa"
+                                    name="alarm_above"
+                                    type="number"
+                                    step="any"
+                                    defaultValue={
+                                        dialog?.kind === 'edit-gas'
+                                            ? (dialog.channel.alarm_above ?? '')
+                                            : ''
+                                    }
+                                />
+                            </Field>
+                            <Field label="Warn below" htmlFor="gas_wb">
+                                <Input
+                                    id="gas_wb"
+                                    name="warn_below"
+                                    type="number"
+                                    step="any"
+                                    defaultValue={
+                                        dialog?.kind === 'edit-gas'
+                                            ? (dialog.channel.warn_below ?? '')
+                                            : ''
+                                    }
+                                />
+                            </Field>
+                            <Field label="Warn above" htmlFor="gas_wa">
+                                <Input
+                                    id="gas_wa"
+                                    name="warn_above"
+                                    type="number"
+                                    step="any"
+                                    defaultValue={
+                                        dialog?.kind === 'edit-gas'
+                                            ? (dialog.channel.warn_above ?? '')
+                                            : ''
+                                    }
+                                />
+                            </Field>
+                        </div>
                     </>
                 )}
             </CrudFormDialog>
@@ -1002,8 +1037,11 @@ export default function PermitTypeShow({
                 }
                 action={
                     dialog?.kind === 'edit-conflict'
-                        ? `${base}/conflicts/${dialog.conflict.uuid}`
-                        : `${base}/conflicts`
+                        ? settings.permitTypes.conflicts.update.url({
+                              permitType,
+                              conflict: dialog.conflict,
+                          })
+                        : settings.permitTypes.conflicts.store.url(permitType)
                 }
                 method={dialog?.kind === 'edit-conflict' ? 'put' : 'post'}
                 submitLabel="Save conflict"
@@ -1113,8 +1151,13 @@ export default function PermitTypeShow({
                 }
                 action={
                     dialog?.kind === 'edit-doc-req'
-                        ? `${base}/document-requirements/${dialog.requirement.uuid}`
-                        : `${base}/document-requirements`
+                        ? settings.permitTypes.documentRequirements.update.url({
+                              permitType,
+                              documentRequirement: dialog.requirement,
+                          })
+                        : settings.permitTypes.documentRequirements.store.url(
+                              permitType,
+                          )
                 }
                 method={dialog?.kind === 'edit-doc-req' ? 'put' : 'post'}
                 submitLabel="Save requirement"
@@ -1265,7 +1308,7 @@ function FlagCheckbox({
 
 PermitTypeShow.layout = {
     breadcrumbs: [
-        { title: 'Catalogue', href: '/workforce/permit-types' },
-        { title: 'Permit types', href: '/workforce/permit-types' },
+        { title: 'Catalogue', href: settings.permitTypes.index() },
+        { title: 'Permit types', href: settings.permitTypes.index() },
     ],
 };

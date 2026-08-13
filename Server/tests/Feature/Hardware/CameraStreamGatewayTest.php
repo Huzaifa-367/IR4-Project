@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Asset;
 use App\Models\Camera;
 use App\Models\User;
 use App\Services\CameraStreamGatewayService;
@@ -57,7 +58,7 @@ it('syncs through hardware registry on camera create', function () {
     ]);
 
     $admin = User::factory()->withRole('Super Admin')->create();
-    $asset = \App\Models\Asset::factory()->create();
+    $asset = Asset::factory()->create();
 
     $this->actingAs($admin)
         ->post(route('settings.cameras.store'), [
@@ -78,7 +79,7 @@ it('skips sync when mediamtx api is not configured', function () {
     Http::fake();
 
     app(HardwareRegistryService::class)->createCamera([
-        'asset_id' => \App\Models\Asset::factory()->create()->id,
+        'asset_id' => Asset::factory()->create()->id,
         'name' => 'Offline Cam',
         'reference' => 'cam-skip',
         'camera_type' => 'fixed',

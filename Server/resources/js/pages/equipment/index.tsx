@@ -26,10 +26,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import equipmentRoutes from '@/routes/equipment';
 import { EquipmentStatus, EquipmentStatusLabels } from '@/types/enums';
 import type {
     Equipment,
@@ -105,7 +103,7 @@ export default function EquipmentIndex({
         const nextCheckoutState = patch.checkout_state ?? checkoutState;
         const nextOverdue = patch.overdue ?? overdue;
 
-        visitFilters('/equipment', {
+        visitFilters(equipmentRoutes.index.url(), {
             search: nextSearch || undefined,
             equipment_type:
                 nextEquipmentType === ALL ? undefined : nextEquipmentType,
@@ -177,7 +175,7 @@ export default function EquipmentIndex({
             header: 'Name',
             cell: (row) => (
                 <Link
-                    href={`/equipment/${row.uuid}`}
+                    href={equipmentRoutes.show(row.uuid)}
                     className="font-medium text-text hover:underline"
                 >
                     {row.name}
@@ -235,7 +233,7 @@ export default function EquipmentIndex({
                         variant="ghost"
                     />
                     <Button asChild size="sm" variant="ghost">
-                        <Link href={`/equipment/${row.uuid}`}>View</Link>
+                        <Link href={equipmentRoutes.show(row.uuid)}>View</Link>
                     </Button>
                 </div>
             ),
@@ -260,7 +258,9 @@ export default function EquipmentIndex({
                         {canManage && (
                             <>
                                 <Button asChild variant="outline" size="sm">
-                                    <Link href="/equipment/import">Import</Link>
+                                    <Link href={equipmentRoutes.import()}>
+                                        Import
+                                    </Link>
                                 </Button>
                                 <Button
                                     size="sm"
@@ -271,7 +271,9 @@ export default function EquipmentIndex({
                             </>
                         )}
                         <Button asChild variant="ghost" size="sm">
-                            <Link href="/equipment/checkouts">Checkouts</Link>
+                            <Link href={equipmentRoutes.checkouts.index()}>
+                                Checkouts
+                            </Link>
                         </Button>
                     </>
                 }
@@ -369,7 +371,7 @@ export default function EquipmentIndex({
                     rows={equipment.data}
                     rowKey={(row) => row.id}
                     meta={equipment.meta}
-                    pageUrl="/equipment"
+                    pageUrl={equipmentRoutes.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No equipment"
                     emptyDescription="No equipment matches these filters."
@@ -382,7 +384,7 @@ export default function EquipmentIndex({
                         <DialogTitle>Add equipment</DialogTitle>
                     </DialogHeader>
                     <EquipmentForm
-                        action="/equipment"
+                        action={equipmentRoutes.store.url()}
                         method="post"
                         submitLabel="Create equipment"
                     />
@@ -393,5 +395,5 @@ export default function EquipmentIndex({
 }
 
 EquipmentIndex.layout = {
-    breadcrumbs: [{ title: 'Equipment', href: '/equipment' }],
+    breadcrumbs: [{ title: 'Equipment', href: equipmentRoutes.index() }],
 };

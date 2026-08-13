@@ -17,10 +17,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import reportRoutes from '@/routes/reports';
+import settings from '@/routes/settings';
+import weeklyReports from '@/routes/weekly-reports';
 import type { PaginatedMeta } from '@/types/hardware';
 import type { WeeklyReport } from '@/types/report';
 
@@ -75,7 +75,7 @@ export default function ReportsIndex({
         const nextSearch = patch.search ?? search;
         const nextStatus = patch.status ?? status;
 
-        visitFilters('/reports', {
+        visitFilters(reportRoutes.index.url(), {
             search: nextSearch || undefined,
             status: nextStatus === ALL ? undefined : nextStatus,
         });
@@ -92,7 +92,7 @@ export default function ReportsIndex({
             header: 'Report',
             cell: (row) => (
                 <Link
-                    href={`/reports/${row.uuid}`}
+                    href={reportRoutes.show(row.uuid)}
                     className="font-medium text-text hover:underline"
                 >
                     {row.report_number}
@@ -125,7 +125,7 @@ export default function ReportsIndex({
             className: 'w-20 text-right',
             cell: (row) => (
                 <Button asChild size="sm" variant="ghost">
-                    <Link href={`/reports/${row.uuid}`}>Open</Link>
+                    <Link href={reportRoutes.show(row.uuid)}>Open</Link>
                 </Button>
             ),
         },
@@ -141,14 +141,18 @@ export default function ReportsIndex({
                     <>
                         {canLogVehicles && (
                             <Button variant="outline" asChild>
-                                <Link href="/reports/vehicle-violations">
+                                <Link
+                                    href={reportRoutes.vehicleViolations.index()}
+                                >
                                     Vehicle violations
                                 </Link>
                             </Button>
                         )}
                         {canManageSettings && (
                             <Button variant="outline" asChild>
-                                <Link href="/settings/reports">Settings</Link>
+                                <Link href={settings.reports.edit()}>
+                                    Settings
+                                </Link>
                             </Button>
                         )}
                         {canGenerate && (
@@ -200,7 +204,7 @@ export default function ReportsIndex({
                     rows={reports.data}
                     rowKey={(row) => row.id}
                     meta={reports.meta}
-                    pageUrl="/reports"
+                    pageUrl={reportRoutes.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No reports"
                     emptyDescription="No reports match these filters."
@@ -214,7 +218,7 @@ export default function ReportsIndex({
                     </DialogHeader>
                     <Form
                         method="post"
-                        action="/weekly-reports/generate"
+                        action={weeklyReports.generate.url()}
                         className="flex flex-col gap-4"
                         options={{ preserveScroll: true }}
                         onSuccess={() => setGenerateOpen(false)}
@@ -267,5 +271,5 @@ export default function ReportsIndex({
 }
 
 ReportsIndex.layout = {
-    breadcrumbs: [{ title: 'Reports', href: '/reports' }],
+    breadcrumbs: [{ title: 'Reports', href: reportRoutes.index() }],
 };

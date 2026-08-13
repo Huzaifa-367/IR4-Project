@@ -1,5 +1,5 @@
-import { useState   } from 'react';
-import type {Dispatch, SetStateAction} from 'react';
+import { useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 
 /**
  * Sync local draft state when Inertia (or other) props change, without a

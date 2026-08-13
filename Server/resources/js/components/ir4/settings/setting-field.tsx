@@ -96,9 +96,7 @@ export function SettingField({ setting, value, error, onChange }: Props) {
                         if (setting.type === 'float') {
                             const next = event.target.value;
                             onChange(
-                                next === ''
-                                    ? 0
-                                    : Number.parseFloat(next) || 0,
+                                next === '' ? 0 : Number.parseFloat(next) || 0,
                             );
 
                             return;
@@ -125,19 +123,14 @@ export function SettingField({ setting, value, error, onChange }: Props) {
 
             {setting.updated_at ? (
                 <p className="text-xs text-text-faint">
-                    Last changed{' '}
-                    {new Date(setting.updated_at).toLocaleString()}
-                    {setting.updated_by
-                        ? ` by ${setting.updated_by.name}`
-                        : ''}
+                    Last changed {new Date(setting.updated_at).toLocaleString()}
+                    {setting.updated_by ? ` by ${setting.updated_by.name}` : ''}
                 </p>
             ) : (
                 <p className="text-xs text-text-faint">Using default</p>
             )}
 
-            {error ? (
-                <p className="text-destructive text-xs">{error}</p>
-            ) : null}
+            {error ? <p className="text-xs text-destructive">{error}</p> : null}
         </div>
     );
 }

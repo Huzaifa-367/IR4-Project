@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import equipment from '@/routes/equipment';
 import { ReturnStatus, ReturnStatusLabels } from '@/types/enums';
 import type { EquipmentCheckout } from '@/types/equipment';
 
@@ -64,7 +65,7 @@ export function ReturnDialog({
             return;
         }
 
-        form.post(`/equipment/checkouts/${checkout.uuid}/return`, {
+        form.post(equipment.checkouts.return.url(checkout.uuid), {
             preserveScroll: true,
             onSuccess: () => {
                 onOpenChange(false);

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import tracking from '@/routes/tracking';
+import workers from '@/routes/workers';
 
 export type DocumentChecklistItem = {
     id: number;
@@ -206,7 +208,11 @@ function DocumentFormFields({
             </div>
             <div className="sm:col-span-2">
                 <Button type="submit" disabled={processing}>
-                    {document ? 'Save changes' : multiFile ? 'Upload' : 'Add document'}
+                    {document
+                        ? 'Save changes'
+                        : multiFile
+                          ? 'Upload'
+                          : 'Add document'}
                 </Button>
             </div>
         </>
@@ -224,7 +230,9 @@ export function WorkerDocumentsPanel({
     const [editor, setEditor] = useState<EditorMode>(null);
     const [showRoles, setShowRoles] = useState(false);
 
-    const recommended = checklist.filter((item) => item.used_by_roles.length > 0);
+    const recommended = checklist.filter(
+        (item) => item.used_by_roles.length > 0,
+    );
     const rows = recommended.length > 0 ? recommended : checklist;
     const readyRoles = permitReadiness.filter((row) => row.ready);
     const blockedRoles = permitReadiness.filter((row) => !row.ready);
@@ -271,7 +279,10 @@ export function WorkerDocumentsPanel({
         }
 
         router.delete(
-            `/workforce/workers/${workerUuid}/documents/${documentUuid}`,
+            workers.documents.destroy.url({
+                worker: workerUuid,
+                document: documentUuid,
+            }),
             {
                 preserveScroll: true,
             },
@@ -289,8 +300,15 @@ export function WorkerDocumentsPanel({
                         Add the packs below once. Permit requests only pick
                         workers who are already ready for the role.
                     </p>
-                    <Button asChild size="sm" variant="outline" className="mt-3">
-                        <Link href={`/workforce/workers/${workerUuid}`}>Done</Link>
+                    <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        className="mt-3"
+                    >
+                        <Link href={tracking.workers.show(workerUuid)}>
+                            Done
+                        </Link>
                     </Button>
                 </div>
             ) : null}
@@ -299,25 +317,25 @@ export function WorkerDocumentsPanel({
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="rounded-md border border-[color:var(--ok)]/30 bg-[color:var(--ok-bg)] px-3 py-2">
                         <p className="eyebrow">Verified</p>
-                        <p className="mt-0.5 font-display text-xl font-semibold tabular-nums text-[color:var(--ok)]">
+                        <p className="mt-0.5 font-display text-xl font-semibold text-[color:var(--ok)] tabular-nums">
                             {summary.verified_docs}
                         </p>
                     </div>
                     <div className="rounded-md border border-[color:var(--warn)]/30 bg-[color:var(--warn-bg)] px-3 py-2">
                         <p className="eyebrow">Pending</p>
-                        <p className="mt-0.5 font-display text-xl font-semibold tabular-nums text-[color:var(--warn)]">
+                        <p className="mt-0.5 font-display text-xl font-semibold text-[color:var(--warn)] tabular-nums">
                             {summary.pending_docs}
                         </p>
                     </div>
                     <div className="rounded-md border border-[color:var(--crit)]/30 bg-[color:var(--crit-bg)] px-3 py-2">
                         <p className="eyebrow">Still needed</p>
-                        <p className="mt-0.5 font-display text-xl font-semibold tabular-nums text-[color:var(--crit)]">
+                        <p className="mt-0.5 font-display text-xl font-semibold text-[color:var(--crit)] tabular-nums">
                             {summary.missing_recommended}
                         </p>
                     </div>
                     <div className="rounded-md border border-[color:var(--accent)]/30 bg-[color:var(--accent-dim)] px-3 py-2">
                         <p className="eyebrow">Roles ready</p>
-                        <p className="mt-0.5 font-display text-xl font-semibold tabular-nums text-[color:var(--accent)]">
+                        <p className="mt-0.5 font-display text-xl font-semibold text-[color:var(--accent)] tabular-nums">
                             {summary.ready_roles}
                         </p>
                     </div>
@@ -423,7 +441,13 @@ export function WorkerDocumentsPanel({
                                                             'pending' && (
                                                             <>
                                                                 <Form
-                                                                    action={`/workforce/workers/${workerUuid}/documents/${document.uuid}/verify`}
+                                                                    action={workers.documents.verify.url(
+                                                                        {
+                                                                            worker: workerUuid,
+                                                                            document:
+                                                                                document.uuid,
+                                                                        },
+                                                                    )}
                                                                     method="post"
                                                                 >
                                                                     {({
@@ -443,7 +467,13 @@ export function WorkerDocumentsPanel({
                                                                     )}
                                                                 </Form>
                                                                 <Form
-                                                                    action={`/workforce/workers/${workerUuid}/documents/${document.uuid}/reject`}
+                                                                    action={workers.documents.reject.url(
+                                                                        {
+                                                                            worker: workerUuid,
+                                                                            document:
+                                                                                document.uuid,
+                                                                        },
+                                                                    )}
                                                                     method="post"
                                                                 >
                                                                     {({
@@ -512,7 +542,13 @@ export function WorkerDocumentsPanel({
 
                                                 {editing ? (
                                                     <Form
-                                                        action={`/workforce/workers/${workerUuid}/documents/${document.uuid}`}
+                                                        action={workers.documents.update.url(
+                                                            {
+                                                                worker: workerUuid,
+                                                                document:
+                                                                    document.uuid,
+                                                            },
+                                                        )}
                                                         method="put"
                                                         encType="multipart/form-data"
                                                         options={{
@@ -553,7 +589,9 @@ export function WorkerDocumentsPanel({
 
                             {creating ? (
                                 <Form
-                                    action={`/workforce/workers/${workerUuid}/documents`}
+                                    action={workers.documents.store.url(
+                                        workerUuid,
+                                    )}
                                     method="post"
                                     encType="multipart/form-data"
                                     options={{ preserveScroll: true }}

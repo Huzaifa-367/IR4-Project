@@ -4,9 +4,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
-import {
-    SettingsDataTable,
-} from '@/components/ir4/settings/settings-data-table';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { TokenRevealDialog } from '@/components/ir4/settings/token-reveal-dialog';
@@ -23,10 +21,8 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import settings from '@/routes/settings';
 import type {
     DeviceRow,
     HardwareOption,
@@ -43,9 +39,7 @@ type Props = {
     filters: { q: string; device_type: string; status: string };
 };
 
-type FormState =
-    | { mode: 'create' }
-    | { mode: 'edit'; device: DeviceRow };
+type FormState = { mode: 'create' } | { mode: 'edit'; device: DeviceRow };
 
 function hardwareTone(status: string): 'ok' | 'warn' | 'crit' | 'neutral' {
     if (status === 'online') {
@@ -100,10 +94,9 @@ export default function DevicesIndex({
         const nextDeviceType = patch.device_type ?? deviceType;
         const nextStatus = patch.status ?? status;
 
-        visitFilters('/hardware/devices', {
+        visitFilters(settings.devices.index.url(), {
             q: nextQ || undefined,
-            device_type:
-                nextDeviceType === 'all' ? undefined : nextDeviceType,
+            device_type: nextDeviceType === 'all' ? undefined : nextDeviceType,
             status: nextStatus === 'all' ? undefined : nextStatus,
         });
     };
@@ -171,7 +164,11 @@ export default function DevicesIndex({
             cell: (device) => (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" aria-label="Actions">
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Actions"
+                        >
                             <MoreHorizontal />
                         </Button>
                     </DropdownMenuTrigger>
@@ -237,7 +234,7 @@ export default function DevicesIndex({
                 actions={
                     <>
                         <Button asChild variant="outline">
-                            <Link href="/hardware/assets">Assets</Link>
+                            <Link href={settings.assets.index()}>Assets</Link>
                         </Button>
                         <Button
                             type="button"
@@ -306,7 +303,7 @@ export default function DevicesIndex({
                     rows={devices.data}
                     rowKey={(device) => device.id}
                     meta={devices.meta}
-                    pageUrl="/hardware/devices"
+                    pageUrl={settings.devices.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No devices"
                     emptyDescription="Register a device on an asset to begin commissioning."
@@ -325,8 +322,8 @@ export default function DevicesIndex({
                 }
                 action={
                     form?.mode === 'edit'
-                        ? `/hardware/devices/${form.device.uuid}`
-                        : '/hardware/devices'
+                        ? settings.devices.update.url(form.device.uuid)
+                        : settings.devices.store.url()
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
                 submitLabel={
@@ -352,7 +349,7 @@ export default function DevicesIndex({
                                 }))}
                             />
                             {errors.asset_id ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.asset_id}
                                 </p>
                             ) : null}
@@ -429,7 +426,7 @@ export default function DevicesIndex({
                 }
                 action={
                     tokenConfirm
-                        ? `/hardware/devices/${tokenConfirm.uuid}/token`
+                        ? settings.devices.token.url(tokenConfirm.uuid)
                         : undefined
                 }
                 method="post"
@@ -450,7 +447,7 @@ export default function DevicesIndex({
                 description="Retiring invalidates the API token and blocks ingestion. Historical telemetry is retained."
                 action={
                     retireTarget
-                        ? `/hardware/devices/${retireTarget.uuid}/status`
+                        ? settings.devices.status.url(retireTarget.uuid)
                         : undefined
                 }
                 method="patch"
@@ -470,8 +467,8 @@ export default function DevicesIndex({
                 description="Maintenance skips offline health alerts until restored."
                 action={
                     statusTarget
-                        ? `/hardware/devices/${statusTarget.uuid}/status`
-                        : '/hardware/devices'
+                        ? settings.devices.status.url(statusTarget.uuid)
+                        : settings.devices.index.url()
                 }
                 method="patch"
                 submitLabel="Update status"
@@ -503,5 +500,8 @@ export default function DevicesIndex({
 }
 
 DevicesIndex.layout = {
-    breadcrumbs: [{ title: 'Hardware', href: '/hardware/assets' }, { title: 'Devices', href: '/hardware/devices' }],
+    breadcrumbs: [
+        { title: 'Hardware', href: settings.assets.index() },
+        { title: 'Devices', href: settings.devices.index() },
+    ],
 };

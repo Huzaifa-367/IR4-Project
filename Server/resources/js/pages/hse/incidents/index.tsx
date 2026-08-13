@@ -19,10 +19,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import hse from '@/routes/hse';
 import type { PaginatedMeta } from '@/types/hardware';
 import type { HseIncident, HseOption, IncidentPrefill } from '@/types/hse';
 
@@ -134,7 +132,7 @@ export default function IncidentsIndex({
         const nextIncidentType = patch.incident_type ?? incidentType;
         const nextSeverity = patch.severity ?? severity;
 
-        visitFilters('/incidents', {
+        visitFilters(hse.incidents.index.url(), {
             search: nextSearch || undefined,
             status: nextStatus === ALL ? undefined : nextStatus,
             source: nextSource === ALL ? undefined : nextSource,
@@ -201,7 +199,7 @@ export default function IncidentsIndex({
             className: 'w-20 text-right',
             cell: (row) => (
                 <Button asChild size="sm" variant="ghost">
-                    <Link href={`/incidents/${row.uuid}`}>Open</Link>
+                    <Link href={hse.incidents.show(row.uuid)}>Open</Link>
                 </Button>
             ),
         },
@@ -309,7 +307,7 @@ export default function IncidentsIndex({
                     rows={incidents.data}
                     rowKey={(row) => row.id}
                     meta={incidents.meta}
-                    pageUrl="/incidents"
+                    pageUrl={hse.incidents.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No incidents"
                     emptyDescription="No incidents match these filters."
@@ -353,7 +351,7 @@ export default function IncidentsIndex({
                                 return;
                             }
 
-                            logForm.post('/incidents', {
+                            logForm.post(hse.incidents.store.url(), {
                                 preserveScroll: true,
                                 onSuccess: () => {
                                     setLogOpen(false);
@@ -457,10 +455,7 @@ export default function IncidentsIndex({
                             >
                                 Cancel
                             </Button>
-                            <Button
-                                type="submit"
-                                disabled={logForm.processing}
-                            >
+                            <Button type="submit" disabled={logForm.processing}>
                                 Submit incident
                             </Button>
                         </DialogFooter>
@@ -472,5 +467,5 @@ export default function IncidentsIndex({
 }
 
 IncidentsIndex.layout = {
-    breadcrumbs: [{ title: 'Incidents', href: '/incidents' }],
+    breadcrumbs: [{ title: 'Incidents', href: hse.incidents.index() }],
 };

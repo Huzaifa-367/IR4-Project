@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import settings from '@/routes/settings';
 import type { HardwareOption, Paginated } from '@/types/hardware';
 
 type ZoneRow = {
@@ -52,7 +53,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
             header: 'Name',
             cell: (zone) => (
                 <Link
-                    href={`/settings/zones/${zone.uuid}`}
+                    href={settings.zones.show(zone.uuid)}
                     className="font-medium text-text hover:underline"
                 >
                     {zone.name}
@@ -149,7 +150,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                 actions={
                     <>
                         <Button asChild variant="outline">
-                            <Link href="/settings/repositioning">
+                            <Link href={settings.repositioning()}>
                                 Repositioning
                             </Link>
                         </Button>
@@ -172,7 +173,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                     rows={zones.data}
                     rowKey={(zone) => zone.id}
                     meta={zones.meta}
-                    pageUrl="/settings/zones"
+                    pageUrl={settings.zones.index.url()}
                     emptyTitle="No zones"
                     emptyDescription="Create the first logical area to begin binding readers."
                 />
@@ -188,8 +189,8 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                 title={form?.mode === 'edit' ? 'Edit zone' : 'Add zone'}
                 action={
                     form?.mode === 'edit'
-                        ? `/settings/zones/${form.zone.uuid}`
-                        : '/settings/zones'
+                        ? settings.zones.update.url(form.zone.uuid)
+                        : settings.zones.store.url()
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
                 submitLabel={
@@ -296,7 +297,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                 }
                 action={
                     deactivateTarget
-                        ? `/settings/zones/${deactivateTarget.uuid}/deactivate`
+                        ? settings.zones.deactivate.url(deactivateTarget.uuid)
                         : undefined
                 }
                 method="post"
@@ -325,7 +326,7 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
                 }
                 action={
                     deleteTarget
-                        ? `/settings/zones/${deleteTarget.uuid}`
+                        ? settings.zones.destroy.url(deleteTarget.uuid)
                         : undefined
                 }
                 method="delete"
@@ -394,5 +395,5 @@ function DropdownActions({
 }
 
 ZonesIndex.layout = {
-    breadcrumbs: [{ title: 'Zones', href: '/settings/zones' }],
+    breadcrumbs: [{ title: 'Zones', href: settings.zones.index() }],
 };

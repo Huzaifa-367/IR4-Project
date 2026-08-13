@@ -4,6 +4,8 @@ import { Panel } from '@/components/ir4/panel';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { WorkerPicker } from '@/components/ir4/worker-picker';
 import { Button } from '@/components/ui/button';
+import settings from '@/routes/settings';
+import tracking from '@/routes/tracking';
 import type { Worker } from '@/types/worker';
 
 type Props = {
@@ -40,7 +42,7 @@ export default function ZoneShow({ zone, workers }: Props) {
     function saveAccessList(): void {
         setSavingAccessList(true);
         router.put(
-            `/settings/zones/${zone.uuid}/access-list`,
+            settings.zones.accessList.url(zone.uuid),
             { worker_ids: accessListIds },
             {
                 preserveScroll: true,
@@ -74,14 +76,16 @@ export default function ZoneShow({ zone, workers }: Props) {
                     </div>
                     <div className="flex gap-2">
                         <Button asChild variant="outline">
-                            <Link href="/settings/zones">Back</Link>
+                            <Link href={settings.zones.index()}>Back</Link>
                         </Button>
                         <Button asChild variant="outline">
-                            <Link href="/tracking">Zone readings</Link>
+                            <Link href={tracking.index()}>Zone readings</Link>
                         </Button>
                         {zone.is_active && (
                             <Form
-                                action={`/settings/zones/${zone.uuid}/deactivate`}
+                                action={settings.zones.deactivate.url(
+                                    zone.uuid,
+                                )}
                                 method="post"
                             >
                                 {({ processing }) => (
@@ -103,7 +107,7 @@ export default function ZoneShow({ zone, workers }: Props) {
                     subtitle="Tag reads from these readers resolve to this zone while the binding is open."
                     action={
                         <Link
-                            href="/settings/repositioning"
+                            href={settings.repositioning()}
                             className="text-xs text-[color:var(--accent)] hover:underline"
                         >
                             Repositioning ›
@@ -164,5 +168,5 @@ export default function ZoneShow({ zone, workers }: Props) {
 }
 
 ZoneShow.layout = {
-    breadcrumbs: [{ title: 'Zones', href: '/settings/zones' }],
+    breadcrumbs: [{ title: 'Zones', href: settings.zones.index() }],
 };

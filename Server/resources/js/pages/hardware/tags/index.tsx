@@ -13,10 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import settings from '@/routes/settings';
+import tracking from '@/routes/tracking';
 import type { PaginatedMeta } from '@/types/hardware';
 
 type TagRow = {
@@ -73,7 +72,7 @@ export default function TagsIndex({
         const nextStatus = patch.status ?? status;
         const nextSearch = patch.search ?? search;
 
-        visitFilters('/hardware/tags', {
+        visitFilters(tracking.tags.index.url(), {
             status: nextStatus === 'all' ? undefined : nextStatus,
             search: nextSearch || undefined,
         });
@@ -188,7 +187,7 @@ export default function TagsIndex({
                     rows={tags.data}
                     rowKey={(tag) => tag.id}
                     meta={tags.meta}
-                    pageUrl="/hardware/tags"
+                    pageUrl={tracking.tags.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No tags"
                     emptyDescription="Register the first RFID tag to build the spare pool."
@@ -200,7 +199,7 @@ export default function TagsIndex({
                 onOpenChange={setAddOpen}
                 title="Add tag"
                 description="Registers a spare tag (status: in stock)."
-                action="/hardware/tags"
+                action={tracking.tags.store.url()}
                 method="post"
                 submitLabel="Create tag"
             >
@@ -247,7 +246,7 @@ export default function TagsIndex({
                 }
                 action={
                     assignTarget
-                        ? `/hardware/tags/${assignTarget.uuid}/assign`
+                        ? tracking.tags.assign.url(assignTarget.uuid)
                         : ''
                 }
                 method="post"
@@ -295,7 +294,7 @@ export default function TagsIndex({
                 }
                 action={
                     unassignTarget
-                        ? `/hardware/tags/${unassignTarget.uuid}/unassign`
+                        ? tracking.tags.unassign.url(unassignTarget.uuid)
                         : undefined
                 }
                 method="post"
@@ -306,5 +305,8 @@ export default function TagsIndex({
 }
 
 TagsIndex.layout = {
-    breadcrumbs: [{ title: 'Hardware', href: '/hardware/assets' }, { title: 'RFID Tags', href: '/hardware/tags' }],
+    breadcrumbs: [
+        { title: 'Hardware', href: settings.assets.index() },
+        { title: 'RFID Tags', href: tracking.tags.index() },
+    ],
 };

@@ -1,6 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
+import tracking from '@/routes/tracking';
 import type { WorkerImportSummary } from '@/types/worker';
 
 type Props = {
@@ -24,20 +25,20 @@ export default function WorkersImport({ latestImport }: Props) {
                         description="CSV roster import. Tags are assigned later — not during import."
                     />
                     <Button asChild variant="outline">
-                        <Link href="/workforce/workers">Back</Link>
+                        <Link href={tracking.workers.index()}>Back</Link>
                     </Button>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
                     <Button asChild variant="secondary">
-                        <a href="/workforce/workers/import/template">
+                        <a href={tracking.workers.import.template.url()}>
                             Download template
                         </a>
                     </Button>
                 </div>
 
                 <Form
-                    action="/workforce/workers/import"
+                    action={tracking.workers.import.store.url()}
                     method="post"
                     encType="multipart/form-data"
                     className="max-w-lg space-y-4 rounded-lg border border-border p-4"

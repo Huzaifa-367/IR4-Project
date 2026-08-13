@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { visitFilters } from '@/lib/visit-filters';
+import ppe from '@/routes/ppe';
 import { ViolationTypeLabels } from '@/types/enums';
 import type { PaginatedMeta } from '@/types/hardware';
 import type { PpeViolation } from '@/types/ppe';
@@ -85,7 +86,7 @@ export default function PpeViolationsIndex({
         const nextCameraId = overrides?.camera_id ?? cameraId;
         const nextReviewStatus = overrides?.review_status ?? reviewStatus;
 
-        visitFilters('/ppe/violations', {
+        visitFilters(ppe.violations.index.url(), {
             violation_type:
                 nextViolationType === ALL ? undefined : nextViolationType,
             camera_id: nextCameraId === ALL ? undefined : nextCameraId,
@@ -99,7 +100,7 @@ export default function PpeViolationsIndex({
     function exportCsv(): void {
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = '/ppe/violations/export';
+        form.action = ppe.violations.export.url();
         const token = document
             .querySelector('meta[name="csrf-token"]')
             ?.getAttribute('content');
@@ -187,7 +188,7 @@ export default function PpeViolationsIndex({
             className: 'w-20 text-right',
             cell: (row) => (
                 <Button asChild size="sm" variant="ghost">
-                    <Link href={`/ppe/violations/${row.uuid}`}>Open</Link>
+                    <Link href={ppe.violations.show(row.uuid)}>Open</Link>
                 </Button>
             ),
         },
@@ -202,7 +203,7 @@ export default function PpeViolationsIndex({
                 actions={
                     <>
                         <Button asChild variant="secondary" size="sm">
-                            <Link href="/ppe">Trends</Link>
+                            <Link href={ppe.index()}>Trends</Link>
                         </Button>
                         {canExport && (
                             <Button
@@ -293,7 +294,7 @@ export default function PpeViolationsIndex({
                 {canReview && selected.length > 0 && (
                     <div className="mb-3 flex flex-wrap gap-2">
                         <Form
-                            action="/ppe/violations/bulk-review"
+                            action={ppe.violations.bulkReview.url()}
                             method="post"
                             className="flex gap-2"
                         >
@@ -320,7 +321,7 @@ export default function PpeViolationsIndex({
                             </Button>
                         </Form>
                         <Form
-                            action="/ppe/violations/bulk-review"
+                            action={ppe.violations.bulkReview.url()}
                             method="post"
                             className="flex gap-2"
                         >
@@ -353,7 +354,7 @@ export default function PpeViolationsIndex({
                     rows={violations.data}
                     rowKey={(row) => row.id}
                     meta={violations.meta}
-                    pageUrl="/ppe/violations"
+                    pageUrl={ppe.violations.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No violations"
                     emptyDescription="No violations match these filters."

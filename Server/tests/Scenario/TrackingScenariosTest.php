@@ -59,10 +59,12 @@ it('scenario 01: ingest updates position headcount and map without backfill rewi
         ->assertOk()
         ->assertJsonPath('data.total_on_site', 1);
 
-    $this->getJson(route('tracking.api.positions'))
+    $positions = $this->getJson(route('tracking.api.positions'))
         ->assertOk()
-        ->assertJsonPath('data.positions.0.zone_id', $zoneB->id)
-        ->assertJsonPath('data.zones.0.id', $gate->id);
+        ->assertJsonPath('data.positions.0.zone_id', $zoneB->id);
+
+    $zoneIds = collect($positions->json('data.zones'))->pluck('id');
+    expect($zoneIds)->toContain($gate->id)->toContain($zoneB->id);
 
     scenarioIngestTag($reader, $plain, $tag->tag_uid, now()->subHours(2));
     expect($position->fresh()->zone_id)->toBe($zoneB->id)

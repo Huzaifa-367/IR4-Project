@@ -25,9 +25,10 @@ describe('resolveScanCustodyFlow', () => {
                     checkout_state: CheckoutState.CheckedOut,
                     open_checkout: {
                         id: 1,
+                        uuid: 'checkout-1',
                         equipment_id: 10,
                         worker_id: 4,
-                        worker: { id: 4, name: 'Worker #4' },
+                        worker: { id: 4, uuid: 'worker-4', name: 'Worker #4' },
                         checked_out_at: '2026-07-18T10:00:00Z',
                         checked_out_by: null,
                         checked_out_by_user: null,
@@ -67,9 +68,10 @@ describe('resolveScanCustodyFlow', () => {
                     checkout_state: CheckoutState.OverdueReturn,
                     open_checkout: {
                         id: 2,
+                        uuid: 'checkout-2',
                         equipment_id: 11,
                         worker_id: 7,
-                        worker: { id: 7, name: 'Worker #7' },
+                        worker: { id: 7, uuid: 'worker-7', name: 'Worker #7' },
                         checked_out_at: '2026-07-10T10:00:00Z',
                         checked_out_by: null,
                         checked_out_by_user: null,

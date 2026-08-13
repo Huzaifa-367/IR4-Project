@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { store as loginStore } from '@/routes/login';
 
 type Props = {
     status?: string;
@@ -58,7 +59,7 @@ export default function Login({
             )}
 
             <Form
-                action="/login"
+                action={loginStore.url()}
                 method="post"
                 resetOnSuccess={['password']}
                 className="flex flex-col gap-6"

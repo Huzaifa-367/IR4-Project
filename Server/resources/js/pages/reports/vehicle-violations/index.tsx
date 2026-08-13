@@ -17,10 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import reports from '@/routes/reports';
 import type { PaginatedMeta } from '@/types/hardware';
 import type { VehicleViolation } from '@/types/report';
 
@@ -55,12 +53,10 @@ export default function VehicleViolationsIndex({
 
     const queryParams = { search: search || undefined };
 
-    function applyFilters(
-        patch: Partial<{ search: string }> = {},
-    ): void {
+    function applyFilters(patch: Partial<{ search: string }> = {}): void {
         const nextSearch = patch.search ?? search;
 
-        visitFilters('/reports/vehicle-violations', {
+        visitFilters(reports.vehicleViolations.index.url(), {
             search: nextSearch || undefined,
         });
     }
@@ -116,7 +112,7 @@ export default function VehicleViolationsIndex({
                 actions={
                     <>
                         <Button variant="outline" asChild>
-                            <Link href="/reports">Back to reports</Link>
+                            <Link href={reports.index()}>Back to reports</Link>
                         </Button>
                         {canCreate && (
                             <Button
@@ -150,7 +146,7 @@ export default function VehicleViolationsIndex({
                     rows={violations.data}
                     rowKey={(row) => row.id}
                     meta={violations.meta}
-                    pageUrl="/reports/vehicle-violations"
+                    pageUrl={reports.vehicleViolations.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No vehicle violations"
                     emptyDescription="No vehicle violations match these filters."
@@ -166,7 +162,7 @@ export default function VehicleViolationsIndex({
                         className="grid gap-4 sm:grid-cols-2"
                         onSubmit={(event) => {
                             event.preventDefault();
-                            form.post('/reports/vehicle-violations', {
+                            form.post(reports.vehicleViolations.store.url(), {
                                 preserveScroll: true,
                                 onSuccess: () => {
                                     form.reset();
@@ -247,8 +243,7 @@ export default function VehicleViolationsIndex({
                                     { value: 'none', label: 'None' },
                                     ...cameras.map((camera) => ({
                                         value: String(camera.id),
-                                        label:
-                                            camera.name || camera.reference,
+                                        label: camera.name || camera.reference,
                                     })),
                                 ]}
                             />
@@ -335,7 +330,9 @@ export default function VehicleViolationsIndex({
                 }
                 action={
                     deleteTarget
-                        ? `/reports/vehicle-violations/${deleteTarget.uuid}`
+                        ? reports.vehicleViolations.destroy.url(
+                              deleteTarget.uuid,
+                          )
                         : undefined
                 }
                 method="delete"
@@ -348,7 +345,10 @@ export default function VehicleViolationsIndex({
 
 VehicleViolationsIndex.layout = {
     breadcrumbs: [
-        { title: 'Reports', href: '/reports' },
-        { title: 'Vehicle violations', href: '/reports/vehicle-violations' },
+        { title: 'Reports', href: reports.index() },
+        {
+            title: 'Vehicle violations',
+            href: reports.vehicleViolations.index(),
+        },
     ],
 };

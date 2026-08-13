@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { QrLabelsBulkButton } from '@/components/ir4/qr-label-button';
 import { Button } from '@/components/ui/button';
+import equipment from '@/routes/equipment';
 import type { EquipmentImportResult } from '@/types/equipment';
 
 type Props = {
@@ -32,20 +33,20 @@ export default function EquipmentImport({ latestImport }: Props) {
                         description="CSV commissioning import. New rows get a permanent QR token for bulk label printing."
                     />
                     <Button asChild variant="outline">
-                        <Link href="/equipment">Back</Link>
+                        <Link href={equipment.index()}>Back</Link>
                     </Button>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
                     <Button asChild variant="secondary">
-                        <a href="/equipment/import/template">
+                        <a href={equipment.import.template.url()}>
                             Download template
                         </a>
                     </Button>
                 </div>
 
                 <Form
-                    action="/equipment/import"
+                    action={equipment.import.store.url()}
                     method="post"
                     encType="multipart/form-data"
                     className="max-w-lg space-y-4 rounded-lg border border-border p-4"

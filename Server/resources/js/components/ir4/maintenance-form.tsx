@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { cn } from '@/lib/utils';
+import equipment from '@/routes/equipment';
 import { MaintenanceType, MaintenanceTypeLabels } from '@/types/enums';
 
 type Props = {
@@ -24,7 +25,7 @@ export function MaintenanceForm({
 
     return (
         <Form
-            action={`/equipment/${equipmentUuid}/maintenances`}
+            action={equipment.maintenances.store.url(equipmentUuid)}
             method="post"
             className={cn('space-y-3', className)}
             options={{ preserveScroll: true }}

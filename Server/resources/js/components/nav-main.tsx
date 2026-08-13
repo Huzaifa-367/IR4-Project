@@ -62,7 +62,8 @@ export function NavMain({
                                             isActive={childActive}
                                             className={cn(
                                                 'relative text-[13.5px] font-medium',
-                                                childActive && activeLinkClasses,
+                                                childActive &&
+                                                    activeLinkClasses,
                                             )}
                                         >
                                             {item.icon && <item.icon />}

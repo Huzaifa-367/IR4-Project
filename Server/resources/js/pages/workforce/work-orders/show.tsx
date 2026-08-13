@@ -5,6 +5,8 @@ import type { SettingsColumn } from '@/components/ir4/settings/settings-data-tab
 import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import permits from '@/routes/permits';
+import workOrders from '@/routes/work-orders';
 
 type PermitRow = {
     id: number;
@@ -66,7 +68,7 @@ export default function WorkOrderShow({
             header: 'Permit',
             cell: (row) => (
                 <Link
-                    href={`/workforce/permits/${row.uuid}`}
+                    href={permits.show(row.uuid)}
                     className="font-mono text-xs hover:underline"
                 >
                     {row.permit_number}
@@ -113,12 +115,16 @@ export default function WorkOrderShow({
                     </div>
                     <div className="flex gap-2">
                         <Button asChild variant="outline">
-                            <Link href="/workforce/work-orders">Back</Link>
+                            <Link href={workOrders.index()}>Back</Link>
                         </Button>
                         {canCreatePermit ? (
                             <Button asChild>
                                 <Link
-                                    href={`/workforce/permits/create?work_order_id=${workOrder.id}`}
+                                    href={permits.create.url({
+                                        query: {
+                                            work_order_id: String(workOrder.id),
+                                        },
+                                    })}
                                 >
                                     Add permit
                                 </Link>
@@ -163,7 +169,11 @@ export default function WorkOrderShow({
                         canCreatePermit ? (
                             <Button asChild size="sm">
                                 <Link
-                                    href={`/workforce/permits/create?work_order_id=${workOrder.id}`}
+                                    href={permits.create.url({
+                                        query: {
+                                            work_order_id: String(workOrder.id),
+                                        },
+                                    })}
                                 >
                                     Add permit
                                 </Link>

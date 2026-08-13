@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import settings from '@/routes/settings';
 import type { HardwareOption } from '@/types/hardware';
 
 type AssetDetail = {
@@ -46,11 +47,7 @@ type Props = {
     statuses: HardwareOption[];
 };
 
-export default function AssetShow({
-    asset,
-    assetTypes,
-    statuses,
-}: Props) {
+export default function AssetShow({ asset, assetTypes, statuses }: Props) {
     const [isEditing, setIsEditing] = useState(false);
     const [editType, setEditType] = useState(asset.asset_type);
     const [editStatus, setEditStatus] = useState(asset.status);
@@ -76,13 +73,13 @@ export default function AssetShow({
                             Edit asset
                         </Button>
                         <Button asChild variant="outline">
-                            <Link href="/hardware/cameras">Cameras</Link>
+                            <Link href={settings.cameras.index()}>Cameras</Link>
                         </Button>
                         <Button asChild variant="outline">
-                            <Link href="/hardware/devices">Devices</Link>
+                            <Link href={settings.devices.index()}>Devices</Link>
                         </Button>
                         <Button asChild variant="outline">
-                            <Link href="/hardware/assets">Back</Link>
+                            <Link href={settings.assets.index()}>Back</Link>
                         </Button>
                     </>
                 }
@@ -93,9 +90,7 @@ export default function AssetShow({
                         value={
                             <StatusPill
                                 label={asset.status}
-                                tone={
-                                    asset.status === 'active' ? 'ok' : 'warn'
-                                }
+                                tone={asset.status === 'active' ? 'ok' : 'warn'}
                             />
                         }
                     />
@@ -197,7 +192,7 @@ export default function AssetShow({
                 open={isEditing}
                 onOpenChange={setIsEditing}
                 title="Edit asset"
-                action={`/hardware/assets/${asset.uuid}`}
+                action={settings.assets.update.url(asset.uuid)}
                 method="put"
                 submitLabel="Save asset"
                 transform={(data) => ({
@@ -219,7 +214,7 @@ export default function AssetShow({
                                 defaultValue={asset.name}
                             />
                             {errors.name ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.name}
                                 </p>
                             ) : null}
@@ -286,13 +281,7 @@ export default function AssetShow({
     );
 }
 
-function MetaCard({
-    label,
-    value,
-}: {
-    label: string;
-    value: ReactNode;
-}) {
+function MetaCard({ label, value }: { label: string; value: ReactNode }) {
     return (
         <div className="rounded-[var(--radius-sm)] border border-border bg-surface p-4 shadow-[var(--shadow-card)]">
             <p className="eyebrow">{label}</p>
@@ -303,8 +292,8 @@ function MetaCard({
 
 AssetShow.layout = {
     breadcrumbs: [
-        { title: 'Hardware', href: '/hardware/assets' },
-        { title: 'Assets', href: '/hardware/assets' },
+        { title: 'Hardware', href: settings.assets.index() },
+        { title: 'Assets', href: settings.assets.index() },
         { title: 'Detail', href: '#' },
     ],
 };

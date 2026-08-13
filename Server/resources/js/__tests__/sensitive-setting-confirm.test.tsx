@@ -38,13 +38,19 @@ describe('SensitiveSettingConfirm', () => {
             />,
         );
 
-        expect(screen.getByText('Confirm sensitive change')).toBeInTheDocument();
+        expect(
+            screen.getByText('Confirm sensitive change'),
+        ).toBeInTheDocument();
         expect(screen.getByText('Session timeout')).toBeInTheDocument();
-        expect(screen.getByText('auth.session_timeout_minutes')).toBeInTheDocument();
+        expect(
+            screen.getByText('auth.session_timeout_minutes'),
+        ).toBeInTheDocument();
         expect(screen.getByText('15')).toBeInTheDocument();
         expect(screen.getByText('30')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Confirm change' }));
+        await user.click(
+            screen.getByRole('button', { name: 'Confirm change' }),
+        );
         expect(onConfirm).toHaveBeenCalledTimes(1);
 
         await user.click(screen.getByRole('button', { name: 'Cancel' }));

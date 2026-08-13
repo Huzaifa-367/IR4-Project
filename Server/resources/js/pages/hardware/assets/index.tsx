@@ -3,10 +3,8 @@ import { MoreHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
-import {
-    SettingsDataTable
-} from '@/components/ir4/settings/settings-data-table';
-import type {SettingsColumn} from '@/components/ir4/settings/settings-data-table';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
@@ -21,10 +19,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import settings from '@/routes/settings';
 import type { AssetRow, HardwareOption, Paginated } from '@/types/hardware';
 
 type Props = {
@@ -34,9 +30,7 @@ type Props = {
     filters: { q: string; asset_type: string; status: string };
 };
 
-type FormState =
-    | { mode: 'create' }
-    | { mode: 'edit'; asset: AssetRow };
+type FormState = { mode: 'create' } | { mode: 'edit'; asset: AssetRow };
 
 function statusTone(status: string): 'ok' | 'warn' | 'crit' | 'neutral' {
     if (status === 'active') {
@@ -78,7 +72,7 @@ export default function AssetsIndex({
         const nextAssetType = patch.asset_type ?? assetType;
         const nextStatus = patch.status ?? status;
 
-        visitFilters('/hardware/assets', {
+        visitFilters(settings.assets.index.url(), {
             q: nextQ || undefined,
             asset_type: nextAssetType === 'all' ? undefined : nextAssetType,
             status: nextStatus === 'all' ? undefined : nextStatus,
@@ -97,7 +91,7 @@ export default function AssetsIndex({
             cell: (asset) => (
                 <div>
                     <Link
-                        href={`/hardware/assets/${asset.uuid}`}
+                        href={settings.assets.show(asset.uuid)}
                         className="font-medium text-text hover:underline"
                     >
                         {asset.name}
@@ -142,13 +136,17 @@ export default function AssetsIndex({
             cell: (asset) => (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" aria-label="Actions">
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Actions"
+                        >
                             <MoreHorizontal />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                            <Link href={`/hardware/assets/${asset.uuid}`}>
+                            <Link href={settings.assets.show(asset.uuid)}>
                                 Open
                             </Link>
                         </DropdownMenuItem>
@@ -250,7 +248,7 @@ export default function AssetsIndex({
                     rows={assets.data}
                     rowKey={(asset) => asset.id}
                     meta={assets.meta}
-                    pageUrl="/hardware/assets"
+                    pageUrl={settings.assets.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No assets"
                     emptyDescription="Register a pole, gate, or SCC unit to begin commissioning."
@@ -267,11 +265,13 @@ export default function AssetsIndex({
                 title={form?.mode === 'edit' ? 'Edit asset' : 'Register asset'}
                 action={
                     form?.mode === 'edit'
-                        ? `/hardware/assets/${form.asset.uuid}`
-                        : '/hardware/assets'
+                        ? settings.assets.update.url(form.asset.uuid)
+                        : settings.assets.store.url()
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
-                submitLabel={form?.mode === 'edit' ? 'Save asset' : 'Create asset'}
+                submitLabel={
+                    form?.mode === 'edit' ? 'Save asset' : 'Create asset'
+                }
                 transform={(data) => ({
                     ...data,
                     asset_type: editType,
@@ -293,7 +293,7 @@ export default function AssetsIndex({
                                 }
                             />
                             {errors.name ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.name}
                                 </p>
                             ) : null}
@@ -388,7 +388,7 @@ export default function AssetsIndex({
                 }
                 action={
                     deleteTarget
-                        ? `/hardware/assets/${deleteTarget.uuid}`
+                        ? settings.assets.destroy.url(deleteTarget.uuid)
                         : undefined
                 }
                 method="delete"
@@ -404,5 +404,8 @@ export default function AssetsIndex({
 }
 
 AssetsIndex.layout = {
-    breadcrumbs: [{ title: 'Hardware', href: '/hardware/assets' }, { title: 'Assets', href: '/hardware/assets' }],
+    breadcrumbs: [
+        { title: 'Hardware', href: settings.assets.index() },
+        { title: 'Assets', href: settings.assets.index() },
+    ],
 };

@@ -6,6 +6,9 @@ import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import permits from '@/routes/permits';
+import tracking from '@/routes/tracking';
+import workOrderRoutes from '@/routes/work-orders';
 import type {
     PermitTypeSummary,
     WorkerOption,
@@ -64,7 +67,9 @@ export default function PermitCreate({
     const page = usePage();
     const queryWorkOrderId =
         typeof page.url === 'string'
-            ? new URL(page.url, 'http://local').searchParams.get('work_order_id')
+            ? new URL(page.url, 'http://local').searchParams.get(
+                  'work_order_id',
+              )
             : null;
 
     const resolvedWorkOrderId = (
@@ -154,8 +159,10 @@ export default function PermitCreate({
                         <Link
                             href={
                                 selectedWorkOrder
-                                    ? `/workforce/work-orders/${selectedWorkOrder.uuid}`
-                                    : '/workforce/permits'
+                                    ? workOrderRoutes.show.url(
+                                          selectedWorkOrder.uuid,
+                                      )
+                                    : permits.index.url()
                             }
                         >
                             Back
@@ -164,7 +171,7 @@ export default function PermitCreate({
                 </div>
 
                 <Form
-                    action="/workforce/permits"
+                    action={permits.store.url()}
                     method="post"
                     className="space-y-8"
                     transform={(data) => ({
@@ -188,7 +195,7 @@ export default function PermitCreate({
                         <>
                             <section className="space-y-4 rounded-lg border border-border p-4">
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
+                                    <p className="text-xs font-medium tracking-wide text-text-faint uppercase">
                                         1 · Job
                                     </p>
                                     <h2 className="text-sm font-semibold text-text">
@@ -221,14 +228,16 @@ export default function PermitCreate({
                                             allowClear
                                             clearLabel="Standalone (no work order)"
                                             placeholder="Standalone (no work order)"
-                                            options={workOrders.map((order) => ({
-                                                value: String(order.id),
-                                                label: `${order.reference}${
-                                                    order.zone
-                                                        ? ` · ${order.zone.name}`
-                                                        : ''
-                                                }`,
-                                            }))}
+                                            options={workOrders.map(
+                                                (order) => ({
+                                                    value: String(order.id),
+                                                    label: `${order.reference}${
+                                                        order.zone
+                                                            ? ` · ${order.zone.name}`
+                                                            : ''
+                                                    }`,
+                                                }),
+                                            )}
                                         />
                                         {errors.work_order_id && (
                                             <p className="text-sm text-destructive">
@@ -331,7 +340,7 @@ export default function PermitCreate({
                             <section className="space-y-4 rounded-lg border border-border p-4">
                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                     <div>
-                                        <p className="text-xs font-medium uppercase tracking-wide text-text-faint">
+                                        <p className="text-xs font-medium tracking-wide text-text-faint uppercase">
                                             2 · Crew
                                         </p>
                                         <h2 className="text-sm font-semibold text-text">
@@ -341,7 +350,9 @@ export default function PermitCreate({
                                             Only workers ready for the role
                                             (documents verified).{' '}
                                             <Link
-                                                href="/workforce/workers?create=1"
+                                                href={tracking.workers.index.url(
+                                                    { query: { create: '1' } },
+                                                )}
                                                 className="underline"
                                             >
                                                 Add worker
@@ -482,7 +493,17 @@ export default function PermitCreate({
                                                     !eligibility.ready &&
                                                     row.worker_id && (
                                                         <Link
-                                                            href={`/workforce/workers/${row.worker_id}?onboarding=1`}
+                                                            href={tracking.workers.show.url(
+                                                                String(
+                                                                    row.worker_id,
+                                                                ),
+                                                                {
+                                                                    query: {
+                                                                        onboarding:
+                                                                            '1',
+                                                                    },
+                                                                },
+                                                            )}
                                                             className="text-xs underline"
                                                         >
                                                             Fix documents
@@ -532,8 +553,8 @@ export default function PermitCreate({
 
 PermitCreate.layout = {
     breadcrumbs: [
-        { title: 'Workforce', href: '/workforce/workers' },
-        { title: 'Permits', href: '/workforce/permits' },
-        { title: 'Request', href: '/workforce/permits/create' },
+        { title: 'Workforce', href: tracking.workers.index() },
+        { title: 'Permits', href: permits.index() },
+        { title: 'Request', href: permits.create() },
     ],
 };

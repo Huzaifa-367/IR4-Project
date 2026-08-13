@@ -15,12 +15,7 @@ type Props = {
 
 export function MetricRow({ items, className }: Props) {
     return (
-        <div
-            className={cn(
-                'grid gap-4 sm:grid-cols-3',
-                className,
-            )}
-        >
+        <div className={cn('grid gap-4 sm:grid-cols-3', className)}>
             {items.map((item) => (
                 <div key={item.label} className="min-w-0">
                     <p className="eyebrow mb-1">{item.label}</p>

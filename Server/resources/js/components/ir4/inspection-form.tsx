@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { cn } from '@/lib/utils';
+import equipment from '@/routes/equipment';
 import { InspectionOutcome, InspectionOutcomeLabels } from '@/types/enums';
 
 type Props = {
@@ -13,16 +14,12 @@ type Props = {
     className?: string;
 };
 
-export function InspectionForm({
-    equipmentUuid,
-    onSuccess,
-    className,
-}: Props) {
+export function InspectionForm({ equipmentUuid, onSuccess, className }: Props) {
     const [outcome, setOutcome] = useState<string>(InspectionOutcome.Pass);
 
     return (
         <Form
-            action={`/equipment/${equipmentUuid}/inspections`}
+            action={equipment.inspections.store.url(equipmentUuid)}
             method="post"
             className={cn('space-y-3', className)}
             options={{ preserveScroll: true }}

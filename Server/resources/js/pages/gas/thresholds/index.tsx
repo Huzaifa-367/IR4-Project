@@ -1,6 +1,8 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Panel } from '@/components/ir4/panel';
 import { Button } from '@/components/ui/button';
+import gas from '@/routes/gas';
+import settings from '@/routes/settings';
 import type { GasThreshold } from '@/types/gas';
 
 type Props = {
@@ -24,7 +26,7 @@ export default function GasThresholdsIndex({ thresholds, canManage }: Props) {
                         </p>
                     </div>
                     <Button asChild size="sm" variant="secondary">
-                        <Link href="/gas">Gas dashboard</Link>
+                        <Link href={gas.index()}>Gas dashboard</Link>
                     </Button>
                 </div>
 
@@ -34,7 +36,7 @@ export default function GasThresholdsIndex({ thresholds, canManage }: Props) {
                 >
                     {canManage ? (
                         <Form
-                            action="/settings/gas-thresholds"
+                            action={gas.thresholds.update.url()}
                             method="put"
                             className="flex flex-col gap-4"
                         >
@@ -190,7 +192,7 @@ export default function GasThresholdsIndex({ thresholds, canManage }: Props) {
 
 GasThresholdsIndex.layout = {
     breadcrumbs: [
-        { title: 'Settings', href: '/settings/general' },
-        { title: 'Gas thresholds', href: '/settings/gas-thresholds' },
+        { title: 'Settings', href: settings.general.edit() },
+        { title: 'Gas thresholds', href: gas.thresholds.index() },
     ],
 };

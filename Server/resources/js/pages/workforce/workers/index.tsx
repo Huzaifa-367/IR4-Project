@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
@@ -12,10 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import tracking from '@/routes/tracking';
 import type { Worker, WorkerListFilters } from '@/types/worker';
 
 type Props = {
@@ -43,15 +41,10 @@ export default function WorkersIndex({
     const [search, setSearch] = useState(filters.search);
     const [contractor, setContractor] = useState(filters.contractor);
     const [workerType, setWorkerType] = useState(filters.worker_type || 'all');
-    const [form, setForm] = useState<FormState | null>(null);
+    const [form, setForm] = useState<FormState | null>(() =>
+        openCreate && canManage ? { mode: 'create' } : null,
+    );
     const [editType, setEditType] = useState('contractor');
-
-    useEffect(() => {
-        if (openCreate && canManage) {
-            setEditType('contractor');
-            setForm({ mode: 'create' });
-        }
-    }, [openCreate, canManage]);
 
     const applyFilters = (
         patch: Partial<{
@@ -64,11 +57,10 @@ export default function WorkersIndex({
         const nextContractor = patch.contractor ?? contractor;
         const nextWorkerType = patch.worker_type ?? workerType;
 
-        visitFilters('/workforce/workers', {
+        visitFilters(tracking.workers.index.url(), {
             search: nextSearch || undefined,
             contractor: nextContractor || undefined,
-            worker_type:
-                nextWorkerType === 'all' ? undefined : nextWorkerType,
+            worker_type: nextWorkerType === 'all' ? undefined : nextWorkerType,
         });
     };
 
@@ -90,7 +82,7 @@ export default function WorkersIndex({
             header: 'Name',
             cell: (worker) => (
                 <Link
-                    href={`/workforce/workers/${worker.uuid}`}
+                    href={tracking.workers.show(worker.uuid)}
                     className="font-medium text-text hover:underline"
                 >
                     <WorkerIdentityCell name={worker.name} />
@@ -151,7 +143,7 @@ export default function WorkersIndex({
                         </Button>
                     ) : null}
                     <Button asChild size="sm" variant="ghost">
-                        <Link href={`/workforce/workers/${worker.uuid}`}>
+                        <Link href={tracking.workers.show(worker.uuid)}>
                             View
                         </Link>
                     </Button>
@@ -171,7 +163,7 @@ export default function WorkersIndex({
                     canManage ? (
                         <>
                             <Button asChild variant="outline">
-                                <Link href="/workforce/workers/import">
+                                <Link href={tracking.workers.import()}>
                                     Import
                                 </Link>
                             </Button>
@@ -241,7 +233,7 @@ export default function WorkersIndex({
                     rows={workers.data}
                     rowKey={(worker) => worker.id}
                     meta={workers.meta}
-                    pageUrl="/workforce/workers"
+                    pageUrl={tracking.workers.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No workers"
                     emptyDescription="No workers match these filters."
@@ -258,8 +250,8 @@ export default function WorkersIndex({
                 title={form?.mode === 'edit' ? 'Edit worker' : 'Add worker'}
                 action={
                     form?.mode === 'edit'
-                        ? `/workforce/workers/${form.worker.uuid}`
-                        : '/workforce/workers'
+                        ? tracking.workers.update.url(form.worker.uuid)
+                        : tracking.workers.store.url()
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
                 submitLabel={
@@ -422,5 +414,8 @@ export default function WorkersIndex({
 }
 
 WorkersIndex.layout = {
-    breadcrumbs: [{ title: 'Workforce', href: '/workforce/workers' }, { title: 'Workers', href: '/workforce/workers' }],
+    breadcrumbs: [
+        { title: 'Workforce', href: tracking.workers.index() },
+        { title: 'Workers', href: tracking.workers.index() },
+    ],
 };

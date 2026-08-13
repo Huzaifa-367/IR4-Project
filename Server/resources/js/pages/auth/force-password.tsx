@@ -4,6 +4,7 @@ import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import forcePassword from '@/routes/force-password';
 
 export default function ForcePassword() {
     return (
@@ -11,7 +12,7 @@ export default function ForcePassword() {
             <Head title="Change password" />
 
             <Form
-                action="/force-password"
+                action={forcePassword.update.url()}
                 method="post"
                 resetOnSuccess={['password', 'password_confirmation']}
                 className="flex flex-col gap-6"

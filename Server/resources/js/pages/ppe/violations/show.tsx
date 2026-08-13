@@ -5,6 +5,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import ppe from '@/routes/ppe';
 import { ViolationTypeLabels } from '@/types/enums';
 import type { PpeViolation } from '@/types/ppe';
 
@@ -68,9 +69,7 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                                 className="size-16 shrink-0 rounded-[var(--radius)] border border-border object-cover md:size-20"
                             />
                             <div className="min-w-0 space-y-2">
-                                <p className="eyebrow">
-                                    PPE #{violation.id}
-                                </p>
+                                <p className="eyebrow">PPE #{violation.id}</p>
                                 <h1 className="font-display text-2xl font-semibold tracking-tight text-text md:text-3xl">
                                     {typeLabel}
                                 </h1>
@@ -89,7 +88,7 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                                         />
                                     ) : null}
                                 </div>
-                                <p className="text-xs tabular-nums text-text-faint">
+                                <p className="text-xs text-text-faint tabular-nums">
                                     {new Date(
                                         violation.detected_at,
                                     ).toLocaleString()}
@@ -97,7 +96,9 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                             </div>
                         </div>
                         <Button asChild variant="outline">
-                            <Link href="/ppe/violations">All violations</Link>
+                            <Link href={ppe.violations.index()}>
+                                All violations
+                            </Link>
                         </Button>
                     </div>
                 </header>
@@ -130,7 +131,10 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-2">
-                    <Panel title="Snapshot" subtitle="Camera frame at detection">
+                    <Panel
+                        title="Snapshot"
+                        subtitle="Camera frame at detection"
+                    >
                         <img
                             src={violation.snapshot_url}
                             alt="Violation snapshot"
@@ -188,7 +192,9 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                         </h2>
                         <div className="mt-3 flex flex-wrap gap-2">
                             <Form
-                                action={`/ppe/violations/${violation.uuid}/review`}
+                                action={ppe.violations.review.url(
+                                    violation.uuid,
+                                )}
                                 method="post"
                             >
                                 <input
@@ -206,7 +212,9 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                                 </Button>
                             </Form>
                             <Form
-                                action={`/ppe/violations/${violation.uuid}/review`}
+                                action={ppe.violations.review.url(
+                                    violation.uuid,
+                                )}
                                 method="post"
                             >
                                 <input
@@ -233,7 +241,7 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
 
 PpeViolationShow.layout = {
     breadcrumbs: [
-        { title: 'Safety', href: '/ppe/violations' },
-        { title: 'PPE violations', href: '/ppe/violations' },
+        { title: 'Safety', href: ppe.violations.index() },
+        { title: 'PPE violations', href: ppe.violations.index() },
     ],
 };

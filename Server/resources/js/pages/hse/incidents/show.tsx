@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { cn } from '@/lib/utils';
+import alerts from '@/routes/alerts';
+import hse from '@/routes/hse';
+import tracking from '@/routes/tracking';
 import type { HseIncident, HseOption } from '@/types/hse';
 
 type WorkerOption = { id: number; name: string };
@@ -69,8 +72,7 @@ export default function IncidentShow({
     const canClassifyNow =
         canClassify &&
         (incident.status === 'open' || incident.status === 'under_review');
-    const canCloseClassified =
-        canClassify && incident.status === 'classified';
+    const canCloseClassified = canClassify && incident.status === 'classified';
     const canFalseAlarmClose =
         canClassify &&
         (incident.status === 'open' || incident.status === 'under_review');
@@ -79,9 +81,7 @@ export default function IncidentShow({
     const [incidentType, setIncidentType] = useState(
         typeOptions[0]?.value ?? '',
     );
-    const [severity, setSeverity] = useState(
-        severityOptions[0]?.value ?? '',
-    );
+    const [severity, setSeverity] = useState(severityOptions[0]?.value ?? '');
     const [involvedWorkerId, setInvolvedWorkerId] = useState('');
 
     const heroToneClass =
@@ -108,7 +108,7 @@ export default function IncidentShow({
                     />
                     <div className="flex flex-wrap items-start justify-between gap-4 p-4 md:p-5">
                         <div className="min-w-0 space-y-2">
-                            <span className="inline-flex items-center rounded-pill bg-surface-3 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase text-text-dim">
+                            <span className="inline-flex items-center rounded-pill bg-surface-3 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
                                 {incident.source_label}
                             </span>
                             <h1 className="font-display text-2xl font-semibold tracking-tight text-text md:text-3xl">
@@ -135,7 +135,9 @@ export default function IncidentShow({
                             </div>
                         </div>
                         <Button asChild variant="outline">
-                            <Link href="/incidents">All incidents</Link>
+                            <Link href={hse.incidents.index()}>
+                                All incidents
+                            </Link>
                         </Button>
                     </div>
                 </header>
@@ -183,7 +185,7 @@ export default function IncidentShow({
                                     label="Source alert"
                                     value={
                                         <Link
-                                            href="/alerts"
+                                            href={alerts.index()}
                                             className="text-[color:var(--accent)] hover:underline"
                                         >
                                             Alert #{incident.alert_id}
@@ -255,7 +257,9 @@ export default function IncidentShow({
                         <div className="flex flex-wrap gap-2">
                             {canReopen && (
                                 <Form
-                                    action={`/incidents/${incident.uuid}/reopen`}
+                                    action={hse.incidents.reopen.url(
+                                        incident.uuid,
+                                    )}
                                     method="post"
                                 >
                                     {({ processing }) => (
@@ -271,7 +275,9 @@ export default function IncidentShow({
                             )}
                             {canCloseClassified && (
                                 <Form
-                                    action={`/incidents/${incident.uuid}/close`}
+                                    action={hse.incidents.close.url(
+                                        incident.uuid,
+                                    )}
                                     method="post"
                                 >
                                     {({ processing }) => (
@@ -286,7 +292,9 @@ export default function IncidentShow({
                             )}
                             {canFalseAlarmClose && (
                                 <Form
-                                    action={`/incidents/${incident.uuid}/close`}
+                                    action={hse.incidents.close.url(
+                                        incident.uuid,
+                                    )}
                                     method="post"
                                     className="flex flex-wrap items-end gap-2"
                                 >
@@ -334,7 +342,9 @@ export default function IncidentShow({
                                     className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface-2/30 px-3 py-2"
                                 >
                                     <Link
-                                        href={`/workforce/workers/${row.worker_id}`}
+                                        href={tracking.workers.show.url(
+                                            String(row.worker_id),
+                                        )}
                                         className="text-[color:var(--accent)] hover:underline"
                                     >
                                         {row.worker_label}
@@ -373,7 +383,11 @@ export default function IncidentShow({
                                         )}
                                     </div>
                                     {row.download_url && (
-                                        <Button asChild size="sm" variant="outline">
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                        >
                                             <a href={row.download_url}>
                                                 Download
                                             </a>
@@ -389,7 +403,9 @@ export default function IncidentShow({
                         </ul>
                         {canLog && incident.status !== 'closed' && (
                             <Form
-                                action={`/incidents/${incident.uuid}/evidence`}
+                                action={hse.incidents.evidence.store.url(
+                                    incident.uuid,
+                                )}
                                 method="post"
                                 className="mt-3 flex flex-wrap items-end gap-2 border-t border-border pt-3"
                             >
@@ -437,7 +453,7 @@ export default function IncidentShow({
                         className="border-[color:var(--accent)]/30"
                     >
                         <Form
-                            action={`/incidents/${incident.uuid}/classify`}
+                            action={hse.incidents.classify.url(incident.uuid)}
                             method="put"
                             className="grid max-w-xl gap-3"
                             transform={(data) => ({
@@ -507,7 +523,9 @@ export default function IncidentShow({
                                         ] as const
                                     ).map(([name, label]) => (
                                         <div key={name} className="grid gap-2">
-                                            <Label htmlFor={name}>{label}</Label>
+                                            <Label htmlFor={name}>
+                                                {label}
+                                            </Label>
                                             <textarea
                                                 id={name}
                                                 name={name}
@@ -516,9 +534,8 @@ export default function IncidentShow({
                                                 rows={3}
                                                 className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                                                 defaultValue={
-                                                    (incident[
-                                                        name
-                                                    ] as string | null) ?? ''
+                                                    (incident[name] as
+                                                        string | null) ?? ''
                                                 }
                                             />
                                             {errors[name] && (
@@ -529,7 +546,9 @@ export default function IncidentShow({
                                         </div>
                                     ))}
                                     <div className="grid gap-2">
-                                        <Label>Involved worker (optional)</Label>
+                                        <Label>
+                                            Involved worker (optional)
+                                        </Label>
                                         <SearchableSelect
                                             value={involvedWorkerId}
                                             onValueChange={setInvolvedWorkerId}
@@ -567,5 +586,5 @@ export default function IncidentShow({
 }
 
 IncidentShow.layout = {
-    breadcrumbs: [{ title: 'Incidents', href: '/incidents' }],
+    breadcrumbs: [{ title: 'Incidents', href: hse.incidents.index() }],
 };

@@ -9,10 +9,8 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import equipment from '@/routes/equipment';
 import type { EquipmentCheckout } from '@/types/equipment';
 import type { PaginatedMeta } from '@/types/hardware';
 
@@ -38,7 +36,7 @@ export default function EquipmentCheckoutsIndex({
         const nextOpen = patch.open ?? filters.open;
         const nextSearch = patch.search ?? search;
 
-        visitFilters('/equipment/checkouts', {
+        visitFilters(equipment.checkouts.index.url(), {
             open: nextOpen ? '1' : '0',
             search: nextSearch || undefined,
         });
@@ -56,7 +54,7 @@ export default function EquipmentCheckoutsIndex({
             cell: (row) =>
                 row.equipment ? (
                     <Link
-                        href={`/equipment/${row.equipment.uuid}`}
+                        href={equipment.show(row.equipment.uuid)}
                         className="text-text hover:underline"
                     >
                         {row.equipment.equipment_code} · {row.equipment.name}
@@ -146,7 +144,7 @@ export default function EquipmentCheckoutsIndex({
                 description="Open custody and return history across all equipment."
                 actions={
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/equipment">Equipment list</Link>
+                        <Link href={equipment.index()}>Equipment list</Link>
                     </Button>
                 }
                 filters={
@@ -194,7 +192,7 @@ export default function EquipmentCheckoutsIndex({
                     rows={checkouts.data}
                     rowKey={(row) => row.id}
                     meta={checkouts.meta}
-                    pageUrl="/equipment/checkouts"
+                    pageUrl={equipment.checkouts.index.url()}
                     queryParams={{
                         open: filters.open ? '1' : '0',
                         search: search || undefined,
@@ -228,7 +226,7 @@ export default function EquipmentCheckoutsIndex({
 
 EquipmentCheckoutsIndex.layout = {
     breadcrumbs: [
-        { title: 'Equipment', href: '/equipment' },
-        { title: 'Checkouts', href: '/equipment/checkouts' },
+        { title: 'Equipment', href: equipment.index() },
+        { title: 'Checkouts', href: equipment.checkouts.index() },
     ],
 };

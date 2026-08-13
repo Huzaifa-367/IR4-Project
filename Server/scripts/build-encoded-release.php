@@ -14,7 +14,6 @@ declare(strict_types=1);
  * Or from Server/:
  *   php scripts/build-encoded-release.php
  */
-
 $serverRoot = dirname(__DIR__);
 $repoRoot = dirname($serverRoot);
 $releaseRoot = $repoRoot.'/Release';
@@ -326,6 +325,7 @@ function mirrorDir(string $src, string $dst, callable $skip): void
             if (! is_dir($target)) {
                 mkdir($target, 0755, true);
             }
+
             continue;
         }
         $parent = dirname($target);

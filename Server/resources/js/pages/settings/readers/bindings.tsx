@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
+import settings from '@/routes/settings';
 
 type Props = {
     device: { id: number; uuid: string; name: string; reference: string };
@@ -25,7 +26,7 @@ export default function ReaderBindingsHistory({ device, bindings }: Props) {
                         description={`Binding history · ${device.reference}`}
                     />
                     <Button asChild variant="outline">
-                        <Link href="/settings/repositioning">Back</Link>
+                        <Link href={settings.repositioning()}>Back</Link>
                     </Button>
                 </div>
 

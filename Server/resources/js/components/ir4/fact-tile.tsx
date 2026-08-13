@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-export type FactTileTone = 'ok' | 'warn' | 'crit' | 'accent' | 'neutral' | 'info';
+export type FactTileTone =
+    'ok' | 'warn' | 'crit' | 'accent' | 'neutral' | 'info';
 
 type Props = {
     label: string;
@@ -10,12 +11,7 @@ type Props = {
     className?: string;
 };
 
-export function FactTile({
-    label,
-    value,
-    tone = 'neutral',
-    className,
-}: Props) {
+export function FactTile({ label, value, tone = 'neutral', className }: Props) {
     return (
         <div
             className={cn(

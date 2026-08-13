@@ -1,9 +1,6 @@
 import type { ReactNode } from 'react';
-import {
-    SectionInfo
-    
-} from '@/components/ir4/section-info';
-import type {SectionInfoContent} from '@/components/ir4/section-info';
+import { SectionInfo } from '@/components/ir4/section-info';
+import type { SectionInfoContent } from '@/components/ir4/section-info';
 import { CardDescription, CardTitle } from '@/components/ui/card';
 
 type Props = {

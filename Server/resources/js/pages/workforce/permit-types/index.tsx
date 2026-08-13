@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import settings from '@/routes/settings';
 import type { PermitTypeCatalogueRow } from '@/types/permit';
 
 type Props = {
@@ -76,7 +77,7 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
             className: 'w-36 text-right',
             cell: (row) => (
                 <Button asChild size="sm">
-                    <Link href={`/workforce/permit-types/${row.uuid}`}>
+                    <Link href={settings.permitTypes.show(row.uuid)}>
                         Configure
                     </Link>
                 </Button>
@@ -92,7 +93,7 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
                     size="sm"
                     variant="outline"
                     onClick={() =>
-                        router.put(`/workforce/permit-types/${row.uuid}`, {
+                        router.put(settings.permitTypes.update.url(row.uuid), {
                             is_active: !row.is_active,
                         })
                     }
@@ -142,7 +143,7 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
                             const data = new FormData(form);
                             setSubmitting(true);
                             router.post(
-                                '/workforce/permit-types',
+                                settings.permitTypes.store.url(),
                                 Object.fromEntries(data),
                                 {
                                     preserveScroll: true,
@@ -200,7 +201,7 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
 
 PermitTypesIndex.layout = {
     breadcrumbs: [
-        { title: 'Catalogue', href: '/workforce/permit-types' },
-        { title: 'Permit types', href: '/workforce/permit-types' },
+        { title: 'Catalogue', href: settings.permitTypes.index() },
+        { title: 'Permit types', href: settings.permitTypes.index() },
     ],
 };

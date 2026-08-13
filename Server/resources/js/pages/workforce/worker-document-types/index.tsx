@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import settings from '@/routes/settings';
 
 type DocumentTypeRow = {
     id: number;
@@ -32,8 +33,7 @@ type Props = {
 };
 
 type FormState =
-    | { mode: 'create' }
-    | { mode: 'edit'; documentType: DocumentTypeRow };
+    { mode: 'create' } | { mode: 'edit'; documentType: DocumentTypeRow };
 
 function categoryLabel(category: string): string {
     return category
@@ -115,7 +115,9 @@ export default function WorkerDocumentTypesIndex({
                         variant="outline"
                         onClick={() =>
                             router.put(
-                                `/workforce/worker-document-types/${row.uuid}`,
+                                settings.workerDocumentTypes.update.url(
+                                    row.uuid,
+                                ),
                                 { is_active: !row.is_active },
                             )
                         }
@@ -171,14 +173,16 @@ export default function WorkerDocumentTypesIndex({
                         : 'Add document type'
                 }
                 description={
-                    form?.mode === 'edit' && editing && editing.documents_count > 0
+                    form?.mode === 'edit' &&
+                    editing &&
+                    editing.documents_count > 0
                         ? 'This type has documents on file — deactivate instead of deleting.'
                         : undefined
                 }
                 action={
                     form?.mode === 'edit' && editing
-                        ? `/workforce/worker-document-types/${editing.uuid}`
-                        : '/workforce/worker-document-types'
+                        ? settings.workerDocumentTypes.update.url(editing.uuid)
+                        : settings.workerDocumentTypes.store.url()
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
                 submitLabel={
@@ -277,7 +281,9 @@ export default function WorkerDocumentTypesIndex({
                             <Checkbox
                                 name="requires_expiry"
                                 value="1"
-                                defaultChecked={editing?.requires_expiry ?? true}
+                                defaultChecked={
+                                    editing?.requires_expiry ?? true
+                                }
                             />
                             Requires expiry date
                         </label>
@@ -299,10 +305,10 @@ export default function WorkerDocumentTypesIndex({
 
 WorkerDocumentTypesIndex.layout = {
     breadcrumbs: [
-        { title: 'Catalogue', href: '/workforce/permit-types' },
+        { title: 'Catalogue', href: settings.permitTypes.index() },
         {
             title: 'Document types',
-            href: '/workforce/worker-document-types',
+            href: settings.workerDocumentTypes.index(),
         },
     ],
 };

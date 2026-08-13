@@ -3,10 +3,8 @@ import { MoreHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
-import {
-    SettingsDataTable
-} from '@/components/ir4/settings/settings-data-table';
-import type {SettingsColumn} from '@/components/ir4/settings/settings-data-table';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
@@ -21,15 +19,9 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Switch } from '@/components/ui/switch';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
-import type {
-    CameraRow,
-    HardwareOption,
-    Paginated,
-} from '@/types/hardware';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import settings from '@/routes/settings';
+import type { CameraRow, HardwareOption, Paginated } from '@/types/hardware';
 
 type Props = {
     cameras: Paginated<CameraRow>;
@@ -39,9 +31,7 @@ type Props = {
     filters: { q: string; status: string };
 };
 
-type FormState =
-    | { mode: 'create' }
-    | { mode: 'edit'; camera: CameraRow };
+type FormState = { mode: 'create' } | { mode: 'edit'; camera: CameraRow };
 
 function hardwareTone(status: string): 'ok' | 'warn' | 'crit' | 'neutral' {
     if (status === 'online') {
@@ -85,7 +75,7 @@ export default function CamerasIndex({
         const nextQ = patch.q ?? q;
         const nextStatus = patch.status ?? status;
 
-        visitFilters('/hardware/cameras', {
+        visitFilters(settings.cameras.index.url(), {
             q: nextQ || undefined,
             status: nextStatus === 'all' ? undefined : nextStatus,
         });
@@ -154,7 +144,11 @@ export default function CamerasIndex({
             cell: (camera) => (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" aria-label="Actions">
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Actions"
+                        >
                             <MoreHorizontal />
                         </Button>
                     </DropdownMenuTrigger>
@@ -195,7 +189,7 @@ export default function CamerasIndex({
                 actions={
                     <>
                         <Button asChild variant="outline">
-                            <Link href="/hardware/assets">Assets</Link>
+                            <Link href={settings.assets.index()}>Assets</Link>
                         </Button>
                         <Button
                             type="button"
@@ -248,7 +242,7 @@ export default function CamerasIndex({
                     rows={cameras.data}
                     rowKey={(camera) => camera.id}
                     meta={cameras.meta}
-                    pageUrl="/hardware/cameras"
+                    pageUrl={settings.cameras.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No cameras"
                     emptyDescription="Register a camera on an asset for the live wall."
@@ -267,8 +261,8 @@ export default function CamerasIndex({
                 }
                 action={
                     form?.mode === 'edit'
-                        ? `/hardware/cameras/${form.camera.uuid}`
-                        : '/hardware/cameras'
+                        ? settings.cameras.update.url(form.camera.uuid)
+                        : settings.cameras.store.url()
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
                 submitLabel={
@@ -295,7 +289,7 @@ export default function CamerasIndex({
                                 }))}
                             />
                             {errors.asset_id ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.asset_id}
                                 </p>
                             ) : null}
@@ -326,7 +320,7 @@ export default function CamerasIndex({
                                 }
                             />
                             {errors.reference ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.reference}
                                 </p>
                             ) : null}
@@ -358,7 +352,9 @@ export default function CamerasIndex({
                         </div>
                         <div className="flex items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-border px-3 py-2">
                             <div>
-                                <p className="text-sm font-medium">AI enabled</p>
+                                <p className="text-sm font-medium">
+                                    AI enabled
+                                </p>
                                 <p className="text-xs text-text-dim">
                                     PPE / fall inference on this camera
                                 </p>
@@ -387,7 +383,7 @@ export default function CamerasIndex({
                 }
                 action={
                     aiTarget
-                        ? `/hardware/cameras/${aiTarget.uuid}/ai`
+                        ? settings.cameras.toggleAi.url(aiTarget.uuid)
                         : undefined
                 }
                 method="patch"
@@ -405,7 +401,7 @@ export default function CamerasIndex({
                 description="Retiring keeps the camera row for historical PPE and incident links."
                 action={
                     retireTarget
-                        ? `/hardware/cameras/${retireTarget.uuid}/status`
+                        ? settings.cameras.status.url(retireTarget.uuid)
                         : undefined
                 }
                 method="patch"
@@ -418,5 +414,8 @@ export default function CamerasIndex({
 }
 
 CamerasIndex.layout = {
-    breadcrumbs: [{ title: 'Hardware', href: '/hardware/assets' }, { title: 'Cameras', href: '/hardware/cameras' }],
+    breadcrumbs: [
+        { title: 'Hardware', href: settings.assets.index() },
+        { title: 'Cameras', href: settings.cameras.index() },
+    ],
 };

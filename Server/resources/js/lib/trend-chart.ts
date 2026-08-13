@@ -28,8 +28,7 @@ export function buildTrendChartData(
                               weekday: 'short',
                               month: 'short',
                               day: 'numeric',
-                              hour:
-                                  range === 'custom' ? '2-digit' : undefined,
+                              hour: range === 'custom' ? '2-digit' : undefined,
                               minute:
                                   range === 'custom' ? '2-digit' : undefined,
                           })
@@ -48,18 +47,14 @@ export function buildTrendChartData(
     );
 }
 
-export function trendChartSeries(
-    series: TrendSeries[],
-): Array<{
+export function trendChartSeries(series: TrendSeries[]): Array<{
     key: string;
     label: string;
     type: 'area' | 'line';
 }> {
     return series.map((metric, index) => ({
         key: metric.key,
-        label: metric.unit
-            ? `${metric.label} (${metric.unit})`
-            : metric.label,
+        label: metric.unit ? `${metric.label} (${metric.unit})` : metric.label,
         type: (index === 0 ? 'area' : 'line') as 'area' | 'line',
     }));
 }

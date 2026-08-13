@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import equipmentRoutes from '@/routes/equipment';
 import type {
     EquipmentByToken,
     EquipmentWorkerRef,
@@ -75,7 +76,7 @@ export function CheckoutDialog({
             return;
         }
 
-        form.post(`/equipment/${equipment.uuid}/checkout`, {
+        form.post(equipmentRoutes.checkout.url(equipment.uuid), {
             preserveScroll: true,
             onSuccess: () => {
                 onOpenChange(false);

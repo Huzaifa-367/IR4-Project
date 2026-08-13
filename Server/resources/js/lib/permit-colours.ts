@@ -51,7 +51,5 @@ export function permitTypeSoftClass(token: string | null | undefined): string {
         return 'bg-surface-3 text-text-dim';
     }
 
-    return (
-        PERMIT_TYPE_COLOUR_SOFT[token] ?? 'bg-surface-3 text-text-dim'
-    );
+    return PERMIT_TYPE_COLOUR_SOFT[token] ?? 'bg-surface-3 text-text-dim';
 }

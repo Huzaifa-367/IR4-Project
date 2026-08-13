@@ -28,7 +28,10 @@ export function MiniProgress({
         <div className={cn('flex items-center gap-2', className)}>
             <div className="h-1.5 flex-1 overflow-hidden rounded-pill bg-surface-3">
                 <div
-                    className={cn('h-full rounded-pill transition-[width]', fillTone[tone])}
+                    className={cn(
+                        'h-full rounded-pill transition-[width]',
+                        fillTone[tone],
+                    )}
                     style={{ width: `${pct}%` }}
                 />
             </div>

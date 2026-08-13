@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import equipment from '@/routes/equipment';
 import { ScheduleType, ScheduleTypeLabels } from '@/types/enums';
 import type { MaintenanceSchedule } from '@/types/equipment';
 
@@ -73,7 +74,7 @@ export function ScheduleEditor({ equipmentUuid, schedules }: Props) {
 
         setProcessing(true);
         router.put(
-            `/equipment/${equipmentUuid}/schedules`,
+            equipment.schedules.sync.url(equipmentUuid),
             { schedules: payload },
             {
                 preserveScroll: true,
@@ -144,9 +145,7 @@ export function ScheduleEditor({ equipmentUuid, schedules }: Props) {
                     </fieldset>
                 ))}
             </div>
-            {error ? (
-                <p className="text-sm text-destructive">{error}</p>
-            ) : null}
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <Button type="button" disabled={processing} onClick={submit}>
                 Save schedules
             </Button>

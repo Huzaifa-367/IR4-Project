@@ -9,6 +9,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import equipment from '@/routes/equipment';
 
 type QrFormat = 'png' | 'svg' | 'zpl';
 
@@ -27,7 +28,7 @@ export function QrLabelButton({
 }: SingleProps) {
     function printLabel(): void {
         router.post(
-            `/equipment/${equipmentUuid}/print-label`,
+            equipment.printLabel.url(equipmentUuid),
             {},
             {
                 preserveScroll: true,
@@ -40,7 +41,9 @@ export function QrLabelButton({
 
     function downloadQr(format: QrFormat): void {
         const link = document.createElement('a');
-        link.href = `/equipment/${equipmentUuid}/qr?format=${format}`;
+        link.href = equipment.qr.url(equipmentUuid, {
+            query: { format },
+        });
         link.rel = 'noopener';
         document.body.appendChild(link);
         link.click();
@@ -104,7 +107,7 @@ export function QrLabelsBulkButton({
         }
 
         router.post(
-            '/equipment/print-labels',
+            equipment.printLabels.url(),
             { ids },
             {
                 preserveScroll: true,

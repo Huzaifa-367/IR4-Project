@@ -4,6 +4,7 @@ import { SensitiveSettingConfirm } from '@/components/ir4/settings/sensitive-set
 import { SettingGroup } from '@/components/ir4/settings/setting-group';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { Button } from '@/components/ui/button';
+import settings from '@/routes/settings';
 import type {
     SettingGroup as SettingGroupType,
     SettingSchema,
@@ -97,8 +98,10 @@ export default function GeneralSettingsPage({
             return;
         }
 
-        const payloadSettings: Record<string, string | number | boolean | null> =
-            {};
+        const payloadSettings: Record<
+            string,
+            string | number | boolean | null
+        > = {};
 
         for (const key of dirtyKeys) {
             payloadSettings[key] = values[key];
@@ -106,7 +109,7 @@ export default function GeneralSettingsPage({
 
         setProcessing(true);
         router.put(
-            '/settings/general',
+            settings.general.update.url(),
             {
                 settings: payloadSettings,
                 confirmed: confirmedKeys.filter((key) =>
@@ -208,7 +211,7 @@ GeneralSettingsPage.layout = {
     breadcrumbs: [
         {
             title: 'General settings',
-            href: '/settings/general',
+            href: settings.general.edit(),
         },
     ],
 };

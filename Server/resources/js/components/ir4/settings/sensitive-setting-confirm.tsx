@@ -47,12 +47,12 @@ export function SensitiveSettingConfirm({
                 </DialogHeader>
                 <div className="space-y-2 text-sm">
                     <p className="font-medium">{setting.label}</p>
-                    <p className="text-muted-foreground font-mono text-xs">
+                    <p className="font-mono text-xs text-muted-foreground">
                         {setting.key}
                     </p>
                     <div className="grid grid-cols-2 gap-3 rounded-lg border border-border p-3">
                         <div>
-                            <p className="text-muted-foreground text-xs uppercase">
+                            <p className="text-xs text-muted-foreground uppercase">
                                 Current
                             </p>
                             <p className="font-mono">
@@ -60,7 +60,7 @@ export function SensitiveSettingConfirm({
                             </p>
                         </div>
                         <div>
-                            <p className="text-muted-foreground text-xs uppercase">
+                            <p className="text-xs text-muted-foreground uppercase">
                                 New
                             </p>
                             <p className="font-mono">

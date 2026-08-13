@@ -118,7 +118,7 @@ export default function TrackingIndex({
                 setReadings(json.data);
             }
         },
-        [],
+        [setReadings],
     );
 
     const loadSnapshots = useCallback(async (): Promise<void> => {
@@ -161,7 +161,15 @@ export default function TrackingIndex({
         }
 
         await loadReadings(zoneFilter);
-    }, [canSeePositions, loadReadings, setHeadcount, zoneFilter]);
+    }, [
+        canSeePositions,
+        loadReadings,
+        setCoverage,
+        setHeadcount,
+        setPositions,
+        setZones,
+        zoneFilter,
+    ]);
 
     const { status } = useReverbChannel({
         channel: 'tracking',
@@ -306,7 +314,9 @@ export default function TrackingIndex({
                                 zones={zones}
                                 occupancy={headcount.by_zone}
                                 onSelect={(zone) =>
-                                    router.visit(`/settings/zones/${zone.uuid}`)
+                                    router.visit(
+                                        settings.zones.show.url(zone.uuid),
+                                    )
                                 }
                             />
                         </Panel>

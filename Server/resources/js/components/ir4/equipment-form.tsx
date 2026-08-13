@@ -123,12 +123,12 @@ export function EquipmentForm({
                                     onValueChange={(value) =>
                                         setStatus(value as EquipmentStatus)
                                     }
-                                    options={Object.values(
-                                        EquipmentStatus,
-                                    ).map((value) => ({
-                                        value,
-                                        label: EquipmentStatusLabels[value],
-                                    }))}
+                                    options={Object.values(EquipmentStatus).map(
+                                        (value) => ({
+                                            value,
+                                            label: EquipmentStatusLabels[value],
+                                        }),
+                                    )}
                                 />
                                 {errors.status ? (
                                     <p className="text-sm text-destructive">

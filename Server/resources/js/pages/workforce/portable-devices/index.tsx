@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import tracking from '@/routes/tracking';
 import type { PaginatedMeta } from '@/types/hardware';
 
 type DeviceRow = {
@@ -114,7 +115,7 @@ export default function PortableDevicesIndex({ devices, workers }: Props) {
                     rows={devices.data}
                     rowKey={(device) => device.id}
                     meta={devices.meta}
-                    pageUrl="/workforce/portable-devices"
+                    pageUrl={tracking.portableDevices.index.url()}
                     emptyTitle="No portable devices"
                     emptyDescription="Register a worker's phone, tablet, or camera to approve it on site."
                 />
@@ -124,7 +125,7 @@ export default function PortableDevicesIndex({ devices, workers }: Props) {
                 open={addOpen}
                 onOpenChange={setAddOpen}
                 title="Register device"
-                action="/workforce/portable-devices"
+                action={tracking.portableDevices.store.url()}
                 method="post"
                 submitLabel="Register"
                 disableSubmit={!addWorker}
@@ -227,7 +228,7 @@ export default function PortableDevicesIndex({ devices, workers }: Props) {
                 }
                 action={
                     revokeTarget
-                        ? `/workforce/portable-devices/${revokeTarget.uuid}/revoke`
+                        ? tracking.portableDevices.revoke.url(revokeTarget.uuid)
                         : undefined
                 }
                 method="post"
@@ -242,7 +243,7 @@ export default function PortableDevicesIndex({ devices, workers }: Props) {
 
 PortableDevicesIndex.layout = {
     breadcrumbs: [
-        { title: 'Workforce', href: '/workforce/workers' },
-        { title: 'Portable Devices', href: '/workforce/portable-devices' },
+        { title: 'Workforce', href: tracking.workers.index() },
+        { title: 'Portable Devices', href: tracking.portableDevices.index() },
     ],
 };

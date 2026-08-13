@@ -1,11 +1,5 @@
 export type SettingType =
-    | 'bool'
-    | 'int'
-    | 'float'
-    | 'string'
-    | 'timezone'
-    | 'time'
-    | 'enum';
+    'bool' | 'int' | 'float' | 'string' | 'timezone' | 'time' | 'enum';
 
 export type SettingGroupKey =
     | 'general'

@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { AnalyticalChart } from '@/components/ir4/analytical-chart';
 import { CardHeading } from '@/components/ir4/card-heading';
 import { GasChannelGauges } from '@/components/ir4/gas-channel-gauges';
@@ -17,8 +17,13 @@ import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import { gasInfo } from '@/lib/analytics-info';
 import { buildTrendChartData, trendChartSeries } from '@/lib/trend-chart';
 import { visitFilters } from '@/lib/visit-filters';
+import gas from '@/routes/gas';
 import { GasTypeLabels } from '@/types/enums';
-import type { GasDashboardSnapshot, GasLivePanel, GasThreshold } from '@/types/gas';
+import type {
+    GasDashboardSnapshot,
+    GasLivePanel,
+    GasThreshold,
+} from '@/types/gas';
 
 const ALL_DEVICES = 'all';
 
@@ -177,8 +182,8 @@ export default function GasDashboard({
     thresholds,
     canManageThresholds,
 }: Props) {
-    const [panels, setPanels] = useState(initialPanels);
-    const [snapshot, setSnapshot] = useState(initialSnapshot);
+    const [panels, setPanels] = usePropSyncedState(initialPanels);
+    const [snapshot, setSnapshot] = usePropSyncedState(initialSnapshot);
     const [deviceId, setDeviceId] = usePropSyncedState(
         filters.device_id || ALL_DEVICES,
     );
@@ -206,24 +211,27 @@ export default function GasDashboard({
             }
         }
 
-        return `/gas/api/live?${params.toString()}`;
+        return gas.api.live.url({
+            query: Object.fromEntries(params.entries()),
+        });
     }, [deviceId, range, from, to]);
 
-    const onSnapshot = useCallback((data: unknown) => {
-        const json = data as {
-            data: { panels: GasLivePanel[]; snapshot?: GasDashboardSnapshot };
-        };
-        setPanels(json.data.panels);
+    const onSnapshot = useCallback(
+        (data: unknown) => {
+            const json = data as {
+                data: {
+                    panels: GasLivePanel[];
+                    snapshot?: GasDashboardSnapshot;
+                };
+            };
+            setPanels(json.data.panels);
 
-        if (json.data.snapshot) {
-            setSnapshot(json.data.snapshot);
-        }
-    }, []);
-
-    useEffect(() => {
-        setPanels(initialPanels);
-        setSnapshot(initialSnapshot);
-    }, [initialPanels, initialSnapshot]);
+            if (json.data.snapshot) {
+                setSnapshot(json.data.snapshot);
+            }
+        },
+        [setPanels, setSnapshot],
+    );
 
     const { status } = useReverbChannel({
         channel: 'gas',
@@ -273,10 +281,9 @@ export default function GasDashboard({
         const nextRange = (patch.range ?? range) as RangeValue;
 
         visitFilters(
-            '/gas',
+            gas.index.url(),
             {
-                device_id:
-                    nextDevice === ALL_DEVICES ? undefined : nextDevice,
+                device_id: nextDevice === ALL_DEVICES ? undefined : nextDevice,
                 range: nextRange,
                 from: nextRange === 'custom' ? (patch.from ?? from) : undefined,
                 to: nextRange === 'custom' ? (patch.to ?? to) : undefined,
@@ -316,18 +323,18 @@ export default function GasDashboard({
                             Gas
                         </h1>
                         <p className="mt-1 text-sm text-text-dim">
-                            {panels.length} detectors ·{' '}
-                            {snapshot.open_alarms} open alarms · {deviceLabel}
+                            {panels.length} detectors · {snapshot.open_alarms}{' '}
+                            open alarms · {deviceLabel}
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <LiveStatusPill status={status} />
                         <Button asChild size="sm" variant="secondary">
-                            <Link href="/gas/alarms">Alarms</Link>
+                            <Link href={gas.alarms.index()}>Alarms</Link>
                         </Button>
                         {canManageThresholds ? (
                             <Button asChild size="sm" variant="outline">
-                                <Link href="/settings/gas-thresholds">
+                                <Link href={gas.thresholds.index()}>
                                     Thresholds
                                 </Link>
                             </Button>

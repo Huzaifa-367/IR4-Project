@@ -1,5 +1,10 @@
 import { router } from '@inertiajs/react';
-import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+    ChevronFirst,
+    ChevronLast,
+    ChevronLeft,
+    ChevronRight,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PaginatedMeta } from '@/types/hardware';
@@ -17,7 +22,9 @@ type PageToken = number | 'ellipsis';
 /** first, last, current, and one neighbour on each side; gaps collapse to an ellipsis. */
 function buildPageTokens(current: number, last: number): PageToken[] {
     const keep = new Set<number>([1, last, current, current - 1, current + 1]);
-    const pages = [...keep].filter((page) => page >= 1 && page <= last).sort((a, b) => a - b);
+    const pages = [...keep]
+        .filter((page) => page >= 1 && page <= last)
+        .sort((a, b) => a - b);
 
     const tokens: PageToken[] = [];
     let previous: number | null = null;
@@ -70,11 +77,11 @@ export function Pagination({ meta, pageUrl, params = {}, className }: Props) {
                 {rangeStart !== null && rangeEnd !== null ? (
                     <>
                         Showing{' '}
-                        <span className="font-mono tabular-nums text-text-dim">
+                        <span className="font-mono text-text-dim tabular-nums">
                             {rangeStart}–{rangeEnd}
                         </span>{' '}
                         of{' '}
-                        <span className="font-mono tabular-nums text-text-dim">
+                        <span className="font-mono text-text-dim tabular-nums">
                             {meta.total}
                         </span>
                     </>

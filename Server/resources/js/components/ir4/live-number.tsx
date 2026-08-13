@@ -10,11 +10,7 @@ type Props = {
 /**
  * Tabular live figure with a short tween when the numeric value changes.
  */
-export function LiveNumber({
-    value,
-    className,
-    durationMs = 200,
-}: Props) {
+export function LiveNumber({ value, className, durationMs = 200 }: Props) {
     const numeric = typeof value === 'number' ? value : Number(value);
     const isNumeric = Number.isFinite(numeric);
     const [tween, setTween] = useState<string | null>(null);
@@ -70,9 +66,7 @@ export function LiveNumber({
     }, [durationMs, isNumeric, numeric, reducedMotion]);
 
     const display =
-        !isNumeric || reducedMotion || tween === null
-            ? String(value)
-            : tween;
+        !isNumeric || reducedMotion || tween === null ? String(value) : tween;
 
     return (
         <span

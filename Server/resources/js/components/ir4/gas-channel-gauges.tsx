@@ -30,7 +30,10 @@ export function GasChannelGauges({ gauges, className }: Props) {
                 const alarm = g.alarm ?? Math.max(g.value * 1.5, 1);
                 const warn = g.warn ?? alarm * 0.5;
                 const pct = Math.max(3, Math.min(100, (g.value / alarm) * 100));
-                const warnPct = Math.max(0, Math.min(100, (warn / alarm) * 100));
+                const warnPct = Math.max(
+                    0,
+                    Math.min(100, (warn / alarm) * 100),
+                );
                 const color =
                     g.status === 'crit'
                         ? 'var(--crit)'

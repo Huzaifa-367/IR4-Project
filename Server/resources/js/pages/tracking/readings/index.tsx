@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import tracking from '@/routes/tracking';
 import type { PaginatedMeta } from '@/types/hardware';
 import type { TrackingReading } from '@/types/tracking';
 
@@ -65,7 +66,7 @@ export default function ReadingsIndex({
         const nextProximity = patch.proximity ?? proximity;
         const nextSearch = patch.search ?? search;
 
-        visitFilters('/tracking/readings', {
+        visitFilters(tracking.readings.index.url(), {
             zone_id: nextZone === ALL ? undefined : nextZone,
             reader_id: nextReader === ALL ? undefined : nextReader,
             from: nextFrom || undefined,
@@ -178,7 +179,7 @@ export default function ReadingsIndex({
                 description="Every RFID read as a record — filter by time, zone, reader, or tag"
                 actions={
                     <Link
-                        href="/tracking"
+                        href={tracking.index()}
                         className="text-xs text-[color:var(--accent)] hover:underline"
                     >
                         Live tracking ›
@@ -292,7 +293,7 @@ export default function ReadingsIndex({
                     rows={readings.data}
                     rowKey={(row) => row.id}
                     meta={readings.meta}
-                    pageUrl="/tracking/readings"
+                    pageUrl={tracking.readings.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No readings"
                     emptyDescription="No tag readings match these filters."

@@ -18,10 +18,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import hse from '@/routes/hse';
 import type { PaginatedMeta } from '@/types/hardware';
 import type { HseOption, LsrPrefill, LsrViolation } from '@/types/hse';
 
@@ -57,7 +55,9 @@ export default function LsrIndex({
     zones = [],
     workers = [],
 }: Props) {
-    const [closing, setClosing] = useState<{ id: number; uuid: string } | null>(null);
+    const [closing, setClosing] = useState<{ id: number; uuid: string } | null>(
+        null,
+    );
     const [logOpen, setLogOpen] = useState(() => prefill !== null);
     const [search, setSearch] = useState(filters.search);
     const [status, setStatus] = useState(filters.status || ALL);
@@ -112,7 +112,7 @@ export default function LsrIndex({
         const nextStatus = patch.status ?? status;
         const nextCategory = patch.category ?? category;
 
-        visitFilters('/lsr-violations', {
+        visitFilters(hse.lsr.index.url(), {
             search: nextSearch || undefined,
             status: nextStatus === ALL ? undefined : nextStatus,
             category: nextCategory === ALL ? undefined : nextCategory,
@@ -136,7 +136,7 @@ export default function LsrIndex({
             header: 'Category',
             cell: (row) => (
                 <Link
-                    href={`/lsr-violations/${row.uuid}`}
+                    href={hse.lsr.show(row.uuid)}
                     className="font-medium text-text hover:underline"
                 >
                     {row.category_label}
@@ -173,14 +173,16 @@ export default function LsrIndex({
             cell: (row) => (
                 <div className="flex justify-end gap-1">
                     <Button asChild size="sm" variant="ghost">
-                        <Link href={`/lsr-violations/${row.uuid}`}>Open</Link>
+                        <Link href={hse.lsr.show(row.uuid)}>Open</Link>
                     </Button>
                     {canClose && row.status === 'open' && (
                         <Button
                             type="button"
                             size="sm"
                             variant="secondary"
-                            onClick={() => setClosing({ id: row.id, uuid: row.uuid })}
+                            onClick={() =>
+                                setClosing({ id: row.id, uuid: row.uuid })
+                            }
                         >
                             Close
                         </Button>
@@ -199,7 +201,7 @@ export default function LsrIndex({
                 actions={
                     <>
                         <Button asChild variant="outline">
-                            <Link href="/lsr-violations/summary">Summary</Link>
+                            <Link href={hse.lsr.summary()}>Summary</Link>
                         </Button>
                         {canLog && (
                             <Button
@@ -274,7 +276,7 @@ export default function LsrIndex({
                     rows={violations.data}
                     rowKey={(row) => row.id}
                     meta={violations.meta}
-                    pageUrl="/lsr-violations"
+                    pageUrl={hse.lsr.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No LSR entries"
                     emptyDescription="No LSR entries match these filters."
@@ -327,7 +329,7 @@ export default function LsrIndex({
                                 return;
                             }
 
-                            logForm.post('/lsr-violations', {
+                            logForm.post(hse.lsr.store.url(), {
                                 preserveScroll: true,
                                 onSuccess: () => {
                                     setLogOpen(false);
@@ -454,10 +456,7 @@ export default function LsrIndex({
                             >
                                 Cancel
                             </Button>
-                            <Button
-                                type="submit"
-                                disabled={logForm.processing}
-                            >
+                            <Button type="submit" disabled={logForm.processing}>
                                 Submit LSR
                             </Button>
                         </DialogFooter>
@@ -478,46 +477,49 @@ export default function LsrIndex({
                         <DialogTitle>Close LSR #{closing?.id}</DialogTitle>
                     </DialogHeader>
                     {closing ? (
-                    <Form
-                        action={`/lsr-violations/${closing.uuid}/close`}
-                        method="post"
-                        className="flex flex-col gap-4"
-                        options={{ preserveScroll: true }}
-                        onSuccess={() => setClosing(null)}
-                    >
-                        {({ processing, errors }) => (
-                            <>
-                                <div className="flex flex-col gap-2">
-                                    <Label htmlFor="action_taken">
-                                        Action taken (required)
-                                    </Label>
-                                    <Input
-                                        id="action_taken"
-                                        name="action_taken"
-                                        required
-                                        minLength={10}
-                                    />
-                                    {errors.action_taken && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.action_taken}
-                                        </p>
-                                    )}
-                                </div>
-                                <DialogFooter>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setClosing(null)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button type="submit" disabled={processing}>
-                                        Close
-                                    </Button>
-                                </DialogFooter>
-                            </>
-                        )}
-                    </Form>
+                        <Form
+                            action={hse.lsr.close.url(closing.uuid)}
+                            method="post"
+                            className="flex flex-col gap-4"
+                            options={{ preserveScroll: true }}
+                            onSuccess={() => setClosing(null)}
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <div className="flex flex-col gap-2">
+                                        <Label htmlFor="action_taken">
+                                            Action taken (required)
+                                        </Label>
+                                        <Input
+                                            id="action_taken"
+                                            name="action_taken"
+                                            required
+                                            minLength={10}
+                                        />
+                                        {errors.action_taken && (
+                                            <p className="text-sm text-destructive">
+                                                {errors.action_taken}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <DialogFooter>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setClosing(null)}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            Close
+                                        </Button>
+                                    </DialogFooter>
+                                </>
+                            )}
+                        </Form>
                     ) : null}
                 </DialogContent>
             </Dialog>
@@ -526,5 +528,5 @@ export default function LsrIndex({
 }
 
 LsrIndex.layout = {
-    breadcrumbs: [{ title: 'LSR', href: '/lsr-violations' }],
+    breadcrumbs: [{ title: 'LSR', href: hse.lsr.index() }],
 };

@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import equipmentRoutes from '@/routes/equipment';
 import { InspectionOutcomeLabels, MaintenanceTypeLabels } from '@/types/enums';
 import type { InspectionOutcome, MaintenanceType } from '@/types/enums';
 import type {
@@ -174,7 +175,9 @@ export default function EquipmentShow({
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <Button asChild variant="outline" size="sm">
-                                <Link href="/equipment">All equipment</Link>
+                                <Link href={equipmentRoutes.index()}>
+                                    All equipment
+                                </Link>
                             </Button>
                             <QrLabelButton equipmentUuid={equipment.uuid} />
                             {canManage &&
@@ -198,7 +201,9 @@ export default function EquipmentShow({
                             )}
                             {canManage && !isRetired && (
                                 <Form
-                                    action={`/equipment/${equipment.uuid}/retire`}
+                                    action={equipmentRoutes.retire.url(
+                                        equipment.uuid,
+                                    )}
                                     method="post"
                                     options={{ preserveScroll: true }}
                                 >
@@ -238,9 +243,7 @@ export default function EquipmentShow({
                     <FactTile
                         label="Next service"
                         value={equipment.next_service_due ?? '—'}
-                        tone={
-                            equipment.is_service_overdue ? 'crit' : 'neutral'
-                        }
+                        tone={equipment.is_service_overdue ? 'crit' : 'neutral'}
                     />
                     <FactTile
                         label="QR token"
@@ -304,7 +307,9 @@ export default function EquipmentShow({
                         >
                             {canManage && !isRetired ? (
                                 <EquipmentForm
-                                    action={`/equipment/${equipment.uuid}`}
+                                    action={equipmentRoutes.update.url(
+                                        equipment.uuid,
+                                    )}
                                     method="put"
                                     defaults={equipment}
                                     submitLabel="Save changes"
@@ -329,7 +334,9 @@ export default function EquipmentShow({
                                 subtitle="Record outcome and next due"
                                 className="border-l-[3px] border-l-[color:var(--ok)]"
                             >
-                                <InspectionForm equipmentUuid={equipment.uuid} />
+                                <InspectionForm
+                                    equipmentUuid={equipment.uuid}
+                                />
                             </Panel>
                         ) : null}
                         <Panel
@@ -403,7 +410,9 @@ export default function EquipmentShow({
                                 subtitle="Preventive or corrective work"
                                 className="border-l-[3px] border-l-[color:var(--accent)]"
                             >
-                                <MaintenanceForm equipmentUuid={equipment.uuid} />
+                                <MaintenanceForm
+                                    equipmentUuid={equipment.uuid}
+                                />
                             </Panel>
                         ) : null}
                         <Panel
@@ -489,9 +498,7 @@ export default function EquipmentShow({
                                         </p>
                                         <p className="mt-0.5 text-text-dim">
                                             Every {row.interval_days} days
-                                            {row.notes
-                                                ? ` · ${row.notes}`
-                                                : ''}
+                                            {row.notes ? ` · ${row.notes}` : ''}
                                         </p>
                                     </li>
                                 ))}
@@ -514,7 +521,9 @@ export default function EquipmentShow({
                                 className="border-l-[3px] border-l-[color:var(--accent)]"
                             >
                                 <Form
-                                    action={`/equipment/${equipment.uuid}/documents`}
+                                    action={equipmentRoutes.documents.store.url(
+                                        equipment.uuid,
+                                    )}
                                     method="post"
                                     encType="multipart/form-data"
                                     className="space-y-3"
@@ -601,7 +610,13 @@ export default function EquipmentShow({
                                             ) : null}
                                             {canManage ? (
                                                 <Form
-                                                    action={`/equipment/${equipment.uuid}/documents/${doc.uuid}`}
+                                                    action={equipmentRoutes.documents.destroy.url(
+                                                        {
+                                                            equipment:
+                                                                equipment.uuid,
+                                                            document: doc.uuid,
+                                                        },
+                                                    )}
                                                     method="delete"
                                                     options={{
                                                         preserveScroll: true,
@@ -654,10 +669,10 @@ export default function EquipmentShow({
                                         Currently out
                                     </p>
                                     <h2 className="mt-1 font-display text-lg font-semibold text-text">
-                                        {equipment.open_checkout.worker
-                                            ?.name ?? 'Worker'}
+                                        {equipment.open_checkout.worker?.name ??
+                                            'Worker'}
                                     </h2>
-                                    <p className="mt-1 text-sm tabular-nums text-text-dim">
+                                    <p className="mt-1 text-sm text-text-dim tabular-nums">
                                         Since{' '}
                                         {new Date(
                                             equipment.open_checkout
@@ -731,7 +746,7 @@ export default function EquipmentShow({
                                                     }
                                                 />
                                             </div>
-                                            <p className="mt-1 text-xs tabular-nums text-text-dim">
+                                            <p className="mt-1 text-xs text-text-dim tabular-nums">
                                                 Out{' '}
                                                 {new Date(
                                                     row.checked_out_at,
@@ -781,7 +796,7 @@ export default function EquipmentShow({
 
 EquipmentShow.layout = {
     breadcrumbs: [
-        { title: 'Equipment', href: '/equipment' },
-        { title: 'Items', href: '/equipment' },
+        { title: 'Equipment', href: equipmentRoutes.index() },
+        { title: 'Items', href: equipmentRoutes.index() },
     ],
 };

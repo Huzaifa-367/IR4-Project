@@ -13,6 +13,7 @@ import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { ppeInfo } from '@/lib/analytics-info';
 import { buildTrendChartData, trendChartSeries } from '@/lib/trend-chart';
 import { visitFilters } from '@/lib/visit-filters';
+import ppe from '@/routes/ppe';
 import { ViolationTypeLabels } from '@/types/enums';
 import type { PpeDashboardSnapshot } from '@/types/ppe';
 
@@ -85,7 +86,7 @@ export default function PpeTrendsIndex({
         }
 
         visitFilters(
-            '/ppe',
+            ppe.index.url(),
             { range: nextRange },
             { only: ['snapshot', 'filters'] },
         );
@@ -93,7 +94,7 @@ export default function PpeTrendsIndex({
 
     const applyCustomRange = (): void => {
         visitFilters(
-            '/ppe',
+            ppe.index.url(),
             { range: 'custom', from, to },
             { only: ['snapshot', 'filters'] },
         );
@@ -118,7 +119,9 @@ export default function PpeTrendsIndex({
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <Button asChild variant="secondary" size="sm">
-                            <Link href="/ppe/violations">Violations</Link>
+                            <Link href={ppe.violations.index()}>
+                                Violations
+                            </Link>
                         </Button>
                         {canExport ? (
                             <>
@@ -126,9 +129,7 @@ export default function PpeTrendsIndex({
                                     type="button"
                                     size="sm"
                                     variant="outline"
-                                    onClick={() =>
-                                        submitExport('csv', filters)
-                                    }
+                                    onClick={() => submitExport('csv', filters)}
                                 >
                                     CSV
                                 </Button>
@@ -136,9 +137,7 @@ export default function PpeTrendsIndex({
                                     type="button"
                                     size="sm"
                                     variant="outline"
-                                    onClick={() =>
-                                        submitExport('pdf', filters)
-                                    }
+                                    onClick={() => submitExport('pdf', filters)}
                                 >
                                     PDF
                                 </Button>
@@ -296,8 +295,8 @@ export default function PpeTrendsIndex({
                                 info={ppeInfo.byType}
                                 description={
                                     <>
-                                        {snapshot.excluded_false_positives} false
-                                        positives excluded
+                                        {snapshot.excluded_false_positives}{' '}
+                                        false positives excluded
                                     </>
                                 }
                             />
@@ -331,7 +330,7 @@ function submitExport(
 ): void {
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/ppe/violations/export';
+    form.action = ppe.violations.export.url();
     const token = document
         .querySelector('meta[name="csrf-token"]')
         ?.getAttribute('content');

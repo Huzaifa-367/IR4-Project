@@ -10,6 +10,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth, useSettingsTimeoutMinutes } from '@/hooks/use-auth';
+import { login } from '@/routes';
 
 const ACTIVITY_EVENTS = [
     'mousemove',
@@ -87,7 +88,7 @@ export function useIdleLogout(): React.ReactNode {
             const remaining = timeoutMs - (Date.now() - lastActivity.current);
 
             if (remaining <= 0) {
-                router.get('/login?timeout=1');
+                router.get(login.url({ query: { timeout: '1' } }));
 
                 return;
             }

@@ -16,10 +16,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import workOrderRoutes from '@/routes/work-orders';
 import type { PaginatedMeta } from '@/types/hardware';
 
 type WorkOrderRow = {
@@ -58,7 +56,7 @@ export default function WorkOrdersIndex({
     const [zoneId, setZoneId] = useState('');
 
     function applySearch(value: string): void {
-        visitFilters('/workforce/work-orders', {
+        visitFilters(workOrderRoutes.index.url(), {
             search: value || undefined,
         });
     }
@@ -74,7 +72,7 @@ export default function WorkOrdersIndex({
             header: 'Reference',
             cell: (row) => (
                 <Link
-                    href={`/workforce/work-orders/${row.uuid}`}
+                    href={workOrderRoutes.show(row.uuid)}
                     className="font-mono text-xs font-medium hover:underline"
                 >
                     {row.reference}
@@ -103,7 +101,7 @@ export default function WorkOrdersIndex({
             className: 'w-20 text-right',
             cell: (row) => (
                 <Button asChild size="sm" variant="ghost">
-                    <Link href={`/workforce/work-orders/${row.uuid}`}>Open</Link>
+                    <Link href={workOrderRoutes.show(row.uuid)}>Open</Link>
                 </Button>
             ),
         },
@@ -148,7 +146,7 @@ export default function WorkOrdersIndex({
                     rows={workOrders.data}
                     rowKey={(row) => row.id}
                     meta={workOrders.meta}
-                    pageUrl="/workforce/work-orders"
+                    pageUrl={workOrderRoutes.index.url()}
                     emptyTitle="No work orders"
                     emptyDescription="Create a work order to link permits for a job package."
                 />
@@ -173,7 +171,7 @@ export default function WorkOrdersIndex({
                         </DialogDescription>
                     </DialogHeader>
                     <Form
-                        action="/workforce/work-orders"
+                        action={workOrderRoutes.store.url()}
                         method="post"
                         className="space-y-4"
                         options={{ preserveScroll: true }}

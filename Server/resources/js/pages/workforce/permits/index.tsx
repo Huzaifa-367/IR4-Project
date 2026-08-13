@@ -10,10 +10,9 @@ import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { permitTypeDotClass } from '@/lib/permit-colours';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import permitRoutes from '@/routes/permits';
+import tracking from '@/routes/tracking';
 import type {
     PaginatedPermits,
     PermitListItem,
@@ -84,7 +83,7 @@ export default function PermitsIndex({
         const nextSearch = patch.search ?? search;
         const nextStatus = patch.status ?? status;
 
-        visitFilters('/workforce/permits', {
+        visitFilters(permitRoutes.index.url(), {
             search: nextSearch || undefined,
             status: nextStatus === ALL ? undefined : nextStatus,
         });
@@ -149,7 +148,7 @@ export default function PermitsIndex({
             className: 'w-20 text-right',
             cell: (row) => (
                 <Button asChild size="sm" variant="ghost">
-                    <Link href={`/workforce/permits/${row.uuid}`}>Open</Link>
+                    <Link href={permitRoutes.show(row.uuid)}>Open</Link>
                 </Button>
             ),
         },
@@ -165,7 +164,9 @@ export default function PermitsIndex({
                 actions={
                     canRequest ? (
                         <Button asChild>
-                            <Link href="/workforce/permits/create">Request permit</Link>
+                            <Link href={permitRoutes.create()}>
+                                Request permit
+                            </Link>
                         </Button>
                     ) : undefined
                 }
@@ -204,7 +205,7 @@ export default function PermitsIndex({
                     rows={permits.data}
                     rowKey={(row) => row.id}
                     meta={permits.meta}
-                    pageUrl="/workforce/permits"
+                    pageUrl={permitRoutes.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No permits"
                     emptyDescription="No permits match these filters."
@@ -216,7 +217,7 @@ export default function PermitsIndex({
 
 PermitsIndex.layout = {
     breadcrumbs: [
-        { title: 'Workforce', href: '/workforce/workers' },
-        { title: 'Permits', href: '/workforce/permits' },
+        { title: 'Workforce', href: tracking.workers.index() },
+        { title: 'Permits', href: permitRoutes.index() },
     ],
 };

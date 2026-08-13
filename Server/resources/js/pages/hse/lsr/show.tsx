@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import alerts from '@/routes/alerts';
+import hse from '@/routes/hse';
+import ppe from '@/routes/ppe';
+import tracking from '@/routes/tracking';
 import type { LsrViolation } from '@/types/hse';
 
 type Props = {
@@ -19,9 +23,7 @@ function formatDate(value: string | null): string {
 
 export default function LsrShow({ violation, canClose }: Props) {
     const isOpen = violation.status === 'open';
-    const heroTone = isOpen
-        ? 'bg-[color:var(--warn)]'
-        : 'bg-[color:var(--ok)]';
+    const heroTone = isOpen ? 'bg-[color:var(--warn)]' : 'bg-[color:var(--ok)]';
 
     return (
         <>
@@ -31,7 +33,7 @@ export default function LsrShow({ violation, canClose }: Props) {
                     <div className={cn('h-1.5 w-full', heroTone)} aria-hidden />
                     <div className="flex flex-wrap items-start justify-between gap-4 p-4 md:p-5">
                         <div className="min-w-0 space-y-2">
-                            <span className="inline-flex items-center rounded-pill bg-[color:var(--warn-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase text-[color:var(--warn)]">
+                            <span className="inline-flex items-center rounded-pill bg-[color:var(--warn-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--warn)] uppercase">
                                 {violation.category_label}
                             </span>
                             <h1 className="font-display text-2xl font-semibold tracking-tight text-text md:text-3xl">
@@ -43,7 +45,7 @@ export default function LsrShow({ violation, canClose }: Props) {
                             />
                         </div>
                         <Button asChild variant="outline">
-                            <Link href="/lsr-violations">All LSR</Link>
+                            <Link href={hse.lsr.index()}>All LSR</Link>
                         </Button>
                     </div>
                 </header>
@@ -59,7 +61,9 @@ export default function LsrShow({ violation, canClose }: Props) {
                         value={
                             violation.worker_id ? (
                                 <Link
-                                    href={`/workforce/workers/${violation.worker_id}`}
+                                    href={tracking.workers.show.url(
+                                        String(violation.worker_id),
+                                    )}
                                     className="text-[color:var(--accent)] hover:underline"
                                 >
                                     {violation.worker_label ?? '—'}
@@ -89,7 +93,7 @@ export default function LsrShow({ violation, canClose }: Props) {
                                 label="Source alert"
                                 value={
                                     <Link
-                                        href="/alerts"
+                                        href={alerts.index()}
                                         className="text-[color:var(--accent)] hover:underline"
                                     >
                                         Alert #{violation.alert_id}
@@ -102,7 +106,9 @@ export default function LsrShow({ violation, canClose }: Props) {
                                 label="Linked PPE"
                                 value={
                                     <Link
-                                        href={`/ppe/violations/${violation.ppe_violation_id}`}
+                                        href={ppe.violations.show.url(
+                                            String(violation.ppe_violation_id),
+                                        )}
                                         className="text-[color:var(--accent)] hover:underline"
                                     >
                                         PPE #{violation.ppe_violation_id}
@@ -144,7 +150,7 @@ export default function LsrShow({ violation, canClose }: Props) {
                             Record action taken
                         </h2>
                         <Form
-                            action={`/lsr-violations/${violation.uuid}/close`}
+                            action={hse.lsr.close.url(violation.uuid)}
                             method="post"
                             className="mt-3 flex flex-col gap-3"
                         >
@@ -185,5 +191,5 @@ export default function LsrShow({ violation, canClose }: Props) {
 }
 
 LsrShow.layout = {
-    breadcrumbs: [{ title: 'LSR', href: '/lsr-violations' }],
+    breadcrumbs: [{ title: 'LSR', href: hse.lsr.index() }],
 };

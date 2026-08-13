@@ -20,7 +20,11 @@ type Props = {
 };
 
 /** Clickable (i) control that explains what data a panel/stat uses. */
-export function SectionInfo({ title = 'About this data', info, className }: Props) {
+export function SectionInfo({
+    title = 'About this data',
+    info,
+    className,
+}: Props) {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>

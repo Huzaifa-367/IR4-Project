@@ -55,7 +55,9 @@ function ChartTooltip({
 
     return (
         <div className="rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-2 shadow-[var(--shadow-pop)]">
-            <p className="mb-1 font-mono text-[11px] text-text-faint">{label}</p>
+            <p className="mb-1 font-mono text-[11px] text-text-faint">
+                {label}
+            </p>
             <ul className="space-y-0.5">
                 {payload.map((entry) => (
                     <li
@@ -67,7 +69,7 @@ function ChartTooltip({
                             style={{ background: entry.color }}
                         />
                         <span className="text-text-dim">{entry.name}</span>
-                        <span className="ml-auto font-mono tabular-nums text-text">
+                        <span className="ml-auto font-mono text-text tabular-nums">
                             {entry.value ?? '—'}
                         </span>
                     </li>

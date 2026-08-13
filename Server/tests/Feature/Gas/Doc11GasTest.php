@@ -4,6 +4,7 @@ use App\Enums\AlertStatus;
 use App\Enums\AlertType;
 use App\Enums\GasAlarmLevel;
 use App\Enums\GasType;
+use App\Enums\HardwareStatus;
 use App\Events\GasLiveUpdated;
 use App\Models\Alert;
 use App\Models\Device;
@@ -225,7 +226,7 @@ it('returns live panels with stale badge', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
     $device = Device::factory()->gasDetector()->create([
         'last_seen_at' => now(),
-        'status' => \App\Enums\HardwareStatus::Online,
+        'status' => HardwareStatus::Online,
     ]);
     GasReading::factory()->create([
         'device_id' => $device->id,

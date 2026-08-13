@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { visitFilters } from '@/lib/visit-filters';
+import tracking from '@/routes/tracking';
 import type { PaginatedMeta } from '@/types/hardware';
 
 type LogRow = {
@@ -57,7 +58,7 @@ export default function EntryExitIndex({
         const nextSource = patch.source ?? source;
         const nextWorkerId = patch.worker_id ?? workerId;
 
-        visitFilters('/tracking/entry-exit', {
+        visitFilters(tracking.entryExit.index.url(), {
             direction: nextDirection === ALL ? undefined : nextDirection,
             source: nextSource === ALL ? undefined : nextSource,
             worker_id: nextWorkerId === ALL ? undefined : nextWorkerId,
@@ -126,7 +127,9 @@ export default function EntryExitIndex({
                             </Button>
                         )}
                         <Button asChild variant="secondary" size="sm">
-                            <a href="/tracking/entry-exit/export">CSV export</a>
+                            <a href={tracking.entryExit.export.url()}>
+                                CSV export
+                            </a>
                         </Button>
                     </>
                 }
@@ -188,7 +191,7 @@ export default function EntryExitIndex({
                     rows={logs.data}
                     rowKey={(row) => row.id}
                     meta={logs.meta}
-                    pageUrl="/tracking/entry-exit"
+                    pageUrl={tracking.entryExit.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No entry/exit logs"
                     emptyDescription="No entry/exit logs match these filters."
@@ -196,7 +199,7 @@ export default function EntryExitIndex({
             </SettingsPageShell>
 
             <Link
-                href="/tracking"
+                href={tracking.index()}
                 className="text-sm text-[color:var(--accent)] hover:underline"
             >
                 Back to tracking
@@ -207,7 +210,7 @@ export default function EntryExitIndex({
                 onOpenChange={setCorrectionOpen}
                 title="Add entry/exit correction"
                 description="Creates a new manual_correction row; a gate-generated row is never edited."
-                action="/tracking/entry-exit/corrections"
+                action={tracking.entryExit.corrections.url()}
                 method="post"
                 submitLabel="Add correction"
                 disableSubmit={!correctionWorker}
@@ -280,5 +283,5 @@ export default function EntryExitIndex({
 }
 
 EntryExitIndex.layout = {
-    breadcrumbs: [{ title: 'Entry / Exit', href: '/tracking/entry-exit' }],
+    breadcrumbs: [{ title: 'Entry / Exit', href: tracking.entryExit.index() }],
 };

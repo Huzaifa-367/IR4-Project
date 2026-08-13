@@ -1,12 +1,7 @@
 import { cn } from '@/lib/utils';
 
 export type StatusPillTone =
-    | 'ok'
-    | 'warn'
-    | 'crit'
-    | 'accent'
-    | 'neutral'
-    | 'info';
+    'ok' | 'warn' | 'crit' | 'accent' | 'neutral' | 'info';
 
 type Props = {
     label: string;

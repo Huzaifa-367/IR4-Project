@@ -19,6 +19,8 @@ import {
     sumBy,
 } from '@/lib/report-format';
 import { cn } from '@/lib/utils';
+import reports from '@/routes/reports';
+import weeklyReports from '@/routes/weekly-reports';
 import type { WeeklyReport, WeeklyReportData } from '@/types/report';
 
 type Props = {
@@ -126,7 +128,11 @@ function rangeLabel(
     return `${formatNumber(min)}${suffix} – ${formatNumber(avg)}${suffix} – ${formatNumber(max)}${suffix}`;
 }
 
-function EmptyState({ label = 'No records in this period.' }: { label?: string }) {
+function EmptyState({
+    label = 'No records in this period.',
+}: {
+    label?: string;
+}) {
     return (
         <p className="rounded-md border border-dashed border-border bg-surface-2/30 px-3 py-6 text-center text-sm text-text-dim">
             {label}
@@ -256,9 +262,7 @@ function buildSummary(data: WeeklyReportData) {
     const gasDays = data.ix_gas?.per_day ?? [];
     const gasAlarms = data.ix_gas?.alarm_events ?? [];
     const gasAvg = (channel: string): number | null =>
-        avgOf(
-            gasDays.map((day) => num(asRecord(asRecord(day)[channel]).avg)),
-        );
+        avgOf(gasDays.map((day) => num(asRecord(asRecord(day)[channel]).avg)));
     const gasDetailParts = [
         `LEL ${formatNumber(gasAvg('lel'))}%`,
         `H₂S ${formatNumber(gasAvg('h2s'))}`,
@@ -289,8 +293,7 @@ function buildSummary(data: WeeklyReportData) {
                 incidents.length === 0
                     ? 'None logged'
                     : byTypeSummary(incidentSeverities, 3),
-            tone:
-                incidents.length > 0 ? ('crit' as const) : ('ok' as const),
+            tone: incidents.length > 0 ? ('crit' as const) : ('ok' as const),
         },
         {
             key: 'iii_lsr_violations',
@@ -328,8 +331,7 @@ function buildSummary(data: WeeklyReportData) {
                 vehicles.length === 0
                     ? 'None logged'
                     : byTypeSummary(vehicleTypes, 2),
-            tone:
-                vehicles.length > 0 ? ('warn' as const) : ('ok' as const),
+            tone: vehicles.length > 0 ? ('warn' as const) : ('ok' as const),
         },
         {
             key: 'viii_environmental',
@@ -349,8 +351,7 @@ function buildSummary(data: WeeklyReportData) {
                 gasAlarms.length > 0
                     ? `${gasAlarms.length} alarm(s) · ${gasDetailParts.slice(0, 3).join(' · ')}`
                     : gasDetailParts.join(' · '),
-            tone:
-                gasAlarms.length > 0 ? ('crit' as const) : ('ok' as const),
+            tone: gasAlarms.length > 0 ? ('crit' as const) : ('ok' as const),
         },
     ];
 }
@@ -371,7 +372,10 @@ function SectionBody({
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     <DetailField
                         label="Confirmed observations"
-                        value={sumBy(section?.per_day ?? [], (row) => row.total)}
+                        value={sumBy(
+                            section?.per_day ?? [],
+                            (row) => row.total,
+                        )}
                     />
                     <DetailField
                         label="False positives excluded"
@@ -493,14 +497,24 @@ function SectionBody({
 
             return {
                 date: formatDate(str(row.date)),
-                temp: rangeLabel(num(temp.min), num(temp.avg), num(temp.max), '°C'),
+                temp: rangeLabel(
+                    num(temp.min),
+                    num(temp.avg),
+                    num(temp.max),
+                    '°C',
+                ),
                 humidity: rangeLabel(
                     num(humidity.min),
                     num(humidity.avg),
                     num(humidity.max),
                     '%',
                 ),
-                wind: rangeLabel(num(wind.min), num(wind.avg), num(wind.max), 'm/s'),
+                wind: rangeLabel(
+                    num(wind.min),
+                    num(wind.avg),
+                    num(wind.max),
+                    'm/s',
+                ),
             };
         });
 
@@ -594,11 +608,17 @@ function SectionBody({
             const air = asRecord(row.air_quality);
             const airParts = Object.entries(air)
                 .filter(([, value]) => value !== null && value !== undefined)
-                .map(([key, value]) => `${labelize(key)}: ${formatNumber(num(value) ?? Number(value))}`);
+                .map(
+                    ([key, value]) =>
+                        `${labelize(key)}: ${formatNumber(num(value) ?? Number(value))}`,
+                );
 
             return {
                 date: formatDate(str(row.date)),
-                air: airParts.length > 0 ? airParts.join(' · ') : 'No air-quality samples',
+                air:
+                    airParts.length > 0
+                        ? airParts.join(' · ')
+                        : 'No air-quality samples',
             };
         });
 
@@ -707,13 +727,15 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                     />
                     <div className="flex flex-wrap items-start justify-between gap-4 p-4 md:p-5">
                         <div className="min-w-0 space-y-2">
-                            <span className="inline-flex items-center rounded-pill bg-surface-3 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase text-text-dim">
+                            <span className="inline-flex items-center rounded-pill bg-surface-3 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
                                 Weekly report
                             </span>
                             <h1 className="font-display text-2xl font-semibold tracking-tight text-text md:text-3xl">
                                 {report.report_number}
                             </h1>
-                            <p className="text-sm text-text-dim">{periodLabel}</p>
+                            <p className="text-sm text-text-dim">
+                                {periodLabel}
+                            </p>
                             <div className="flex flex-wrap gap-1.5">
                                 <StatusPill
                                     label={report.status_label}
@@ -737,12 +759,15 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <Button variant="outline" asChild>
-                                <Link href="/reports">Back</Link>
+                                <Link href={reports.index()}>Back</Link>
                             </Button>
                             {report.has_pdf && (
                                 <Button variant="outline" asChild>
                                     <a
-                                        href={`/weekly-reports/${report.uuid}/download?format=pdf`}
+                                        href={weeklyReports.download.url(
+                                            report.uuid,
+                                            { query: { format: 'pdf' } },
+                                        )}
                                     >
                                         Download PDF
                                     </a>
@@ -751,7 +776,10 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                             {report.has_csv && (
                                 <Button variant="outline" asChild>
                                     <a
-                                        href={`/weekly-reports/${report.uuid}/download?format=csv`}
+                                        href={weeklyReports.download.url(
+                                            report.uuid,
+                                            { query: { format: 'csv' } },
+                                        )}
                                     >
                                         Download CSV
                                     </a>
@@ -760,14 +788,16 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                             {canPublish && report.status === 'generated' && (
                                 <Form
                                     method="post"
-                                    action={`/weekly-reports/${report.uuid}/publish`}
+                                    action={weeklyReports.publish.url(
+                                        report.uuid,
+                                    )}
                                 >
                                     <Button type="submit">Publish</Button>
                                 </Form>
                             )}
                         </div>
                     </div>
-                    <div className="grid gap-2 border-t border-border bg-surface-2/20 p-4 sm:grid-cols-2 lg:grid-cols-4 md:px-5">
+                    <div className="grid gap-2 border-t border-border bg-surface-2/20 p-4 sm:grid-cols-2 md:px-5 lg:grid-cols-4">
                         <DetailField
                             label="Generated"
                             value={formatDateTime(report.generated_at)}
@@ -793,14 +823,18 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                         {report.supersedes_report_number && (
                             <p>
                                 Supersedes{' '}
-                                <strong>{report.supersedes_report_number}</strong>
+                                <strong>
+                                    {report.supersedes_report_number}
+                                </strong>
                             </p>
                         )}
                         {report.superseded_by_report_numbers.length > 0 && (
                             <p>
                                 Superseded by{' '}
                                 <strong>
-                                    {report.superseded_by_report_numbers.join(', ')}
+                                    {report.superseded_by_report_numbers.join(
+                                        ', ',
+                                    )}
                                 </strong>
                             </p>
                         )}
@@ -819,8 +853,9 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                                     className="rounded-md border border-[color:var(--warn)]/35 bg-[color:var(--warn-bg)] px-3 py-2 text-sm"
                                 >
                                     <span className="font-medium">
-                                        {sectionOrder.find((s) => s.key === note.item)
-                                            ?.short ?? labelize(note.item)}
+                                        {sectionOrder.find(
+                                            (s) => s.key === note.item,
+                                        )?.short ?? labelize(note.item)}
                                         :
                                     </span>{' '}
                                     {note.message}
@@ -856,7 +891,8 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                             Detailed report
                         </h2>
                         <p className="text-sm text-text-dim">
-                            Full day-by-day and event-level figures for the period.
+                            Full day-by-day and event-level figures for the
+                            period.
                         </p>
                     </div>
 
@@ -885,7 +921,10 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                                         {note.message}
                                     </div>
                                 ))}
-                                <SectionBody sectionKey={key} data={report.data} />
+                                <SectionBody
+                                    sectionKey={key}
+                                    data={report.data}
+                                />
                             </Panel>
                         );
                     })}
@@ -897,7 +936,7 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
 
 ReportShow.layout = {
     breadcrumbs: [
-        { title: 'Reports', href: '/reports' },
+        { title: 'Reports', href: reports.index() },
         { title: 'Detail', href: '#' },
     ],
 };

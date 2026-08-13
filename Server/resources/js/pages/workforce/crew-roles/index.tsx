@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import settings from '@/routes/settings';
 
 type PermitTypeOption = {
     id: number;
@@ -41,9 +42,7 @@ type Props = {
 };
 
 type DialogState =
-    | { kind: 'create' }
-    | { kind: 'edit'; role: CrewRoleRow }
-    | null;
+    { kind: 'create' } | { kind: 'edit'; role: CrewRoleRow } | null;
 
 export default function CrewRolesIndex({ roles, permitTypes }: Props) {
     const [dialog, setDialog] = useState<DialogState>(null);
@@ -57,7 +56,7 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
             cell: (row) =>
                 row.permit_type ? (
                     <Link
-                        href={`/workforce/permit-types/${row.permit_type.uuid}`}
+                        href={settings.permitTypes.show(row.permit_type.uuid)}
                         className="text-[color:var(--accent)] hover:underline"
                     >
                         {row.permit_type.name}
@@ -114,7 +113,7 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                                 )
                             ) {
                                 router.delete(
-                                    `/workforce/crew-roles/${row.uuid}`,
+                                    settings.crewRoles.destroy.url(row.uuid),
                                 );
                             }
                         }}
@@ -165,7 +164,7 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                     }
                 }}
                 title="Add crew role"
-                action="/workforce/crew-roles"
+                action={settings.crewRoles.store.url()}
                 method="post"
                 submitLabel="Create role"
                 disableSubmit={permitTypeId === ''}
@@ -202,8 +201,7 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                                     label: type.name,
                                 }))}
                             />
-                            {permitTypeClientError ||
-                            errors.permit_type_id ? (
+                            {permitTypeClientError || errors.permit_type_id ? (
                                 <p className="text-sm text-destructive">
                                     {permitTypeClientError ||
                                         errors.permit_type_id}
@@ -295,8 +293,8 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                 title="Edit crew role"
                 action={
                     dialog?.kind === 'edit'
-                        ? `/workforce/crew-roles/${dialog.role.uuid}`
-                        : '/workforce/crew-roles'
+                        ? settings.crewRoles.update.url(dialog.role.uuid)
+                        : settings.crewRoles.store.url()
                 }
                 method="put"
                 submitLabel="Save role"
@@ -304,7 +302,7 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
                 {() =>
                     dialog?.kind === 'edit' ? (
                         <div className="grid gap-3 sm:grid-cols-2">
-                            <p className="sm:col-span-2 text-sm text-text-dim">
+                            <p className="text-sm text-text-dim sm:col-span-2">
                                 Permit type:{' '}
                                 {dialog.role.permit_type?.name ?? '—'}
                             </p>
@@ -373,7 +371,7 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
 
 CrewRolesIndex.layout = {
     breadcrumbs: [
-        { title: 'Catalogue', href: '/workforce/permit-types' },
-        { title: 'Crew roles', href: '/workforce/crew-roles' },
+        { title: 'Catalogue', href: settings.permitTypes.index() },
+        { title: 'Crew roles', href: settings.crewRoles.index() },
     ],
 };

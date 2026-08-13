@@ -113,7 +113,7 @@ export default function GasAlarmsIndex({
             cell: (row) =>
                 canAcknowledge && row.is_open && !row.acknowledged_at ? (
                     <Form
-                        action={`/gas/alarms/${row.uuid}/acknowledge`}
+                        action={gas.alarms.acknowledge.url(row.uuid)}
                         method="post"
                     >
                         {({ processing }) => (

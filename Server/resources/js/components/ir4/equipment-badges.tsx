@@ -114,7 +114,7 @@ export function OverdueBadge({
         return (
             <span
                 className={cn(
-                    'inline-flex items-center gap-1.5 rounded-pill bg-[color:var(--crit-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase text-[color:var(--crit)]',
+                    'inline-flex items-center gap-1.5 rounded-pill bg-[color:var(--crit-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--crit)] uppercase',
                     className,
                 )}
             >
@@ -141,7 +141,7 @@ export function OverdueBadge({
         return (
             <span
                 className={cn(
-                    'inline-flex items-center gap-1.5 rounded-pill bg-[color:var(--crit-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase text-[color:var(--crit)]',
+                    'inline-flex items-center gap-1.5 rounded-pill bg-[color:var(--crit-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--crit)] uppercase',
                     className,
                 )}
             >
@@ -158,7 +158,7 @@ export function OverdueBadge({
         return (
             <span
                 className={cn(
-                    'inline-flex items-center gap-1.5 rounded-pill bg-[color:var(--warn-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase text-[color:var(--warn)]',
+                    'inline-flex items-center gap-1.5 rounded-pill bg-[color:var(--warn-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--warn)] uppercase',
                     className,
                 )}
             >

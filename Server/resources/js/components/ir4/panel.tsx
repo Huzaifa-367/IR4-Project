@@ -1,10 +1,6 @@
 import type { ReactNode } from 'react';
-import {
-    SectionInfo,
-    
-    withInfoAction
-} from '@/components/ir4/section-info';
-import type {SectionInfoContent} from '@/components/ir4/section-info';
+import { SectionInfo, withInfoAction } from '@/components/ir4/section-info';
+import type { SectionInfoContent } from '@/components/ir4/section-info';
 import { cn } from '@/lib/utils';
 
 type Props = {

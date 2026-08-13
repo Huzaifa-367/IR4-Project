@@ -6,29 +6,39 @@
  * Echo must not open sockets during SSR — app.tsx uses the null broadcaster.
  */
 export default class Pusher {
-    constructor(_key?: string, _options?: unknown) {}
+    constructor(..._args: unknown[]) {
+        void _args;
+    }
 
     connect(): void {}
 
     disconnect(): void {}
 
-    bind(_event?: string, _callback?: (...args: unknown[]) => void): this {
+    bind(..._args: unknown[]): this {
+        void _args;
+
         return this;
     }
 
-    unbind(_event?: string, _callback?: (...args: unknown[]) => void): this {
+    unbind(..._args: unknown[]): this {
+        void _args;
+
         return this;
     }
 
-    subscribe(_channel?: string): {
+    subscribe(..._args: unknown[]): {
         bind: () => void;
         unbind: () => void;
     } {
+        void _args;
+
         return {
             bind: (): void => undefined,
             unbind: (): void => undefined,
         };
     }
 
-    unsubscribe(_channel?: string): void {}
+    unsubscribe(..._args: unknown[]): void {
+        void _args;
+    }
 }

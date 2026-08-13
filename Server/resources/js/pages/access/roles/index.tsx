@@ -4,9 +4,7 @@ import { useMemo, useState } from 'react';
 import { RequirePermission } from '@/components/ir4/require-permission';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
-import {
-    SettingsDataTable,
-} from '@/components/ir4/settings/settings-data-table';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { StatusPill } from '@/components/ir4/status-pill';
@@ -24,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { usePermissions } from '@/hooks/use-permissions';
+import settings from '@/routes/settings';
 import type { RoleRow } from '@/types/settings-admin';
 
 type Props = {
@@ -218,11 +217,13 @@ export default function RolesIndex({ roles, catalogue }: Props) {
                 description="Permissions sync immediately for every user holding this role."
                 action={
                     form?.mode === 'edit' && form.role
-                        ? `/access/roles/${form.role.uuid}`
-                        : '/access/roles'
+                        ? settings.roles.update.url(form.role.uuid)
+                        : settings.roles.store.url()
                 }
                 method={form?.mode === 'edit' ? 'put' : 'post'}
-                submitLabel={form?.mode === 'edit' ? 'Save role' : 'Create role'}
+                submitLabel={
+                    form?.mode === 'edit' ? 'Save role' : 'Create role'
+                }
                 disableSubmit={
                     form?.role?.is_system === true ||
                     (form?.mode === 'create' && !canCreate) ||
@@ -247,13 +248,15 @@ export default function RolesIndex({ roles, catalogue }: Props) {
                                 disabled={form?.role?.is_system}
                             />
                             {errors.name ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.name}
                                 </p>
                             ) : null}
                         </div>
                         <div className="flex flex-col gap-2">
-                            <Label htmlFor="role-description">Description</Label>
+                            <Label htmlFor="role-description">
+                                Description
+                            </Label>
                             <Textarea
                                 id="role-description"
                                 name="description"
@@ -374,13 +377,16 @@ export default function RolesIndex({ roles, catalogue }: Props) {
                                 )}
                             </div>
                             {errors.permissions ? (
-                                <p className="text-destructive text-sm">
+                                <p className="text-sm text-destructive">
                                     {errors.permissions}
                                 </p>
                             ) : null}
                         </div>
                         {form?.role?.is_system ? (
-                            <StatusPill label="Locked system role" tone="warn" />
+                            <StatusPill
+                                label="Locked system role"
+                                tone="warn"
+                            />
                         ) : null}
                     </>
                 )}
@@ -408,7 +414,7 @@ export default function RolesIndex({ roles, catalogue }: Props) {
                 }
                 action={
                     deleteTarget
-                        ? `/access/roles/${deleteTarget.uuid}`
+                        ? settings.roles.destroy.url(deleteTarget.uuid)
                         : undefined
                 }
                 method="delete"
@@ -425,5 +431,8 @@ export default function RolesIndex({ roles, catalogue }: Props) {
 }
 
 RolesIndex.layout = {
-    breadcrumbs: [{ title: 'Access', href: '/access/users' }, { title: 'User roles', href: '/access/roles' }],
+    breadcrumbs: [
+        { title: 'Access', href: settings.users.index() },
+        { title: 'User roles', href: settings.roles.index() },
+    ],
 };
