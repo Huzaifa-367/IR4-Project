@@ -18,8 +18,7 @@ export type SettingGroupKey =
     | 'environment'
     | 'equipment'
     | 'reports'
-    | 'retention'
-    | 'display';
+    | 'retention';
 
 export type SettingSchema = {
     key: string;

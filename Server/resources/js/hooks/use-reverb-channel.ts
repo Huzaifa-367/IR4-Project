@@ -4,6 +4,20 @@ import { useAuth, useSharedSettings } from '@/hooks/use-auth';
 
 export type ReverbLiveStatus = 'live' | 'reconnecting' | 'offline';
 
+export function combineReverbStatus(
+    ...statuses: ReverbLiveStatus[]
+): ReverbLiveStatus {
+    if (statuses.includes('offline')) {
+        return 'offline';
+    }
+
+    if (statuses.includes('reconnecting')) {
+        return 'reconnecting';
+    }
+
+    return 'live';
+}
+
 type UseReverbChannelOptions<TPayload> = {
     channel: string;
     events: string[];

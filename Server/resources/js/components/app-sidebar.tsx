@@ -49,12 +49,23 @@ import {
 } from '@/components/ui/sidebar';
 import { usePermissions } from '@/hooks/use-permissions';
 import { dashboard } from '@/routes';
+import tracking from '@/routes/tracking';
 import type { NavItem } from '@/types';
 
-function firstHref(items: NavItem[], fallback: string): string {
-    const href = items[0]?.href;
+function hrefUrl(href: NavItem['href']): string | null {
+    if (typeof href === 'string') {
+        return href;
+    }
 
-    return typeof href === 'string' ? href : fallback;
+    if (href && typeof href === 'object' && 'url' in href) {
+        return href.url;
+    }
+
+    return null;
+}
+
+function firstHref(items: NavItem[], fallback: string): string {
+    return hrefUrl(items[0]?.href) ?? fallback;
 }
 
 export function AppSidebar() {
@@ -117,12 +128,12 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Live Tracking',
-                      href: '/tracking',
+                      href: tracking.index(),
                       icon: Radio,
                   } satisfies NavItem,
                   {
                       title: 'Tag readings',
-                      href: '/tracking/readings',
+                      href: tracking.readings.index(),
                       icon: List,
                   } satisfies NavItem,
               ]
@@ -131,7 +142,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Entry / Exit',
-                      href: '/tracking/entry-exit',
+                      href: tracking.entryExit.index(),
                       icon: ArrowRightLeft,
                   } satisfies NavItem,
               ]
@@ -140,7 +151,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Evacuation',
-                      href: '/tracking/evacuation',
+                      href: tracking.evacuation.index(),
                       icon: Siren,
                   } satisfies NavItem,
               ]

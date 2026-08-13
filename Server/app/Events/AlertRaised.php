@@ -37,7 +37,7 @@ final class AlertRaised implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'alert' => (new AlertResource($this->alert))->resolve(),
+            'alert' => AlertResource::toBroadcast($this->alert),
         ];
     }
 }

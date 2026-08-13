@@ -153,6 +153,21 @@ it('mutes audible when alert.audible_enabled is false', function () {
     expect($alert->audible)->toBeFalse();
 });
 
+it('broadcasts alert payloads with identity always stripped', function () {
+    $alert = Alert::factory()->create([
+        'payload' => [
+            'worker_id' => 7,
+            'worker_name' => 'Ada',
+            'phone' => '555',
+        ],
+    ]);
+
+    $payload = (new AlertRaised($alert))->broadcastWith();
+
+    expect($payload['alert']['payload']['worker_name'])->toBe('Worker #7')
+        ->and($payload['alert']['payload'])->not->toHaveKey('phone');
+});
+
 it('strips worker identity from alert payload without view-worker-identity', function () {
     $user = User::factory()->withRole('Project Manager')->create();
     Alert::factory()->create([

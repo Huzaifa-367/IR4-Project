@@ -19,8 +19,7 @@ IR4 is a **safety command-centre**, not a marketing site or a finance dashboard.
 
 | Surface | Mode | Notes |
 |---|---|---|
-| Operator app (`AppLayout`) | **Dark-first** | Light theme provided for daytime office / printing; dark is default |
-| Kiosk (`DisplayLayout`, `/display`) | **Always dark** | Higher contrast, larger type, no interactive chrome |
+| Operator app (`AppLayout`) | **Dark-first** | Light theme provided for daytime office / printing; dark is default. The 55″ wall casts this same `/dashboard`. |
 | Auth screens | Dark or light via tokens; minimal chrome |
 | Public equipment page | Mobile-first, simple, large type; may stay light for outdoor phone readability |
 

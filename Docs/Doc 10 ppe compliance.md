@@ -112,7 +112,7 @@ Real life: the first days of on-site AI calibration, plus dust/glare/PPE-color e
 ## 7. Live wall (`view-live-cameras`)
 
 - **`GET /live`** — LiveWallPage: a grid of camera feeds (stream descriptors from DOC-05/16) with an AI-status chip per camera (ai_enabled + online), and **real-time violation toasts** as `PpeViolationDetected` events arrive on the `ppe` channel.
-- **`/live?display=1`** — the kiosk variant for the 55″ wall (DOC-16), auto-rotating feeds, no chrome.
+- **`GET /live?display=1`** — same feeds in a chrome-less kiosk shell (`DisplayLayout`) for casting the camera wall. Same session and idle timeout as `/live` (DOC-02). This is **not** the old `/display` dashboard kiosk — the 55″ command wall still casts `/dashboard` (DOC-16).
 - Pole cameras processed on a different edge unit still show under their own camera (events resolve by `camera_ref`, DOC-05/08).
 
 ---
@@ -128,7 +128,7 @@ Per the confirmed model (DOC-07 §8): a PPE violation is **evidence a user can a
 
 ## 9. Frontend (React / Inertia)
 
-- **`pages/live/index.tsx`** — LiveWallPage (feeds grid, AI-status chips, violation toasts; `?display=1` kiosk).
+- **`pages/live/index.tsx`** — LiveWallPage (feeds grid, AI-status chips, violation toasts; `?display=1` uses `pages/display/live.tsx` + `DisplayLayout`).
 - **`pages/ppe/index.tsx`** — PpeTrendPage (`GET /ppe`): stacked bars by type/day, hour heatmap, per-camera breakdown, **FP-rate** stat, Export PDF/CSV buttons.
 - **`pages/ppe/violations/index.tsx`** — PpeViolationListPage (`GET /ppe/violations`): filter chips, thumbnail column, review-status badges, bulk-select review, row → detail.
 - **`pages/ppe/violations/show.tsx`** — detail: snapshot viewer, camera/time/confidence, Confirm / Mark-false-positive actions (with note), linked alert + any linked LSR.

@@ -62,7 +62,6 @@ class HandleInertiaRequests extends Middleware
     /**
      * @return array{
      *     session_timeout_minutes: int,
-     *     display_keep_session_alive: bool,
      *     poll_fallback_seconds: int,
      *     warning_toast_seconds: int,
      *     theme_default: string
@@ -72,7 +71,6 @@ class HandleInertiaRequests extends Middleware
     {
         $defaults = [
             'session_timeout_minutes' => 15,
-            'display_keep_session_alive' => true,
             'poll_fallback_seconds' => 30,
             'warning_toast_seconds' => 10,
             'theme_default' => 'dark',
@@ -83,7 +81,6 @@ class HandleInertiaRequests extends Middleware
 
             return [
                 'session_timeout_minutes' => max(1, (int) $settings->get('auth.session_timeout_minutes', 15)),
-                'display_keep_session_alive' => (bool) $settings->get('display.keep_session_alive', true),
                 'poll_fallback_seconds' => max(5, (int) $settings->get('realtime.poll_fallback_seconds', 30)),
                 'warning_toast_seconds' => max(1, (int) $settings->get('alert.warning_toast_seconds', 10)),
                 'theme_default' => (string) $settings->get('general.theme_default', 'dark'),

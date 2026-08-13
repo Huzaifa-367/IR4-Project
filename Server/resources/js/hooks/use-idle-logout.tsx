@@ -11,11 +11,6 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth, useSettingsTimeoutMinutes } from '@/hooks/use-auth';
 
-type Options = {
-    /** Display/kiosk: heartbeat keeps the session alive while the page is open. */
-    keepAlive?: boolean;
-};
-
 const ACTIVITY_EVENTS = [
     'mousemove',
     'keydown',
@@ -45,7 +40,7 @@ function postHeartbeat(): Promise<Response> {
  * Client idle timeout (DOC-02 §5.2). Server EnforceIdleTimeout is authoritative.
  * Returns a warning dialog element to render in the layout.
  */
-export function useIdleLogout(options: Options = {}): React.ReactNode {
+export function useIdleLogout(): React.ReactNode {
     const { isAuthenticated } = useAuth();
     const timeoutMinutes = useSettingsTimeoutMinutes();
     const timeoutMs = Math.max(1, timeoutMinutes) * 60 * 1000;
@@ -74,10 +69,6 @@ export function useIdleLogout(options: Options = {}): React.ReactNode {
 
         let throttleUntil = 0;
         const onActivity = (): void => {
-            if (options.keepAlive) {
-                return;
-            }
-
             const now = Date.now();
 
             if (now < throttleUntil) {
@@ -92,31 +83,19 @@ export function useIdleLogout(options: Options = {}): React.ReactNode {
             window.addEventListener(event, onActivity, { passive: true });
         }
 
-        const tick = window.setInterval(
-            () => {
-                if (options.keepAlive) {
-                    void postHeartbeat().then(() => {
-                        lastActivity.current = Date.now();
-                    });
+        const tick = window.setInterval(() => {
+            const remaining = timeoutMs - (Date.now() - lastActivity.current);
 
-                    return;
-                }
+            if (remaining <= 0) {
+                router.get('/login?timeout=1');
 
-                const remaining =
-                    timeoutMs - (Date.now() - lastActivity.current);
+                return;
+            }
 
-                if (remaining <= 0) {
-                    router.get('/login?timeout=1');
-
-                    return;
-                }
-
-                if (remaining <= warningMs) {
-                    setSecondsLeft(Math.ceil(remaining / 1000));
-                }
-            },
-            options.keepAlive ? 30_000 : 1000,
-        );
+            if (remaining <= warningMs) {
+                setSecondsLeft(Math.ceil(remaining / 1000));
+            }
+        }, 1000);
 
         return () => {
             for (const event of ACTIVITY_EVENTS) {
@@ -125,7 +104,7 @@ export function useIdleLogout(options: Options = {}): React.ReactNode {
 
             window.clearInterval(tick);
         };
-    }, [isAuthenticated, options.keepAlive, timeoutMs]);
+    }, [isAuthenticated, timeoutMs]);
 
     return (
         <Dialog open={secondsLeft !== null}>

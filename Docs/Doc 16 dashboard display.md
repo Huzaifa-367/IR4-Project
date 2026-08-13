@@ -1,14 +1,14 @@
 # DOC-16 — Dashboard, Display Mode & Design Language
 
-> **Depends on:** DOC-01 (conventions, hybrid surfaces, frontend stack), DOC-02 (display = authenticated extension view), DOC-03 (role-aware visibility, PM KPI variant), DOC-05/06 (system health, zone occupancy data), DOC-07 (alert panel/banner), DOC-08 (Reverb channels + poll fallback), DOC-09 (headcount/positions/readings), DOC-10/11/12 (PPE/gas/weather cards), DOC-13/14/15 (overdue equipment / open incidents+LSR / last report cards). **Feeds:** the operator's first screen and the 55″ wall.
+> **Depends on:** DOC-01 (conventions, hybrid surfaces, frontend stack), DOC-02 (idle timeout; 55″ wall = same session), DOC-03 (role-aware visibility, PM KPI variant), DOC-05/06 (system health, zone occupancy data), DOC-07 (alert panel/banner), DOC-08 (Reverb channels + poll fallback), DOC-09 (headcount/positions/readings), DOC-10/11/12 (PPE/gas/weather cards), DOC-13/14/15 (overdue equipment / open incidents+LSR / last report cards). **Feeds:** the operator's first screen and the 55″ wall.
 >
-> **Scope:** the **command-centre dashboard** — the single `/api/dashboard/summary` aggregate, the **design language** (this is where the platform's visual identity is defined, since the references call for analytical, beautiful visuals), the **role-aware widget grid**, the **zone occupancy / reading tables**, the **55″ kiosk display**, and the **navigation/sidebar** with permission-based hiding. **Out of scope:** the data each widget shows (owned by its module) — this doc composes and *presents* it.
+> **Scope:** the **command-centre dashboard** — the single `/api/dashboard/summary` aggregate, the **design language** (this is where the platform's visual identity is defined, since the references call for analytical, beautiful visuals), the **role-aware widget grid**, the **zone occupancy / reading tables**, the **55″ wall as a screen-cast of `/dashboard`**, and the **navigation/sidebar** with permission-based hiding. **Out of scope:** the data each widget shows (owned by its module) — this doc composes and *presents* it. There is **no** `/display` kiosk route.
 
 ---
 
 ## 1. Purpose & the visual thesis
 
-The dashboard is the operator's home and the 55″ wall's content — the at-a-glance safety state of the site. The references establish the target: a **dark, analytical, data-dense but calm** interface — KPI stat cards with sparklines and trend deltas, rich multi-series charts with hover detail and range toggles, and a clean shell with a quiet sidebar. We adopt that *visual language*, grounded in the **safety command-centre** subject (not finance): the hero is not a big number but the **live safety picture** — headcount, open critical alerts, and zone occupancy — because in a command centre "is everyone safe right now?" is the single job of the screen.
+The dashboard is the operator's home and the 55″ wall's content (via workstation screen-cast) — the at-a-glance safety state of the site. The references establish the target: a **dark, analytical, data-dense but calm** interface — KPI stat cards with sparklines and trend deltas, rich multi-series charts with hover detail and range toggles, and a clean shell with a quiet sidebar. We adopt that *visual language*, grounded in the **safety command-centre** subject (not finance): the hero is not a big number but the **live safety picture** — headcount, open critical alerts, and zone occupancy — because in a command centre "is everyone safe right now?" is the single job of the screen.
 
 ---
 
@@ -32,7 +32,7 @@ Named tokens (CSS variables in `resources/css/app.css`); the platform is **dark-
 | `--crit` | `#F0506E` | critical severity / alarms (red) |
 Severity colors (`--ok`/`--warn`/`--crit`) are **reserved for meaning** — never decorative — so a red element on this UI always means "critical." Accent cyan is the only "brand" color and is used sparingly (active states, the one sparkline stroke, focus rings).
 
-A **light theme** is provided (tokens flipped) for daytime office use / printing, but dark is the default and the display is always dark.
+A **light theme** is provided (tokens flipped) for daytime office use / printing, but dark is the default (and what the 55″ wall shows).
 
 ### 2.2 Typography
 - **Display/number face:** a tight, confident grotesque for the big stat numbers and headings — e.g. **Inter Tight** or **Space Grotesk** (bundled locally, no CDN — DOC-01 on-prem). Numbers are the hero, so a face with good tabular figures matters.
@@ -107,17 +107,17 @@ RFID is **zone-level presence**, not coordinates. There is **no site map, lat/lo
 - **Occupancy table** — one row per active zone: name, type, on-site count, occupancy limit, bound reader count.
 - **Presence table** — who is on site now (identity-stripped without `view-worker-identity`).
 - **Readings table** — `GET /tracking/api/readings?zone_id=` — all zones or one selected zone; columns time, zone, reader, tag, person, RSSI, antenna.
-- Shared components: `components/ir4/zone-tables.tsx` (dashboard, tracking, display).
+- Shared components: `components/ir4/zone-tables.tsx` (dashboard, tracking).
 - Updates live from the `tracking` channel (`HeadcountUpdated`/`PositionsUpdated`); a rebind changes which zone later reads resolve to.
 
 ---
 
-## 6. The 55″ display (kiosk)
+## 6. The 55″ wall
 
-- **`/display`** — the authenticated extension view (DOC-02 §5.3): same login/session as the workstation, `view-dashboard` required, rendered through `DisplayLayout` (fullscreen, dark, no sidebar/chrome/controls). It keeps its session alive via the live-data heartbeat while open (DOC-02), but never bypasses auth.
-- **Design:** larger type (readable across a room), higher contrast, no interactive affordances. **Auto-cycling panes** every ~20 s (`display.cycle_seconds`, DOC-18): (1) Live cameras + total headcount + zone headcount, (2) Gas/CO₂ panels, (3) zone occupancy table. A **persistent top banner** shows open **critical** alerts in `--crit` with the audible loop (DOC-07); a bottom **ticker** scrolls recent warnings/events.
-- **LIVE / RECONNECTING pill** always visible (DOC-08 §5.4) — on the wall it must be obvious if the feed froze.
-- Carries the viewer's permissions (a PM opening `/display` sees the KPI-appropriate subset), but the display is normally opened by an operator/manager account.
+- There is **no `/display` route** and no kiosk layout. The wall is a **screen-cast / screen-mirror of the SCC workstation** showing `/dashboard` (DOC-02 §5.3).
+- Auth, RBAC, Reverb, and **normal idle timeout** are the workstation's. An idle operator is signed out on the workstation and therefore on the wall.
+- **LIVE / RECONNECTING pill** is always visible on `/dashboard` (DOC-08 §5.4) so a frozen feed is obvious at room distance.
+- The page carries the logged-in user's permissions (a PM dashboard is the KPI-limited variant).
 
 ---
 
@@ -131,15 +131,14 @@ RFID is **zone-level presence**, not coordinates. There is **no site map, lat/lo
   - **Workforce** — Workers, Permits, Work orders, Portable Devices
   - **Admin** — Hardware, Access, Reports, Settings (General, Zones, Repositioning, Audit Log, …)
 - **Top bar:** global search (workers/equipment/incidents), the **alert bell** with open count (DOC-07), the LIVE/RECONNECTING pill, the user menu (profile, theme toggle, logout), and an idle-timeout indicator (DOC-02).
-- **`AppLayout`** hosts `AlertProvider` (toasts/chime), `useIdleLogout`, and the shared permission context. `DisplayLayout` is the stripped kiosk shell.
+- **`AppLayout`** hosts `AlertProvider` (toasts/chime), `useIdleLogout`, and the shared permission context.
 
 ---
 
 ## 8. Frontend (React / Inertia)
 
-- **`pages/dashboard/index.tsx`** — the widget grid; subscribes to `tracking`/`gas`/`alerts`/`environment`/`system` channels + 60 s poll of `/api/dashboard/summary`; LIVE/RECONNECTING pill.
-- **`pages/display/index.tsx`** — kiosk cycler (`DisplayLayout`).
-- **Components (`components/ir4/`):** `StatCard` (label + value + delta chip + sparkline), `RangeToggle` (Day/Week/Month), `AnalyticalChart` (area/line + hover tooltip + crosshair, recharts), `ZoneOccupancyTable`, `GasPanelStrip`, `WeatherTiles`, `SystemHealthTiles`, `AlertFeed`, `SeverityBadge`, `LiveDot`, `DisplayBanner`, `EventTicker`.
+- **`pages/dashboard/index.tsx`** — the widget grid; Inertia snapshot then Reverb deltas (`AlertRaised`/`AlertUpdated`, `HeadcountUpdated`/`PositionsUpdated`, `GasLiveUpdated`) with a 60 s poll of `/api/dashboard/summary` while the socket is down; LIVE/RECONNECTING pill.
+- **Components (`components/ir4/`):** `StatCard` (label + value + delta chip + sparkline), `RangeToggle` (Day/Week/Month), `AnalyticalChart` (area/line + hover tooltip + crosshair, recharts), `ZoneOccupancyTable`, `GasPanelStrip`, `WeatherTiles`, `SystemHealthTiles`, `AlertFeed`, `SeverityBadge`, `LiveDot`.
 - **Design tokens** in `resources/css/app.css` (the §2 palette + radius + shadows); a small `useTheme()` for dark/light.
 - **Types (`types/dashboard.ts`):** `DashboardSummary` (typed to §3), `StatCardProps`, `ChartRange`.
 - Every number that updates live uses tabular figures + a 200ms tween; no layout shift on update.
@@ -149,8 +148,8 @@ RFID is **zone-level presence**, not coordinates. There is **no site map, lat/lo
 ## 9. Real-life scenarios
 
 - **Shift start:** operator opens the dashboard → sees 0 on-site climbing as workers badge in (Total Manpower tweens up, occupancy counts rise), gas panels green, no open alerts → the calm baseline.
-- **Critical event:** a gas alarm fires → the Gas Status card border pulses `--crit`, the Open Alerts card jumps, the display banner turns red with the chime → operator acts; when resolved, everything settles back to `--ok`.
-- **On the wall:** the 55″ cycles cameras → gas → occupancy every 20 s; a critical alert pins the red banner across all panes until acknowledged; the LIVE pill stays green.
+- **Critical event:** a gas alarm fires → the Gas Status card border pulses `--crit`, the Open Alerts card jumps, the alert chime fires → operator acts; when resolved, everything settles back to `--ok`.
+- **On the wall:** the 55″ shows the same `/dashboard` the workstation has open; a critical alert is visible on the feed and the LIVE pill stays green while the socket is up.
 - **PM check-in:** a Project Manager opens the dashboard → sees only KPI cards (manpower count, open incidents/LSR, overdue equipment, last report) — no occupancy tables, no gas detail — enough for oversight.
 - **Feed drop:** the socket drops → the LIVE pill flips to RECONNECTING (amber), cards keep last values and poll every 60 s → on reconnect, LIVE (green) and a fresh snapshot.
 
@@ -161,8 +160,8 @@ RFID is **zone-level presence**, not coordinates. There is **no site map, lat/lo
 - **Summary endpoint:** returns all sections; omits data the user lacks permission for; identity-stripped where applicable; cached.
 - **Role-aware grid:** a user sees exactly the widgets their permissions allow; PM gets the KPI variant (no occupancy/gas); an operator gets the full grid.
 - **Live vs poll:** widgets patch from Reverb events; on socket loss the poll of `/api/dashboard/summary` reconciles and the LIVE/RECONNECTING pill reflects state.
-- **Display:** `/display` requires auth + `view-dashboard`; renders the kiosk cycler; shows the red banner for open criticals; never bypasses auth (DOC-02 integration).
-- **Map:** zones render from placement data with live occupancy; dots anonymize without `view-worker-identity`; reflects a reader rebind.
+- **Wall:** `GET /display` is gone (404). `/dashboard` is the only command surface; guests redirect to login.
+- **Occupancy:** zone tables from reader bindings + live headcount/positions; labels anonymize without `view-worker-identity`; reflects a reader rebind.
 - **Design tokens:** severity colors map to meaning (crit/warn/ok) consistently; tabular figures on live numbers (visual/regression check).
 
 ---
@@ -173,8 +172,8 @@ RFID is **zone-level presence**, not coordinates. There is **no site map, lat/lo
 |---|---|---|---|
 | 1 | Zone visualisation | occupancy / presence / reading tables (no GPS) | this doc |
 | 2 | Display face (Inter Tight vs Space Grotesk) | Inter Tight (bundled) | this doc |
-| 3 | Display cycle interval | 20 s | DOC-18 |
-| 4 | Light theme scope | provided but dark is default; display always dark | this doc |
+| 3 | 55″ wall | workstation screen-cast of `/dashboard`; no kiosk route | this doc / DOC-02 |
+| 4 | Light theme scope | provided but dark is default | this doc |
 | 5 | Dashboard cache TTL | 5–10 s | DOC-18 |
 
 ---

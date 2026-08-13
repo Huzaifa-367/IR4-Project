@@ -479,29 +479,10 @@ final class SettingsRegistry
                 'min' => 1,
                 'max' => 90,
             ],
-            'display.cycle_seconds' => [
-                'default' => 20,
-                'type' => 'int',
-                'group' => 'display',
-                'permission' => 'update-settings',
-                'requires_confirm' => false,
-                'label' => 'Kiosk pane cycle',
-                'unit' => 'seconds',
-                'min' => 5,
-                'max' => 300,
-            ],
-            'display.keep_session_alive' => [
-                'default' => true,
-                'type' => 'bool',
-                'group' => 'display',
-                'permission' => 'update-settings',
-                'requires_confirm' => false,
-                'label' => 'Keep display session alive',
-            ],
             'dashboard.cache_seconds' => [
                 'default' => 8,
                 'type' => 'int',
-                'group' => 'display',
+                'group' => 'general',
                 'permission' => 'update-settings',
                 'requires_confirm' => false,
                 'label' => 'Dashboard summary cache',
@@ -597,7 +578,6 @@ final class SettingsRegistry
             'equipment' => 'Equipment / QR',
             'reports' => 'Reports',
             'retention' => 'Administration — Retention & backup',
-            'display' => 'Dashboard',
         ];
     }
 }

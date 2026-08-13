@@ -148,12 +148,12 @@ Gas threshold **seed values** (in `gas_thresholds`, DOC-11 — **confirm with sa
 | *(Spatie backup retention)* | `30 daily` | deploy config | — | `config/backup.php`; not runtime-editable |
 | *(compliance tables — never pruned)* | — | — | — | alerts/incidents/LSR/reports/audit (DOC-19) |
 
-### 4.12 Display (DOC-16)
+### 4.12 Dashboard (DOC-16)
 | key | default | type | edit perm | used by |
 |---|---|---|---|---|
-| `display.cycle_seconds` | `20` | int | manage-settings | kiosk pane rotation |
-| `display.keep_session_alive` | `true` | bool | manage-settings | wall session (DOC-02) |
 | `dashboard.cache_seconds` | `8` | int | manage-settings | summary cache |
+
+There is no `/display` kiosk and no `display.*` settings. The 55″ wall is a workstation screen-cast of `/dashboard` and uses the normal idle timeout (DOC-02).
 
 **Note — no `ppe.min_confidence`:** removed (edge handles thresholding, DOC-10). Any doc referencing it is superseded by this registry.
 

@@ -37,6 +37,7 @@ final class EvacuationTriggered implements ShouldBroadcastNow
     {
         return [
             'report_id' => $this->report->id,
+            'uuid' => $this->report->uuid,
             'triggered_at' => $this->report->triggered_at->toIso8601String(),
         ];
     }

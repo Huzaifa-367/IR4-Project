@@ -12,7 +12,6 @@ export type AuthUser = {
 
 export type SharedAppSettings = {
     session_timeout_minutes: number;
-    display_keep_session_alive: boolean;
     poll_fallback_seconds: number;
     warning_toast_seconds: number;
     theme_default: string;
@@ -50,7 +49,6 @@ export function useSharedSettings(): SharedAppSettings {
     return (
         settings ?? {
             session_timeout_minutes: 15,
-            display_keep_session_alive: true,
             poll_fallback_seconds: 30,
             warning_toast_seconds: 10,
             theme_default: 'dark',

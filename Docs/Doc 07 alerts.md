@@ -177,7 +177,7 @@ Rules:
 ## 9. Delivery & real-time (contract; transport in DOC-08)
 
 - **Channel:** `alerts` (private; authorized to any authenticated user — everyone sees alerts, though identity fields in the payload are stripped per permission). Events: `AlertRaised`, `AlertUpdated` (ack/resolve/dedup bump).
-- **Resource:** `AlertResource` serializes the row + strips identity fields from `payload` unless the viewer has `view-worker-identity` (DOC-04 §5) — so an operator without identity permission sees "Worker #42 in Restricted Substation" not the name.
+- **Resource:** `AlertResource` serializes the row + strips identity fields from `payload` unless the viewer has `view-worker-identity` (DOC-04 §5) — so an operator without identity permission sees "Worker #42 in Restricted Substation" not the name. **Broadcast** payloads (`AlertRaised`/`AlertUpdated`) always strip identity — the private `alerts` channel is shared by every logged-in subscriber.
 - **Poll fallback:** `GET /api/alerts/open` every 30 s when the socket is down (DOC-08). The bell/badge and display banner reconcile from this.
 - **Audible:** the client plays a looping chime while **any unacknowledged `audible` critical alert** exists; acknowledging the last one stops it. Master mute = `alert.audible_enabled` (DOC-18). The 55″ display honors the same.
 
@@ -225,7 +225,7 @@ List filters: `alert_type`, `severity`, `status`, `date_from/to`, plus standard 
 - **Suggested actions, not auto-creation:** raising `fall_detection`/`stationary_tag`/`worker_down`/`red_zone_intrusion`/etc. creates **no** incident or LSR row on its own; the alert carries a `suggested_action` + prefill payload; a domain record appears only when a user submits the prefilled form (DOC-14), and that record links `alert_id`/`ppe_violation_id`.
 - **Never pruned:** retention job (DOC-19) leaves alerts untouched; only end-of-project wipe removes them.
 - **No create endpoint:** there is no user route to insert an alert (only acknowledge/resolve exist).
-- **Delivery:** `AlertRaised`/`AlertUpdated` broadcast on the alerts channel; `AlertResource` strips identity in payload without `view-worker-identity`; poll endpoint returns current open set.
+- **Delivery:** `AlertRaised`/`AlertUpdated` broadcast on the alerts channel with identity always stripped; HTTP poll/list still strip per viewer; poll endpoint returns current open set.
 - **Audible loop (component):** chime runs while an unacknowledged audible critical exists; stops on last acknowledge.
 - Authorization: acknowledge requires `acknowledge-alerts`; manual resolve requires `configure-alerts`; listing is available to any authenticated user with identity stripping applied.
 

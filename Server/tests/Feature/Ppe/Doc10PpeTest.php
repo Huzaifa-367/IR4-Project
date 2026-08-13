@@ -260,6 +260,19 @@ it('uses same-origin hls proxy template on the live wall', function () {
             ->where('cameras.0.playback_url', '/hls/cam-proxy-01/'));
 });
 
+it('renders the live wall kiosk without the dashboard display route', function () {
+    $operator = User::factory()->withRole('SCC Operator')->create();
+
+    $this->actingAs($operator)
+        ->get(route('live.index', ['display' => 1]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('display/live')
+            ->where('displayMode', true));
+
+    $this->get('/display')->assertNotFound();
+});
+
 it('proxies mediamtx hls through same-origin /hls', function () {
     config()->set('camera_stream.mediamtx.api_url', 'http://192.168.3.149:9997');
     config()->set('camera_stream.mediamtx.hls_url', 'http://mediamtx.test:8888');

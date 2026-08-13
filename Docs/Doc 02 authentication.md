@@ -2,7 +2,7 @@
 
 > **Depends on:** DOC-01 (stack, hybrid surfaces, conventions, settings). **Feeds:** DOC-03 (RBAC layers on top of authenticated identity), DOC-08 (device auth, introduced here, specified there).
 >
-> **Scope:** how humans and machines prove identity to the platform. Human auth (Fortify session for the operator UI, Sanctum bearer tokens for the Android mobile operator app), session lifecycle, password/lockout policy, idle timeout, first-login flow, the authenticated kiosk/display view, the device-auth path (`auth.device`) at the contract level, and the frontend auth shell. **Out of scope:** *what* an identity is allowed to do — that is authorization (DOC-03).
+> **Scope:** how humans and machines prove identity to the platform. Human auth (Fortify session for the operator UI, Sanctum bearer tokens for the Android mobile operator app), session lifecycle, password/lockout policy, idle timeout, first-login flow, the device-auth path (`auth.device`) at the contract level, and the frontend auth shell. **Out of scope:** *what* an identity is allowed to do — that is authorization (DOC-03).
 
 ---
 
@@ -75,7 +75,7 @@ Notes: `is_active=false` blocks login while preserving the account for audit his
 ## 4. Session model & configuration
 
 - **Guard:** Fortify's default `web` session guard (cookie-based) for surface A. Inertia rides the same session; CSRF is handled by the kit's Inertia + Sanctum-cookie setup for same-origin requests.
-- **Driver:** `SESSION_DRIVER=redis` (preferred) or `database`. Not `file` (kiosk + multiple workstation tabs share cleanly via Redis).
+- **Driver:** `SESSION_DRIVER=redis` (preferred) or `database`. Not `file` (multiple workstation tabs share cleanly via Redis).
 - **Cookie:** `secure` when served over HTTPS (recommended even on LAN with a self-signed/internal CA), `http_only`, `same_site=lax`.
 - **Absolute lifetime:** `config/session.php` `lifetime` = the idle window (see §5). We also enforce an **idle timeout** independently on the client (§5.2) because `lifetime` alone is a sliding cookie, not a true inactivity cutoff.
 
@@ -99,18 +99,13 @@ Hook `useIdleLogout()` (mounted in the authenticated layout):
 - "Stay signed in" pings a lightweight `POST /session/heartbeat` (authenticated, refreshes `last_activity_at`).
 - On expiry, redirects to `/login?timeout=1`.
 
-### 5.3 The display/kiosk view (authenticated extension of the operator session)
+### 5.3 The 55″ wall (same `/dashboard`, same idle timeout)
 
-The 55″ display is **not** a separate identity — it is simply a **full-screen extension view of a logged-in operator's session**, rendered on the SCC workstation. There is no display token, no `auth.display` guard, and no special-casing out of authentication: **a user must be logged in to view `/display`, exactly like any other operator screen.**
+The 55″ display is **not** a separate identity, route, or session. It is a **workstation screen-cast / screen-mirror of the operator's `/dashboard`**. There is no `/display` kiosk, no display token, no `auth.display` guard, and no keep-alive exemption.
 
-- `/display` lives in the normal authenticated `web` group behind Fortify session + RBAC. Reaching it requires an authenticated user with `view-dashboard` (DOC-03). Unauthenticated access redirects to `/login` like everywhere else.
-- It renders through `DisplayLayout` (kiosk chrome: fullscreen, no sidebar, no controls — DOC-16), but it is the same session, same cookie, same user as the workstation the operator signed into. Think of it as a "present mode" of the dashboard, not a distinct account.
-- Because the SCC workstation is manned and the display is meant to run continuously during a shift, **idle timeout must not silently blank the wall to a login screen mid-shift.** We reconcile "must stay logged in" with "must not drop out unattended" by keeping the session **alive while the display view is actually open and streaming**, rather than by exempting it from auth:
-  - While `/display` is mounted, its live data connection (the Reverb subscription + the polling fallback, DOC-08) counts as activity: each successful poll/reconnect calls `POST /session/heartbeat`, so an open, working display keeps its own session fresh. An operator watching the wall is, by definition, an active session.
-  - This is a deliberate, documented choice (setting `display.keep_session_alive=true`, default on). It applies **only** while the display route is open in that session; close the display and normal idle timeout resumes. It never disables authentication — if the user is logged out by an admin, their sessions invalidated, or their account deactivated, the display drops to `/login` on its next request/heartbeat like any other screen.
-  - `[CONFIRM AT DESIGN]` whether to additionally require periodic human presence confirmation for the wall (e.g. a once-per-shift re-auth). Default: not required, since the workstation is manned and physically secured.
-- The display view carries the **operator's own permissions** — it shows only what that user is allowed to see. There is no elevated or reduced "display" permission set; a PM opening `/display` sees the KPI-limited variant (DOC-16), an operator sees the full wall.
-- Session end still ends the display: logout, admin session invalidation, or account deactivation all bounce `/display` to the login screen on the next request. Nothing about the kiosk bypasses that.
+- The wall shows whatever the logged-in operator has open (normally `/dashboard`). Auth, RBAC, and idle timeout are identical to every other operator screen (DOC-16).
+- Idle timeout uses `auth.session_timeout_minutes` as usual. An unattended workstation will warn and then redirect to `/login?timeout=1` — including on the wall, because the wall is that same session.
+- Logout, admin session invalidation, or account deactivation bounce the workstation (and therefore the wall) to `/login` on the next request.
 
 ---
 
@@ -206,7 +201,7 @@ Everything about batching, idempotency, rate limiting, and per-event outcomes li
 Authentication answers "who are you"; it stops there. Once a user is authenticated:
 - Their **roles/permissions** (spatie) determine access — enforced by route middleware, policies, resource field-stripping, and the frontend `usePermissions()` guard. All of that is **DOC-03**.
 - The authenticated user object is available to controllers/services (`auth()->user()`), to the `CreatedByObserver` (DOC-01 §5.4), and to the audit layer (DOC-17).
-- The **display view** is just a logged-in user in kiosk chrome — it holds that user's own spatie roles/permissions, nothing special. Only the **device identity** is a non-user caller, and its capability is fixed by its guard (ingest only).
+- The 55″ wall is the same logged-in user as the workstation — it holds that user's own spatie roles/permissions, nothing special. Only the **device identity** is a non-user caller, and its capability is fixed by its guard (ingest only).
 
 ---
 
@@ -216,7 +211,6 @@ Authentication answers "who are you"; it stops there. Once a user is authenticat
 - **`pages/auth/force-password.tsx`** — shown when `must_change_password`; blocks navigation until submitted.
 - **`pages/auth/two-factor-challenge.tsx`** — TOTP / recovery-code entry.
 - **`layouts/AppLayout.tsx`** (authenticated shell) — mounts `useIdleLogout()`, renders the sidebar (DOC-16), and exposes the shared auth/permission context (`usePage().props.auth.user` + permissions from DOC-03).
-- **`layouts/DisplayLayout.tsx`** — the kiosk shell for `/display`: fullscreen, no sidebar, no user menu, no controls. It is an authenticated layout (same session as the operator); it keeps the session alive via the live-data heartbeat (§5.3) but does **not** disable auth. Unauthenticated access falls through to `/login` like any page.
 - **`hooks/useAuth.ts`** — thin accessor over Inertia's shared `auth` prop (`user`, `isAuthenticated`); never stores tokens in `localStorage` (Inertia uses the session cookie; DOC-01 forbids browser storage for auth).
 - **Shared props:** a middleware `HandleInertiaRequests` shares `auth.user` (id, name, email, roles, permissions, `must_change_password`, 2FA state) on every Inertia response so pages and guards read a single source.
 
@@ -238,7 +232,7 @@ Feature tests to ship with DOC-02:
 - idle timeout: server logs out after `session_timeout_minutes`; heartbeat extends it; warning modal fires client-side (component test).
 - registration / email-reset / verification routes **do not exist** (404) — proves on-prem cuts.
 - 2FA challenge required when confirmed; recovery code works; disabling requires re-auth.
-- **display view:** requires an authenticated user with `view-dashboard` (unauthenticated → redirect to `/login`); shows the permission-appropriate variant for the logged-in user; while open, its live-data heartbeat keeps the session fresh so the wall doesn't drop mid-shift; but admin logout / session invalidation / account deactivation bounces it to `/login` on the next request.
+- **55″ wall:** no dedicated route; it is a screen-cast of `/dashboard` and follows the same idle timeout as the workstation.
 - **device path:** valid `X-Device-Token` resolves the device on an ingest route; unknown → 401; retired device → 403; device token rejected on any web/operator route.
 - admin reset: sets temp password, forces change, invalidates target's sessions, writes audit; no email dispatched.
 
@@ -250,7 +244,7 @@ Feature tests to ship with DOC-02:
 |---|---|---|---|
 | 1 | Mandatory 2FA for admins | optional (off) | this doc / DOC-18 |
 | 2 | Password complexity beyond length | length 12 + not-reused only | DOC-18 |
-| 3 | Display keeps session alive while open | on (`display.keep_session_alive=true`) | DOC-16/18 |
+| 3 | 55″ wall session | same idle timeout as `/dashboard` (no keep-alive) | this doc / DOC-16 |
 | 4 | Lockout thresholds as settings | 5/min, 10 fails, 15 min | DOC-18 |
 
 ---

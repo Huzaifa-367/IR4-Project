@@ -98,16 +98,16 @@ Private channels (authorized in `routes/channels.php`); since the platform is a 
 
 | Channel | Events | Payload (delta) | Consumers (DOC) |
 |---|---|---|---|
-| `alerts` | `AlertRaised`, `AlertUpdated` | `AlertResource` (identity-stripped per viewer) | AlertProvider, display banner (07/16) |
+| `alerts` | `AlertRaised`, `AlertUpdated` | `AlertResource` (identity always stripped on broadcast) | AlertProvider, dashboard feed (07/16) |
 | `ppe` | `PpeViolationDetected` | id, type, camera_ref, snapshot_url, detected_at | live wall, PPE card (10/16) |
-| `tracking` | `HeadcountUpdated` (throttled 5 s), `PositionsUpdated` (throttled 5 s), `EvacuationTriggered`, `EvacuationEntryUpdated` | headcount totals / changed positions / evac state | tracking page, map, display (09/16) |
-| `gas` | `GasLiveUpdated` (throttled 5 s), `GasAlarmRaised`, `GasAlarmResolved` | per-device latest panel / alarm | gas dashboard, display (11/16) |
+| `tracking` | `HeadcountUpdated` (throttled 5 s), `PositionsUpdated` (throttled 5 s), `EvacuationTriggered`, `EvacuationEntryUpdated` | headcount totals / changed positions / evac state | tracking page, dashboard occupancy (09/16) |
+| `gas` | `GasLiveUpdated` (throttled 5 s), `GasAlarmRaised`, `GasAlarmResolved` | per-device latest panel / alarm | gas dashboard, dashboard cards (11/16) |
 | `environment` | `EnvironmentUpdated` (throttled) | latest weather values | weather widget (12/16) |
 | `system` | `DeviceStatusChanged` | device/camera id + status | settings/devices, health widget (05/16) |
 
 ### 5.2 Channel authorization
 - All channels are **private**; `routes/channels.php` authorizes a subscription only for an authenticated user (session guard). Membership is not per-user data-scoped (everyone in the SCC sees the same live picture) — **but payloads are permission-filtered at the resource** (identity stripping in `alerts`/`tracking` per `view-worker-identity`, DOC-04/07). So authorization gates *connection*; resources gate *content*.
-- The device/display identities: devices never subscribe (they only POST); the display view subscribes as the logged-in user (DOC-02 §5.3).
+- Devices never subscribe (they only POST). The 55″ wall is a screen-cast of the operator `/dashboard`, so it uses that same logged-in Reverb subscription (DOC-02 §5.3).
 
 ### 5.3 Throttling & batching of broadcasts
 - High-frequency streams (headcount, positions, gas panels) are **throttled to one broadcast per 5 s** per channel (coalesce intra-window changes into a single delta) so a backlog flush or a busy shift doesn't flood the socket. Throttle windows are settings (`realtime.*_throttle_seconds`).
@@ -115,7 +115,7 @@ Private channels (authorized in `routes/channels.php`); since the platform is a 
 - Backfill events (§3.4) do **not** broadcast at all.
 
 ### 5.4 Poll fallback & LIVE/RECONNECTING
-- Every live screen shows a **LIVE / RECONNECTING** pill reflecting socket state (critical on the 55″ display, DOC-16).
+- Every live screen shows a **LIVE / RECONNECTING** pill reflecting socket state (visible on `/dashboard`, including when that page is cast to the 55″ wall, DOC-16).
 - When the socket is down, screens fall back to polling: `GET /api/alerts/open` every 30 s (DOC-07) and the relevant snapshot endpoints (`/api/tracking/headcount`, `/api/gas/live`, `/api/dashboard/summary`) every 30–60 s. On reconnect, the client re-fetches a fresh snapshot to reconcile any missed deltas, then resumes streaming.
 - This guarantees the wall never silently freezes on a dropped connection — it visibly degrades and self-heals.
 

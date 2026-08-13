@@ -47,6 +47,9 @@ Route::prefix('tracking')->name('tracking.')->group(function (): void {
     Route::get('evacuation/{evacuation}', [EvacuationController::class, 'show'])
         ->middleware('permission:create-evacuation|update-evacuation')
         ->name('evacuation.show');
+    Route::get('evacuation/{evacuation}/snapshot', [EvacuationController::class, 'snapshot'])
+        ->middleware('permission:create-evacuation|update-evacuation')
+        ->name('evacuation.snapshot');
     Route::post('evacuation/{evacuation}/close', [EvacuationController::class, 'close'])
         ->middleware('permission:update-evacuation')
         ->name('evacuation.close');

@@ -37,7 +37,7 @@ final class AlertUpdated implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'alert' => (new AlertResource($this->alert))->resolve(),
+            'alert' => AlertResource::toBroadcast($this->alert),
         ];
     }
 }

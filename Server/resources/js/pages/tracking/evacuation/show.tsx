@@ -1,9 +1,11 @@
-import { Form, Head, Link, router } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { Panel } from '@/components/ir4/panel';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
+import tracking from '@/routes/tracking';
 
 type Entry = {
     id: number;
@@ -31,15 +33,63 @@ type Props = {
     canManage: boolean;
 };
 
-export default function EvacuationShow({ report, canManage }: Props) {
+type EntryUpdate = {
+    entry_id: number;
+    report_id?: number;
+    muster_status: string;
+    accounted_source: string | null;
+    accounted_at?: string | null;
+};
+
+export default function EvacuationShow({
+    report: initialReport,
+    canManage,
+}: Props) {
+    const [report, setReport] = usePropSyncedState(initialReport);
+    const snapshotUrl = tracking.evacuation.snapshot.url(report.uuid);
     const { status } = useReverbChannel({
         channel: 'tracking',
         events: ['.EvacuationEntryUpdated'],
-        onEvent: () => {
-            router.reload({ only: ['report'] });
+        onEvent: (payload: unknown) => {
+            const update = payload as EntryUpdate;
+
+            if (
+                update.report_id !== undefined &&
+                update.report_id !== report.id
+            ) {
+                return;
+            }
+
+            setReport((current) => {
+                const entries = current.entries.map((entry) =>
+                    entry.id === update.entry_id
+                        ? {
+                              ...entry,
+                              muster_status: update.muster_status,
+                              accounted_source: update.accounted_source,
+                          }
+                        : entry,
+                );
+
+                return {
+                    ...current,
+                    entries,
+                    accounted: entries.filter(
+                        (entry) => entry.muster_status === 'accounted',
+                    ).length,
+                };
+            });
         },
         pollIntervalMs: 15_000,
-        snapshotUrl: undefined,
+        snapshotUrl,
+        onSnapshot: (data: unknown) => {
+            const json = data as { data?: Report } & Partial<Report>;
+            const next = json.data ?? (json as Report);
+
+            if (next.id !== undefined) {
+                setReport(next);
+            }
+        },
     });
 
     const unaccounted = report.entries.filter(
@@ -67,8 +117,7 @@ export default function EvacuationShow({ report, canManage }: Props) {
                             Evacuation #{report.id}
                         </h1>
                         <p className="mt-1 text-sm text-text-dim">
-                            {report.accounted}/{report.total} accounted (
-                            {pct}%)
+                            {report.accounted}/{report.total} accounted ({pct}%)
                         </p>
                     </div>
                     <LiveStatusPill status={status} />
@@ -100,7 +149,12 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                     </Link>
                                     {canManage && report.status === 'open' && (
                                         <Form
-                                            action={`/tracking/evacuation/${report.uuid}/entries/${entry.uuid}`}
+                                            action={tracking.evacuation.account.url(
+                                                {
+                                                    evacuation: report.uuid,
+                                                    entry: entry.uuid,
+                                                },
+                                            )}
                                             method="post"
                                         >
                                             {({ processing }) => (
@@ -154,14 +208,16 @@ export default function EvacuationShow({ report, canManage }: Props) {
 
                 <div className="flex flex-wrap gap-2">
                     <Button asChild variant="secondary" size="sm">
-                        <a href={`/tracking/evacuation/${report.uuid}/download`}>
+                        <a href={tracking.evacuation.download.url(report.uuid)}>
                             Download PDF
                         </a>
                     </Button>
                     {canManage && report.status === 'open' && (
                         <>
                             <Form
-                                action={`/tracking/evacuation/${report.uuid}/close`}
+                                action={tracking.evacuation.close.url(
+                                    report.uuid,
+                                )}
                                 method="post"
                             >
                                 {({ processing }) => (
@@ -169,8 +225,7 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                         type="submit"
                                         size="sm"
                                         disabled={
-                                            processing ||
-                                            unaccounted.length > 0
+                                            processing || unaccounted.length > 0
                                         }
                                         title={
                                             unaccounted.length > 0
@@ -183,7 +238,9 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                 )}
                             </Form>
                             <Form
-                                action={`/tracking/evacuation/${report.uuid}/close`}
+                                action={tracking.evacuation.close.url(
+                                    report.uuid,
+                                )}
                                 method="post"
                                 className="flex flex-wrap items-center gap-2"
                             >
@@ -217,14 +274,14 @@ export default function EvacuationShow({ report, canManage }: Props) {
                                 <p className="basis-full text-sm text-[color:var(--warn)]">
                                     {unaccounted.length} worker
                                     {unaccounted.length === 1 ? '' : 's'} still
-                                    unaccounted — use Force close with a note, or
-                                    account them first.
+                                    unaccounted — use Force close with a note,
+                                    or account them first.
                                 </p>
                             ) : null}
                         </>
                     )}
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/tracking/evacuation">Back</Link>
+                        <Link href={tracking.evacuation.index()}>Back</Link>
                     </Button>
                 </div>
             </div>
@@ -233,5 +290,5 @@ export default function EvacuationShow({ report, canManage }: Props) {
 }
 
 EvacuationShow.layout = {
-    breadcrumbs: [{ title: 'Evacuation', href: '/tracking/evacuation' }],
+    breadcrumbs: [{ title: 'Evacuation', href: tracking.evacuation.index() }],
 };

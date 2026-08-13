@@ -242,7 +242,7 @@ The one-click emergency roster. Permissions: `trigger-evacuation` to start, `man
 
 ### 9.1 Trigger — `EvacuationService::trigger(User $by)` 
 - `POST /tracking/evacuation` → in a transaction, **freeze** every worker with `is_on_site=true` into `evacuation_report_entries` (worker, `last_zone_id`, `last_seen_at`, `muster_status=unaccounted`) → status `open`.
-- Raise `evacuation` (critical, audible) → broadcast `EvacuationTriggered` on the `tracking` channel; **every operator UI hard-navigates** to the evacuation page.
+- Raise `evacuation` (critical, audible) → broadcast `EvacuationTriggered` on the `tracking` channel (includes report `uuid`); **every operator UI Inertia-visits** the evacuation show page.
 
 ### 9.2 Auto-accounting (② while open)
 While a report is open, `TrackingService` marks entries accounted **hands-free**:

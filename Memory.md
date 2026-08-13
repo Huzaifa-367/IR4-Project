@@ -63,7 +63,7 @@ _None — Control Room UI pass landed; module pages inherit tokens/components ne
 - `dashboard.cache_seconds` is canonical (replaces `dashboard.cache_ttl_seconds`)
 - `DemoSeeder` is local/staging only; skips if `Main Gate` zone already exists; never runs in production
 - Docs 01–21 are the complete authoritative specification set
-- **Frontend chrome + `/dashboard` layout:** `Docs/Ir4 ui styling guide.md` + `Docs/Ir4 dashboard mockup.html` are authoritative (dark-first Control Room tokens, Inter / Inter Tight / JetBrains Mono via `@fontsource`, shared `components/ir4/*`). Module pages inherit; full `/display` kiosk polish is a follow-up.
+- **Frontend chrome + `/dashboard` layout:** `Docs/Ir4 ui styling guide.md` + `Docs/Ir4 dashboard mockup.html` are authoritative (dark-first Control Room tokens, Inter / Inter Tight / JetBrains Mono via `@fontsource`, shared `components/ir4/*`). Module pages inherit. The 55″ wall casts `/dashboard` (no separate kiosk).
 - Dashboard summary includes mockup analytics: headcount flow/sparklines, PPE compliance + heatmap, multi-series H₂S trend (`gas_range`), safety score, evacuation readiness, open incidents/LSR table. Default shift window **06:00–18:00** `[CONFIRM AT DESIGN]`.
 
 ---

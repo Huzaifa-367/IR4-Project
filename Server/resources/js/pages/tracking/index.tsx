@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
+import tracking from '@/routes/tracking';
 import type {
     HeadcountSnapshot,
     TrackingCoverage,
@@ -23,32 +24,93 @@ import type {
 
 type Props = {
     headcount: HeadcountSnapshot;
+    zones: TrackingZone[];
+    positions: TrackingPosition[];
+    coverage: TrackingCoverage[];
+    readings: TrackingReading[];
     canSeePositions: boolean;
     canTriggerEvacuation: boolean;
 };
 
+type PositionDelta = {
+    tag_id: number;
+    worker_id?: number | null;
+    zone_id?: number | null;
+    last_seen_at?: string;
+    is_on_site?: boolean;
+};
+
+function applyPositionDeltas(
+    current: TrackingPosition[],
+    deltas: PositionDelta[],
+    zones: TrackingZone[],
+): TrackingPosition[] {
+    const byTag = new Map(current.map((row) => [row.tag_id, row]));
+    const zoneNames = new Map(zones.map((zone) => [zone.id, zone.name]));
+
+    for (const delta of deltas) {
+        if (delta.is_on_site === false) {
+            byTag.delete(delta.tag_id);
+            continue;
+        }
+
+        const existing = byTag.get(delta.tag_id);
+        const workerId = delta.worker_id ?? existing?.worker_id ?? 0;
+        const zoneId = delta.zone_id ?? existing?.zone_id ?? null;
+
+        byTag.set(delta.tag_id, {
+            tag_id: delta.tag_id,
+            tag_uid: existing?.tag_uid ?? null,
+            worker_id: workerId,
+            worker_label:
+                existing?.worker_label ??
+                (workerId > 0 ? `Worker #${String(workerId)}` : 'Worker'),
+            zone_id: zoneId,
+            zone_name:
+                zoneId !== null
+                    ? (zoneNames.get(zoneId) ?? existing?.zone_name ?? null)
+                    : null,
+            last_seen_at:
+                delta.last_seen_at ??
+                existing?.last_seen_at ??
+                new Date().toISOString(),
+            is_on_site: true,
+        });
+    }
+
+    return [...byTag.values()];
+}
+
 export default function TrackingIndex({
     headcount: initialHeadcount,
+    zones: initialZones,
+    positions: initialPositions,
+    coverage: initialCoverage,
+    readings: initialReadings,
     canSeePositions,
     canTriggerEvacuation,
 }: Props) {
     const [headcount, setHeadcount] = usePropSyncedState(initialHeadcount);
-    const [zones, setZones] = useState<TrackingZone[]>([]);
-    const [positions, setPositions] = useState<TrackingPosition[]>([]);
-    const [coverage, setCoverage] = useState<TrackingCoverage[]>([]);
-    const [readings, setReadings] = useState<TrackingReading[]>([]);
+    const [zones, setZones] = usePropSyncedState(initialZones);
+    const [positions, setPositions] = usePropSyncedState(initialPositions);
+    const [coverage, setCoverage] = usePropSyncedState(initialCoverage);
+    const [readings, setReadings] = usePropSyncedState(initialReadings);
     const [zoneFilter, setZoneFilter] = useState<number | 'all'>('all');
 
     const loadReadings = useCallback(
         async (zoneId: number | 'all'): Promise<void> => {
-            const params =
-                zoneId === 'all'
-                    ? '?limit=25'
-                    : `?zone_id=${String(zoneId)}&limit=25`;
-            const res = await fetch(`/tracking/api/readings${params}`, {
-                headers: { Accept: 'application/json' },
-                credentials: 'same-origin',
-            });
+            const res = await fetch(
+                tracking.api.readings.url({
+                    query:
+                        zoneId === 'all'
+                            ? { limit: 25 }
+                            : { zone_id: zoneId, limit: 25 },
+                }),
+                {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                },
+            );
 
             if (res.ok) {
                 const json = (await res.json()) as { data: TrackingReading[] };
@@ -59,7 +121,7 @@ export default function TrackingIndex({
     );
 
     const loadSnapshots = useCallback(async (): Promise<void> => {
-        const headRes = await fetch('/tracking/api/headcount', {
+        const headRes = await fetch(tracking.api.headcount.url(), {
             headers: { Accept: 'application/json' },
             credentials: 'same-origin',
         });
@@ -74,11 +136,11 @@ export default function TrackingIndex({
         }
 
         const [posRes, covRes] = await Promise.all([
-            fetch('/tracking/api/positions', {
+            fetch(tracking.api.positions.url(), {
                 headers: { Accept: 'application/json' },
                 credentials: 'same-origin',
             }),
-            fetch('/tracking/coverage', {
+            fetch(tracking.coverage.url(), {
                 headers: { Accept: 'application/json' },
                 credentials: 'same-origin',
             }),
@@ -114,15 +176,21 @@ export default function TrackingIndex({
                 setHeadcount(p as unknown as HeadcountSnapshot);
             }
 
-            if ('positions' in p) {
-                void loadSnapshots();
+            if ('positions' in p && Array.isArray(p.positions)) {
+                setPositions((current) =>
+                    applyPositionDeltas(
+                        current,
+                        p.positions as PositionDelta[],
+                        zones,
+                    ),
+                );
             }
 
-            if ('report_id' in p) {
-                window.location.href = `/tracking/evacuation/${String(p.report_id)}`;
+            if (typeof p.uuid === 'string' && 'report_id' in p) {
+                router.visit(tracking.evacuation.show.url(p.uuid));
             }
         },
-        snapshotUrl: '/tracking/api/headcount',
+        snapshotUrl: tracking.api.headcount.url(),
         onSnapshot: (data) => {
             const json = data as { data: HeadcountSnapshot };
             setHeadcount(json.data);
@@ -175,11 +243,13 @@ export default function TrackingIndex({
                             Refresh
                         </Button>
                         <Button asChild variant="outline" size="sm">
-                            <Link href="/tracking/readings">All records</Link>
+                            <Link href={tracking.readings.index()}>
+                                All records
+                            </Link>
                         </Button>
                         {canTriggerEvacuation && (
                             <Button asChild variant="destructive" size="sm">
-                                <Link href="/tracking/evacuation">
+                                <Link href={tracking.evacuation.index()}>
                                     Evacuation
                                 </Link>
                             </Button>
@@ -298,8 +368,12 @@ export default function TrackingIndex({
                                     <Link
                                         href={
                                             zoneFilter === 'all'
-                                                ? '/tracking/readings'
-                                                : `/tracking/readings?zone_id=${String(zoneFilter)}`
+                                                ? tracking.readings.index()
+                                                : tracking.readings.index.url({
+                                                      query: {
+                                                          zone_id: zoneFilter,
+                                                      },
+                                                  })
                                         }
                                         className="text-xs text-[color:var(--accent)] hover:underline"
                                     >
@@ -326,7 +400,9 @@ export default function TrackingIndex({
                         <Link href="/workforce/workers">Workers</Link>
                     </Button>
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/tracking/entry-exit">Entry / exit</Link>
+                        <Link href={tracking.entryExit.index()}>
+                            Entry / exit
+                        </Link>
                     </Button>
                     <Button asChild variant="outline" size="sm">
                         <Link href="/settings/zones">Zones</Link>

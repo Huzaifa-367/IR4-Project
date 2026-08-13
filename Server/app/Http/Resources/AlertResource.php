@@ -12,6 +12,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
 final class AlertResource extends JsonResource
 {
     /**
+     * Broadcast payload is shared on a private channel with every logged-in
+     * subscriber — always strip worker identity (DOC-04 / DOC-07).
+     *
+     * @return array<string, mixed>
+     */
+    public static function toBroadcast(Alert $alert): array
+    {
+        return (new self($alert))->toArray(Request::create('/'));
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array

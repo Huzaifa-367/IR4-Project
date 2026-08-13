@@ -12,13 +12,20 @@ final class TrackingDashboardController extends BaseController
 {
     public function __invoke(Request $request, TrackingService $tracking): Response
     {
-        abort_unless($request->user()?->can('view-tracking'), 403);
+        $user = $request->user();
+        abort_unless($user !== null && $user->can('view-tracking'), 403);
+
+        $canSeePositions = $user->can('view-worker-identity')
+            || $user->can('update-tags');
 
         return Inertia::render('tracking/index', [
             'headcount' => $tracking->headcountSnapshot(),
-            'canSeePositions' => $request->user()->can('view-worker-identity')
-                || $request->user()->can('update-tags'),
-            'canTriggerEvacuation' => $request->user()->can('create-evacuation'),
+            'zones' => $canSeePositions ? $tracking->liveZones() : [],
+            'positions' => $canSeePositions ? $tracking->livePositions($user) : [],
+            'coverage' => $canSeePositions ? $tracking->liveCoverage() : [],
+            'readings' => $canSeePositions ? $tracking->liveReadings($user) : [],
+            'canSeePositions' => $canSeePositions,
+            'canTriggerEvacuation' => $user->can('create-evacuation'),
         ]);
     }
 }

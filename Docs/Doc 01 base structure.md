@@ -10,7 +10,7 @@
 
 ## 1. Product context in one paragraph
 
-IR4 is a **standalone, on-premise safety command-centre platform**. A single installation serves a single deployment — there is no multi-tenancy, no scoping partition, and no location concept in the schema. Field hardware (RFID readers, AI cameras, gas/CO₂/environmental sensors) streams data in over a token-authenticated REST API; the server derives live state, alarms, and reports from it; and operators work in a rich real-time web UI (dashboard, live tracking map, gas panels, HSE workflows, reporting). One always-on 55″ display runs a kiosk view. Everything runs behind the local network; nothing calls the public internet.
+IR4 is a **standalone, on-premise safety command-centre platform**. A single installation serves a single deployment — there is no multi-tenancy, no scoping partition, and no location concept in the schema. Field hardware (RFID readers, AI cameras, gas/CO₂/environmental sensors) streams data in over a token-authenticated REST API; the server derives live state, alarms, and reports from it; and operators work in a rich real-time web UI (dashboard, live tracking, gas panels, HSE workflows, reporting). The 55″ wall shows the same authenticated `/dashboard` via workstation screen-cast/mirror — there is no separate kiosk route. Everything runs behind the local network; nothing calls the public internet.
 
 ---
 
@@ -111,7 +111,7 @@ routes/
 resources/
 ├── js/
 │   ├── pages/                 # Inertia page components (mirror route structure)
-│   ├── layouts/               # AppSidebar layout, DisplayLayout (kiosk), AuthLayout
+│   ├── layouts/               # AppLayout (sidebar), AuthLayout
 │   ├── components/
 │   │   ├── ui/                # shadcn/ui primitives
 │   │   └── ir4/               # domain components (GaugePanel, ZoneOccupancyTable, AlertToast…)

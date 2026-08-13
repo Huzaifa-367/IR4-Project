@@ -159,6 +159,13 @@ it('triggers evacuation freezes on-site workers and closes with force', function
         ->and($report->entries()->count())->toBe(1);
 
     $this->actingAs($admin)
+        ->getJson(route('tracking.evacuation.snapshot', $report))
+        ->assertOk()
+        ->assertJsonPath('data.id', $report->id)
+        ->assertJsonPath('data.uuid', $report->uuid)
+        ->assertJsonPath('data.total', 1);
+
+    $this->actingAs($admin)
         ->from(route('tracking.evacuation.show', $report))
         ->post(route('tracking.evacuation.close', $report))
         ->assertRedirect(route('tracking.evacuation.show', $report))
@@ -195,6 +202,22 @@ it('auto-registers unknown tags as in_stock without a position', function () {
         ->and($tag?->worker_id)->toBeNull()
         ->and(WorkerPosition::query()->where('tag_id', $tag?->id)->exists())->toBeFalse()
         ->and(TagReading::query()->where('tag_id', $tag?->id)->count())->toBe(1);
+});
+
+it('renders live tracking with occupancy props on first paint', function () {
+    $operator = User::factory()->withRole('SCC Operator')->create();
+
+    $this->actingAs($operator)
+        ->get(route('tracking.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('tracking/index')
+            ->has('headcount')
+            ->has('zones')
+            ->has('positions')
+            ->has('coverage')
+            ->has('readings')
+            ->where('canSeePositions', true));
 });
 
 it('forbids positions for project manager headcount-only role', function () {

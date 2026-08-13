@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Web\DashboardController;
-use App\Http\Controllers\Web\DisplayController;
 use App\Http\Controllers\Web\EnvironmentController;
 use App\Http\Controllers\Web\Ppe\HlsProxyController;
 use App\Http\Controllers\Web\Ppe\LiveWallController;
@@ -13,9 +12,6 @@ Route::get('dashboard', [DashboardController::class, 'index'])
 Route::get('api/dashboard/summary', [DashboardController::class, 'summary'])
     ->middleware('permission:view-dashboard')
     ->name('dashboard.summary');
-Route::get('display', DisplayController::class)
-    ->middleware('permission:view-dashboard')
-    ->name('display');
 Route::get('environment', [EnvironmentController::class, 'trends'])
     ->middleware('permission:view-dashboard')
     ->name('environment.index');

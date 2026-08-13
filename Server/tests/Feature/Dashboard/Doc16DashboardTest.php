@@ -63,7 +63,7 @@ it('omits operational sections for project managers', function () {
         ->and($data['headcount']['by_zone'])->toBe([]);
 });
 
-it('renders dashboard and display pages for authorized users', function () {
+it('renders the dashboard for authorized users', function () {
     $operator = User::factory()->withRole('SCC Operator')->create();
 
     $this->actingAs($operator)
@@ -72,20 +72,14 @@ it('renders dashboard and display pages for authorized users', function () {
         ->assertInertia(fn ($page) => $page
             ->component('dashboard/index')
             ->has('summary')
-            ->has('permissions'));
-
-    $this->get(route('display'))
-        ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('display/index')
-            ->has('summary')
-            ->has('cycleSeconds'));
+            ->has('permissions')
+            ->missing('cycleSeconds'));
 });
 
-it('forbids guests from dashboard summary and display', function () {
+it('forbids guests from the dashboard and has no kiosk route', function () {
     $this->get(route('dashboard'))->assertRedirect(route('login'));
     $this->getJson(route('dashboard.summary'))->assertUnauthorized();
-    $this->get(route('display'))->assertRedirect(route('login'));
+    $this->get('/display')->assertNotFound();
 });
 
 it('builds summary via service with identity-safe occupancy labels', function () {

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Web;
 
 use App\Services\DashboardService;
-use App\Services\SettingsService;
 use App\Support\ApiResponse;
 use App\Support\TrendRange;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +15,6 @@ final class DashboardController extends BaseController
     public function index(
         Request $request,
         DashboardService $dashboard,
-        SettingsService $settings,
     ): InertiaResponse {
         abort_unless($request->user()?->can('view-dashboard'), 403);
         $user = $request->user();
@@ -31,7 +29,6 @@ final class DashboardController extends BaseController
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
             ],
-            'cycleSeconds' => (int) $settings->get('display.cycle_seconds', 20),
             'permissions' => [
                 'view_tracking' => $user->can('view-tracking'),
                 'view_gas' => $user->can('view-gas'),

@@ -120,14 +120,8 @@ it('extends the session via heartbeat', function () {
     expect(session('last_activity_at'))->toBeGreaterThan(now()->subMinute()->getTimestamp());
 });
 
-it('requires auth for the display view', function () {
-    $this->get(route('display'))->assertRedirect(route('login'));
-
-    $user = User::factory()->create();
-
-    $this->actingAs($user)
-        ->get(route('display'))
-        ->assertOk();
+it('has no separate display kiosk route', function () {
+    $this->get('/display')->assertNotFound();
 });
 
 it('authenticates devices via X-Device-Token', function () {

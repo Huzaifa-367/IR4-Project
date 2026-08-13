@@ -10,6 +10,8 @@ use App\Models\EvacuationReport;
 use App\Models\EvacuationReportEntry;
 use App\Services\AuditService;
 use App\Services\EvacuationService;
+use App\Support\ApiResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -59,6 +61,17 @@ final class EvacuationController extends BaseController
             'report' => $this->serializeReport($evacuation),
             'canManage' => $request->user()?->can('update-evacuation') ?? false,
         ]);
+    }
+
+    public function snapshot(Request $request, EvacuationReport $evacuation): JsonResponse
+    {
+        abort_unless(
+            $request->user()?->can('create-evacuation')
+            || $request->user()?->can('update-evacuation'),
+            403,
+        );
+
+        return ApiResponse::ok($this->serializeReport($evacuation));
     }
 
     public function store(Request $request, EvacuationService $evac): RedirectResponse

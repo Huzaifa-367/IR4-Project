@@ -1,11 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Download, Siren } from 'lucide-react';
+import { Siren } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnalyticalChart } from '@/components/ir4/analytical-chart';
 import { DonutChart, RadialGauge } from '@/components/ir4/donut-chart';
 import { GasChannelGauges } from '@/components/ir4/gas-channel-gauges';
 import { HorizontalBars } from '@/components/ir4/horizontal-bars';
 import { LiveFeed } from '@/components/ir4/live-feed';
+import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { MetricRow } from '@/components/ir4/metric-row';
 import { MiniProgress } from '@/components/ir4/mini-progress';
 import { Panel } from '@/components/ir4/panel';
@@ -18,10 +19,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePermissions } from '@/hooks/use-permissions';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
-import { useReverbChannel } from '@/hooks/use-reverb-channel';
+import {
+    combineReverbStatus,
+    useReverbChannel,
+} from '@/hooks/use-reverb-channel';
 import { dashboardInfo } from '@/lib/dashboard-info';
+import { applyDashboardEvent } from '@/lib/dashboard-live';
 import { visitFilters } from '@/lib/visit-filters';
 import { dashboard } from '@/routes';
+import { summary as dashboardSummary } from '@/routes/dashboard';
+import tracking from '@/routes/tracking';
 import type {
     DashboardPermissions,
     DashboardRange,
@@ -103,45 +110,48 @@ export default function DashboardIndex({
                 params.set('to', nextTo);
             }
 
-            return `/api/dashboard/summary?${params.toString()}`;
+            return dashboardSummary.url({
+                query: Object.fromEntries(params.entries()),
+            });
         },
         [range, from, to],
     );
 
-    const fetchSummary = useCallback(
-        (nextRange: DashboardRange = range, nextFrom = from, nextTo = to) => {
-            void fetch(summaryQuery(nextRange, nextFrom, nextTo), {
-                headers: { Accept: 'application/json' },
-                credentials: 'same-origin',
-            })
-                .then((r) => r.json())
-                .then(onSnapshot);
+    const onLiveEvent = useCallback(
+        (payload: unknown) => {
+            setSummary((current) => applyDashboardEvent(current, payload));
         },
-        [summaryQuery, range, from, to, onSnapshot],
+        [setSummary],
     );
 
-    useReverbChannel({
+    const alertsLive = useReverbChannel({
         channel: 'alerts',
-        events: ['.alert.raised', '.alert.updated'],
-        onEvent: () => fetchSummary(),
+        events: ['.AlertRaised', '.AlertUpdated'],
+        onEvent: onLiveEvent,
         snapshotUrl: summaryQuery(),
         onSnapshot,
         pollIntervalMs: 60_000,
     });
 
-    useReverbChannel({
+    const trackingLive = useReverbChannel({
         channel: 'tracking',
-        events: ['.headcount.updated', '.positions.updated'],
-        onEvent: () => fetchSummary(),
+        events: ['.HeadcountUpdated', '.PositionsUpdated'],
+        onEvent: onLiveEvent,
         pollIntervalMs: 60_000,
     });
 
-    useReverbChannel({
+    const gasLive = useReverbChannel({
         channel: 'gas',
-        events: ['.gas.reading', '.gas.alarm'],
-        onEvent: () => fetchSummary(),
+        events: ['.GasLiveUpdated'],
+        onEvent: onLiveEvent,
         pollIntervalMs: 60_000,
     });
+
+    const liveStatus = combineReverbStatus(
+        alertsLive.status,
+        trackingLive.status,
+        gasLive.status,
+    );
 
     useEffect(() => {
         const id = window.setInterval(() => {
@@ -272,6 +282,7 @@ export default function DashboardIndex({
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        <LiveStatusPill status={liveStatus} />
                         <RangeToggle
                             options={RANGE_OPTIONS}
                             value={range}
@@ -307,12 +318,6 @@ export default function DashboardIndex({
                                 </Button>
                             </>
                         ) : null}
-                        <Button variant="outline" size="sm" asChild>
-                            <Link href="/display">
-                                <Download className="size-3.5" />
-                                Display
-                            </Link>
-                        </Button>
                         {canEvacuate ? (
                             <Button
                                 size="sm"
@@ -323,7 +328,9 @@ export default function DashboardIndex({
                                             'Trigger site evacuation? This opens a live muster report.',
                                         )
                                     ) {
-                                        router.post('/tracking/evacuation');
+                                        router.post(
+                                            tracking.evacuation.store.url(),
+                                        );
                                     }
                                 }}
                             >
@@ -339,7 +346,9 @@ export default function DashboardIndex({
                         <StatCard
                             label="Total Manpower"
                             value={summary.headcount.total_on_site}
-                            href={showOccupancy ? '/tracking' : undefined}
+                            href={
+                                showOccupancy ? tracking.index.url() : undefined
+                            }
                             info={dashboardInfo.manpower}
                             delta={`${deltaManpower >= 0 ? '▲ +' : '▼ '}${Math.abs(deltaManpower)} vs range start`}
                             deltaTone={deltaManpower >= 0 ? 'ok' : 'neutral'}
@@ -410,12 +419,12 @@ export default function DashboardIndex({
                         {showOccupancy ? (
                             <Panel
                                 title="Zone occupancy"
-                                subtitle="RFID reader bindings · live · no GPS"
+                                subtitle="RFID reader bindings · live"
                                 info={dashboardInfo.occupancy}
                                 className="xl:col-span-8"
                                 action={
                                     <Link
-                                        href="/tracking/readings"
+                                        href={tracking.readings.index()}
                                         className="text-xs text-[color:var(--accent)] hover:underline"
                                     >
                                         All records ›

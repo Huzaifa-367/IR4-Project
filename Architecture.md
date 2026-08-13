@@ -142,7 +142,7 @@ Docs/                      # Specs DOC-01…21 (authoritative, complete set)
 ## Shared reporting, composition & audit
 
 - **Weekly reports:** a queued `WeeklyReportService` reads module summaries, freezes all 9 items into one JSON snapshot, and writes PDF/zipped-CSV artifacts to private storage. Publication locks the snapshot; amendments create a linked superseding report.
-- **Dashboard/display:** one cached, permission-filtered `GET /api/dashboard/summary` composes module read services. Inertia supplies the screen, Reverb patches live deltas, and a 60 s summary poll reconciles both the role-aware dashboard and authenticated display.
+- **Dashboard:** one cached, permission-filtered `GET /api/dashboard/summary` composes module read services. Inertia supplies the screen, Reverb patches live deltas, and a 60 s summary poll reconciles the role-aware `/dashboard` (also what the 55″ wall shows via workstation screen-cast).
 - **Audit:** observers record masked diffs for configured security/configuration models; middleware records allow-listed meaningful access by read-only roles; domain actions emit explicit publish/acknowledge/export events. `audit_logs` is append-only and excluded from pruning, with only a permission-gated read/export surface.
 - **Settings (DOC-18):** `SettingsRegistry` + `SettingsService` whitelist every runtime key; deploy-fixed values stay in `.env`/`config`.
 - **Lifecycle (DOC-19):** daily Spatie `backup:clean` / `backup:run` / `backup:monitor` (events → `AlertService`, no mail), allow-listed `PruneRawSensorData` (gated on same-day backup), and console-only `ir4:export-all` / `ir4:secure-wipe`. Gas/env trends use on-read SQL aggregates (no rollup job/table).

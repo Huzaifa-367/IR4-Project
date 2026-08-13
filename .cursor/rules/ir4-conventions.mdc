@@ -28,7 +28,7 @@ alwaysApply: true
 | 13 | Equipment registry, permanent `qr_token`, custody, ZPL print, public `/e/{token}` |
 | 14 | HSE incidents + LSR — **always user-created**; alert prefill only; mandatory action-taken |
 | 15 | Weekly report: frozen 10-item snapshot, vehicle violations, publish-lock, supersede-don't-edit |
-| 16 | Dashboard aggregate `/api/dashboard/summary`, Control Room design language, `/display` kiosk, nav |
+| 16 | Dashboard aggregate `/api/dashboard/summary`, Control Room design language, 55″ wall = cast `/dashboard`, nav |
 | 17 | Append-only `audit_logs`, `Auditable` trait, masking, read-only `data_access`, audit viewer |
 | 18 | Settings registry, `SettingsService`, config-vs-`.env` boundary, general editor |
 | 19 | On-read sensor aggregates (gas/env), allow-listed pruning, encrypted Spatie backups + AlertService notifications |
@@ -83,7 +83,7 @@ Machine truth is immutable. Human judgment is always path ③. Alerts are path �
 - **Equipment (DOC-13):** `qr_token` set once at create; never regenerate. Public `/e/{token}` ≠ authed by-token lookup.
 - **HSE/LSR (DOC-14):** no service auto-insert; mandatory action fields; PPE-linked LSR keeps `worker_id` null.
 - **Weekly reports (DOC-15):** freeze `data` at generation; published reports immutable; amend via superseding report; declare sensor outages (>20%).
-- **Dashboard (DOC-16):** permission-filtered aggregate; dark-first Control Room tokens; `/display` stays authenticated.
+- **Dashboard (DOC-16):** permission-filtered aggregate; dark-first Control Room tokens; the 55″ wall casts `/dashboard` (normal idle timeout).
 - **Audit (DOC-17):** append-only; mask secrets; config/security models via `Auditable`; read-only roles get allow-listed `data_access`; no user create/update/delete of audit rows.
 - **Settings (DOC-18):** whitelist only via `SettingsRegistry`; per-key permissions; sensitive keys need confirm; printer/backup paths stay `.env`.
 - **Retention (DOC-19):** prune allow-list only; compliance never pruned; encrypted Spatie daily backups on a separate volume; backup before prune; failures → `AlertService` (no mail).

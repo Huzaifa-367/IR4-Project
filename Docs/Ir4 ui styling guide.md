@@ -203,8 +203,8 @@ No GPS and no map. Occupancy, presence, and tag-reading tables show who is in wh
 
 Every screen is one of these patterns — don't invent new layouts per page.
 
-### 5.1 Command dashboard (`/dashboard`, `/display`)
-Stat row (Manpower, Open Alerts, Gas status, System Health) → **primary: zone occupancy table (8 col) + Alert feed (4 col)** → secondary charts (PPE today, gas trend, headcount trend) → optional recent-incidents table. This is reference 5 applied to site safety. The `/display` variant strips chrome, enlarges type, and auto-cycles panes.
+### 5.1 Command dashboard (`/dashboard`)
+Stat row (Manpower, Open Alerts, Gas status, System Health) → **primary: zone occupancy table (8 col) + Alert feed (4 col)** → secondary charts (PPE today, gas trend, headcount trend) → optional recent-incidents table. This is reference 5 applied to site safety. The 55″ wall is a screen-cast of this same page (no separate kiosk layout).
 
 ### 5.2 Module overview (e.g. Gas, PPE, Tracking)
 Stat row (the module's KPIs) → primary `AnalyticalChart` with range toggle (8 col) + a side panel (live panels / breakdown, 4 col) → a `DataTable` of the module's records. Reference 4's Investment overview is the template.

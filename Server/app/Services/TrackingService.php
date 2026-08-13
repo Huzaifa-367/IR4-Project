@@ -6,6 +6,7 @@ use App\Enums\AccountedSource;
 use App\Enums\AlertSeverity;
 use App\Enums\AlertStatus;
 use App\Enums\AlertType;
+use App\Enums\DeviceType;
 use App\Enums\Direction;
 use App\Enums\EntryExitSource;
 use App\Enums\EvacuationStatus;
@@ -562,6 +563,133 @@ final class TrackingService
                 'by_zone' => $byZone,
             ];
         });
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function liveZones(): array
+    {
+        return Zone::query()
+            ->where('is_active', true)
+            ->withCount('currentBindings')
+            ->orderBy('name')
+            ->get(['id', 'uuid', 'name', 'zone_type', 'color', 'occupancy_limit'])
+            ->map(fn (Zone $zone): array => [
+                'id' => $zone->id,
+                'uuid' => $zone->uuid,
+                'name' => $zone->name,
+                'zone_type' => $zone->zone_type->value,
+                'color' => $zone->color,
+                'occupancy_limit' => $zone->occupancy_limit,
+                'reader_count' => $zone->current_bindings_count,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function livePositions(User $user): array
+    {
+        $canIdentity = $user->can('view-worker-identity');
+
+        return WorkerPosition::query()
+            ->with(['worker', 'zone', 'tag'])
+            ->where('is_on_site', true)
+            ->orderByDesc('last_seen_at')
+            ->get()
+            ->map(function (WorkerPosition $position) use ($canIdentity): array {
+                $worker = $position->worker;
+                $label = $canIdentity && $worker !== null
+                    ? $worker->name
+                    : ($worker?->anonymizedLabel() ?? 'Worker');
+
+                return [
+                    'tag_id' => $position->tag_id,
+                    'tag_uid' => $position->tag?->tag_uid,
+                    'worker_id' => $position->worker_id,
+                    'worker_label' => $label,
+                    'zone_id' => $position->zone_id,
+                    'zone_name' => $position->zone?->name,
+                    'last_seen_at' => $position->last_seen_at->toIso8601String(),
+                    'is_on_site' => $position->is_on_site,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function liveCoverage(): array
+    {
+        return Device::query()
+            ->where('device_type', DeviceType::RfidReader)
+            ->with(['currentZoneBinding.zone:id,uuid,name,zone_type,color'])
+            ->orderBy('name')
+            ->get()
+            ->map(function (Device $device): array {
+                $zone = $device->currentZoneBinding?->zone;
+
+                return [
+                    'device_id' => $device->id,
+                    'device_uuid' => $device->uuid,
+                    'device_name' => $device->name,
+                    'reference' => $device->reference,
+                    'zone' => $zone === null ? null : [
+                        'id' => $zone->id,
+                        'uuid' => $zone->uuid,
+                        'name' => $zone->name,
+                        'zone_type' => $zone->zone_type->value,
+                        'color' => $zone->color,
+                    ],
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function liveReadings(User $user, ?int $zoneId = null, int $limit = 25): array
+    {
+        $canIdentity = $user->can('view-worker-identity');
+        $limit = min(200, max(1, $limit));
+
+        $query = TagReading::query()
+            ->with(['tag.worker', 'zone:id,name', 'reader:id,name,reference'])
+            ->orderByDesc('recorded_at')
+            ->limit($limit);
+
+        if ($zoneId !== null && $zoneId > 0) {
+            $query->where('zone_id', $zoneId);
+        }
+
+        return $query->get()->map(function (TagReading $reading) use ($canIdentity): array {
+            $worker = $reading->tag?->worker;
+            $label = $canIdentity && $worker !== null
+                ? $worker->name
+                : ($worker?->anonymizedLabel() ?? null);
+
+            return [
+                'id' => $reading->id,
+                'recorded_at' => $reading->recorded_at->toIso8601String(),
+                'zone_id' => $reading->zone_id,
+                'zone_name' => $reading->zone?->name,
+                'reader_ref' => $reading->reader?->reference,
+                'reader_name' => $reading->reader?->name,
+                'tag_uid' => $reading->tag?->tag_uid,
+                'worker_label' => $label,
+                'rssi' => $reading->rssi,
+                'antenna' => $reading->antenna,
+                'proximity' => $reading->proximity()?->value,
+                'is_backfill' => $reading->is_backfill,
+            ];
+        })->values()->all();
     }
 
     /**

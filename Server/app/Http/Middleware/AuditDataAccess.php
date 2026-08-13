@@ -21,7 +21,6 @@ final class AuditDataAccess
      */
     private array $exactRoutes = [
         'dashboard',
-        'display',
         'environment.index',
         'live.index',
         'tracking.coverage',
