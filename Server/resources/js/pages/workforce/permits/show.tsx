@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { useLivePartialReload } from '@/hooks/use-live-partial-reload';
 import { permitTypeBarClass, permitTypeSoftClass } from '@/lib/permit-colours';
 import { cn } from '@/lib/utils';
 import permits from '@/routes/permits';
@@ -288,6 +289,23 @@ export default function PermitShow({
     canGasTest,
     canInspect,
 }: Props) {
+    useLivePartialReload<{ permit: { uuid: string } }>({
+        channel: 'permits',
+        events: ['.PermitUpdated'],
+        only: [
+            'permit',
+            'gasChannels',
+            'checklistItems',
+            'canUpdate',
+            'canIssue',
+            'canApprove',
+            'canGasTest',
+            'canInspect',
+            'zones',
+            'workers',
+        ],
+        matches: (payload) => payload.permit?.uuid === permit.uuid,
+    });
     const [note, setNote] = useState('');
     const [gasReadings, setGasReadings] = useState<Record<string, string>>({});
     const [gasPhase, setGasPhase] = useState(

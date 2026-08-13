@@ -8,7 +8,7 @@ export function useFlashToast(): void {
     const { warning_toast_seconds: warningToastSeconds } = useSharedSettings();
 
     useEffect(() => {
-        return router.on('flash', (event) => {
+        const stopFlash = router.on('flash', (event) => {
             const flash = (event as CustomEvent).detail?.flash;
             const data = flash?.toast as FlashToast | undefined;
 
@@ -23,5 +23,17 @@ export function useFlashToast(): void {
 
             toast[data.type](data.message, duration ? { duration } : undefined);
         });
+        const stopHttpException = router.on('httpException', () => {
+            toast.error('Request failed. Try again.');
+        });
+        const stopNetworkError = router.on('networkError', () => {
+            toast.error('Network error. Try again.');
+        });
+
+        return (): void => {
+            stopFlash();
+            stopHttpException();
+            stopNetworkError();
+        };
     }, [warningToastSeconds]);
 }

@@ -6,6 +6,7 @@ import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { useLivePartialReload } from '@/hooks/use-live-partial-reload';
 import { visitFilters } from '@/lib/visit-filters';
 import gas from '@/routes/gas';
 import { GasTypeLabels } from '@/types/enums';
@@ -30,6 +31,14 @@ export default function GasAlarmsIndex({
     filters,
     canAcknowledge,
 }: Props) {
+    useLivePartialReload({
+        channel: 'gas',
+        events: ['.GasLiveUpdated'],
+        only: ['alarms'],
+        throttleMs: 4000,
+        matches: (payload: { panel?: { open_alarms?: unknown[] } }) =>
+            (payload.panel?.open_alarms?.length ?? 0) > 0,
+    });
     const [gasType, setGasType] = useState(filters.gas_type || ALL);
     const [level, setLevel] = useState(filters.level || ALL);
     const [resolved, setResolved] = useState(filters.resolved || ALL);

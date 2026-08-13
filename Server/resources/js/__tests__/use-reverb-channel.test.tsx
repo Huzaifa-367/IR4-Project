@@ -132,4 +132,39 @@ describe('useReverbChannel poll fallback', () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(2);
     });
+
+    it('drops identical duplicate payloads', async () => {
+        const onEvent = vi.fn();
+        renderHook(() =>
+            useReverbChannel({
+                channel: 'alerts',
+                events: ['.AlertRaised'],
+                onEvent,
+            }),
+        );
+
+        const listener = useEchoMock.mock.calls.at(-1)?.[2] as (
+            payload: unknown,
+        ) => void;
+
+        listener({ alert: { id: 9 } });
+        listener({ alert: { id: 9 } });
+        listener({ alert: { id: 10 } });
+
+        expect(onEvent).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('reverbEventFingerprint', () => {
+    it('is stable for identical payloads so duplicate broadcasts can be dropped', async () => {
+        const { reverbEventFingerprint } =
+            await import('@/hooks/use-reverb-channel');
+
+        expect(reverbEventFingerprint({ id: 1, status: 'open' })).toBe(
+            reverbEventFingerprint({ id: 1, status: 'open' }),
+        );
+        expect(reverbEventFingerprint({ id: 1 })).not.toBe(
+            reverbEventFingerprint({ id: 2 }),
+        );
+    });
 });

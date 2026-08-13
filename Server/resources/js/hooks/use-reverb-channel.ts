@@ -45,6 +45,14 @@ export function isReverbClientEnabled(): boolean {
     return typeof key === 'string' && key.length > 0;
 }
 
+export function reverbEventFingerprint(payload: unknown): string {
+    try {
+        return JSON.stringify(payload);
+    } catch {
+        return String(payload);
+    }
+}
+
 function mapConnectionStatus(
     connection: ReturnType<typeof useConnectionStatus>,
 ): ReverbLiveStatus {
@@ -88,6 +96,7 @@ export function useReverbChannel<TPayload = unknown>({
             : 'offline';
     const prevStatus = useRef<ReverbLiveStatus>(status);
     const onEventRef = useRef(onEvent);
+    const lastFingerprint = useRef('');
 
     useEffect(() => {
         onEventRef.current = onEvent;
@@ -98,6 +107,13 @@ export function useReverbChannel<TPayload = unknown>({
             return;
         }
 
+        const fingerprint = reverbEventFingerprint(payload);
+
+        if (fingerprint === lastFingerprint.current) {
+            return;
+        }
+
+        lastFingerprint.current = fingerprint;
         onEventRef.current(payload);
     });
 
@@ -137,7 +153,7 @@ export function useReverbChannel<TPayload = unknown>({
             void refresh();
         }, resolvedPollIntervalMs);
 
-        return () => window.clearInterval(id);
+        return (): void => window.clearInterval(id);
     }, [
         isAuthenticated,
         status,

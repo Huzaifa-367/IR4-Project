@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { useLivePartialReload } from '@/hooks/use-live-partial-reload';
 import { visitFilters } from '@/lib/visit-filters';
 import ppe from '@/routes/ppe';
 import { ViolationTypeLabels } from '@/types/enums';
@@ -50,6 +51,12 @@ export default function PpeViolationsIndex({
     canReview,
     canExport,
 }: Props) {
+    useLivePartialReload({
+        channel: 'ppe',
+        events: ['.PpeViolationDetected'],
+        only: ['violations'],
+        throttleMs: 2000,
+    });
     const [selected, setSelected] = useState<number[]>([]);
     const [violationType, setViolationType] = useState(
         filters.violation_type || ALL,

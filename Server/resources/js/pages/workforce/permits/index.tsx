@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import { useLivePartialReload } from '@/hooks/use-live-partial-reload';
 import { permitTypeDotClass } from '@/lib/permit-colours';
 import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
 import permitRoutes from '@/routes/permits';
@@ -74,6 +75,11 @@ export default function PermitsIndex({
     statusOptions,
     canRequest,
 }: Props) {
+    useLivePartialReload({
+        channel: 'permits',
+        events: ['.PermitUpdated'],
+        only: ['permits'],
+    });
     const [search, setSearch] = useState(filters.search);
     const [status, setStatus] = useState(filters.status || ALL);
 

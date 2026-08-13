@@ -63,7 +63,11 @@ function AlertsReverbBridge({
     const { status, refresh } = useReverbChannel<{ alert: Alert }>({
         channel: 'alerts',
         events: ['.AlertRaised', '.AlertUpdated'],
-        onEvent: (payload) => onEvent(payload.alert),
+        onEvent: (payload) => {
+            if (payload.alert) {
+                onEvent(payload.alert);
+            }
+        },
         snapshotUrl: alerts.open.url(),
         onSnapshot: handleSnapshot,
         pollIntervalMs: 30_000,
@@ -107,15 +111,14 @@ export function AlertProvider({
         [],
     );
 
-    if (!isAuthenticated && (openAlerts.length > 0 || status !== 'offline')) {
-        setOpenAlerts([]);
-        setStatus('offline');
-    }
-
-    const bellCount = openAlerts.filter(
+    const sessionAlerts = isAuthenticated ? openAlerts : [];
+    const sessionStatus: ReverbLiveStatus = isAuthenticated
+        ? status
+        : 'offline';
+    const bellCount = sessionAlerts.filter(
         (alert) => alert.status === 'open',
     ).length;
-    const hasAudibleCritical = openAlerts.some(
+    const hasAudibleCritical = sessionAlerts.some(
         (alert) =>
             alert.audible &&
             alert.severity === 'critical' &&
@@ -125,11 +128,11 @@ export function AlertProvider({
     return (
         <AlertContext.Provider
             value={{
-                openAlerts,
+                openAlerts: sessionAlerts,
                 bellCount,
-                live: status === 'live',
-                status,
-                refresh: refreshFn,
+                live: sessionStatus === 'live',
+                status: sessionStatus,
+                refresh: isAuthenticated ? refreshFn : async () => undefined,
             }}
         >
             {isAuthenticated && (
@@ -140,7 +143,7 @@ export function AlertProvider({
                 />
             )}
             {children}
-            <AlertToasts alerts={openAlerts} />
+            <AlertToasts alerts={sessionAlerts} />
             <CriticalAudibleLoop active={hasAudibleCritical} />
         </AlertContext.Provider>
     );

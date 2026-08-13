@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth, useSettingsTimeoutMinutes } from '@/hooks/use-auth';
 import { login } from '@/routes';
+import session from '@/routes/session';
 
 const ACTIVITY_EVENTS = [
     'mousemove',
@@ -26,7 +27,7 @@ function postHeartbeat(): Promise<Response> {
             .querySelector('meta[name="csrf-token"]')
             ?.getAttribute('content') ?? '';
 
-    return fetch('/session/heartbeat', {
+    return fetch(session.heartbeat.url(), {
         method: 'POST',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',

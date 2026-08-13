@@ -1,3 +1,4 @@
+import apiEquipment from '@/routes/api/equipment';
 import type { EquipmentByToken } from '@/types/equipment';
 
 /**
@@ -51,13 +52,10 @@ export async function lookupEquipmentByToken(
 ): Promise<
     { ok: true; data: EquipmentByToken } | { ok: false; message: string }
 > {
-    const response = await fetch(
-        `/api/equipment/by-token/${encodeURIComponent(qrToken)}`,
-        {
-            headers: { Accept: 'application/json' },
-            credentials: 'same-origin',
-        },
-    );
+    const response = await fetch(apiEquipment.byToken.url(qrToken), {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+    });
 
     if (response.status === 404) {
         return { ok: false, message: 'No equipment found for that QR token.' };
