@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Public\EquipmentPublicController;
-use App\Http\Controllers\Web\MapTileController;
 use App\Http\Middleware\AuditDataAccess;
 use App\Http\Middleware\EnforceIdleTimeout;
 use App\Http\Middleware\EnsurePasswordIsChanged;
@@ -19,10 +18,6 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::inertia('/', 'welcome')->name('home');
-
-Route::get('maps/{filename}', MapTileController::class)
-    ->where('filename', '[a-z0-9_-]+\.pmtiles')
-    ->name('maps.tiles');
 
 Route::middleware('throttle:equipment.public')->group(function (): void {
     Route::get('e/{qrToken}', [EquipmentPublicController::class, 'show'])

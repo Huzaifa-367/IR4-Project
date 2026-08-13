@@ -3,6 +3,7 @@
 use App\Http\Controllers\Web\Tracking\CoverageController;
 use App\Http\Controllers\Web\Tracking\EntryExitController;
 use App\Http\Controllers\Web\Tracking\EvacuationController;
+use App\Http\Controllers\Web\Tracking\ReadingsController;
 use App\Http\Controllers\Web\Tracking\TrackingApiController;
 use App\Http\Controllers\Web\Tracking\TrackingDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,12 @@ Route::prefix('tracking')->name('tracking.')->group(function (): void {
     Route::get('api/positions', [TrackingApiController::class, 'positions'])
         ->middleware('permission:view-tracking')
         ->name('api.positions');
+    Route::get('api/readings', [TrackingApiController::class, 'readings'])
+        ->middleware('permission:view-tracking')
+        ->name('api.readings');
+    Route::get('readings', [ReadingsController::class, 'index'])
+        ->middleware('permission:view-tracking')
+        ->name('readings.index');
 
     Route::get('entry-exit', [EntryExitController::class, 'index'])
         ->middleware('permission:view-entry-exit')

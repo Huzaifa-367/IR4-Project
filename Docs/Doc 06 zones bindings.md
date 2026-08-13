@@ -1,6 +1,6 @@
 # DOC-06 — Zones, Reader Bindings & the Repositioning Model
 
-> **Depends on:** DOC-01 (conventions, enums, settings), DOC-03 (`manage-zones`, `view-tracking`), DOC-04 (workers referenced by access lists), DOC-05 (RFID reader devices + `is_mobile` assets). **Feeds:** DOC-09 (all tracking logic resolves a reading's zone through these bindings; zone rules; occupancy), DOC-14 (height-work zones drive the height-harness cross-check; incident RFID zone snapshots), DOC-16 (the live map).
+> **Depends on:** DOC-01 (conventions, enums, settings), DOC-03 (`manage-zones`, `view-tracking`), DOC-04 (workers referenced by access lists), DOC-05 (RFID reader devices + `is_mobile` assets). **Feeds:** DOC-09 (all tracking logic resolves a reading's zone through these bindings; zone rules; occupancy), DOC-14 (height-work zones drive the height-harness cross-check; incident RFID zone snapshots), DOC-16 (occupancy / reading tables).
 >
 > **Scope:** the **logical zone** model, the **time-aware reader↔zone binding** that lets mobile poles move without corrupting history, the **repositioning workflow**, **zone access lists** (who is authorized in restricted zones), and **map-placement** data. **Out of scope:** tag reads and position derivation (DOC-09 consumes bindings), and the physical reader hardware itself (DOC-05).
 
@@ -20,7 +20,7 @@ If that mapping were a simple `reader.zone_id` column, relocating a pole would s
 
 ## 2. Data origin
 
-- **③ user:** all of it — creating/editing zones, binding/rebinding readers, editing access lists, placing zones on the map. Requires `manage-zones` (map view requires `view-tracking`).
+- **③ user:** all of it — creating/editing zones, binding/rebinding readers, editing access lists. Requires `manage-zones`. There is **no map / GPS placement** — a tag is in a zone only because a bound reader saw it.
 - **② system:** the only system writes are convenience — e.g. resolving the active binding for a read (DOC-09) reads these tables but doesn't mutate them. Occupancy counts, rule evaluations, etc. live in DOC-09.
 - **① device:** none directly — readers send tag reads (DOC-08/09); the reader↔zone mapping is operator-defined here.
 
@@ -36,11 +36,7 @@ Schema::create('zones', function (Blueprint $table) {
     $table->string('zone_type');                          // enum ZoneType (§3.4)
     $table->boolean('requires_authorization')->default(false); // if true, only access-listed workers may enter without an alert
     $table->unsignedInteger('occupancy_limit')->nullable();     // null = no limit; else occupancy alert threshold (DOC-09)
-    // map placement (DOC-16) — geo circle on GeoZoneMap (lat/long + radius)
-    $table->decimal('latitude', 10, 7)->nullable();
-    $table->decimal('longitude', 10, 7)->nullable();
-    $table->decimal('radius_meters', 9, 2)->nullable();
-    $table->string('color')->nullable();                  // display color on the map
+    $table->string('color')->nullable();                  // table accent color (no GPS / map)
     $table->boolean('is_active')->default(true);
     $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
     $table->timestamps();
@@ -129,7 +125,7 @@ public function currentZoneBinding(): HasOne     // bound_until IS NULL
 - This is the crux: a **backfilled** read (arriving hours late after an outage, DOC-08) with an old `recorded_at` resolves to the zone that was active **then**, not the zone the pole is in **now**.
 
 ### 4.3 `currentZone(Device $reader): ?Zone`
-- Convenience for the live map / UI — the zone of the open binding.
+- Convenience for occupancy / coverage UI — the zone of the open binding.
 
 ### 4.4 Guards
 - Deleting a zone with any binding (open or historical) → **restrict** (409): history must remain resolvable. Zones are deactivated (`is_active=false`), not deleted, once used. Only a never-bound, never-referenced zone may be hard-deleted.
@@ -145,9 +141,9 @@ When a mobile pole (or its reader) is physically relocated, the operator records
 
 **Flow:**
 1. Operator selects the reader(s) that moved.
-2. Chooses the zone now covered — an existing zone, or creates a new zone inline (name, type, optional map placement).
+2. Chooses the zone now covered — an existing zone, or creates a new zone inline (name, type).
 3. Submits `POST /settings/readers/{device}/rebind {zone_id, effective_at, note}` → `ReaderBindingService::bind(...)`.
-4. The page prompts to also update the asset's `current_location_label` and the zone's map position (DOC-16) so the live map reflects reality.
+4. The page prompts to also update the asset's `current_location_label` so occupancy/reading tables stay labelled correctly.
 5. Everything is audited; the binding-history table shows effective times.
 
 **Gate reader guard:** the reader bound to a `gate` zone is normally fixed (the gate doesn't move). If an operator tries to rebind a reader currently bound to a gate zone, the UI **warns** ("this reader is the gate entry/exit reader — rebinding it will stop entry/exit logging here"). Not blocked, but a deliberate confirmation, because it has outsized consequences for headcount.
@@ -167,14 +163,13 @@ Operator UI (Inertia, surface A). **Zones ship empty** — no seeded zones (dyna
 | Create / update zone | POST/PUT `/settings/zones…` | `@store/@update` | manage-zones |
 | Deactivate / delete zone | POST `/{zone}/deactivate`, DELETE `/{zone}` | `@deactivate/@destroy` | manage-zones (delete guarded §4.4) |
 | Edit access list | PUT `/settings/zones/{zone}/access-list` | `ZoneAccessListController@update` | manage-zones |
-| Set map position | PATCH `/settings/zones/{zone}/map-position` | `@setMapPosition` | manage-zones |
 | Repositioning page | GET `/settings/repositioning` | `RepositioningController@index` | manage-zones |
 | Rebind reader | POST `/settings/readers/{device}/rebind` | `ReaderBindingController@store` | manage-zones |
 | Binding history | GET `/settings/readers/{device}/bindings` | `@history` | manage-zones |
 | Coverage (readers↔zones, current) | GET `/api/tracking/coverage` (Inertia prop or JSON) | `CoverageController@index` | view-tracking |
 
 **FormRequest rules:**
-- zone: `name` req ≤150, `zone_type` enum, `requires_authorization` boolean, `occupancy_limit` nullable int ≥1, map fields nullable numeric.
+- zone: `name` req ≤150, `zone_type` enum, `requires_authorization` boolean, `occupancy_limit` nullable int ≥1. No lat/long/radius.
 - access-list update: `worker_ids` array of existing worker ids.
 - rebind: `zone_id` exists, `effective_at` date (within tolerance §4.1), `note` nullable ≤255.
 
@@ -183,11 +178,11 @@ Operator UI (Inertia, surface A). **Zones ship empty** — no seeded zones (dyna
 ## 7. Frontend (React / Inertia)
 
 - **`pages/settings/zones/index.tsx`** — ZoneListPage: table (type badge, requires-auth flag, occupancy limit, current reader count via coverage). ZoneForm modal.
-- **`pages/settings/zones/show.tsx`** — ZoneDetailPage: details, **access-list manager** (WorkerPicker from DOC-04, identity-aware), map-placement editor, and the list of readers currently bound here.
+- **`pages/settings/zones/show.tsx`** — ZoneDetailPage: details, **access-list manager** (WorkerPicker from DOC-04, identity-aware), and the list of RFID readers currently bound here.
 - **`pages/settings/repositioning.tsx`** — RepositioningPage: reader cards (current zone, last rebind, asset location), rebind dialog (zone select or create-new), binding-history drawer.
-- **`components/ir4/geo-zone-map.tsx` (`GeoZoneMap`)** — place/size a zone circle via `latitude` / `longitude` / `radius_meters` (feeds the live map DOC-16). MapLibre with an offline Gulf pmtiles basemap (no live tile server — DOC-01 on-prem).
+- **`components/ir4/zone-tables.tsx`** — occupancy / presence / reading tables (shared with tracking + dashboard). No map.
 - **Types (`types/zone.ts`):** `Zone`, `ZoneType`, `ReaderZoneBinding`, `ZoneAccessListEntry`, `CoverageBinding`.
-- Cache invalidation on every mutation; the tracking map (DOC-16) re-reads coverage after a rebind.
+- Cache invalidation on every mutation; tracking tables re-read coverage after a rebind.
 
 ---
 
@@ -202,7 +197,7 @@ Operator UI (Inertia, surface A). **Zones ship empty** — no seeded zones (dyna
 | Zone rules (red/unauth/occupancy) | zone drives alerts + LSR | evaluated in `TrackingService` | DOC-09/14 |
 | Height-work cross-check | `height_work` zone + missing_harness | height-harness LSR | DOC-14 |
 | Muster auto-accounting | `muster_point` zone reads | evacuation entries | DOC-09 |
-| Live map | zones + current coverage | map placement fields | DOC-16 |
+| Occupancy / readings tables | zones + current coverage + tag_readings | reader bindings | DOC-09/16 |
 
 DOC-09 **snapshots the resolved `zone_id` onto each `tag_reading`** at ingest time (using `resolveZoneAt`), so even if bindings or zones change later, the historical read keeps the zone it was resolved to — belt-and-suspenders on top of the time-aware bindings.
 
@@ -210,8 +205,8 @@ DOC-09 **snapshots the resolved `zone_id` onto each `tag_reading`** at ingest ti
 
 ## 9. Real-life scenarios
 
-- **Initial setup:** operator creates zones (Gate, Work Front A, Muster Point 1, a restricted_red substation area) → binds the gate reader to Gate, each pole reader to the work zone it covers → sets `requires_authorization` on the substation and adds the two authorized electricians to its access list → places zones on the site map.
-- **Work front advances (repositioning):** three poles are relocated north as work progresses → operator opens `/settings/repositioning`, selects those readers, creates "Work Front B", rebinds them with `effective_at = now` → old bindings close, new open → the live map updates; last week's reads still show under Work Front A.
+- **Initial setup:** operator creates zones (Gate, Work Front A, Muster Point 1, a restricted_red substation area) → binds the gate reader to Gate, each pole reader to the work zone it covers → sets `requires_authorization` on the substation and adds the two authorized electricians to its access list.
+- **Work front advances (repositioning):** three poles are relocated north as work progresses → operator opens `/settings/repositioning`, selects those readers, creates "Work Front B", rebinds them with `effective_at = now` → old bindings close, new open → occupancy/reading tables update; last week's reads still show under Work Front A.
 - **Outage across a move:** a pole was offline for 6 h spanning a relocation → when it flushes buffered reads, each read resolves to Work Front A or B depending on whether its `recorded_at` was before or after the rebind's `effective_at` — correct history despite the late arrival.
 - **Unauthorized entry:** a worker not on the substation's access list enters → DOC-09 raises `unauthorized_zone_access`; an access-listed electrician entering the same zone raises nothing.
 - **Red zone:** anyone entering the restricted_red area triggers a critical alert + automated LSR regardless of the access list (DOC-09/14).
@@ -238,7 +233,7 @@ DOC-09 **snapshots the resolved `zone_id` onto each `tag_reading`** at ingest ti
 | 1 | Do poles actually reposition, or are they fixed after install? | assume repositionable (`is_mobile`); model supports both | this doc / DOC-05 |
 | 2 | Access list vs red-zone alerting | access list governs `requires_authorization`; `restricted_red` always alerts | this doc / DOC-09 |
 | 3 | `effective_at` future tolerance on rebind | small tolerance only | this doc |
-| 4 | Map: uploaded site-plan overlay vs offline tiles | site-plan image overlay (offline) | DOC-16 |
+| 4 | Zone visualisation | occupancy / presence / reading tables (no GPS) | DOC-16 |
 
 ---
 

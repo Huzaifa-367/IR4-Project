@@ -59,7 +59,8 @@ export const gasInfo = {
         source: 'gas_readings',
     },
     rangeStats: {
-        summary: 'Min / average / max for each gas channel in the selected window.',
+        summary:
+            'Min / average / max for each gas channel in the selected window.',
         items: [
             'Computed from the same trend series as the chart.',
             'Current column is the live average from detector panels.',
@@ -203,7 +204,7 @@ export const trackingInfo = {
         summary: 'Workers currently present in this zone.',
         items: [
             'Live RFID occupancy for the named zone.',
-            'Click the map zone to open zone settings.',
+            'Open a zone row to edit bindings and access.',
         ],
         source: 'headcount.by_zone',
     },

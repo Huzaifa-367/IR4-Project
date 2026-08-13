@@ -244,4 +244,4 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 ---
 
 ### Next document
-**DOC-16 — Dashboard & Display Mode:** the single `/api/dashboard/summary` aggregate, the role-aware widget grid (PM KPI variant), the 55″ authenticated kiosk `/display`, the shared live map, and the permission-driven navigation/sidebar.
+**DOC-16 — Dashboard & Display Mode:** the single `/api/dashboard/summary` aggregate, the role-aware widget grid (PM KPI variant), the 55″ authenticated kiosk `/display`, the shared occupancy / reading tables, and the permission-driven navigation/sidebar.

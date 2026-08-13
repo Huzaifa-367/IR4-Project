@@ -11,10 +11,12 @@ trait AppliesListQuery
     /**
      * Apply pagination, sort, direction, and search from the request.
      *
-     * @param  Builder<Model>  $query
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
      * @param  list<string>  $sortable
      * @param  list<string>  $searchable
-     * @return Builder<Model>
+     * @return Builder<TModel>
      */
     protected function applyListQuery(
         Builder $query,

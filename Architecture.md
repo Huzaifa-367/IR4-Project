@@ -59,7 +59,7 @@ Machine fields are immutable. Human judgment is always path ③. Alerts are path
 | Database | MySQL 8+ (default) or PostgreSQL 15+ |
 | RBAC | `spatie/laravel-permission` |
 | PDF / QR | `barryvdh/laravel-dompdf`, `endroid/qr-code` |
-| Charts / map | recharts, maplibre-gl |
+| Charts | recharts |
 | Dates / forms | date-fns, zod |
 | Quality | Larastan 6+, Pest, Pint; TS strict |
 

@@ -106,12 +106,12 @@ final class DemoSeeder extends Seeder
     private function seedZones(): void
     {
         $defs = [
-            ['key' => 'gate', 'name' => 'Main Gate', 'type' => ZoneType::Gate, 'lat' => 27.015154, 'lng' => 49.619475, 'rm' => 48.0, 'color' => '#38BDF8'],
-            ['key' => 'muster', 'name' => 'Muster Point A', 'type' => ZoneType::MusterPoint, 'lat' => 27.015783, 'lng' => 49.620987, 'rm' => 64.0, 'color' => '#34D399'],
-            ['key' => 1, 'name' => 'Pole 01 Work', 'type' => ZoneType::Work, 'lat' => 27.018478, 'lng' => 49.623004, 'rm' => 80.0, 'color' => '#64748B'],
-            ['key' => 2, 'name' => 'Pole 02 Work', 'type' => ZoneType::Work, 'lat' => 27.016951, 'lng' => 49.624718, 'rm' => 80.0, 'color' => '#64748B'],
-            ['key' => 3, 'name' => 'Pole 03 Laydown', 'type' => ZoneType::Laydown, 'lat' => 27.015603, 'lng' => 49.626332, 'rm' => 80.0, 'color' => '#F5A524'],
-            ['key' => 4, 'name' => 'Pole 04 Height Work', 'type' => ZoneType::HeightWork, 'lat' => 27.019915, 'lng' => 49.623508, 'rm' => 72.0, 'color' => '#F97316'],
+            ['key' => 'gate', 'name' => 'Main Gate', 'type' => ZoneType::Gate, 'color' => '#38BDF8'],
+            ['key' => 'muster', 'name' => 'Muster Point A', 'type' => ZoneType::MusterPoint, 'color' => '#34D399'],
+            ['key' => 1, 'name' => 'Pole 01 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
+            ['key' => 2, 'name' => 'Pole 02 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
+            ['key' => 3, 'name' => 'Pole 03 Laydown', 'type' => ZoneType::Laydown, 'color' => '#F5A524'],
+            ['key' => 4, 'name' => 'Pole 04 Height Work', 'type' => ZoneType::HeightWork, 'color' => '#F97316'],
         ];
 
         $this->zones = collect();
@@ -121,9 +121,6 @@ final class DemoSeeder extends Seeder
                 'zone_type' => $def['type'],
                 'requires_authorization' => $def['type'] === ZoneType::RestrictedRed || $def['type'] === ZoneType::HeightWork,
                 'occupancy_limit' => null,
-                'latitude' => $def['lat'],
-                'longitude' => $def['lng'],
-                'radius_meters' => $def['rm'],
                 'color' => $def['color'],
                 'is_active' => true,
                 'created_by' => $this->admin->id,

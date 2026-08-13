@@ -25,9 +25,6 @@ final class StoreZoneRequest extends FormRequest
             'requires_authorization' => ['sometimes', 'boolean'],
             'requires_permit' => ['sometimes', 'boolean'],
             'occupancy_limit' => ['nullable', 'integer', 'min:1'],
-            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'radius_meters' => ['nullable', 'numeric', 'min:0'],
             'color' => ['nullable', 'string', 'max:32'],
         ];
     }

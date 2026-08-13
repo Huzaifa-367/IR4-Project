@@ -1,14 +1,14 @@
 # DOC-16 — Dashboard, Display Mode & Design Language
 
-> **Depends on:** DOC-01 (conventions, hybrid surfaces, frontend stack), DOC-02 (display = authenticated extension view), DOC-03 (role-aware visibility, PM KPI variant), DOC-05/06 (system health, zone map data), DOC-07 (alert panel/banner), DOC-08 (Reverb channels + poll fallback), DOC-09 (headcount/positions/map), DOC-10/11/12 (PPE/gas/weather cards), DOC-13/14/15 (overdue equipment / open incidents+LSR / last report cards). **Feeds:** the operator's first screen and the 55″ wall.
+> **Depends on:** DOC-01 (conventions, hybrid surfaces, frontend stack), DOC-02 (display = authenticated extension view), DOC-03 (role-aware visibility, PM KPI variant), DOC-05/06 (system health, zone occupancy data), DOC-07 (alert panel/banner), DOC-08 (Reverb channels + poll fallback), DOC-09 (headcount/positions/readings), DOC-10/11/12 (PPE/gas/weather cards), DOC-13/14/15 (overdue equipment / open incidents+LSR / last report cards). **Feeds:** the operator's first screen and the 55″ wall.
 >
-> **Scope:** the **command-centre dashboard** — the single `/api/dashboard/summary` aggregate, the **design language** (this is where the platform's visual identity is defined, since the references call for analytical, beautiful visuals), the **role-aware widget grid**, the **live zone map**, the **55″ kiosk display**, and the **navigation/sidebar** with permission-based hiding. **Out of scope:** the data each widget shows (owned by its module) — this doc composes and *presents* it.
+> **Scope:** the **command-centre dashboard** — the single `/api/dashboard/summary` aggregate, the **design language** (this is where the platform's visual identity is defined, since the references call for analytical, beautiful visuals), the **role-aware widget grid**, the **zone occupancy / reading tables**, the **55″ kiosk display**, and the **navigation/sidebar** with permission-based hiding. **Out of scope:** the data each widget shows (owned by its module) — this doc composes and *presents* it.
 
 ---
 
 ## 1. Purpose & the visual thesis
 
-The dashboard is the operator's home and the 55″ wall's content — the at-a-glance safety state of the site. The references establish the target: a **dark, analytical, data-dense but calm** interface — KPI stat cards with sparklines and trend deltas, rich multi-series charts with hover detail and range toggles, and a clean shell with a quiet sidebar. We adopt that *visual language*, grounded in the **safety command-centre** subject (not finance): the hero is not a big number but the **live safety picture** — headcount, open critical alerts, and the zone map — because in a command centre "is everyone safe right now?" is the single job of the screen.
+The dashboard is the operator's home and the 55″ wall's content — the at-a-glance safety state of the site. The references establish the target: a **dark, analytical, data-dense but calm** interface — KPI stat cards with sparklines and trend deltas, rich multi-series charts with hover detail and range toggles, and a clean shell with a quiet sidebar. We adopt that *visual language*, grounded in the **safety command-centre** subject (not finance): the hero is not a big number but the **live safety picture** — headcount, open critical alerts, and zone occupancy — because in a command centre "is everyone safe right now?" is the single job of the screen.
 
 ---
 
@@ -44,12 +44,12 @@ A **light theme** is provided (tokens flipped) for daytime office use / printing
 ### 2.3 Card & chart system (the signature)
 - **Stat cards** (from reference 1 & 3): rounded (`--radius: 14px`), `--surface` background, a 12px uppercase-tracked **label** with a small trailing chevron/deep-link, a large tabular **value**, a **trend delta** chip (`+12 today ↑` in `--ok`, `−6% ↓` in `--crit`) reading against a stated baseline (last shift / last week), and a **sparkline** filling the card bottom. The sparkline uses one accent stroke with a soft gradient fill — the recurring visual motif.
 - **Analytical charts** (from reference 2): area/line charts with a subtle grid, **hover tooltip** showing the exact values at a timestamp, a **Day / Week / Month range toggle**, and a moving vertical crosshair. Multi-series where relevant (e.g. two gas channels) with a small legend.
-- **The zone map** is the one bespoke visual (§5) — the command-centre signature no finance dashboard has.
+- **Zone occupancy** is the command-centre presence picture (§5) — tables, not a map.
 - Motion: restrained — numbers **tween** to new values (200ms), a new critical alert **pulses** its card border once, live cards carry a tiny "live" dot. No gratuitous animation (DOC-01 / frontend-design restraint).
-- Charts via **recharts** (DOC-01); the map via **MapLibre GL** (offline, §5).
+- Charts via **recharts** (DOC-01).
 
 ### 2.4 Restraint
-One bold thing per screen: on the dashboard it's the **live map + critical-alert state**; everything else stays quiet. Severity color does the emphasis; the layout stays a calm grid. This keeps the wall readable across a room and avoids the "AI-generated dashboard" busyness.
+One bold thing per screen: on the dashboard it's the **live occupancy table + critical-alert state**; everything else stays quiet. Severity color does the emphasis; the layout stays a calm grid. This keeps the wall readable across a room and avoids the "AI-generated dashboard" busyness.
 
 ---
 
@@ -84,7 +84,7 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
 | **Total Manpower** | headcount.total_on_site | big tabular number + sparkline of the day + delta vs last shift | view-dashboard |
 | **Zone Headcount** | headcount.by_zone | compact bar/pill list per zone | view-tracking |
 | **Open Alerts** | alerts.open_critical/warning + latest | severity-colored counts + a short live feed | view-dashboard |
-| **Live Zone Map** | positions + zones (§5) | the map (dots + zone circles) | view-tracking |
+| **Zone occupancy** | positions + zones (§5) | occupancy table + on-site / in-red counts | view-tracking |
 | **Gas Status** | gas.panels | one mini-gauge strip per device, green/amber/red | view-gas |
 | **CO₂** | gas co2 | a single tile with trend | view-gas |
 | **Weather** | weather | temp/humidity/wind tiles + updated-at | view-dashboard |
@@ -96,25 +96,26 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
 | **Last Report** | last_report | status chip + download | view-reports |
 
 - **Role-aware rendering:** each widget renders only if the user holds its `view-*` permission (frontend guard + the summary endpoint omits data they can't see — DOC-03). A user sees a grid of exactly what they're entitled to; empty gaps reflow.
-- **Project-Manager KPI variant:** a PM (dashboard + published reports only, DOC-03) gets a **cut-down grid** — Total Manpower (count only, no map/identity), Open Incidents/LSR counts, Overdue Equipment, Last Report — the oversight KPIs, none of the operational live map or gas detail. Enforced by permission, not a separate page.
+- **Project-Manager KPI variant:** a PM (dashboard + published reports only, DOC-03) gets a **cut-down grid** — Total Manpower (count only, no identity), Open Incidents/LSR counts, Overdue Equipment, Last Report — the oversight KPIs, none of the operational occupancy tables or gas detail. Enforced by permission, not a separate page.
 
 ---
 
-## 5. The live zone map (the signature visual)
+## 5. Zone occupancy & readings (no GPS)
 
-- Rendered with **MapLibre GL** via **`GeoZoneMap`** using an **offline Gulf pmtiles basemap** (no live tile server, DOC-01 on-prem).
-- **Zones** drawn as translucent circles from their `latitude` / `longitude` / `radius_meters` (DOC-06), colored by type (red for restricted, etc.), labeled with live occupancy count.
-- **Workers** drawn as dots at their zone (approximate placement within the zone — RFID is zone-level, not GPS, so dots cluster in the zone, not precise points). Dots are **anonymized** (`Worker #id`, stable) unless the viewer has `view-worker-identity` (DOC-04 §5); hovering a dot shows the permitted detail.
-- **Readers** shown as small badges with their current zone binding (DOC-06 coverage), so an operator can see which pole covers what.
-- Updates live from the `tracking` channel (`HeadcountUpdated`/`PositionsUpdated`, throttled 5 s); reflects repositioning (a rebind moves a reader's coverage).
-- The map is the `GeoZoneMap` component, shared with the tracking page (DOC-09) and the display.
+RFID is **zone-level presence**, not coordinates. There is **no site map, lat/long, or MapLibre**. A person is in a zone because a reader bound to that zone saw their tag.
+
+- **Occupancy table** — one row per active zone: name, type, on-site count, occupancy limit, bound reader count.
+- **Presence table** — who is on site now (identity-stripped without `view-worker-identity`).
+- **Readings table** — `GET /tracking/api/readings?zone_id=` — all zones or one selected zone; columns time, zone, reader, tag, person, RSSI, antenna.
+- Shared components: `components/ir4/zone-tables.tsx` (dashboard, tracking, display).
+- Updates live from the `tracking` channel (`HeadcountUpdated`/`PositionsUpdated`); a rebind changes which zone later reads resolve to.
 
 ---
 
 ## 6. The 55″ display (kiosk)
 
 - **`/display`** — the authenticated extension view (DOC-02 §5.3): same login/session as the workstation, `view-dashboard` required, rendered through `DisplayLayout` (fullscreen, dark, no sidebar/chrome/controls). It keeps its session alive via the live-data heartbeat while open (DOC-02), but never bypasses auth.
-- **Design:** larger type (readable across a room), higher contrast, no interactive affordances. **Auto-cycling panes** every ~20 s (`display.cycle_seconds`, DOC-18): (1) Live cameras + total headcount + zone headcount, (2) Gas/CO₂ panels, (3) the Live Zone Map. A **persistent top banner** shows open **critical** alerts in `--crit` with the audible loop (DOC-07); a bottom **ticker** scrolls recent warnings/events.
+- **Design:** larger type (readable across a room), higher contrast, no interactive affordances. **Auto-cycling panes** every ~20 s (`display.cycle_seconds`, DOC-18): (1) Live cameras + total headcount + zone headcount, (2) Gas/CO₂ panels, (3) zone occupancy table. A **persistent top banner** shows open **critical** alerts in `--crit` with the audible loop (DOC-07); a bottom **ticker** scrolls recent warnings/events.
 - **LIVE / RECONNECTING pill** always visible (DOC-08 §5.4) — on the wall it must be obvious if the feed froze.
 - Carries the viewer's permissions (a PM opening `/display` sees the KPI-appropriate subset), but the display is normally opened by an operator/manager account.
 
@@ -123,15 +124,12 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
 ## 7. Navigation & shell
 
 - **Sidebar** (quiet, `--surface`, active item in `--accent`): grouped, with items hidden unless the user holds the matching `view-*` permission (DOC-03):
-  - **Overview** — Dashboard, Live View
-  - **Tracking** — Workers, Tags, Zones, Entry/Exit, Devices Register, Evacuation
-  - **PPE** — Trends (`/ppe`), Violations (`/ppe/violations`)
-  - **Gas** — Live (`/gas`), Alarms (`/gas/alarms`), Thresholds (settings)
+  - **Overview** — Dashboard, Alerts, Live View, Environment, Gas, PPE Trends
+  - **Site** — Live Tracking, Tag readings, Entry/Exit, Evacuation
+  - **Safety** — Gas Alarms, PPE Violations, LSR, Vehicle Violations, Incidents
   - **Equipment** — Items, Checkouts
-  - **HSE** — Incidents, LSR, Summary
-  - **Reports** — Weekly, Vehicle Violations, Settings
-  - **Alerts**
-  - **Settings** — Assets, Cameras, Devices, Repositioning, Zones, Users, Roles, Aramco/Read-only Access, Audit Log, General
+  - **Workforce** — Workers, Permits, Work orders, Portable Devices
+  - **Admin** — Hardware, Access, Reports, Settings (General, Zones, Repositioning, Audit Log, …)
 - **Top bar:** global search (workers/equipment/incidents), the **alert bell** with open count (DOC-07), the LIVE/RECONNECTING pill, the user menu (profile, theme toggle, logout), and an idle-timeout indicator (DOC-02).
 - **`AppLayout`** hosts `AlertProvider` (toasts/chime), `useIdleLogout`, and the shared permission context. `DisplayLayout` is the stripped kiosk shell.
 
@@ -141,19 +139,19 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
 
 - **`pages/dashboard/index.tsx`** — the widget grid; subscribes to `tracking`/`gas`/`alerts`/`environment`/`system` channels + 60 s poll of `/api/dashboard/summary`; LIVE/RECONNECTING pill.
 - **`pages/display/index.tsx`** — kiosk cycler (`DisplayLayout`).
-- **Components (`components/ir4/`):** `StatCard` (label + value + delta chip + sparkline), `RangeToggle` (Day/Week/Month), `AnalyticalChart` (area/line + hover tooltip + crosshair, recharts), `GeoZoneMap` (MapLibre), `GasPanelStrip`, `WeatherTiles`, `SystemHealthTiles`, `AlertFeed`, `SeverityBadge`, `LiveDot`, `DisplayBanner`, `EventTicker`.
+- **Components (`components/ir4/`):** `StatCard` (label + value + delta chip + sparkline), `RangeToggle` (Day/Week/Month), `AnalyticalChart` (area/line + hover tooltip + crosshair, recharts), `ZoneOccupancyTable`, `GasPanelStrip`, `WeatherTiles`, `SystemHealthTiles`, `AlertFeed`, `SeverityBadge`, `LiveDot`, `DisplayBanner`, `EventTicker`.
 - **Design tokens** in `resources/css/app.css` (the §2 palette + radius + shadows); a small `useTheme()` for dark/light.
-- **Types (`types/dashboard.ts`):** `DashboardSummary` (typed to §3), `StatCardProps`, `ChartRange`, `ZoneMapData`.
+- **Types (`types/dashboard.ts`):** `DashboardSummary` (typed to §3), `StatCardProps`, `ChartRange`.
 - Every number that updates live uses tabular figures + a 200ms tween; no layout shift on update.
 
 ---
 
 ## 9. Real-life scenarios
 
-- **Shift start:** operator opens the dashboard → sees 0 on-site climbing as workers badge in (Total Manpower tweens up, map dots appear), gas panels green, no open alerts → the calm baseline.
+- **Shift start:** operator opens the dashboard → sees 0 on-site climbing as workers badge in (Total Manpower tweens up, occupancy counts rise), gas panels green, no open alerts → the calm baseline.
 - **Critical event:** a gas alarm fires → the Gas Status card border pulses `--crit`, the Open Alerts card jumps, the display banner turns red with the chime → operator acts; when resolved, everything settles back to `--ok`.
-- **On the wall:** the 55″ cycles cameras → gas → map every 20 s; a critical alert pins the red banner across all panes until acknowledged; the LIVE pill stays green.
-- **PM check-in:** a Project Manager opens the dashboard → sees only KPI cards (manpower count, open incidents/LSR, overdue equipment, last report) — no live map, no gas detail — enough for oversight.
+- **On the wall:** the 55″ cycles cameras → gas → occupancy every 20 s; a critical alert pins the red banner across all panes until acknowledged; the LIVE pill stays green.
+- **PM check-in:** a Project Manager opens the dashboard → sees only KPI cards (manpower count, open incidents/LSR, overdue equipment, last report) — no occupancy tables, no gas detail — enough for oversight.
 - **Feed drop:** the socket drops → the LIVE pill flips to RECONNECTING (amber), cards keep last values and poll every 60 s → on reconnect, LIVE (green) and a fresh snapshot.
 
 ---
@@ -161,7 +159,7 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
 ## 10. Tests (this doc's slice of DOC-21)
 
 - **Summary endpoint:** returns all sections; omits data the user lacks permission for; identity-stripped where applicable; cached.
-- **Role-aware grid:** a user sees exactly the widgets their permissions allow; PM gets the KPI variant (no map/gas); an operator gets the full grid.
+- **Role-aware grid:** a user sees exactly the widgets their permissions allow; PM gets the KPI variant (no occupancy/gas); an operator gets the full grid.
 - **Live vs poll:** widgets patch from Reverb events; on socket loss the poll of `/api/dashboard/summary` reconciles and the LIVE/RECONNECTING pill reflects state.
 - **Display:** `/display` requires auth + `view-dashboard`; renders the kiosk cycler; shows the red banner for open criticals; never bypasses auth (DOC-02 integration).
 - **Map:** zones render from placement data with live occupancy; dots anonymize without `view-worker-identity`; reflects a reader rebind.
@@ -173,7 +171,7 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
 
 | # | Decision | Default | Confirm in |
 |---|---|---|---|
-| 1 | Site-plan overlay for the map vs plain coordinate canvas | uploaded site-plan raster (offline); canvas fallback | DOC-20 |
+| 1 | Zone visualisation | occupancy / presence / reading tables (no GPS) | this doc |
 | 2 | Display face (Inter Tight vs Space Grotesk) | Inter Tight (bundled) | this doc |
 | 3 | Display cycle interval | 20 s | DOC-18 |
 | 4 | Light theme scope | provided but dark is default; display always dark | this doc |

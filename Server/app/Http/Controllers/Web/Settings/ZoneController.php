@@ -50,9 +50,6 @@ final class ZoneController extends BaseController
                     'requires_permit' => $zone->requires_permit,
                     'occupancy_limit' => $zone->occupancy_limit,
                     'is_active' => $zone->is_active,
-                    'latitude' => $zone->latitude,
-                    'longitude' => $zone->longitude,
-                    'radius_meters' => $zone->radius_meters,
                     'color' => $zone->color,
                     'current_readers' => $zone->current_bindings_count,
                     'access_list_count' => $zone->access_list_count,
@@ -97,9 +94,6 @@ final class ZoneController extends BaseController
                 'requires_permit' => $zone->requires_permit,
                 'occupancy_limit' => $zone->occupancy_limit,
                 'is_active' => $zone->is_active,
-                'latitude' => $zone->latitude,
-                'longitude' => $zone->longitude,
-                'radius_meters' => $zone->radius_meters,
                 'color' => $zone->color,
                 'current_readers' => $zone->currentBindings->map(fn ($b) => [
                     'binding_id' => $b->id,
@@ -160,22 +154,6 @@ final class ZoneController extends BaseController
         /** @var list<int> $workerIds */
         $workerIds = $request->validated('worker_ids') ?? [];
         $zones->syncAccessList($zone, $workerIds, $request->user()?->id);
-
-        return redirect()->route('settings.zones.show', $zone);
-    }
-
-    public function setMapPosition(Request $request, Zone $zone, ZoneService $zones): RedirectResponse
-    {
-        $this->authorize('update', $zone);
-
-        $data = $request->validate([
-            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'radius_meters' => ['nullable', 'numeric', 'min:0'],
-            'color' => ['nullable', 'string', 'max:32'],
-        ]);
-
-        $zones->setMapPosition($zone, $data);
 
         return redirect()->route('settings.zones.show', $zone);
     }

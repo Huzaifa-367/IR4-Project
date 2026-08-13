@@ -175,4 +175,4 @@ Private channels (authorized in `routes/channels.php`); since the platform is a 
 ---
 
 ### Next document
-**DOC-09 — RFID Personnel Tracking / SSMS:** the biggest module — tag reads → live positions + entry/exit (gate logic, debounce, corrections), headcount + zone map, zone rules that raise alerts (which now *suggest* LSR, DOC-07/14), stationary-tag & evacuation, tag lifecycle and portable-device register — all riding the ingestion + real-time backbone defined here.
+**DOC-09 — RFID Personnel Tracking / SSMS:** the biggest module — tag reads → live positions + entry/exit (gate logic, debounce, corrections), headcount + occupancy/reading tables, zone rules that raise alerts (which now *suggest* LSR, DOC-07/14), stationary-tag & evacuation, tag lifecycle and portable-device register — all riding the ingestion + real-time backbone defined here.

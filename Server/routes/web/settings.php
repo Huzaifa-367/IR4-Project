@@ -69,9 +69,6 @@ Route::delete('settings/zones/{zone}', [ZoneController::class, 'destroy'])
 Route::put('settings/zones/{zone}/access-list', [ZoneController::class, 'updateAccessList'])
     ->middleware('permission:update-zones')
     ->name('settings.zones.access-list');
-Route::patch('settings/zones/{zone}/map-position', [ZoneController::class, 'setMapPosition'])
-    ->middleware('permission:update-zones')
-    ->name('settings.zones.map-position');
 
 Route::get('settings/repositioning', [RepositioningController::class, 'index'])
     ->middleware('permission:view-zones')

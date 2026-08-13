@@ -21,9 +21,6 @@ use Illuminate\Support\Carbon;
  * @property bool $requires_authorization
  * @property bool $requires_permit
  * @property int|null $occupancy_limit
- * @property string|null $latitude
- * @property string|null $longitude
- * @property string|null $radius_meters
  * @property string|null $color
  * @property bool $is_active
  * @property int|null $created_by
@@ -50,9 +47,6 @@ final class Zone extends Model
             'requires_authorization' => 'boolean',
             'requires_permit' => 'boolean',
             'is_active' => 'boolean',
-            'latitude' => 'decimal:7',
-            'longitude' => 'decimal:7',
-            'radius_meters' => 'decimal:2',
         ];
     }
 

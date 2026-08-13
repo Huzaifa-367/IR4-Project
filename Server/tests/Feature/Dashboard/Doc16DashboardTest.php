@@ -34,7 +34,7 @@ it('returns permission-filtered dashboard summary for operators', function () {
                 'alerts',
                 'weather',
                 'system_health',
-                'map',
+                'occupancy',
                 'gas',
                 'ppe_today',
                 'incidents',
@@ -57,7 +57,7 @@ it('omits operational sections for project managers', function () {
     $data = $response->json('data');
     expect($data)->toHaveKeys(['headcount', 'alerts', 'weather', 'system_health', 'equipment', 'last_report'])
         ->and($data)->not->toHaveKey('gas')
-        ->and($data)->not->toHaveKey('map')
+        ->and($data)->not->toHaveKey('occupancy')
         ->and($data)->not->toHaveKey('ppe_today')
         ->and($data['last_report']['status'])->toBe(ReportStatus::Published->value)
         ->and($data['headcount']['by_zone'])->toBe([]);
@@ -88,14 +88,14 @@ it('forbids guests from dashboard summary and display', function () {
     $this->get(route('display'))->assertRedirect(route('login'));
 });
 
-it('builds summary via service with identity-safe map labels', function () {
+it('builds summary via service with identity-safe occupancy labels', function () {
     $operator = User::factory()->withRole('SCC Operator')->create();
     // Operator has view-worker-identity in seeder — strip by using a role without it.
     $pm = User::factory()->withRole('Project Manager')->create();
 
     $summary = app(DashboardService::class)->summary($pm);
-    expect($summary)->not->toHaveKey('map');
+    expect($summary)->not->toHaveKey('occupancy');
 
     $full = app(DashboardService::class)->summary($operator);
-    expect($full)->toHaveKey('map');
+    expect($full)->toHaveKey('occupancy');
 });

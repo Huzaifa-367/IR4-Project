@@ -2,7 +2,7 @@
 
 > **Purpose.** One authoritative visual spec so **every** dashboard, module page, table, and chart across the platform is built to the same bold, analytical, information-dense standard — the "Control Room" look established in DOC-16 and shown in the reference dashboards. Where a module DOC says *what* a page contains, this guide says *how it looks and lays out*. Cursor/engineers follow this for all frontend work; designers extend it, never contradict it.
 >
-> **Applies to:** all operator (surface A) screens, the 55″ display, and the public QR page (a lighter, read-only descendant). React 19 + TypeScript + Inertia + Tailwind 4 + shadcn/ui + recharts + MapLibre (DOC-01).
+> **Applies to:** all operator (surface A) screens, the 55″ display, and the public QR page (a lighter, read-only descendant). React 19 + TypeScript + Inertia + Tailwind 4 + shadcn/ui + recharts (DOC-01).
 
 ---
 
@@ -125,7 +125,7 @@ Three roles, bundled locally (no CDN — on-prem, DOC-01).
 
 ### 3.2 The 12-column grid & standard spans
 - KPI stat cards: **3 cols each** (4 across) on desktop, 2-up on tablet, 1-up on mobile.
-- Primary chart / live map: **8 cols**; its companion feed/side-panel: **4 cols**.
+- Primary chart / occupancy table: **8 cols**; its companion feed/side-panel: **4 cols**.
 - Secondary charts: **4 cols each** (3 across) or **6/6**.
 - Wide tables: **12 cols**.
 - Everything reflows to 1 column < 768px; the sidebar collapses to icons then to a drawer.
@@ -194,8 +194,8 @@ Thin (6–8px) rounded progress bars for SLAs, completion, checkout dueness, eva
 ### 4.10 `MetricRow` / `LabeledStat`
 Compact "label + big value + tiny delta" used inside panels (reference 4 Allocation footer: Volatility / Market Cap / Sortino as three inline stats). For dense secondary metrics that don't each deserve a card.
 
-### 4.11 The `GeoZoneMap` (the bespoke signature — DOC-16 §5)
-MapLibre with an offline Gulf pmtiles basemap; zone circles from `latitude` / `longitude` / `radius_meters`, colored by type with live occupancy labels; worker dots (anonymized without `view-worker-identity`); reader badges. This is the one visual no generic dashboard has — spend the boldness here. On the CCTV/live view (reference 6) the same dark chrome frames a camera grid with per-tile labels + status dots.
+### 4.11 Zone occupancy & reading tables (DOC-16 §5)
+No GPS and no map. Occupancy, presence, and tag-reading tables show who is in which zone because a bound RFID reader saw them. Identity-stripped without `view-worker-identity`. On the CCTV/live view the same dark chrome frames a camera grid with per-tile labels + status dots.
 
 ---
 
@@ -204,7 +204,7 @@ MapLibre with an offline Gulf pmtiles basemap; zone circles from `latitude` / `l
 Every screen is one of these patterns — don't invent new layouts per page.
 
 ### 5.1 Command dashboard (`/dashboard`, `/display`)
-Stat row (Manpower, Open Alerts, Gas status, System Health) → **primary: live Zone Map (8 col) + Alert feed (4 col)** → secondary charts (PPE today, gas trend, headcount trend) → optional recent-incidents table. This is reference 5 applied to site safety. The `/display` variant strips chrome, enlarges type, and auto-cycles panes.
+Stat row (Manpower, Open Alerts, Gas status, System Health) → **primary: zone occupancy table (8 col) + Alert feed (4 col)** → secondary charts (PPE today, gas trend, headcount trend) → optional recent-incidents table. This is reference 5 applied to site safety. The `/display` variant strips chrome, enlarges type, and auto-cycles panes.
 
 ### 5.2 Module overview (e.g. Gas, PPE, Tracking)
 Stat row (the module's KPIs) → primary `AnalyticalChart` with range toggle (8 col) + a side panel (live panels / breakdown, 4 col) → a `DataTable` of the module's records. Reference 4's Investment overview is the template.
@@ -280,7 +280,7 @@ Restrained, purposeful (DOC-16 §2.3 / frontend-design restraint):
 ## 10. Implementation notes (for Cursor)
 
 - **Tokens → Tailwind:** expose the §1 CSS vars in `tailwind.config` `theme.extend.colors` as `bg`, `surface`, `surface-2`, `border`, `text`, `text-dim`, `accent`, `ok`, `warn`, `crit`, `viz-1…6`, plus the radius/spacing scale. Components use semantic classes (`bg-surface`, `text-dim`, `border-border`), never raw hex.
-- **Component home:** all shared pieces in `components/ir4/` (StatCard, AnalyticalChart, DonutChart, RadialGauge, BarChart, DataTable, StatusPill, LiveFeed, RangeToggle, MiniProgress, MetricRow, GeoZoneMap, DisplayBanner, EventTicker). shadcn/ui for primitives (dialog, dropdown, tabs, tooltip) themed to the tokens.
+- **Component home:** all shared pieces in `components/ir4/` (StatCard, AnalyticalChart, DonutChart, RadialGauge, BarChart, DataTable, StatusPill, LiveFeed, RangeToggle, MiniProgress, MetricRow, ZoneOccupancyTable, DisplayBanner, EventTicker). shadcn/ui for primitives (dialog, dropdown, tabs, tooltip) themed to the tokens.
 - **Charts:** recharts, wrapped so the crosshair-tooltip, gridline, axis, and palette styling are defined **once** in `AnalyticalChart` and inherited — pages pass data + series config, never restyle.
 - **Fonts:** self-host Inter Tight / Inter / JetBrains Mono via `@font-face` (no Google Fonts CDN — on-prem).
 - **Theme:** `data-theme` on `<html>`; `useTheme()` reads a user preference; display is forced dark.

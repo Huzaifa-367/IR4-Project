@@ -104,7 +104,7 @@ final class DashboardService
         }
 
         if ($user->can('view-tracking') && ! $readOnly) {
-            $out['map'] = $this->mapBlock($user);
+            $out['occupancy'] = $this->occupancyBlock($user);
             if (! isset($out['headcount'])) {
                 $out['headcount'] = $this->tracking->headcountSnapshot();
             } else {
@@ -717,21 +717,22 @@ final class DashboardService
     /**
      * @return array{zones: list<array<string, mixed>>, positions: list<array<string, mixed>>, in_red: int, zone_count: int}
      */
-    private function mapBlock(User $user): array
+    private function occupancyBlock(User $user): array
     {
         $canIdentity = $user->can('view-worker-identity');
         $zones = Zone::query()
             ->where('is_active', true)
-            ->get(['id', 'uuid', 'name', 'zone_type', 'latitude', 'longitude', 'radius_meters', 'color'])
+            ->withCount('currentBindings')
+            ->orderBy('name')
+            ->get(['id', 'uuid', 'name', 'zone_type', 'color', 'occupancy_limit'])
             ->map(fn (Zone $zone): array => [
                 'id' => $zone->id,
                 'uuid' => $zone->uuid,
                 'name' => $zone->name,
                 'zone_type' => $zone->zone_type->value,
-                'latitude' => $zone->latitude,
-                'longitude' => $zone->longitude,
-                'radius_meters' => $zone->radius_meters,
                 'color' => $zone->color,
+                'occupancy_limit' => $zone->occupancy_limit,
+                'reader_count' => $zone->current_bindings_count,
             ])
             ->values()
             ->all();

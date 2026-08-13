@@ -177,16 +177,15 @@ export type DashboardSummary = {
         status: string;
         generated_at: string | null;
     } | null;
-    map?: {
+    occupancy?: {
         zones: Array<{
             id: number;
             uuid: string;
             name: string;
             zone_type: string;
-            latitude: number | null;
-            longitude: number | null;
-            radius_meters: number | null;
             color: string | null;
+            occupancy_limit?: number | null;
+            reader_count?: number;
         }>;
         positions: Array<{
             tag_id: number;
@@ -215,4 +214,3 @@ export function systemHealthAssets(
 
     return Array.isArray(health) ? health : health.assets;
 }
-

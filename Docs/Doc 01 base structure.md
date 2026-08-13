@@ -43,8 +43,8 @@ composer require spatie/laravel-permission laravel/reverb barryvdh/laravel-dompd
 composer require --dev larastan/larastan pestphp/pest laravel/pint --with-all-dependencies
 ```
 ```bash
-# frontend (recharts for charts, maplibre for the zone map, date-fns, zod for form/runtime typing)
-npm i recharts maplibre-gl date-fns zod
+# frontend (recharts for charts, date-fns, zod for form/runtime typing)
+npm i recharts date-fns zod
 ```
 
 ---
@@ -114,7 +114,7 @@ resources/
 │   ├── layouts/               # AppSidebar layout, DisplayLayout (kiosk), AuthLayout
 │   ├── components/
 │   │   ├── ui/                # shadcn/ui primitives
-│   │   └── ir4/               # domain components (GaugePanel, GeoZoneMap, AlertToast…)
+│   │   └── ir4/               # domain components (GaugePanel, ZoneOccupancyTable, AlertToast…)
 │   ├── hooks/                 # useReverbChannel, useIdleLogout, usePermissions…
 │   ├── lib/                   # api client (for public/device-facing only), utils, formatters
 │   └── types/                 # generated + hand-written TS types, enums.ts (§6)
@@ -397,7 +397,7 @@ Each module DOC therefore starts at its own §1 (Purpose) and goes straight to i
 | 2 | Timezone | `Asia/Riyadh` | DOC-18 |
 | 3 | Reporting week boundary | Sunday–Saturday | DOC-15 |
 | 4 | Public QR page renderer | Inertia (standalone layout) vs Blade | DOC-13 |
-| 5 | Map library | MapLibre GL (offline tiles) vs Leaflet | DOC-09/16 |
+| 5 | Zone visualisation | occupancy / reading tables (no GPS, no map) | DOC-09/16 |
 
 These do not block DOC-02. Confirm at the referenced DOC.
 

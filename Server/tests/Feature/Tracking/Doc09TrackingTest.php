@@ -209,6 +209,70 @@ it('forbids positions for project manager headcount-only role', function () {
         ->assertForbidden();
 });
 
+it('lists all and per-zone tag readings as records', function () {
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $plain = 'track-readings';
+    $readerA = Device::factory()->withPlainToken($plain)->create(['reference' => 'DEV-RFID-A']);
+    $readerB = Device::factory()->withPlainToken('track-readings-b')->create(['reference' => 'DEV-RFID-B']);
+    $zoneA = Zone::factory()->create(['name' => 'Zone A']);
+    $zoneB = Zone::factory()->create(['name' => 'Zone B']);
+    app(ReaderBindingService::class)->bind($readerA, $zoneA, now()->subDay(), $admin);
+    app(ReaderBindingService::class)->bind($readerB, $zoneB, now()->subDay(), $admin);
+
+    $worker = Worker::factory()->create();
+    $tag = RfidTag::factory()->create();
+    app(TagService::class)->assign($tag, $worker, $admin);
+
+    trackingIngest($readerA, $plain, $tag->tag_uid, now()->subMinutes(2));
+    trackingIngest($readerB, 'track-readings-b', $tag->tag_uid, now()->subMinute());
+
+    $this->actingAs($admin)
+        ->getJson(route('tracking.api.readings'))
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+
+    $this->actingAs($admin)
+        ->getJson(route('tracking.api.readings', ['zone_id' => $zoneA->id]))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.zone_name', 'Zone A')
+        ->assertJsonPath('data.0.reader_ref', 'DEV-RFID-A');
+});
+
+it('lists tag reading records with zone and time filters', function () {
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $plain = 'track-readings-page';
+    $reader = Device::factory()->withPlainToken($plain)->create(['reference' => 'DEV-RFID-REC']);
+    $zone = Zone::factory()->create(['name' => 'Records Zone']);
+    app(ReaderBindingService::class)->bind($reader, $zone, now()->subDay(), $admin);
+
+    $worker = Worker::factory()->create();
+    $tag = RfidTag::factory()->create();
+    app(TagService::class)->assign($tag, $worker, $admin);
+
+    trackingIngest($reader, $plain, $tag->tag_uid, now()->subHours(2));
+    trackingIngest($reader, $plain, $tag->tag_uid, now()->subMinutes(5));
+
+    $this->actingAs($admin)
+        ->get(route('tracking.readings.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('tracking/readings/index')
+            ->has('readings.data', 2));
+
+    $this->actingAs($admin)
+        ->get(route('tracking.readings.index', [
+            'zone_id' => $zone->id,
+            'from' => now()->subMinutes(30)->format('Y-m-d\TH:i'),
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('tracking/readings/index')
+            ->has('readings.data', 1)
+            ->where('readings.data.0.zone_name', 'Records Zone')
+            ->where('readings.data.0.reader_ref', 'DEV-RFID-REC'));
+});
+
 it('manual entry exit correction creates a new row', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
     $worker = Worker::factory()->create();

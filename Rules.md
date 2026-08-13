@@ -81,7 +81,7 @@
 | Queue/cache | Redis |
 | RBAC | `spatie/laravel-permission` |
 | PDF / QR | `barryvdh/laravel-dompdf`, `endroid/qr-code` |
-| Charts / map | recharts, maplibre-gl |
+| Charts | recharts |
 | Dates / validation UX | date-fns, zod |
 | Tests / quality | Pest, Larastan, Pint |
 

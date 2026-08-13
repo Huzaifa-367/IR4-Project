@@ -22,9 +22,6 @@ final class ZoneService
             'requires_authorization' => (bool) ($data['requires_authorization'] ?? false),
             'requires_permit' => (bool) ($data['requires_permit'] ?? false),
             'occupancy_limit' => $data['occupancy_limit'] ?? null,
-            'latitude' => $data['latitude'] ?? null,
-            'longitude' => $data['longitude'] ?? null,
-            'radius_meters' => $data['radius_meters'] ?? null,
             'color' => $data['color'] ?? null,
             'is_active' => true,
         ]);
@@ -101,21 +98,6 @@ final class ZoneService
             'ip' => request()->ip(),
             'created_at' => now(),
         ]);
-    }
-
-    /**
-     * @param  array{latitude?: mixed, longitude?: mixed, radius_meters?: mixed, color?: mixed}  $data
-     */
-    public function setMapPosition(Zone $zone, array $data): Zone
-    {
-        $zone->forceFill([
-            'latitude' => $data['latitude'] ?? $zone->latitude,
-            'longitude' => $data['longitude'] ?? $zone->longitude,
-            'radius_meters' => $data['radius_meters'] ?? $zone->radius_meters,
-            'color' => $data['color'] ?? $zone->color,
-        ])->save();
-
-        return $zone;
     }
 
     public function workerIsAuthorized(Zone $zone, int $workerId): bool

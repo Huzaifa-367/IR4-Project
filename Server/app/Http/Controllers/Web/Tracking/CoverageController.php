@@ -16,7 +16,7 @@ final class CoverageController extends BaseController
 
         $coverage = Device::query()
             ->where('device_type', DeviceType::RfidReader)
-            ->with(['currentZoneBinding.zone:id,uuid,name,zone_type,latitude,longitude,radius_meters,color'])
+            ->with(['currentZoneBinding.zone:id,uuid,name,zone_type,color'])
             ->orderBy('name')
             ->get()
             ->map(function (Device $device): array {
@@ -32,9 +32,6 @@ final class CoverageController extends BaseController
                         'uuid' => $zone->uuid,
                         'name' => $zone->name,
                         'zone_type' => $zone->zone_type->value,
-                        'latitude' => $zone->latitude,
-                        'longitude' => $zone->longitude,
-                        'radius_meters' => $zone->radius_meters,
                         'color' => $zone->color,
                     ],
                 ];

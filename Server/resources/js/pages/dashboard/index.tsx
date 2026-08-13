@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnalyticalChart } from '@/components/ir4/analytical-chart';
 import { DonutChart, RadialGauge } from '@/components/ir4/donut-chart';
 import { GasChannelGauges } from '@/components/ir4/gas-channel-gauges';
-import { GeoZoneMapView } from '@/components/ir4/geo-zone-map';
 import { HorizontalBars } from '@/components/ir4/horizontal-bars';
 import { LiveFeed } from '@/components/ir4/live-feed';
 import { MetricRow } from '@/components/ir4/metric-row';
@@ -14,6 +13,7 @@ import { PpeHeatmap } from '@/components/ir4/ppe-heatmap';
 import { RangeToggle } from '@/components/ir4/range-toggle';
 import { StatCard } from '@/components/ir4/stat-card';
 import { StatusPill } from '@/components/ir4/status-pill';
+import { ZoneOccupancyTable } from '@/components/ir4/zone-tables';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -87,9 +87,12 @@ export default function DashboardIndex({
     const [clock, setClock] = useState(() => formatClock(initial.meta?.as_of));
     const { can } = usePermissions();
 
-    const onSnapshot = useCallback((payload: unknown) => {
-        setSummary(unwrapSummary(payload));
-    }, [setSummary]);
+    const onSnapshot = useCallback(
+        (payload: unknown) => {
+            setSummary(unwrapSummary(payload));
+        },
+        [setSummary],
+    );
 
     const summaryQuery = useCallback(
         (nextRange: DashboardRange = range, nextFrom = from, nextTo = to) => {
@@ -170,10 +173,9 @@ export default function DashboardIndex({
         );
     };
 
-    const rangeLabel =
-        summary.meta?.range_label ?? 'Today';
-    const zones = (summary.map?.zones ?? []) as TrackingZone[];
-    const showMap = permissions.view_tracking && can('view-tracking');
+    const rangeLabel = summary.meta?.range_label ?? 'Today';
+    const zones = (summary.occupancy?.zones ?? []) as TrackingZone[];
+    const showOccupancy = permissions.view_tracking && can('view-tracking');
     const showGas = permissions.view_gas && can('view-gas');
     const healthAssets = systemHealthAssets(summary.system_health);
     const healthMeta = Array.isArray(summary.system_health)
@@ -337,7 +339,7 @@ export default function DashboardIndex({
                         <StatCard
                             label="Total Manpower"
                             value={summary.headcount.total_on_site}
-                            href={showMap ? '/tracking' : undefined}
+                            href={showOccupancy ? '/tracking' : undefined}
                             info={dashboardInfo.manpower}
                             delta={`${deltaManpower >= 0 ? '▲ +' : '▼ '}${Math.abs(deltaManpower)} vs range start`}
                             deltaTone={deltaManpower >= 0 ? 'ok' : 'neutral'}
@@ -404,96 +406,83 @@ export default function DashboardIndex({
                             Presence & alerts
                         </h2>
                     </div>
-                <div className="grid gap-4 xl:grid-cols-12">
-                    {showMap ? (
+                    <div className="grid gap-4 xl:grid-cols-12">
+                        {showOccupancy ? (
+                            <Panel
+                                title="Zone occupancy"
+                                subtitle="RFID reader bindings · live · no GPS"
+                                info={dashboardInfo.occupancy}
+                                className="xl:col-span-8"
+                                action={
+                                    <Link
+                                        href="/tracking/readings"
+                                        className="text-xs text-[color:var(--accent)] hover:underline"
+                                    >
+                                        All records ›
+                                    </Link>
+                                }
+                            >
+                                <div className="relative">
+                                    <ZoneOccupancyTable
+                                        zones={zones}
+                                        occupancy={summary.headcount?.by_zone}
+                                        onSelect={(zone) =>
+                                            router.visit(
+                                                `/settings/zones/${zone.uuid}`,
+                                            )
+                                        }
+                                    />
+                                    <div className="mt-3 grid grid-cols-3 gap-3 rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-2">
+                                        <div>
+                                            <p className="eyebrow">On Site</p>
+                                            <p className="font-mono text-lg tabular-nums">
+                                                {summary.headcount
+                                                    ?.total_on_site ?? 0}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="eyebrow">Zones</p>
+                                            <p className="font-mono text-lg tabular-nums">
+                                                {summary.occupancy
+                                                    ?.zone_count ??
+                                                    zones.length}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="eyebrow">In Red</p>
+                                            <p className="font-mono text-lg text-[color:var(--crit)] tabular-nums">
+                                                {summary.occupancy?.in_red ?? 0}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Panel>
+                        ) : null}
+
                         <Panel
-                            title="Live Zone Map"
-                            subtitle="RFID zone-level presence · live"
-                            info={dashboardInfo.zoneMap}
-                            className="xl:col-span-8"
+                            title="Alert Feed"
+                            subtitle="Live · newest first"
+                            info={dashboardInfo.alertFeed}
+                            className={
+                                showOccupancy
+                                    ? 'xl:col-span-4'
+                                    : 'xl:col-span-12'
+                            }
                             action={
-                                <Link
-                                    href="/tracking"
-                                    className="text-xs text-[color:var(--accent)] hover:underline"
-                                >
-                                    Tracking ›
-                                </Link>
+                                <RangeToggle
+                                    value={alertFilter}
+                                    onChange={setAlertFilter}
+                                    options={[
+                                        { value: 'all', label: 'All' },
+                                        { value: 'crit', label: 'Crit' },
+                                    ]}
+                                    aria-label="Alert severity filter"
+                                />
                             }
                         >
-                            <div className="relative">
-                                <GeoZoneMapView
-                                    zones={zones}
-                                    occupancy={summary.headcount?.by_zone}
-                                    onSelect={(zone) =>
-                                        router.visit(
-                                            `/settings/zones/${zone.uuid}`,
-                                        )
-                                    }
-                                />
-                                <div className="mt-3 grid grid-cols-3 gap-3 rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-2">
-                                    <div>
-                                        <p className="eyebrow">On Site</p>
-                                        <p className="font-mono text-lg tabular-nums">
-                                            {summary.headcount?.total_on_site ??
-                                                0}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="eyebrow">Zones</p>
-                                        <p className="font-mono text-lg tabular-nums">
-                                            {summary.map?.zone_count ??
-                                                zones.length}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="eyebrow">In Red</p>
-                                        <p className="font-mono text-lg text-[color:var(--crit)] tabular-nums">
-                                            {summary.map?.in_red ?? 0}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-text-dim">
-                                    <span>
-                                        <i className="mr-1 inline-block size-2 rounded-full bg-[color:var(--accent)]" />
-                                        Work
-                                    </span>
-                                    <span>
-                                        <i className="mr-1 inline-block size-2 rounded-full bg-[color:var(--warn)]" />
-                                        Height
-                                    </span>
-                                    <span>
-                                        <i className="mr-1 inline-block size-2 rounded-full bg-[color:var(--crit)]" />
-                                        Restricted
-                                    </span>
-                                    <span>
-                                        <i className="mr-1 inline-block size-2 rounded-full bg-[color:var(--ok)]" />
-                                        Muster
-                                    </span>
-                                </div>
-                            </div>
+                            <LiveFeed items={alertItems} />
                         </Panel>
-                    ) : null}
-
-                    <Panel
-                        title="Alert Feed"
-                        subtitle="Live · newest first"
-                        info={dashboardInfo.alertFeed}
-                        className={showMap ? 'xl:col-span-4' : 'xl:col-span-12'}
-                        action={
-                            <RangeToggle
-                                value={alertFilter}
-                                onChange={setAlertFilter}
-                                options={[
-                                    { value: 'all', label: 'All' },
-                                    { value: 'crit', label: 'Crit' },
-                                ]}
-                                aria-label="Alert severity filter"
-                            />
-                        }
-                    >
-                        <LiveFeed items={alertItems} />
-                    </Panel>
-                </div>
+                    </div>
                 </section>
 
                 {(showGas || summary.gas) && (
@@ -504,63 +493,63 @@ export default function DashboardIndex({
                                 Trends for {rangeLabel}
                             </h2>
                         </div>
-                    <div className="grid gap-4 xl:grid-cols-12">
-                        {showGas ? (
+                        <div className="grid gap-4 xl:grid-cols-12">
+                            {showGas ? (
+                                <Panel
+                                    title="Gas Trend — all channels"
+                                    subtitle={`${rangeLabel} · LEL · H₂S · O₂ · CO · CO₂`}
+                                    info={dashboardInfo.gasTrend}
+                                    className="xl:col-span-8"
+                                >
+                                    <div className="mb-2 flex flex-wrap gap-3 text-xs text-text-dim">
+                                        {(summary.gas?.trend?.series ?? []).map(
+                                            (s) => (
+                                                <span
+                                                    key={s.key}
+                                                    className="inline-flex items-center gap-1.5"
+                                                >
+                                                    <i
+                                                        className="size-2 rounded-full"
+                                                        style={{
+                                                            background:
+                                                                s.color ??
+                                                                'var(--viz-1)',
+                                                        }}
+                                                    />
+                                                    {s.label}{' '}
+                                                    <b className="font-mono text-text">
+                                                        {s.latest !== null &&
+                                                        s.latest !== undefined
+                                                            ? Number(
+                                                                  s.latest,
+                                                              ).toFixed(1)
+                                                            : '—'}
+                                                    </b>
+                                                </span>
+                                            ),
+                                        )}
+                                    </div>
+                                    <AnalyticalChart
+                                        data={gasChartData}
+                                        series={gasSeries}
+                                        height={250}
+                                        emptyLabel="No gas readings in this range"
+                                    />
+                                </Panel>
+                            ) : null}
                             <Panel
-                                title="Gas Trend — all channels"
-                                subtitle={`${rangeLabel} · LEL · H₂S · O₂ · CO · CO₂`}
-                                info={dashboardInfo.gasTrend}
-                                className="xl:col-span-8"
+                                title="Live Gas Panels"
+                                subtitle={`${summary.gas?.channel_gauges?.length ?? 0} channels · live vs thresholds`}
+                                info={dashboardInfo.gasPanels}
+                                className={
+                                    showGas ? 'xl:col-span-4' : 'xl:col-span-12'
+                                }
                             >
-                                <div className="mb-2 flex flex-wrap gap-3 text-xs text-text-dim">
-                                    {(summary.gas?.trend?.series ?? []).map(
-                                        (s) => (
-                                            <span
-                                                key={s.key}
-                                                className="inline-flex items-center gap-1.5"
-                                            >
-                                                <i
-                                                    className="size-2 rounded-full"
-                                                    style={{
-                                                        background:
-                                                            s.color ??
-                                                            'var(--viz-1)',
-                                                    }}
-                                                />
-                                                {s.label}{' '}
-                                                <b className="font-mono text-text">
-                                                    {s.latest !== null &&
-                                                    s.latest !== undefined
-                                                        ? Number(
-                                                              s.latest,
-                                                          ).toFixed(1)
-                                                        : '—'}
-                                                </b>
-                                            </span>
-                                        ),
-                                    )}
-                                </div>
-                                <AnalyticalChart
-                                    data={gasChartData}
-                                    series={gasSeries}
-                                    height={250}
-                                    emptyLabel="No gas readings in this range"
+                                <GasChannelGauges
+                                    gauges={summary.gas?.channel_gauges ?? []}
                                 />
                             </Panel>
-                        ) : null}
-                        <Panel
-                            title="Live Gas Panels"
-                            subtitle={`${summary.gas?.channel_gauges?.length ?? 0} channels · live vs thresholds`}
-                            info={dashboardInfo.gasPanels}
-                            className={
-                                showGas ? 'xl:col-span-4' : 'xl:col-span-12'
-                            }
-                        >
-                            <GasChannelGauges
-                                gauges={summary.gas?.channel_gauges ?? []}
-                            />
-                        </Panel>
-                    </div>
+                        </div>
                     </section>
                 )}
 
@@ -571,124 +560,126 @@ export default function DashboardIndex({
                             Safety score, PPE & LSR · {rangeLabel}
                         </h2>
                     </div>
-                <div className="grid gap-4 xl:grid-cols-12">
-                    {summary.safety_score ? (
-                        <Panel
-                            title="Site Safety Score"
-                            subtitle="composite"
-                            info={dashboardInfo.safetyScore}
-                            className="xl:col-span-4"
-                        >
-                            <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-                                <RadialGauge
-                                    value={summary.safety_score.score}
-                                    max={100}
-                                    label="Safety"
-                                    sublabel="of 100"
-                                />
-                                <div className="w-full flex-1 space-y-2">
-                                    {(
-                                        [
+                    <div className="grid gap-4 xl:grid-cols-12">
+                        {summary.safety_score ? (
+                            <Panel
+                                title="Site Safety Score"
+                                subtitle="composite"
+                                info={dashboardInfo.safetyScore}
+                                className="xl:col-span-4"
+                            >
+                                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+                                    <RadialGauge
+                                        value={summary.safety_score.score}
+                                        max={100}
+                                        label="Safety"
+                                        sublabel="of 100"
+                                    />
+                                    <div className="w-full flex-1 space-y-2">
+                                        {(
                                             [
-                                                'PPE',
-                                                summary.safety_score.components
-                                                    .ppe,
-                                                'ok',
-                                            ],
-                                            [
-                                                'Zone',
-                                                summary.safety_score.components
-                                                    .zone,
-                                                'ok',
-                                            ],
-                                            [
-                                                'Equip',
-                                                summary.safety_score.components
-                                                    .equipment,
-                                                'warn',
-                                            ],
-                                        ] as const
-                                    ).map(([label, value, tone]) => (
-                                        <div
-                                            key={label}
-                                            className="grid grid-cols-[48px_1fr_40px] items-center gap-2 text-xs"
-                                        >
-                                            <span className="text-text-dim">
-                                                {label}
-                                            </span>
-                                            <MiniProgress
-                                                value={value}
-                                                max={100}
-                                                tone={tone}
-                                            />
-                                            <span className="text-right font-mono tabular-nums">
-                                                {value}%
-                                            </span>
-                                        </div>
-                                    ))}
+                                                [
+                                                    'PPE',
+                                                    summary.safety_score
+                                                        .components.ppe,
+                                                    'ok',
+                                                ],
+                                                [
+                                                    'Zone',
+                                                    summary.safety_score
+                                                        .components.zone,
+                                                    'ok',
+                                                ],
+                                                [
+                                                    'Equip',
+                                                    summary.safety_score
+                                                        .components.equipment,
+                                                    'warn',
+                                                ],
+                                            ] as const
+                                        ).map(([label, value, tone]) => (
+                                            <div
+                                                key={label}
+                                                className="grid grid-cols-[48px_1fr_40px] items-center gap-2 text-xs"
+                                            >
+                                                <span className="text-text-dim">
+                                                    {label}
+                                                </span>
+                                                <MiniProgress
+                                                    value={value}
+                                                    max={100}
+                                                    tone={tone}
+                                                />
+                                                <span className="text-right font-mono tabular-nums">
+                                                    {value}%
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="mt-4">
-                                <MetricRow
-                                    items={[
-                                        {
-                                            label: 'PPE Today',
-                                            value: summary.safety_score
-                                                .ppe_today,
-                                        },
-                                        {
-                                            label: 'Open LSR',
-                                            value: summary.safety_score
-                                                .open_lsr,
-                                        },
-                                        {
-                                            label: 'Overdue Eq.',
-                                            value: summary.safety_score
-                                                .overdue_equipment,
-                                            deltaTone:
-                                                summary.safety_score
-                                                    .overdue_equipment > 0
-                                                    ? 'crit'
-                                                    : 'ok',
-                                        },
-                                    ]}
+                                <div className="mt-4">
+                                    <MetricRow
+                                        items={[
+                                            {
+                                                label: 'PPE Today',
+                                                value: summary.safety_score
+                                                    .ppe_today,
+                                            },
+                                            {
+                                                label: 'Open LSR',
+                                                value: summary.safety_score
+                                                    .open_lsr,
+                                            },
+                                            {
+                                                label: 'Overdue Eq.',
+                                                value: summary.safety_score
+                                                    .overdue_equipment,
+                                                deltaTone:
+                                                    summary.safety_score
+                                                        .overdue_equipment > 0
+                                                        ? 'crit'
+                                                        : 'ok',
+                                            },
+                                        ]}
+                                    />
+                                </div>
+                            </Panel>
+                        ) : null}
+
+                        {permissions.view_ppe && summary.ppe_today?.heatmap ? (
+                            <Panel
+                                title="PPE Violations by Hour"
+                                subtitle={`density heatmap · ${rangeLabel}`}
+                                info={dashboardInfo.ppeHeatmap}
+                                className="xl:col-span-4"
+                            >
+                                <PpeHeatmap
+                                    types={summary.ppe_today.heatmap.types}
+                                    hours={summary.ppe_today.heatmap.hours}
+                                    cells={summary.ppe_today.heatmap.cells}
                                 />
-                            </div>
-                        </Panel>
-                    ) : null}
+                            </Panel>
+                        ) : null}
 
-                    {permissions.view_ppe && summary.ppe_today?.heatmap ? (
-                        <Panel
-                            title="PPE Violations by Hour"
-                            subtitle={`density heatmap · ${rangeLabel}`}
-                            info={dashboardInfo.ppeHeatmap}
-                            className="xl:col-span-4"
-                        >
-                            <PpeHeatmap
-                                types={summary.ppe_today.heatmap.types}
-                                hours={summary.ppe_today.heatmap.hours}
-                                cells={summary.ppe_today.heatmap.cells}
-                            />
-                        </Panel>
-                    ) : null}
-
-                    {permissions.view_lsr && summary.lsr ? (
-                        <Panel
-                            title="LSR by Category"
-                            subtitle={rangeLabel}
-                            info={dashboardInfo.lsrCategory}
-                            className="xl:col-span-4"
-                        >
-                            <HorizontalBars
-                                items={summary.lsr.by_category.map((row) => ({
-                                    label: row.label,
-                                    value: row.total ?? row.open,
-                                }))}
-                                emptyLabel="No LSR in this range"
-                            />
-                        </Panel>
-                    ) : null}
-                </div>
+                        {permissions.view_lsr && summary.lsr ? (
+                            <Panel
+                                title="LSR by Category"
+                                subtitle={rangeLabel}
+                                info={dashboardInfo.lsrCategory}
+                                className="xl:col-span-4"
+                            >
+                                <HorizontalBars
+                                    items={summary.lsr.by_category.map(
+                                        (row) => ({
+                                            label: row.label,
+                                            value: row.total ?? row.open,
+                                        }),
+                                    )}
+                                    emptyLabel="No LSR in this range"
+                                />
+                            </Panel>
+                        ) : null}
+                    </div>
                 </section>
 
                 <section className="flex flex-col gap-4">
@@ -698,79 +689,83 @@ export default function DashboardIndex({
                             Headcount & readiness
                         </h2>
                     </div>
-                <div className="grid gap-4 xl:grid-cols-12">
-                    {showMap && headcountFlowData.length > 0 ? (
-                        <Panel
-                            title="Headcount & Flow"
-                            subtitle={`${rangeLabel} · peak ${summary.headcount?.peak ?? '—'}`}
-                            info={dashboardInfo.headcountFlow}
-                            className="xl:col-span-5"
-                        >
-                            <AnalyticalChart
-                                data={headcountFlowData}
-                                series={[
-                                    {
-                                        key: 'on_site',
-                                        label: 'On site',
-                                        color: 'var(--viz-3)',
-                                        type: 'area',
-                                    },
-                                ]}
-                                height={220}
-                            />
-                        </Panel>
-                    ) : null}
-
-                    {showMap && zoneDonut.length > 0 ? (
-                        <Panel
-                            title="Workers by Zone"
-                            subtitle={`live distribution · ${summary.headcount?.total_on_site ?? 0} on site`}
-                            info={dashboardInfo.workersByZone}
-                            className="xl:col-span-4"
-                        >
-                            <DonutChart
-                                data={zoneDonut}
-                                centerLabel="On site"
-                                height={160}
-                            />
-                        </Panel>
-                    ) : null}
-
-                    {showMap && summary.evacuation ? (
-                        <Panel
-                            title="Evacuation Readiness"
-                            subtitle="last drill accounting"
-                            info={dashboardInfo.evacuation}
-                            className="xl:col-span-3"
-                        >
-                            <div className="flex justify-center">
-                                <RadialGauge
-                                    value={summary.evacuation.accounted}
-                                    max={Math.max(1, summary.evacuation.total)}
-                                    label="Accounted"
-                                    sublabel={
-                                        summary.evacuation.total > 0
-                                            ? `${summary.evacuation.accounted}/${summary.evacuation.total}`
-                                            : 'No drills yet'
-                                    }
+                    <div className="grid gap-4 xl:grid-cols-12">
+                        {showOccupancy && headcountFlowData.length > 0 ? (
+                            <Panel
+                                title="Headcount & Flow"
+                                subtitle={`${rangeLabel} · peak ${summary.headcount?.peak ?? '—'}`}
+                                info={dashboardInfo.headcountFlow}
+                                className="xl:col-span-5"
+                            >
+                                <AnalyticalChart
+                                    data={headcountFlowData}
+                                    series={[
+                                        {
+                                            key: 'on_site',
+                                            label: 'On site',
+                                            color: 'var(--viz-3)',
+                                            type: 'area',
+                                        },
+                                    ]}
+                                    height={220}
                                 />
-                            </div>
-                            <MetricRow
-                                className="mt-3 sm:grid-cols-2"
-                                items={[
-                                    {
-                                        label: 'Muster reader',
-                                        value: summary.evacuation.muster_reader,
-                                    },
-                                    {
-                                        label: 'Gate exit',
-                                        value: summary.evacuation.gate_exit,
-                                    },
-                                ]}
-                            />
-                        </Panel>
-                    ) : null}
-                </div>
+                            </Panel>
+                        ) : null}
+
+                        {showOccupancy && zoneDonut.length > 0 ? (
+                            <Panel
+                                title="Workers by Zone"
+                                subtitle={`live distribution · ${summary.headcount?.total_on_site ?? 0} on site`}
+                                info={dashboardInfo.workersByZone}
+                                className="xl:col-span-4"
+                            >
+                                <DonutChart
+                                    data={zoneDonut}
+                                    centerLabel="On site"
+                                    height={160}
+                                />
+                            </Panel>
+                        ) : null}
+
+                        {showOccupancy && summary.evacuation ? (
+                            <Panel
+                                title="Evacuation Readiness"
+                                subtitle="last drill accounting"
+                                info={dashboardInfo.evacuation}
+                                className="xl:col-span-3"
+                            >
+                                <div className="flex justify-center">
+                                    <RadialGauge
+                                        value={summary.evacuation.accounted}
+                                        max={Math.max(
+                                            1,
+                                            summary.evacuation.total,
+                                        )}
+                                        label="Accounted"
+                                        sublabel={
+                                            summary.evacuation.total > 0
+                                                ? `${summary.evacuation.accounted}/${summary.evacuation.total}`
+                                                : 'No drills yet'
+                                        }
+                                    />
+                                </div>
+                                <MetricRow
+                                    className="mt-3 sm:grid-cols-2"
+                                    items={[
+                                        {
+                                            label: 'Muster reader',
+                                            value: summary.evacuation
+                                                .muster_reader,
+                                        },
+                                        {
+                                            label: 'Gate exit',
+                                            value: summary.evacuation.gate_exit,
+                                        },
+                                    ]}
+                                />
+                            </Panel>
+                        ) : null}
+                    </div>
                 </section>
 
                 {openRecords.length > 0 ? (

@@ -14,7 +14,8 @@ import {
     HardHat,
     IdCard,
     LayoutGrid,
-    MapPinned,
+    Layers,
+    List,
     Move,
     Package,
     Radio,
@@ -119,6 +120,11 @@ export function AppSidebar() {
                       href: '/tracking',
                       icon: Radio,
                   } satisfies NavItem,
+                  {
+                      title: 'Tag readings',
+                      href: '/tracking/readings',
+                      icon: List,
+                  } satisfies NavItem,
               ]
             : []),
         ...(can('view-entry-exit')
@@ -147,7 +153,7 @@ export function AppSidebar() {
                   {
                       title: 'Site',
                       href: firstHref(liveChildren, '/tracking'),
-                      icon: MapPinned,
+                      icon: Radio,
                       items: liveChildren,
                   },
               ]
@@ -244,7 +250,9 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('view-portable-devices') || can('create-portable-devices') || can('update-portable-devices')
+        ...(can('view-portable-devices') ||
+        can('create-portable-devices') ||
+        can('update-portable-devices')
             ? [
                   {
                       title: 'Portable Devices',
@@ -260,10 +268,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Workforce',
-                      href: firstHref(
-                          workforceChildren,
-                          '/workforce/workers',
-                      ),
+                      href: firstHref(workforceChildren, '/workforce/workers'),
                       icon: Users,
                       items: workforceChildren,
                   },
@@ -272,7 +277,10 @@ export function AppSidebar() {
 
     // Catalogue / values to configure — bottom of nav.
     const catalogueChildren: NavItem[] = [
-        ...(can('view-permit-catalogue') || can('create-permit-catalogue') || can('update-permit-catalogue') || can('delete-permit-catalogue')
+        ...(can('view-permit-catalogue') ||
+        can('create-permit-catalogue') ||
+        can('update-permit-catalogue') ||
+        can('delete-permit-catalogue')
             ? [
                   {
                       title: 'Permit types',
@@ -309,7 +317,10 @@ export function AppSidebar() {
             : [];
 
     const hardwareChildren: NavItem[] = [
-        ...(can('view-devices') || can('create-devices') || can('update-devices') || can('delete-devices')
+        ...(can('view-devices') ||
+        can('create-devices') ||
+        can('update-devices') ||
+        can('delete-devices')
             ? [
                   {
                       title: 'Assets',
@@ -373,7 +384,11 @@ export function AppSidebar() {
     ];
 
     const settingsChildren: NavItem[] = [
-        ...(can('view-settings') || can('update-settings') || can('update-alert-settings') || can('view-gas-thresholds') || can('update-gas-thresholds')
+        ...(can('view-settings') ||
+        can('update-settings') ||
+        can('update-alert-settings') ||
+        can('view-gas-thresholds') ||
+        can('update-gas-thresholds')
             ? [
                   {
                       title: 'General',
@@ -391,12 +406,15 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('view-zones') || can('create-zones') || can('update-zones') || can('delete-zones')
+        ...(can('view-zones') ||
+        can('create-zones') ||
+        can('update-zones') ||
+        can('delete-zones')
             ? [
                   {
-                      title: 'Zones & Map',
+                      title: 'Zones',
                       href: '/settings/zones',
-                      icon: MapPinned,
+                      icon: Layers,
                   } satisfies NavItem,
                   {
                       title: 'Repositioning',
@@ -460,10 +478,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Settings',
-                      href: firstHref(
-                          settingsChildren,
-                          '/settings/general',
-                      ),
+                      href: firstHref(settingsChildren, '/settings/general'),
                       icon: Settings2,
                       items: settingsChildren,
                   } satisfies NavItem,

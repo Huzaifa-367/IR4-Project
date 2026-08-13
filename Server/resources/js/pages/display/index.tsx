@@ -1,12 +1,9 @@
 import { Head } from '@inertiajs/react';
 import { useCallback, useEffect, useState } from 'react';
-import { GeoZoneMapView } from '@/components/ir4/geo-zone-map';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
+import { ZoneOccupancyTable } from '@/components/ir4/zone-tables';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
-import type {
-    DashboardPermissions,
-    DashboardSummary,
-} from '@/types/dashboard';
+import type { DashboardPermissions, DashboardSummary } from '@/types/dashboard';
 import type { TrackingZone } from '@/types/tracking';
 
 type Props = {
@@ -70,7 +67,7 @@ export default function DisplayIndex({
         summary.alerts?.latest.filter(
             (alert) => alert.severity === 'critical',
         ) ?? [];
-    const zones = (summary.map?.zones ?? []) as TrackingZone[];
+    const zones = (summary.occupancy?.zones ?? []) as TrackingZone[];
 
     return (
         <>
@@ -166,7 +163,8 @@ export default function DisplayIndex({
                                             >
                                                 {panel.status.toUpperCase()}
                                             </p>
-                                            {panel.channels?.co2_ppm != null && (
+                                            {panel.channels?.co2_ppm !=
+                                                null && (
                                                 <p className="mt-1 text-[#8A97A6]">
                                                     CO₂ {panel.channels.co2_ppm}{' '}
                                                     ppm
@@ -191,16 +189,16 @@ export default function DisplayIndex({
                     {pane === 2 && (
                         <section className="rounded-[14px] border border-[#243040] bg-[#131A22] p-6">
                             <p className="mb-4 text-sm tracking-wide text-[#8A97A6] uppercase">
-                                Live zone map
+                                Zone occupancy
                             </p>
                             {permissions.view_tracking ? (
-                                <GeoZoneMapView
+                                <ZoneOccupancyTable
                                     zones={zones}
                                     occupancy={summary.headcount?.by_zone}
                                 />
                             ) : (
                                 <p className="text-[#8A97A6]">
-                                    Map unavailable for this account
+                                    Occupancy unavailable for this account
                                 </p>
                             )}
                         </section>
@@ -210,9 +208,10 @@ export default function DisplayIndex({
                 <footer className="overflow-hidden border-t border-[#243040] bg-[#131A22] px-6 py-3 text-sm text-[#8A97A6]">
                     <div className="animate-[ticker_40s_linear_infinite] whitespace-nowrap">
                         {(summary.alerts?.latest ?? [])
-                            .map((alert) => `[${alert.severity}] ${alert.title}`)
-                            .join('   ·   ') ||
-                            'No recent alerts — site calm'}
+                            .map(
+                                (alert) => `[${alert.severity}] ${alert.title}`,
+                            )
+                            .join('   ·   ') || 'No recent alerts — site calm'}
                     </div>
                 </footer>
 

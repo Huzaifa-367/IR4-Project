@@ -196,7 +196,7 @@ Sign-off that the deployment is production-ready:
 
 **Hardware registration (dynamic — DOC-05/06)**
 - [ ] All poles/gate/SCC assets registered; all cameras + readers + gas/CO₂/env devices registered with references + tokens.
-- [ ] Zones created; every reader bound to its zone; gate reader bound; map placements set.
+- [ ] Zones created; every reader bound to its zone; gate reader bound.
 - [ ] Heartbeats green for every device; system-health widget all-green.
 - [ ] ZT411 prints a test label (one-click) and a bulk run.
 

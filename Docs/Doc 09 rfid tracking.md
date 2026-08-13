@@ -1,8 +1,8 @@
 # DOC-09 — RFID Personnel Tracking / SSMS
 
-> **Depends on:** DOC-01 (conventions), DOC-03 (`view-tracking`, `view-worker-identity`, `manage-tags`, `manage-workers`, `manage-zones`, `trigger-evacuation`, `manage-evacuation`, `manage-portable-devices`, `view-entry-exit`), DOC-04 (workers), DOC-05 (reader devices), DOC-06 (zones + `resolveZoneAt` bindings + access lists), DOC-07 (alerts that *suggest* records), DOC-08 (tag-reading ingest + tracking channel). **Feeds:** DOC-14 (zone/stationary alerts suggest LSR/incidents; evacuation roster), DOC-15 (manpower report item), DOC-16 (tracking dashboard, map, display headcount).
+> **Depends on:** DOC-01 (conventions), DOC-03 (`view-tracking`, `view-worker-identity`, `manage-tags`, `manage-workers`, `manage-zones`, `trigger-evacuation`, `manage-evacuation`, `manage-portable-devices`, `view-entry-exit`), DOC-04 (workers), DOC-05 (reader devices), DOC-06 (zones + `resolveZoneAt` bindings + access lists), DOC-07 (alerts that *suggest* records), DOC-08 (tag-reading ingest + tracking channel). **Feeds:** DOC-14 (zone/stationary alerts suggest LSR/incidents; evacuation roster), DOC-15 (manpower report item), DOC-16 (tracking dashboard, occupancy/readings tables, display headcount).
 >
-> **Scope:** the Safety-critical Site Monitoring System — turning RFID tag reads into **live positions**, **entry/exit** history, **headcount** and the **zone map**; the **zone rules** that raise alerts (red-zone, unauthorized, occupancy); **stationary-tag** detection and the **worker-down** correlation; **tag lifecycle** (assign/replace/lost, spare pool); the **portable-device register**; and **evacuation** (freeze → muster auto-accounting → close → PDF). **Out of scope:** incidents/LSR themselves (DOC-14 — this module raises the alerts that *suggest* them), the map rendering shell (DOC-16), and worker identity handling (DOC-04, applied here).
+> **Scope:** the Safety-critical Site Monitoring System — turning RFID tag reads into **live positions**, **entry/exit** history, **headcount** and **zone occupancy / reading records**; the **zone rules** that raise alerts (red-zone, unauthorized, occupancy); **stationary-tag** detection and the **worker-down** correlation; **tag lifecycle** (assign/replace/lost, spare pool); the **portable-device register**; and **evacuation** (freeze → muster auto-accounting → close → PDF). **Out of scope:** incidents/LSR themselves (DOC-14 — this module raises the alerts that *suggest* them) and worker identity handling (DOC-04, applied here).
 
 ---
 
@@ -53,7 +53,7 @@ Schema::create('worker_positions', function (Blueprint $table) {
     $table->index(['is_on_site']);
 });
 ```
-- This is the **fast current-state table** — headcount and the live map read it, never the high-volume readings table. It advances **forward only** (DOC-08 §3.4): a read updates a row only if its `recorded_at` is newer than `last_seen_at`.
+- This is the **fast current-state table** — headcount and occupancy/presence tables read it, never the high-volume readings table. It advances **forward only** (DOC-08 §3.4): a read updates a row only if its `recorded_at` is newer than `last_seen_at`.
 
 ### 3.3 `tag_readings` (high-volume history — DOC-08 volume/retention rules)
 ```php
@@ -188,12 +188,13 @@ These raise alerts only; **no LSR row is written** until an operator confirms in
 
 ---
 
-## 5. Headcount, positions & the live map (reads)
+## 5. Headcount, occupancy & reading records (reads)
 
 - **`GET /api/tracking/headcount`** — `{ total_on_site, by_zone[] }` from `worker_positions` (cached ~5 s). Powers the counter + display.
-- **`GET /api/tracking/positions`** — active tags with worker (identity-stripped without `view-worker-identity` — DOC-04 §5), zone, last_seen. Powers the map dots. **Identity is stripped at the resource**, so an un-permitted user sees anonymized, stable `Worker #id` dots they can still follow.
-- **`GET /api/tracking/coverage`** — current reader↔zone bindings (DOC-06) for the map legend.
-- The map rendering (zones as circles from DOC-06 placement, dots per worker) is DOC-16; this module supplies the data.
+- **`GET /tracking/api/positions`** — active tags with worker (identity-stripped without `view-worker-identity` — DOC-04 §5), zone, last_seen. Powers the presence table.
+- **`GET /tracking/api/readings?zone_id=`** — recent `tag_readings` for all zones or one selected zone.
+- **`GET /tracking/coverage`** — current reader↔zone bindings (DOC-06).
+- Occupancy / presence / reading tables are DOC-16; this module supplies the data. No GPS.
 
 ---
 
@@ -267,38 +268,40 @@ Big red **Trigger Evacuation** button (confirm dialog) → live two-column board
 | Tags list/assign/unassign/replace | `/tracking/tags…` | `manage-tags` (view: `view-tracking`) |
 | Zones/access lists/rebind | `/settings/zones…`, `/settings/repositioning` | DOC-06 (`manage-zones`) |
 | Headcount / positions / coverage | `GET /api/tracking/{headcount,positions,coverage}` | `view-tracking` |
+| Tag reading records | `GET /tracking/readings` (zone, reader, from/to, backfill, proximity, search) | `view-tracking` |
 | Entry/exit + corrections + CSV | `/tracking/entry-exit…` | `view-entry-exit` (correct: `manage-workers`) |
 | Portable devices CRUD + revoke | `/tracking/portable-devices…` | `manage-portable-devices` |
 | Evacuation trigger/entries/close/pdf | `/tracking/evacuation…` | `trigger-evacuation` / `manage-evacuation` |
 
 All operator screens are Inertia (surface A); the three `GET /api/tracking/*` snapshots are JSON so the live components + poll fallback (DOC-08 §5.4) can fetch them without a full Inertia visit.
 
-**Project-Manager headcount-only variant:** a PM (`view-tracking` but no `view-worker-identity`, and a narrowed policy) gets **only** `/api/tracking/headcount` (totals + per-zone counts) — not `positions` (no map dots) — enforced at the controller/policy, satisfying DOC-03's "headcount only" note.
+**Project-Manager headcount-only variant:** a PM (`view-tracking` but no `view-worker-identity`, and a narrowed policy) gets **only** `/api/tracking/headcount` (totals + per-zone counts) — not `positions` — enforced at the controller/policy, satisfying DOC-03's "headcount only" note.
 
 ---
 
 ## 11. Frontend (React / Inertia)
 
-- **`pages/tracking/index.tsx`** — TrackingDashboardPage: total-manpower counter, per-zone headcount cards, live map (DOC-16 `GeoZoneMap` component: zone circles + worker dots, dots anonymized without identity permission, reader badges from coverage), all updating via the `tracking` channel with poll fallback + LIVE/RECONNECTING pill.
+- **`pages/tracking/index.tsx`** — live occupancy, presence, reader coverage, and latest 25 reads. No map. Identity stripped without `view-worker-identity`. Updates via the `tracking` channel with poll fallback + LIVE/RECONNECTING pill.
+- **`pages/tracking/readings/index.tsx`** — all `tag_readings` as records: when, zone, reader, tag, person, RSSI, antenna, proximity, live/backfill. Filters: search (tag/reader), zone (incl. unbound), reader, from/to datetime, backfill, proximity.
 - **`pages/tracking/tags/index.tsx`** — TagListPage (status filter, spare-pool count), assign/unassign/ReplaceTagDialog.
 - **`pages/tracking/entry-exit/index.tsx`** — EntryExitPage (filters, CSV, ManualCorrectionModal).
 - **`pages/tracking/portable-devices/index.tsx`** — register + approve/revoke.
 - **`pages/tracking/evacuation/{index,show}.tsx`** — trigger + live accounting board + print.
 - Worker list/detail are DOC-04's pages (shared).
-- **Components (`components/ir4/`):** `GeoZoneMap` (shared with DOC-16), `HeadcountCards`, `TagStatusBadge`, `ReplaceTagDialog`, `EvacuationBoard`, `WorkerDot` (identity-aware).
+- **Components (`components/ir4/`):** `ZoneOccupancyTable` / `ZonePresenceTable` / `ZoneReadingsTable` (shared with DOC-16), `HeadcountCards`, `TagStatusBadge`, `ReplaceTagDialog`, `EvacuationBoard`.
 - **Types (`types/tracking.ts`):** `RfidTag`, `TagStatus`, `WorkerPosition`, `EntryExitLog`, `Direction`, `PortableDevice`, `EvacuationReport`, `EvacuationEntry`, `HeadcountSnapshot`, `PositionSnapshot`, `CoverageBinding`.
 
 ---
 
 ## 12. Real-life scenarios
 
-- **Normal day:** worker badges in at the gate (`in` log, on-site) → moves through work zones (dots track on the map, headcount live on the 55″) → badges out (`out` log) → the day's peak/average manpower feed the weekly report (DOC-15).
+- **Normal day:** worker badges in at the gate (`in` log, on-site) → moves through work zones (occupancy/reading tables update, headcount live on the 55″) → badges out (`out` log) → the day's peak/average manpower feed the weekly report (DOC-15).
 - **Red zone:** worker enters a restricted_red area → critical audible alert with name (or `Worker #id` for un-permitted viewers) → the alert offers "log LSR" → officer verifies, and if warranted creates the LSR (DOC-14) with an action taken.
 - **Stationary → possible fall:** a tag is stationary 16 min → `stationary_tag` alert with the nearest camera → operator checks the feed; if a matching `fall` event lands within 10 min, a `worker_down` critical fires → operator creates an incident from the prefilled alert (DOC-14).
 - **Evacuation drill:** trigger → 78 frozen on-site → 71 auto-accounted at muster readers, 5 via gate-out, 2 tapped manually → close → PDF archived.
 - **Missed gate read:** a worker leaves via an unread path → 14 h absence sweep marks them off-site with an `auto_sweep` correction and flags it for review.
 - **Lost tag:** a tag falls off mid-shift → operator uses ReplaceTag (old→lost, new→assigned) so the worker stays tracked; if the lost tag is later read, a security `system` alert fires.
-- **Repositioning during outage:** poles move while offline; buffered reads flush as backfill and resolve to the correct historical zones (DOC-06/08) without rewinding the live map.
+- **Repositioning during outage:** poles move while offline; buffered reads flush as backfill and resolve to the correct historical zones (DOC-06/08) without rewinding live occupancy.
 
 ---
 
@@ -313,6 +316,7 @@ All operator screens are Inertia (surface A); the three `GET /api/tracking/*` sn
 - **Entry/exit correction:** creates a new `manual_correction` row (never edits a gate row); adjusts presence; audited; CSV export works.
 - **Evacuation:** trigger freezes exactly the on-site set into entries; muster-reader read auto-accounts; gate-out auto-accounts; manual tap accounts; close blocked while unaccounted unless `force`+note (audited); PDF generates.
 - **Identity:** `positions` strips identity without `view-worker-identity` (resource-level); PM gets headcount-only (no positions).
+- **Readings:** `GET /tracking/api/readings` returns recent records; `?zone_id=` filters to one bound zone. `GET /tracking/readings` is the paginated Inertia records page (zone, reader, from/to, backfill, proximity, search).
 - Authorization: each action gated by its permission (matrix).
 
 ---
