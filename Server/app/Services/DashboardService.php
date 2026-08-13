@@ -386,8 +386,23 @@ final class DashboardService
                 $threshold = $thresholds->get($spec['type']->value);
                 $warn = $threshold !== null ? (float) $threshold->warning_level : null;
                 $alarm = $threshold !== null ? (float) $threshold->alarm_level : null;
+                $isBelow = $spec['type'] === GasType::O2Low;
+                $high = $isBelow ? $thresholds->get(GasType::O2High->value) : null;
                 $status = 'ok';
-                if ($alarm !== null && $value >= $alarm) {
+                if ($isBelow) {
+                    if ($alarm !== null && $value <= $alarm) {
+                        $status = 'crit';
+                    } elseif ($warn !== null && $value <= $warn) {
+                        $status = 'warn';
+                    }
+                    if ($high !== null) {
+                        if ($value >= (float) $high->alarm_level) {
+                            $status = 'crit';
+                        } elseif ($status === 'ok' && $value >= (float) $high->warning_level) {
+                            $status = 'warn';
+                        }
+                    }
+                } elseif ($alarm !== null && $value >= $alarm) {
                     $status = 'crit';
                 } elseif ($warn !== null && $value >= $warn) {
                     $status = 'warn';
@@ -399,6 +414,9 @@ final class DashboardService
                     'unit' => $spec['unit'],
                     'warn' => $warn,
                     'alarm' => $alarm,
+                    'highWarn' => $high !== null ? (float) $high->warning_level : null,
+                    'highAlarm' => $high !== null ? (float) $high->alarm_level : null,
+                    'direction' => $isBelow ? 'below' : 'above',
                     'status' => $status,
                 ];
                 if (count($gauges) >= 5) {

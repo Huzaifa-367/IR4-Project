@@ -18,7 +18,45 @@ export type ChartSeries = {
     label: string;
     color?: string;
     type?: 'area' | 'line';
+    yAxisId?: 'left' | 'right';
 };
+
+function seriesMax(
+    data: Array<Record<string, string | number | null>>,
+    key: string,
+): number {
+    return data.reduce((max, row) => {
+        const value = row[key];
+
+        return typeof value === 'number' && Number.isFinite(value)
+            ? Math.max(max, value)
+            : max;
+    }, 0);
+}
+
+/** Evenly spaced ticks from 0 so mixed-scale charts show intermediate labels. */
+function axisTicks(max: number, targetCount = 21): number[] {
+    const padded = Math.max(max, 1) * 1.05;
+    const rough = padded / Math.max(targetCount - 1, 1);
+    const magnitude = 10 ** Math.floor(Math.log10(Math.max(rough, 1e-9)));
+    const residual = rough / magnitude;
+    const step =
+        residual <= 1.1
+            ? magnitude
+            : residual <= 2.2
+              ? 2 * magnitude
+              : residual <= 5.5
+                ? 5 * magnitude
+                : 10 * magnitude;
+    const top = Math.ceil(padded / step) * step;
+    const ticks: number[] = [];
+
+    for (let value = 0; value <= top + step / 2; value += step) {
+        ticks.push(Number(value.toFixed(6)));
+    }
+
+    return ticks;
+}
 
 type Props = {
     data: Array<Record<string, string | number | null>>;
@@ -105,13 +143,35 @@ export function AnalyticalChart({
 
     const useArea = series.some((s) => (s.type ?? 'area') === 'area');
     const Chart = useArea ? AreaChart : LineChart;
+    const maxima = series.map((item) => seriesMax(data, item.key));
+    const high = Math.max(0, ...maxima);
+    const splitAxes =
+        series.length > 1 &&
+        maxima.some((value) => value > 0 && value <= high / 5);
+    const leftMax = splitAxes
+        ? Math.max(
+              0,
+              ...maxima.filter((value, index) => maxima[index] <= high / 5),
+          )
+        : high;
+    const rightMax = splitAxes ? high : 0;
+    const leftTicks = axisTicks(leftMax, 21);
+    const rightTicks = splitAxes ? axisTicks(rightMax, 21) : [];
+    const axisFor = (item: ChartSeries, index: number): 'left' | 'right' =>
+        item.yAxisId ??
+        (splitAxes && maxima[index] > high / 5 ? 'right' : 'left');
 
     return (
         <div className={cn('w-full', className)} style={{ height }}>
             <ResponsiveContainer width="100%" height="100%">
                 <Chart
                     data={data}
-                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                    margin={{
+                        top: 8,
+                        right: splitAxes ? 4 : 8,
+                        left: 0,
+                        bottom: 4,
+                    }}
                 >
                     <CartesianGrid
                         stroke="var(--border)"
@@ -125,11 +185,37 @@ export function AnalyticalChart({
                         tickLine={false}
                     />
                     <YAxis
-                        tick={{ fill: 'var(--text-faint)', fontSize: 11 }}
+                        yAxisId="left"
+                        ticks={leftTicks}
+                        interval={0}
+                        minTickGap={0}
+                        domain={[0, leftTicks[leftTicks.length - 1] ?? 'auto']}
+                        tick={{ fill: 'var(--text-faint)', fontSize: 10 }}
+                        tickFormatter={(value: number) => String(Number(value))}
                         axisLine={false}
                         tickLine={false}
                         width={36}
                     />
+                    {splitAxes ? (
+                        <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            ticks={rightTicks}
+                            interval={0}
+                            minTickGap={0}
+                            domain={[
+                                0,
+                                rightTicks[rightTicks.length - 1] ?? 'auto',
+                            ]}
+                            tick={{ fill: 'var(--text-faint)', fontSize: 10 }}
+                            tickFormatter={(value: number) =>
+                                String(Number(value))
+                            }
+                            axisLine={false}
+                            tickLine={false}
+                            width={40}
+                        />
+                    ) : null}
                     <Tooltip
                         content={<ChartTooltip />}
                         cursor={{
@@ -139,14 +225,21 @@ export function AnalyticalChart({
                     />
                     {series.length > 1 ? (
                         <Legend
+                            verticalAlign="bottom"
+                            height={28}
+                            iconType="circle"
+                            iconSize={8}
                             wrapperStyle={{
                                 fontSize: 12,
                                 color: 'var(--text-dim)',
+                                paddingTop: 4,
+                                marginTop: 0,
                             }}
                         />
                     ) : null}
                     {thresholdWarn !== undefined ? (
                         <ReferenceLine
+                            yAxisId="left"
                             y={thresholdWarn}
                             stroke="var(--warn)"
                             strokeDasharray="5 4"
@@ -155,6 +248,7 @@ export function AnalyticalChart({
                     ) : null}
                     {thresholdCrit !== undefined ? (
                         <ReferenceLine
+                            yAxisId="left"
                             y={thresholdCrit}
                             stroke="var(--crit)"
                             strokeDasharray="5 4"
@@ -163,11 +257,13 @@ export function AnalyticalChart({
                     ) : null}
                     {series.map((s, index) => {
                         const color = s.color ?? VIZ[index % VIZ.length];
+                        const yAxisId = splitAxes ? axisFor(s, index) : 'left';
 
                         if ((s.type ?? 'area') === 'area') {
                             return (
                                 <Area
                                     key={s.key}
+                                    yAxisId={yAxisId}
                                     type="monotone"
                                     dataKey={s.key}
                                     name={s.label}
@@ -183,6 +279,7 @@ export function AnalyticalChart({
                         return (
                             <Line
                                 key={s.key}
+                                yAxisId={yAxisId}
                                 type="monotone"
                                 dataKey={s.key}
                                 name={s.label}

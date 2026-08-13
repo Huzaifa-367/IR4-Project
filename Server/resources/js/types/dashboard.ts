@@ -65,6 +65,9 @@ export type DashboardSummary = {
             unit: string;
             warn: number | null;
             alarm: number | null;
+            highWarn?: number | null;
+            highAlarm?: number | null;
+            direction?: 'above' | 'below';
             status: 'ok' | 'warn' | 'crit';
         }>;
         thresholds?: { h2s_warn: number | null; h2s_alarm: number | null };

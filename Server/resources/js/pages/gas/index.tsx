@@ -139,6 +139,9 @@ function panelGauges(
             unit: '%vol',
             warn: thresholds.o2_low?.warning_level ?? null,
             alarm: thresholds.o2_low?.alarm_level ?? null,
+            highWarn: thresholds.o2_high?.warning_level ?? null,
+            highAlarm: thresholds.o2_high?.alarm_level ?? null,
+            direction: 'below' as const,
             status: worstOf(
                 channelStatus(panel.o2_pct, 'o2_low', thresholds),
                 channelStatus(panel.o2_pct, 'o2_high', thresholds),
@@ -418,8 +421,8 @@ export default function GasDashboard({
                     />
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-12">
-                    <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)] xl:col-span-8">
+                <div className="grid gap-3 xl:grid-cols-12">
+                    <Card className="gap-3 border-border bg-surface py-4 shadow-[var(--shadow-card)] xl:col-span-8">
                         <CardHeader className="px-4 md:px-5">
                             <CardHeading
                                 title="Gas Trend"
@@ -495,13 +498,13 @@ export default function GasDashboard({
                             <AnalyticalChart
                                 data={chartData}
                                 series={chartSeries}
-                                height={320}
+                                height={380}
                                 emptyLabel="No readings in this range"
                             />
                         </CardContent>
                     </Card>
 
-                    <Card className="gap-4 border-border bg-surface py-4 shadow-[var(--shadow-card)] xl:col-span-4">
+                    <Card className="gap-3 border-border bg-surface py-4 shadow-[var(--shadow-card)] xl:col-span-4">
                         <CardHeader className="px-4 md:px-5">
                             <CardHeading
                                 title="Range Statistics"
@@ -509,11 +512,11 @@ export default function GasDashboard({
                                 description="Min, average, and max per channel"
                             />
                         </CardHeader>
-                        <CardContent className="flex flex-col gap-5 px-4 md:px-5">
+                        <CardContent className="flex flex-col gap-3 px-4 md:px-5">
                             {snapshot.metrics.map((metric) => (
                                 <div
                                     key={metric.key}
-                                    className="flex flex-col gap-2"
+                                    className="flex flex-col gap-1"
                                 >
                                     <div className="flex items-center justify-between gap-2">
                                         <span className="text-sm font-medium">
@@ -527,6 +530,7 @@ export default function GasDashboard({
                                         </span>
                                     </div>
                                     <MetricRow
+                                        compact
                                         className="grid-cols-3"
                                         items={[
                                             {

@@ -11,17 +11,29 @@ export type MetricItem = {
 type Props = {
     items: MetricItem[];
     className?: string;
+    compact?: boolean;
 };
 
-export function MetricRow({ items, className }: Props) {
+export function MetricRow({ items, className, compact = false }: Props) {
     return (
-        <div className={cn('grid gap-4 sm:grid-cols-3', className)}>
+        <div
+            className={cn(
+                'grid sm:grid-cols-3',
+                compact ? 'gap-2' : 'gap-4',
+                className,
+            )}
+        >
             {items.map((item) => (
                 <div key={item.label} className="min-w-0">
-                    <p className="eyebrow mb-1">{item.label}</p>
+                    <p className={cn('eyebrow', compact ? 'mb-0.5' : 'mb-1')}>
+                        {item.label}
+                    </p>
                     <LiveNumber
                         value={item.value}
-                        className="text-xl text-text"
+                        className={cn(
+                            'text-text',
+                            compact ? 'text-sm' : 'text-xl',
+                        )}
                     />
                     {item.delta ? (
                         <p
