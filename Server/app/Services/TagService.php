@@ -8,6 +8,7 @@ use App\Models\RfidTag;
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\WorkerPosition;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -20,6 +21,23 @@ final class TagService
             'status' => TagStatus::InStock,
             'notes' => $notes,
         ]);
+    }
+
+    /**
+     * Path ②: first sighting of an EPC creates a spare-pool row (no worker, no position).
+     */
+    public function firstOrRegisterFromIngest(string $tagUid): RfidTag
+    {
+        $normalized = strtoupper(trim($tagUid));
+
+        try {
+            return RfidTag::query()->firstOrCreate(
+                ['tag_uid' => $normalized],
+                ['status' => TagStatus::InStock, 'notes' => 'auto-registered from ingest'],
+            );
+        } catch (UniqueConstraintViolationException) {
+            return RfidTag::query()->where('tag_uid', $normalized)->firstOrFail();
+        }
     }
 
     public function assign(RfidTag $tag, Worker $worker, User $by): RfidTag

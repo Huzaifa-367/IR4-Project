@@ -10,25 +10,24 @@ use Illuminate\Support\Carbon;
 /**
  * Shared online / telemetry-stale rules for operator UI (gas, environment, live wall, devices).
  *
- * - Online: last_seen / last_frame within the health stale window (grace: created_at when never seen).
- * - Telemetry stale: latest reading `recorded_at` older than the same window (Online + Stale is valid).
+ * Online requires a real last_seen / last_frame from the device. Never treat
+ * created_at as presence — no live data means not online.
  */
 final class HardwarePresence
 {
     public static function isSeenRecently(
         ?\DateTimeInterface $lastSeenAt,
         int $staleMinutes,
-        ?\DateTimeInterface $createdAt = null,
         ?\DateTimeInterface $now = null,
     ): bool {
+        if ($lastSeenAt === null) {
+            return false;
+        }
+
         $now = Carbon::instance($now ?? now());
         $cutoff = $now->copy()->subMinutes(max(1, $staleMinutes));
 
-        if ($lastSeenAt !== null) {
-            return Carbon::instance($lastSeenAt)->greaterThan($cutoff);
-        }
-
-        return $createdAt !== null && Carbon::instance($createdAt)->greaterThan($cutoff);
+        return Carbon::instance($lastSeenAt)->greaterThan($cutoff);
     }
 
     public static function isDeviceOnline(Device $device, int $staleMinutes, ?\DateTimeInterface $now = null): bool
@@ -41,7 +40,7 @@ final class HardwarePresence
             return false;
         }
 
-        return self::isSeenRecently($device->last_seen_at, $staleMinutes, $device->created_at, $now);
+        return self::isSeenRecently($device->last_seen_at, $staleMinutes, $now);
     }
 
     public static function isCameraOnline(Camera $camera, int $staleMinutes, ?\DateTimeInterface $now = null): bool
@@ -54,7 +53,7 @@ final class HardwarePresence
             return false;
         }
 
-        return self::isSeenRecently($camera->last_frame_at, $staleMinutes, $camera->created_at, $now);
+        return self::isSeenRecently($camera->last_frame_at, $staleMinutes, $now);
     }
 
     public static function isTelemetryStale(

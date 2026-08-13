@@ -663,6 +663,20 @@ export const TagStatusLabels: Record<TagStatus, string> = {
   'retired': 'Retired',
 };
 
+export const TagProximity = {
+  Near: 'near',
+  Mid: 'mid',
+  Far: 'far',
+} as const;
+
+export type TagProximity = (typeof TagProximity)[keyof typeof TagProximity];
+
+export const TagProximityLabels: Record<TagProximity, string> = {
+  'near': 'Near',
+  'mid': 'Mid',
+  'far': 'Far',
+};
+
 export const ThresholdDirection = {
   Above: 'above',
   Below: 'below',

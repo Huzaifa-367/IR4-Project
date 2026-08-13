@@ -29,6 +29,7 @@ class TagReadingFactory extends Factory
             'recorded_at' => $now,
             'received_at' => $now,
             'rssi' => null,
+            'antenna' => null,
             'is_backfill' => false,
             'clock_skew' => false,
             'event_uid' => (string) Str::uuid(),

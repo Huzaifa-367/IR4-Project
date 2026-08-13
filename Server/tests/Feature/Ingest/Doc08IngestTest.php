@@ -203,6 +203,39 @@ it('routes ppe gas and environmental streams to domain tables', function () {
     expect(EnvironmentalReading::query()->count())->toBe(1);
 });
 
+it('auto-registers unknown tags and stores rssi plus antenna', function () {
+    $plain = 'ingest-unknown-tag';
+    $device = Device::factory()->withPlainToken($plain)->create();
+    $epc = 'aa0004ef55555555aa21bf43';
+
+    $this->postJson(route('api.ingest.tag-readings'), [
+        'events' => [[
+            'event_uid' => (string) Str::uuid(),
+            'reader_ref' => $device->reference,
+            'tag_uid' => $epc,
+            'recorded_at' => '2026-08-13T09:18:15.603+0000',
+            'rssi' => -26,
+            'antenna' => 1,
+        ]],
+    ], ingestHeaders($plain))
+        ->assertAccepted()
+        ->assertJsonPath('accepted', 1)
+        ->assertJsonPath('rejected', []);
+
+    $tag = RfidTag::query()->where('tag_uid', strtoupper($epc))->first();
+    expect($tag)->not->toBeNull()
+        ->and($tag?->status->value)->toBe('in_stock')
+        ->and($tag?->worker_id)->toBeNull()
+        ->and($tag?->notes)->toBe('auto-registered from ingest');
+
+    $reading = TagReading::query()->first();
+    expect($reading)->not->toBeNull()
+        ->and($reading?->tag_id)->toBe($tag?->id)
+        ->and($reading?->rssi)->toBe(-26)
+        ->and($reading?->antenna)->toBe(1)
+        ->and($reading?->proximity()?->value)->toBe('near');
+});
+
 it('only advances live state forward', function () {
     $current = Carbon::parse('2026-07-18 10:00:00');
     $older = Carbon::parse('2026-07-18 09:59:00');

@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT))
 
 from ir4_edge.common.client import Ir4Client
 from ir4_edge.common.config import load_secrets
-from ir4_edge.common.timeutil import new_event_uid, utc_now_iso
+from ir4_edge.common.timeutil import new_event_uid, now_iso
 
 
 def main() -> int:
@@ -41,7 +41,7 @@ def main() -> int:
     event = {
         "event_uid": new_event_uid(),
         "device_ref": args.device_ref,
-        "recorded_at": utc_now_iso(),
+        "recorded_at": now_iso(),
         "h2s_ppm": 0.0,
         "co_ppm": 0.0,
         "o2_pct": 20.9,

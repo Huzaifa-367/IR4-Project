@@ -92,10 +92,10 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"events\": [\n    {\n      \"event_uid\": \"{{eventUid}}\",\n      \"reader_ref\": \"{{readerRef}}\",\n      \"tag_uid\": \"{{tagUid}}\",\n      \"recorded_at\": \"{{recordedAt}}\",\n      \"rssi\": -62\n    }\n  ]\n}"
+                  "raw": "{\n  \"events\": [\n    {\n      \"event_uid\": \"{{eventUid}}\",\n      \"reader_ref\": \"{{readerRef}}\",\n      \"tag_uid\": \"{{tagUid}}\",\n      \"recorded_at\": \"{{recordedAt}}\",\n      \"rssi\": -26,\n      \"antenna\": 1\n    }\n  ]\n}"
                 },
                 "url": "{{baseUrl}}/api/ingest/tag-readings",
-                "description": "RFID tag reads (DOC-09).\n\nPer event: `event_uid` (uuid), `reader_ref`, `tag_uid`, `recorded_at`, optional `rssi`.\n`reader_ref` must resolve to a registered device/reader reference."
+                "description": "RFID tag reads (DOC-09).\n\nPer event: `event_uid`, `reader_ref`, `tag_uid`, `recorded_at`, optional `rssi` (peakRssi) and `antenna`.\nUnknown EPCs are auto-registered as in_stock. FXR90 does not report tag distance.\n`reader_ref` must resolve to a registered device/reader reference."
               }
             },
             {

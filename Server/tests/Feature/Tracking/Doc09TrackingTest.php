@@ -182,6 +182,21 @@ it('triggers evacuation freezes on-site workers and closes with force', function
         ->assertOk();
 });
 
+it('auto-registers unknown tags as in_stock without a position', function () {
+    $plain = 'track-unknown';
+    $reader = Device::factory()->withPlainToken($plain)->create();
+    $epc = 'AA0004EF55555555AA21BF43';
+
+    trackingIngest($reader, $plain, $epc);
+
+    $tag = RfidTag::query()->where('tag_uid', $epc)->first();
+    expect($tag)->not->toBeNull()
+        ->and($tag?->status)->toBe(TagStatus::InStock)
+        ->and($tag?->worker_id)->toBeNull()
+        ->and(WorkerPosition::query()->where('tag_id', $tag?->id)->exists())->toBeFalse()
+        ->and(TagReading::query()->where('tag_id', $tag?->id)->count())->toBe(1);
+});
+
 it('forbids positions for project manager headcount-only role', function () {
     $pm = User::factory()->withRole('Project Manager')->create();
 

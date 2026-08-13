@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\TagProximity;
+use App\Support\RfidSignal;
 use Database\Factories\TagReadingFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $recorded_at
  * @property Carbon $received_at
  * @property int|null $rssi
+ * @property int|null $antenna
  * @property bool $is_backfill
  * @property bool $clock_skew
  * @property string $event_uid
@@ -35,9 +38,16 @@ final class TagReading extends Model
         return [
             'recorded_at' => 'datetime',
             'received_at' => 'datetime',
+            'rssi' => 'integer',
+            'antenna' => 'integer',
             'is_backfill' => 'boolean',
             'clock_skew' => 'boolean',
         ];
+    }
+
+    public function proximity(): ?TagProximity
+    {
+        return RfidSignal::proximity($this->rssi);
     }
 
     /**

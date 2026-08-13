@@ -121,6 +121,7 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         ("edge.yaml", (config_dir() / "edge.yaml").is_file(), ""),
         ("secrets.env", (config_dir() / "secrets.env").is_file(), ""),
         ("IR4_BASE_URL", bool(os.environ.get("IR4_BASE_URL")), os.environ.get("IR4_BASE_URL", "")),
+        ("APP_TIMEZONE", bool(os.environ.get("APP_TIMEZONE")), os.environ.get("APP_TIMEZONE", "")),
     ]
     if gas_on:
         checks.append(("gas.yaml", (config_dir() / "gas.yaml").is_file(), ""))

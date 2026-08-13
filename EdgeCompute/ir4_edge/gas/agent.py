@@ -20,7 +20,7 @@ from ir4_edge.common.config import (
 )
 from ir4_edge.common.heartbeat import HeartbeatLoop
 from ir4_edge.common.logging_setup import setup_logging
-from ir4_edge.common.timeutil import new_event_uid, utc_now_iso
+from ir4_edge.common.timeutil import new_event_uid, now_iso
 from ir4_edge.gas import yt98h
 
 log = logging.getLogger("ir4_edge.gas")
@@ -32,7 +32,7 @@ def build_gas_event(
 ) -> Dict[str, Any]:
     event: Dict[str, Any] = {
         "event_uid": new_event_uid(),
-        "recorded_at": utc_now_iso(),
+        "recorded_at": now_iso(),
     }
     if device_ref:
         event["device_ref"] = device_ref

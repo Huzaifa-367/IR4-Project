@@ -77,7 +77,7 @@ Lab / bring-up (direct WebSocket + local SQLite, no IR4):
 ### Facts (verified 2026-08-10)
 
 - FXR90 has **no classic LLRP server** (FX9600-era tools / sllurp do not apply). Control = REST (`/cloud/*`); live data = ZIOTC endpoint (MQTT for IR4, or `wss://` for lab).
-- Tag JSON fields: `idHex`, `antenna`, `peakRssi`, `timestamp`. Heartbeats carry `system.temperature` / `radio_control.numTagReads` — agent ignores those for ingest.
+- Tag JSON is only the CUSTOM envelope (`data.idHex` / `peakRssi` / `antenna` + `timestamp`). Mapper does not look for other shapes or field names. Unknown EPCs auto-register as `in_stock`. No tag distance from this reader.
 - Only **UHF Gen2 / ISO18000-6C** (860–960 MHz). NFC / wrong band = zero reads.
 - Factory console: `https://<reader-ip>` (self-signed), `admin` / `change` → forced password change.
 

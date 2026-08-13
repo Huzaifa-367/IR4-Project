@@ -47,6 +47,7 @@ final class TrackingService
         private readonly AlertService $alerts,
         private readonly SettingsService $settings,
         private readonly WorkerService $workers,
+        private readonly TagService $tags,
     ) {}
 
     /**
@@ -131,10 +132,7 @@ final class TrackingService
             return 'duplicate';
         }
 
-        $tag = RfidTag::query()->where('tag_uid', $tagUid)->first();
-        if ($tag === null) {
-            throw new IngestEventRejected('UNKNOWN_TAG');
-        }
+        $tag = $this->tags->firstOrRegisterFromIngest($tagUid);
 
         $zone = $this->bindings->resolveZoneAt($reader, $recordedAt);
 
@@ -144,7 +142,8 @@ final class TrackingService
             'zone_id' => $zone?->id,
             'recorded_at' => $recordedAt,
             'received_at' => $normalized['received_at'],
-            'rssi' => isset($event['rssi']) ? (int) $event['rssi'] : null,
+            'rssi' => isset($event['rssi']) ? (int) round((float) $event['rssi']) : null,
+            'antenna' => isset($event['antenna']) ? (int) $event['antenna'] : null,
             'is_backfill' => $normalized['is_backfill'],
             'clock_skew' => $normalized['clock_skew'],
             'event_uid' => $eventUid,

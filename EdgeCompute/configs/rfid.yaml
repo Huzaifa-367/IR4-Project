@@ -2,7 +2,7 @@
 # Secrets / per-pole refs: configs/secrets.env (IR4_RFID_*).
 # Lab WebSocket bring-up: Research/Edge/Zebra FXR90 Configuration/
 #
-# Tag JSON (verified): idHex, antenna, peakRssi, timestamp
+# Tag JSON (verified CUSTOM): ingest idHex, peakRssi, antenna, envelope timestamp.
 # Reader must publish Tag Data to this MQTT topic (not LLRP).
 
 mqtt:

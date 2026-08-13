@@ -117,7 +117,7 @@ sudo sed -i 's|^  port: .*|  port: "/dev/yt98h-rs485"|' configs/gas.yaml
 ```bash
 cd /opt/ir4-edge/EdgeCompute
 cp configs/secrets.pole-01.env configs/secrets.env   # pole 2/3/4 → pole-NN
-grep -E '^(IR4_BASE_URL|IR4_GAS_|IR4_RFID_)' configs/secrets.env | sed 's/=.*/=***/'
+grep -E '^(IR4_BASE_URL|APP_TIMEZONE|IR4_GAS_|IR4_RFID_)' configs/secrets.env | sed 's/=.*/=***/'
 
 # SCC must answer (use the URL in secrets.env)
 source <(grep -E '^IR4_BASE_URL=' configs/secrets.env | sed 's/^/export /')

@@ -74,7 +74,7 @@ All under `/api/ingest/*` (or `/api/devices/*` for heartbeats), `auth.device`, b
 
 | Endpoint | Sender (device_type) | Per-event payload | Owning DOC |
 |---|---|---|---|
-| `POST /api/ingest/tag-readings` | `rfid_reader` (pole + gate; pole reads may relay via edge) | `{ event_uid, reader_ref, tag_uid, recorded_at, rssi? }` | DOC-09 |
+| `POST /api/ingest/tag-readings` | `rfid_reader` (pole + gate; pole reads may relay via edge) | `{ event_uid, reader_ref, tag_uid, recorded_at, rssi?, antenna? }` — unknown EPCs are auto-registered as `in_stock` (DOC-09). FXR90 does not report tag distance; proximity is derived from `rssi`. | DOC-09 |
 | `POST /api/ingest/ppe-violations` | `edge_compute` (camera AI) | `{ event_uid, camera_ref, event_type, detected_at, worker_count?, confidence, snapshot(base64 or multipart) }` — `event_type` covers PPE violations **and** fall detection (`missing_helmet`\|`missing_vest`\|`missing_harness`\|`missing_mask`\|`fall`) | DOC-10/14 |
 | `POST /api/ingest/gas-readings` | `gas_detector` / `wifi_gateway` | `{ event_uid, device_ref?, recorded_at, lel_pct?, h2s_ppm?, o2_pct?, co_ppm?, co2_ppm? }` — one endpoint for all five gas channels; a reading includes whichever fields the sending device measures | DOC-11 |
 | `POST /api/ingest/environmental-readings` | `environmental_sensor` (edge RS485) | `{ event_uid, device_ref?, recorded_at, temperature_c?, humidity_pct?, wind_speed_ms?, extra? }` | DOC-12 |

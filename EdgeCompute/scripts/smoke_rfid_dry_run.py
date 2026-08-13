@@ -40,11 +40,19 @@ def main() -> int:
 
     zebra = {
         "data": {
-            "idHex": "E280116060000203ABC12345",
+            "CRC": "0b18",
+            "PC": "3400",
             "antenna": 1,
-            "peakRssi": -62,
-            "firstSeenTimestamp": 1723283101000,
-        }
+            "channel": 866.3,
+            "eventNum": 22,
+            "format": "epc",
+            "idHex": "aa0004ef55555555aa21bf43",
+            "peakRssi": -34,
+            "phase": 148.039794921875,
+            "reads": 1,
+        },
+        "timestamp": "2026-08-13T09:14:28.651+0000",
+        "type": "CUSTOM",
     }
     fields = extract_tag_fields(zebra)
     assert fields is not None

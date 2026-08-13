@@ -64,7 +64,8 @@ Schema::create('tag_readings', function (Blueprint $table) {
     $table->foreignId('zone_id')->nullable()->constrained()->nullOnDelete();  // resolved via resolveZoneAt(recorded_at) — snapshotted (DOC-06)
     $table->timestamp('recorded_at')->index();
     $table->timestamp('received_at');
-    $table->integer('rssi')->nullable();
+    $table->integer('rssi')->nullable();                 // FXR90 peakRssi
+    $table->unsignedTinyInteger('antenna')->nullable();  // FXR90 antenna port
     $table->boolean('is_backfill')->default(false);
     $table->boolean('clock_skew')->default(false);
     $table->string('event_uid');
@@ -75,6 +76,8 @@ Schema::create('tag_readings', function (Blueprint $table) {
 });
 ```
 - The **resolved `zone_id` is snapshotted** onto each reading at ingest (DOC-06 §8), so history never shifts if a reader is later rebound. Raw tag readings are pruned by age per DOC-19 (default 90 days); positions/entry-exit are kept.
+- Edge maps FXR90 `idHex` → `tag_uid`, `peakRssi` → `rssi`, envelope `timestamp` → `recorded_at`, `antenna` → `antenna`. CRC / PC / channel / phase / reads / eventNum / format / type are radio internals and are **not** stored. Unknown EPCs are auto-registered as `in_stock` (no worker, no position).
+- **No tag distance.** UHF inventory has no ranging field. `TagReading::proximity()` is a coarse near/mid/far band from RSSI (`≥ -40` / `≥ -60` / else) — orientation and multipath make metre estimates unsafe for a safety system.
 
 ### 3.4 `entry_exit_logs` (soft-deleted, kept forever)
 ```php
@@ -145,6 +148,7 @@ Schema::create('evacuation_report_entries', function (Blueprint $table) {
 
 ### 3.7 Enums (PHP backed + TS mirror)
 - **`TagStatus`:** `in_stock`, `assigned`, `lost`, `damaged`, `retired`.
+- **`TagProximity`:** `near`, `mid`, `far` — derived from reading `rssi`, not stored.
 - **`Direction`:** `in`, `out`.
 - **`EntryExitSource`:** `gate_reader`, `manual_correction`, `auto_sweep`.
 - **`PortableDeviceStatus`:** `approved`, `revoked`.
@@ -158,7 +162,7 @@ Entry point from ingest (DOC-08): `ingestReadings(array $events, Device $reader)
 
 ### 4.1 Resolve
 - `zone = ReaderBindingService::resolveZoneAt($reader, $recorded_at)` (DOC-06). Snapshot the resolved `zone_id` onto the `tag_reading`.
-- `tag = RfidTag::firstWhere('tag_uid', $uid)`. If the tag is unknown, or `lost`/`retired`, handle per §7.4 (security alert) — don't create a position.
+- `tag = TagService::firstOrRegisterFromIngest($uid)`. First sighting of an EPC creates an `in_stock` row (`notes` = auto-registered from ingest, `created_by` null — path ②). `lost`/`retired` tags still follow §7.4 (security alert) — don't create a position.
 - If the reader has **no active binding** (unbound), store the reading with `zone_id = null` and skip position/rule logic (nothing to attribute).
 
 ### 4.2 Persist & advance state
@@ -206,6 +210,7 @@ These raise alerts only; **no LSR row is written** until an operator confirms in
 ## 7. Tag lifecycle & hygiene
 
 ### 7.1 Assignment (③, `manage-tags`)
+- Spare-pool rows also appear from ingest: first sighting of an unknown EPC auto-registers `in_stock` (path ②, no worker/position) so operators can assign it here.
 - `POST /tracking/tags/{tag}/assign {worker_id}` → `TagService::assign`: 409 if the worker already has an `assigned` tag (offer replace, §7.2) or the tag isn't `in_stock`; else set `worker_id`, `status=assigned`, `assigned_at/by`; create the worker's `worker_positions` row (off-site until first gate-in). Audited.
 - `POST /tracking/tags/{tag}/unassign` → back to `in_stock`, clears the position row.
 
@@ -303,7 +308,7 @@ All operator screens are Inertia (surface A); the three `GET /api/tracking/*` sn
 - **Gate logic:** first gate read → `in`+on-site; second (after debounce) → `out`; a read within `gate_debounce_seconds` is ignored (no flapping).
 - **Zone rules:** entering `restricted_red` raises `red_zone_intrusion` (always, ignoring access list) and **creates no LSR**; entering a `requires_authorization` zone unlisted raises `unauthorized_zone_access`, listed raises nothing; exceeding `occupancy_limit` raises **one** open `occupancy` alert that auto-resolves when the count drops.
 - **Stationary/worker-down:** a tag idle ≥ threshold raises `stationary_tag` with nearest camera; a fall + stationary in the same zone within 10 min raises `worker_down`; none of these create incidents (only suggest).
-- **Tag lifecycle:** assign 409 when worker already tagged; replace-tag transaction (old→lost, new→assigned) keeps tracking; unassign clears position; lost tag re-read raises a security alert; assigning a non-`in_stock` tag → 409.
+- **Tag lifecycle:** unknown EPC ingest auto-registers `in_stock` (no position); assign 409 when worker already tagged; replace-tag transaction (old→lost, new→assigned) keeps tracking; unassign clears position; lost tag re-read raises a security alert; assigning a non-`in_stock` tag → 409.
 - **Absence sweep:** on-site tag unseen > threshold → off-site + `auto_sweep` out log + info alert.
 - **Entry/exit correction:** creates a new `manual_correction` row (never edits a gate row); adjusts presence; audited; CSV export works.
 - **Evacuation:** trigger freezes exactly the on-site set into entries; muster-reader read auto-accounts; gate-out auto-accounts; manual tap accounts; close blocked while unaccounted unless `force`+note (audited); PDF generates.

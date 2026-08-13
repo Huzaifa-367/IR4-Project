@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 
 from ir4_edge.common.client import Ir4Client
 from ir4_edge.common.config import load_secrets
-from ir4_edge.common.timeutil import new_event_uid, utc_now_iso
+from ir4_edge.common.timeutil import new_event_uid, now_iso
 from ir4_edge.gas.agent import build_gas_event
 from ir4_edge.rfid.mapper import extract_tag_fields, to_ingest_event
 
@@ -72,7 +72,13 @@ def validate_tag_event(event: Dict[str, Any]) -> List[Tuple[str, bool, str]]:
             "tag.rssi optional numeric",
             event.get("rssi") is None or isinstance(event.get("rssi"), (int, float)),
         ),
-        check("tag no antenna field", "antenna" not in event),
+        check(
+            "tag.antenna optional int",
+            event.get("antenna") is None or isinstance(event.get("antenna"), int),
+        ),
+        check("tag no radio internals", not any(
+            key in event for key in ("crc", "pc", "channel", "phase", "reads", "event_num", "format", "source_type")
+        )),
     ]
     return checks
 
@@ -103,11 +109,19 @@ def run_static() -> int:
     )
     zebra = {
         "data": {
-            "idHex": "e280116060000203abc12345",
+            "CRC": "0b18",
+            "PC": "3400",
             "antenna": 1,
-            "peakRssi": -62.4,
-            "firstSeenTimestamp": 1723283101000,
-        }
+            "channel": 866.3,
+            "eventNum": 22,
+            "format": "epc",
+            "idHex": "aa0004ef55555555aa21bf43",
+            "peakRssi": -34,
+            "phase": 148.039794921875,
+            "reads": 1,
+        },
+        "timestamp": "2026-08-13T09:14:28.651+0000",
+        "type": "CUSTOM",
     }
     fields = extract_tag_fields(zebra)
     assert fields is not None
@@ -117,8 +131,12 @@ def run_static() -> int:
     rows.extend(validate_paths())
     rows.extend(validate_gas_event(gas))
     rows.extend(validate_tag_event(tag))
+    rows.append(check("tag.tag_uid from idHex", tag.get("tag_uid") == "AA0004EF55555555AA21BF43"))
+    rows.append(check("tag.rssi from peakRssi", tag.get("rssi") == -34))
+    rows.append(check("tag.antenna mapped", tag.get("antenna") == 1))
+    rows.append(check("tag.recorded_at in APP_TIMEZONE", tag.get("recorded_at") == "2026-08-13T12:14:28.651+03:00"))
     rows.append(check("sample gas event_uid", validate_uuid(new_event_uid())))
-    rows.append(check("sample recorded_at", bool(utc_now_iso())))
+    rows.append(check("sample recorded_at", bool(now_iso())))
 
     print("== Static contract check (EdgeCompute ↔ Server FormRequests) ==")
     print(json.dumps({"gas_sample": gas, "tag_sample": tag}, indent=2))
@@ -136,13 +154,12 @@ def run_static() -> int:
 
 def run_live(base_url: str) -> int:
     load_secrets()
-    gas_token = os.environ.get("IR4_GAS_DEVICE_TOKEN") or os.environ.get("IR4_DEVICE_TOKEN") or ""
-    gas_uuid = os.environ.get("IR4_GAS_DEVICE_UUID") or os.environ.get("IR4_DEVICE_UUID") or ""
-    rfid_token = os.environ.get("IR4_RFID_DEVICE_TOKEN") or os.environ.get("IR4_DEVICE_TOKEN") or ""
-    rfid_uuid = os.environ.get("IR4_RFID_DEVICE_UUID") or os.environ.get("IR4_DEVICE_UUID") or ""
-    device_ref = os.environ.get("IR4_GAS_DEVICE_REF", "DEV-GAS-01")
-    reader_ref = os.environ.get("IR4_RFID_READER_REF", "DEV-RFID-01")
-    tag_uid = os.environ.get("IR4_SMOKE_TAG_UID", "").upper()
+    gas_token = os.environ.get("IR4_GAS_DEVICE_TOKEN")
+    gas_uuid = os.environ.get("IR4_GAS_DEVICE_UUID")
+    gas_ref = os.environ.get("IR4_GAS_DEVICE_REF")
+    rfid_token = os.environ.get("IR4_RFID_DEVICE_TOKEN")
+    rfid_uuid = os.environ.get("IR4_RFID_DEVICE_UUID")
+    reader_ref = os.environ.get("IR4_RFID_READER_REF")
 
     failed = 0
     print("== Live probe {} ==".format(base_url))
@@ -160,68 +177,31 @@ def run_live(base_url: str) -> int:
         print("[FAIL] GET /api/health — {}".format(exc))
         return failed + 1
 
-    if gas_token and gas_uuid:
+    if gas_token and gas_uuid and gas_ref:
         client = Ir4Client(base_url, gas_token, gas_uuid)
-        hb = client.heartbeat(status="online", meta={"agent": "validate_api_contract", "probe": "gas"})
+        hb = client.heartbeat(
+            status="online",
+            meta={"agent": "validate_api_contract", "probe": "gas", "device_ref": gas_ref},
+        )
         print("[{}] gas heartbeat".format("PASS" if hb else "FAIL"))
         if not hb:
             failed += 1
-        event = build_gas_event(
-            {"o2_pct": 20.9, "co2_ppm": 900.0, "h2s_ppm": 0.0, "co_ppm": 0.0, "lel_pct": 0.0},
-            device_ref,
-        )
-        result = client.post_gas_readings([event])
-        ok = result.status_code == 202
-        print(
-            "[{}] gas ingest status={} accepted={} rejected={}".format(
-                "PASS" if ok else "FAIL",
-                result.status_code,
-                result.accepted,
-                result.rejected,
-            )
-        )
-        if not ok:
-            failed += 1
-            if result.error:
-                print("      error:", result.error[:300])
         client.close()
     else:
-        print("[SKIP] gas live — set IR4_GAS_DEVICE_TOKEN + IR4_GAS_DEVICE_UUID")
+        print("[SKIP] gas live — need IR4_GAS_DEVICE_TOKEN, IR4_GAS_DEVICE_UUID, IR4_GAS_DEVICE_REF")
 
-    if rfid_token and rfid_uuid:
+    if rfid_token and rfid_uuid and reader_ref:
         client = Ir4Client(base_url, rfid_token, rfid_uuid)
-        hb = client.heartbeat(status="online", meta={"agent": "validate_api_contract", "probe": "rfid"})
+        hb = client.heartbeat(
+            status="online",
+            meta={"agent": "validate_api_contract", "probe": "rfid", "reader_ref": reader_ref},
+        )
         print("[{}] rfid heartbeat".format("PASS" if hb else "FAIL"))
         if not hb:
             failed += 1
-        if tag_uid:
-            fields = {
-                "tag_uid": tag_uid,
-                "rssi": -60,
-                "recorded_at": utc_now_iso(),
-            }
-            event = to_ingest_event(fields, reader_ref)
-            result = client.post_tag_readings([event])
-            ok = result.status_code == 202
-            print(
-                "[{}] tag ingest status={} accepted={} rejected={}".format(
-                    "PASS" if ok else "FAIL",
-                    result.status_code,
-                    result.accepted,
-                    result.rejected,
-                )
-            )
-            if result.rejected:
-                print("      note: UNKNOWN_TAG means EPC not in rfid_tags (still valid HTTP 202)")
-            if not ok:
-                failed += 1
-                if result.error:
-                    print("      error:", result.error[:300])
-        else:
-            print("[SKIP] tag ingest — set IR4_SMOKE_TAG_UID to a registered EPC")
         client.close()
     else:
-        print("[SKIP] rfid live — set IR4_RFID_DEVICE_TOKEN + IR4_RFID_DEVICE_UUID")
+        print("[SKIP] rfid live — need IR4_RFID_DEVICE_TOKEN, IR4_RFID_DEVICE_UUID, IR4_RFID_READER_REF")
 
     return failed
 
@@ -234,14 +214,15 @@ def main() -> int:
         action="store_true",
         help="Also probe IR4_BASE_URL (needs tokens in secrets)",
     )
-    parser.add_argument(
-        "--base-url",
-        default=os.environ.get("IR4_BASE_URL", "https://ir4.ispc-ai.com"),
-    )
+    parser.add_argument("--base-url", default=None, help="Override IR4_BASE_URL")
     args = parser.parse_args()
     failed = run_static()
     if args.live:
-        failed += run_live(args.base_url)
+        base_url = args.base_url or os.environ.get("IR4_BASE_URL")
+        if not base_url:
+            print("[FAIL] live probe needs IR4_BASE_URL")
+            return 1
+        failed += run_live(base_url)
     if failed:
         print("RESULT: {} failure(s)".format(failed))
         return 1

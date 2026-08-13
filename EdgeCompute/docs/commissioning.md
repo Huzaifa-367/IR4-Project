@@ -11,8 +11,10 @@ Do this on the IR4 Server **before** enabling agents on the Orin.
 5. Issue an API token for **each** device (Settings → Devices → Token). Keep the
    plaintext and each device **UUID** for `ir4-edge setup`.
 6. Confirm the Orin can reach SCC. On-site: `http://192.168.8.40:9100`. Hostinger test: `https://ir4.ispc-ai.com`.
-7. For RFID live tracking: register physical tags in `rfid_tags` and assign them.
-   Unknown EPCs are rejected as `UNKNOWN_TAG` (HTTP still 202).
+7. For RFID live tracking: unknown EPCs are **auto-registered** as `in_stock` tags
+   on first ingest. Assign them to workers in Hardware → Tags before they appear
+   on the live map. Each reading stores `rssi` (peakRssi) and `antenna`. The
+   reader does not report tag distance; proximity (near/mid/far) is derived from RSSI.
 
 ## LAN URLs (test vs on-site)
 
@@ -55,6 +57,7 @@ ir4-edge doctor
 | Variable | Used by |
 |---|---|
 | `IR4_BASE_URL` | both |
+| `APP_TIMEZONE` | both (same as Server — `Asia/Riyadh`) |
 | `IR4_GAS_DEVICE_REF` / `IR4_GAS_DEVICE_TOKEN` / `IR4_GAS_DEVICE_UUID` | gas |
 | `IR4_RFID_READER_REF` / `IR4_RFID_MQTT_TOPIC` / `IR4_RFID_DEVICE_TOKEN` / `IR4_RFID_DEVICE_UUID` | RFID |
 | `IR4_MQTT_USERNAME` / `IR4_MQTT_PASSWORD` | RFID agent ↔ Mosquitto |
@@ -92,9 +95,10 @@ Max **1000** events/batch. Outages: SQLite buffer keeps `event_uid` and retries.
   "events": [{
     "event_uid": "<uuid>",
     "reader_ref": "DEV-RFID-01",
-    "tag_uid": "E280116060000203ABC12345",
-    "recorded_at": "2026-08-10T08:45:01Z",
-    "rssi": -62
+    "tag_uid": "AA0004EF55555555AA21BF43",
+    "recorded_at": "2026-08-13T09:18:15.603+0000",
+    "rssi": -26,
+    "antenna": 1
   }]
 }
 ```
@@ -108,7 +112,7 @@ Max **1000** events/batch. Outages: SQLite buffer keeps `event_uid` and retries.
 | 3 | Kill LAN briefly | Events buffer in SQLite; flush on reconnect as backfill (no gas alarms) |
 | 4 | FXR90 → Mosquitto | `mosquitto_sub -t 'zebra/+/tags'` shows JSON with `idHex`; agent logs EPC |
 | 5 | Lab reader bring-up (optional) | [`Research/…/Zebra FXR90 Configuration`](../../Research/Edge/Zebra%20FXR90%20Configuration/) `read_tags.py` → `tags.db` |
-| 5 | Tag ingest | 202 with `accepted`; assigned tags move live position |
+| 5 | Tag ingest | 202 with `accepted`; unknown EPCs appear in Hardware → Tags as `in_stock`; assigned tags move live position |
 | 6 | Stop agent >5 min | Device goes stale / `device_offline` alert |
 | 7 | Restart agent | Heartbeat clears health |
 | 8 | Rotate token | Old token → 401; new token works |

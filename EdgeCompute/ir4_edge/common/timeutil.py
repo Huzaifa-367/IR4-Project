@@ -1,44 +1,48 @@
-"""Shared helpers for UTC timestamps and UUIDs."""
+"""Shared clock — same APP_TIMEZONE as the IR4 server (Asia/Riyadh)."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import os
+from datetime import datetime
 from typing import Optional
 from uuid import uuid4
+from zoneinfo import ZoneInfo
+
+_TIMEZONE_ENV = "APP_TIMEZONE"
+_DEFAULT_TIMEZONE = "Asia/Riyadh"
+
+
+def configured_timezone() -> ZoneInfo:
+    name = (os.environ.get(_TIMEZONE_ENV) or "").strip() or _DEFAULT_TIMEZONE
+    return ZoneInfo(name)
 
 
 def new_event_uid() -> str:
     return str(uuid4())
 
 
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+def now_iso() -> str:
+    """Wall clock in APP_TIMEZONE with offset (gas polls have no device timestamp)."""
+    return datetime.now(configured_timezone()).replace(microsecond=0).isoformat()
 
 
-def epoch_ms_to_iso(value: Optional[object]) -> str:
-    """Convert Zebra-style epoch ms / seconds / ISO string to UTC ISO-8601 Z."""
-    if value is None:
-        return utc_now_iso()
-    if isinstance(value, str):
-        text = value.strip()
-        if not text:
-            return utc_now_iso()
-        if text.endswith("Z") or "+" in text[10:]:
-            return text
-        try:
-            numeric = float(text)
-        except ValueError:
-            return text
-        value = numeric
-    if isinstance(value, (int, float)):
-        seconds = float(value)
-        # Zebra firstSeenTimestamp is typically epoch milliseconds (~1.7e12).
-        if seconds >= 1e11:
-            seconds = seconds / 1000.0
-        return (
-            datetime.fromtimestamp(seconds, tz=timezone.utc)
-            .replace(microsecond=0)
-            .isoformat()
-            .replace("+00:00", "Z")
-        )
-    return utc_now_iso()
+def to_iso(value: str) -> Optional[str]:
+    """Parse a live device timestamp into APP_TIMEZONE. None if it cannot be parsed."""
+    text = value.strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    elif len(text) >= 5 and text[-5] in "+-" and text[-3] != ":":
+        text = text[:-2] + ":" + text[-2:]
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    zone = configured_timezone()
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=zone)
+    converted = parsed.astimezone(zone)
+    if converted.microsecond:
+        return converted.isoformat(timespec="milliseconds")
+    return converted.replace(microsecond=0).isoformat()

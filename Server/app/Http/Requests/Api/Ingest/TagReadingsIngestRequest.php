@@ -15,6 +15,7 @@ final class TagReadingsIngestRequest extends IngestBatchRequest
             'events.*.tag_uid' => ['required', 'string', 'max:150'],
             'events.*.recorded_at' => ['required', 'date'],
             'events.*.rssi' => ['nullable', 'numeric'],
+            'events.*.antenna' => ['nullable', 'integer', 'min:0', 'max:255'],
         ];
     }
 }
