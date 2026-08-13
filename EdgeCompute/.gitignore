@@ -2,7 +2,6 @@
 .DS_Store
 configs/secrets.env
 configs/secrets.*.local.env
-credentials.md
 var/
 *.sqlite
 .venv/

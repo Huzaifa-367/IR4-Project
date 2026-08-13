@@ -15,7 +15,9 @@
 | `ws://` connection refused (lab) | Use `wss://` — see Research FXR90 RUNBOOK |
 | `FORBIDDEN_REFERENCE` | `IR4_GAS_DEVICE_REF` / `IR4_RFID_READER_REF` ≠ authenticated device (wrong pole in secrets.env) |
 | Unknown EPC | Auto-registered as `in_stock` (Hardware → Tags); assign to a worker to track |
-| `UNAUTHENTICATED` | Bad/rotated token |
+| `UNAUTHENTICATED` / `Invalid device token` (401) | SCC hash ≠ pole secrets. On SCC: `php artisan db:seed --class=DeviceCredentialsSeeder --force` (or `php artisan ir4:sync-edge-tokens`). On the pole: `ir4-edge secrets --pole NN && sudo ir4-edge restart`. |
+| `StartLimitIntervalSec` unknown in `[Service]` | Old Jetson systemd — key belongs in `[Unit]`. Harmless after `sudo ir4-edge update` (units re-rendered). |
+| Updating wipes tokens / need uninstall | Do not `rm -rf /opt/ir4-edge`. Use `sudo ir4-edge update` (or `deploy/orin_update.sh`) — keeps `secrets.env`. |
 | Rate limited `429` | Inventory flood — lower reader rate or raise `debounce_seconds` |
 
 ## Useful commands

@@ -4,18 +4,19 @@ After [commissioning.md](commissioning.md). Host details: [../deploy/README.md](
 
 ## 1. Configure + bootstrap (once)
 
-Pick pole **NN** (`01`…`04`) and copy its secrets file:
+Pick pole **NN** (`01`…`04`). Pole files are already filled from `credentials.md`:
 
 ```bash
 cp configs/secrets.pole-NN.env configs/secrets.env
+# after install: ir4-edge secrets --pole N
 ```
 
-| Pole | Command |
-|------|---------|
-| 1 | `cp configs/secrets.pole-01.env configs/secrets.env` |
-| 2 | `cp configs/secrets.pole-02.env configs/secrets.env` |
-| 3 | `cp configs/secrets.pole-03.env configs/secrets.env` |
-| 4 | `cp configs/secrets.pole-04.env configs/secrets.env` |
+| Pole | First install | Day-2 |
+|------|---------------|-------|
+| 1 | `cp configs/secrets.pole-01.env configs/secrets.env` | `ir4-edge secrets --pole 1` |
+| 2 | `cp configs/secrets.pole-02.env configs/secrets.env` | `ir4-edge secrets --pole 2` |
+| 3 | `cp configs/secrets.pole-03.env configs/secrets.env` | `ir4-edge secrets --pole 3` |
+| 4 | `cp configs/secrets.pole-04.env configs/secrets.env` | `ir4-edge secrets --pole 4` |
 
 Token authenticates the device; `device_ref` / `reader_ref` in the payload must be **that same** reference or ingest returns `FORBIDDEN_REFERENCE` (HTTP still 202).
 
@@ -50,6 +51,17 @@ ir4-edge restart
 ```
 
 Agents start on every reboot. To run **gas only** or **RFID only**: set `services.gas` / `services.rfid` in `configs/edge.yaml`, then `sudo ir4-edge apply`. The other unit is disabled and left alone.
+
+## 2b. Update code (no uninstall)
+
+```bash
+sudo ir4-edge update
+# first time this script is missing on the pole:
+git clone --depth 1 https://github.com/Huzaifa-367/IR4-Project /tmp/IR4-Project
+sudo /tmp/IR4-Project/EdgeCompute/deploy/orin_update.sh
+```
+
+Keeps `configs/secrets.env`. Does **not** `rm -rf` the install or remove the service user.
 
 ## 3. Gas (YT-98H)
 

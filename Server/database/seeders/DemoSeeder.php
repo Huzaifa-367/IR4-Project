@@ -20,6 +20,7 @@ use App\Models\RfidTag;
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\Zone;
+use App\Support\EdgeDeviceCredentials;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
@@ -27,6 +28,7 @@ use Illuminate\Support\Str;
 
 /**
  * Initial site registry (baseline hardware for first install).
+ * Device UUID + tokens come from database/data/device_credentials.php.
  *
  * Poles 1–4: RFID, gas, fixed + PTZ stream cameras, and two edge_compute
  * camera-AI devices each. Also: main gate, starter workers + tags, spare
@@ -149,22 +151,17 @@ final class DemoSeeder extends Seeder
                 'current_location_label' => $zone->name,
             ]);
 
-            $rfidToken = $this->issueToken();
-            $rfid = Device::query()->create([
+            $rfid = $this->createDevice("DEV-RFID-{$pad}", 'rfid', [
                 'asset_id' => $asset->id,
                 'name' => "{$label} RFID Reader",
-                'reference' => "DEV-RFID-{$pad}",
                 'serial_number' => "SN-RFID-{$pad}",
                 'device_type' => DeviceType::RfidReader,
                 'status' => HardwareStatus::Offline,
-                'api_token_hash' => hash('sha256', $rfidToken),
-                'token_issued_at' => now(),
                 'config' => [
                     'hostname' => $hostname,
                     'mqtt_topic' => "zebra/fxr90-{$pad}/tags",
                 ],
             ]);
-            $this->recordCredential($rfid->reference, $rfid->uuid, $rfidToken, 'rfid');
 
             ReaderZoneBinding::query()->create([
                 'device_id' => $rfid->id,
@@ -175,59 +172,44 @@ final class DemoSeeder extends Seeder
                 'note' => "{$label} work-zone binding",
             ]);
 
-            $gasToken = $this->issueToken();
-            $gas = Device::query()->create([
+            $this->createDevice("DEV-GAS-{$pad}", 'gas', [
                 'asset_id' => $asset->id,
                 'name' => "{$label} Gas Detector",
-                'reference' => "DEV-GAS-{$pad}",
                 'serial_number' => "SN-GAS-{$pad}",
                 'device_type' => DeviceType::GasDetector,
                 'status' => HardwareStatus::Offline,
-                'api_token_hash' => hash('sha256', $gasToken),
-                'token_issued_at' => now(),
                 'config' => [
                     'hostname' => $hostname,
                     'modbus_slaves' => [1, 2, 3, 4, 5],
                 ],
             ]);
-            $this->recordCredential($gas->reference, $gas->uuid, $gasToken, 'gas');
 
             // Camera AI ingest (DOC-08) — EdgeCompute typed, named as cameras.
-            $fixedAiToken = $this->issueToken();
-            $fixedAi = Device::query()->create([
+            $this->createDevice("DEV-CAM-FIXED-{$pad}", 'cam_ai', [
                 'asset_id' => $asset->id,
                 'name' => "{$label} Fixed Camera",
-                'reference' => "DEV-CAM-FIXED-{$pad}",
                 'serial_number' => "SN-CAM-FIXED-{$pad}",
                 'device_type' => DeviceType::EdgeCompute,
                 'status' => HardwareStatus::Offline,
-                'api_token_hash' => hash('sha256', $fixedAiToken),
-                'token_issued_at' => now(),
                 'config' => [
                     'hostname' => $hostname,
                     'camera_ref' => $fixedCamRef,
                     'role' => 'ppe',
                 ],
             ]);
-            $this->recordCredential($fixedAi->reference, $fixedAi->uuid, $fixedAiToken, 'cam_ai');
 
-            $ptzAiToken = $this->issueToken();
-            $ptzAi = Device::query()->create([
+            $this->createDevice("DEV-CAM-PTZ-{$pad}", 'cam_ai', [
                 'asset_id' => $asset->id,
                 'name' => "{$label} PTZ Camera",
-                'reference' => "DEV-CAM-PTZ-{$pad}",
                 'serial_number' => "SN-CAM-PTZ-{$pad}",
                 'device_type' => DeviceType::EdgeCompute,
                 'status' => HardwareStatus::Offline,
-                'api_token_hash' => hash('sha256', $ptzAiToken),
-                'token_issued_at' => now(),
                 'config' => [
                     'hostname' => $hostname,
                     'camera_ref' => $ptzCamRef,
                     'role' => 'overview',
                 ],
             ]);
-            $this->recordCredential($ptzAi->reference, $ptzAi->uuid, $ptzAiToken, 'cam_ai');
 
             // Stream registry (Camera rows).
             Camera::query()->create([
@@ -265,18 +247,13 @@ final class DemoSeeder extends Seeder
             'current_location_label' => $gateZone->name,
         ]);
 
-        $token = $this->issueToken();
-        $reader = Device::query()->create([
+        $reader = $this->createDevice('DEV-RFID-GATE', 'rfid', [
             'asset_id' => $gate->id,
             'name' => 'Main Gate RFID Reader',
-            'reference' => 'DEV-RFID-GATE',
             'serial_number' => 'SN-RFID-GATE',
             'device_type' => DeviceType::RfidReader,
             'status' => HardwareStatus::Offline,
-            'api_token_hash' => hash('sha256', $token),
-            'token_issued_at' => now(),
         ]);
-        $this->recordCredential($reader->reference, $reader->uuid, $token, 'rfid');
 
         ReaderZoneBinding::query()->create([
             'device_id' => $reader->id,
@@ -419,9 +396,26 @@ final class DemoSeeder extends Seeder
         }
     }
 
-    private function issueToken(): string
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createDevice(string $ref, string $type, array $attributes): Device
     {
-        return Str::random(48);
+        $committed = EdgeDeviceCredentials::find($ref);
+        $token = $committed['token'] ?? Str::random(48);
+        $payload = array_merge($attributes, [
+            'reference' => $ref,
+            'api_token_hash' => hash('sha256', $token),
+            'token_issued_at' => now(),
+        ]);
+        if ($committed !== null) {
+            $payload['uuid'] = $committed['uuid'];
+        }
+
+        $device = Device::query()->create($payload);
+        $this->recordCredential($device->reference, $device->uuid, $token, $type);
+
+        return $device;
     }
 
     private function recordCredential(string $ref, string $uuid, string $token, string $type): void
@@ -437,24 +431,11 @@ final class DemoSeeder extends Seeder
     private function printEdgeCredentials(): void
     {
         $this->command?->newLine();
-        $this->command?->warn('Device credentials (store in EdgeCompute secrets.env — shown once):');
+        $this->command?->warn('Device credentials (ir4-edge secrets --pole N copies these into secrets.env):');
         $this->command?->table(
             ['Type', 'Reference', 'UUID', 'Token', 'Notes'],
             collect($this->issuedCredentials)->map(function (array $row): array {
-                if ($row['ref'] === 'DEV-RFID-GATE') {
-                    return [$row['type'], $row['ref'], $row['uuid'], $row['token'], 'Main Gate'];
-                }
-
-                $n = (int) substr($row['ref'], -2);
-                $pad = sprintf('%02d', $n);
-                $notes = match ($row['type']) {
-                    'rfid' => "zebra/fxr90-{$pad}/tags · pole-{$pad}",
-                    'gas' => "pole-{$pad} · YT-98H slaves 1–5",
-                    'cam_ai' => str_contains($row['ref'], 'FIXED')
-                        ? "PPE AI · camera_ref CAM-FIXED-{$pad}"
-                        : "Overview AI · camera_ref CAM-PTZ-{$pad}",
-                    default => "pole-{$pad}",
-                };
+                $notes = EdgeDeviceCredentials::find($row['ref'])['notes'] ?? $row['type'];
 
                 return [
                     $row['type'],

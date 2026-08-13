@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Support\PermissionCatalogue;
 use Database\Seeders\DemoSeeder;
+use Database\Seeders\DeviceCredentialsSeeder;
 use Database\Seeders\GasThresholdSeeder;
 use Database\Seeders\PermitCatalogueSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -51,6 +52,7 @@ final class InstallCommand extends Command
         // Initial site registry (poles/devices/cameras) — not silent so device
         // credentials (UUID + plaintext token) print for EdgeCompute secrets.
         $this->call('db:seed', ['--class' => DemoSeeder::class, '--force' => true]);
+        $this->callSilent('db:seed', ['--class' => DeviceCredentialsSeeder::class, '--force' => true]);
         $this->callSilent('db:seed', ['--class' => PermitCatalogueSeeder::class, '--force' => true]);
 
         return self::SUCCESS;

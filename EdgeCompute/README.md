@@ -30,7 +30,7 @@ sudo mkdir -p /opt/ir4-edge
   sudo rm -rf /tmp/IR4-Project
 
 cd /opt/ir4-edge/EdgeCompute
-cp configs/secrets.pole-01.env configs/secrets.env   # NN = this pole (01 … 04)
+cp configs/secrets.pole-01.env configs/secrets.env   # already filled from credentials.md
 sudo ./deploy/orin_bootstrap.sh
 hash -r
 ir4-edge doctor
@@ -40,19 +40,19 @@ Bootstrap refuses to run from other paths (e.g. `~/Downloads/EdgeCompute`).
 
 ### Per-pole secrets
 
-Copy the file for **this** Orin (`NN` = `01` … `04`):
+`configs/secrets.pole-NN.env` is already filled from [credentials.md](credentials.md). Copy it before bootstrap; after install, refresh from the table:
 
 ```bash
-cp configs/secrets.pole-NN.env configs/secrets.env
+cp configs/secrets.pole-01.env configs/secrets.env   # first install
+ir4-edge secrets --pole 1                            # day-2 refresh
 ```
 
-
-| Pole | Copy command                                         |
-| ---- | ---------------------------------------------------- |
-| 1    | `cp configs/secrets.pole-01.env configs/secrets.env` |
-| 2    | `cp configs/secrets.pole-02.env configs/secrets.env` |
-| 3    | `cp configs/secrets.pole-03.env configs/secrets.env` |
-| 4    | `cp configs/secrets.pole-04.env configs/secrets.env` |
+| Pole | First install | Day-2 |
+| ---- | ------------- | ----- |
+| 1 | `cp configs/secrets.pole-01.env configs/secrets.env` | `ir4-edge secrets --pole 1` |
+| 2 | `cp configs/secrets.pole-02.env configs/secrets.env` | `ir4-edge secrets --pole 2` |
+| 3 | `cp configs/secrets.pole-03.env configs/secrets.env` | `ir4-edge secrets --pole 3` |
+| 4 | `cp configs/secrets.pole-04.env configs/secrets.env` | `ir4-edge secrets --pole 4` |
 
 On-site `IR4_BASE_URL` is `http://192.168.8.40:9100` (SCC2). Operator UI may use the same URL or `https://ir4-project.test`.
 
@@ -62,9 +62,21 @@ Day-2 CLI:
 
 ```bash
 cd /opt/ir4-edge/EdgeCompute
-sudo ir4-edge apply     # re-run install from this tree
+sudo ir4-edge update    # fetch latest code in place (keeps secrets.env)
+sudo ir4-edge apply     # re-run pip + units from this tree only
 ir4-edge setup          # interactive secrets
 ir4-edge doctor
+```
+
+Update (no uninstall / no `rm -rf`):
+
+```bash
+# After this commit is on GitHub — from the live install:
+sudo ir4-edge update
+
+# First time the new script is not on the pole yet:
+git clone --depth 1 https://github.com/Huzaifa-367/IR4-Project /tmp/IR4-Project
+sudo /tmp/IR4-Project/EdgeCompute/deploy/orin_update.sh
 ```
 
 ---
@@ -117,6 +129,7 @@ sudo sed -i 's|^  port: .*|  port: "/dev/yt98h-rs485"|' configs/gas.yaml
 ```bash
 cd /opt/ir4-edge/EdgeCompute
 cp configs/secrets.pole-01.env configs/secrets.env   # pole 2/3/4 → pole-NN
+# after install: ir4-edge secrets --pole 1
 grep -E '^(IR4_BASE_URL|APP_TIMEZONE|IR4_GAS_|IR4_RFID_)' configs/secrets.env | sed 's/=.*/=***/'
 
 # SCC must answer (use the URL in secrets.env)
@@ -260,8 +273,9 @@ Secrets stay in **one** file (`secrets.env`) with namespaced keys (`IR4_GAS_`*, 
 | `configs/edge.yaml`                                   | Which agents + Mosquitto mode  |
 | `configs/gas.yaml`                                    | Serial / Modbus / `device_ref` |
 | `configs/rfid.yaml`                                   | MQTT topic / `reader_ref`      |
+| `credentials.md`                                      | Default UUID + tokens          |
 | `configs/secrets.env`                                 | Live secrets (gitignored)      |
-| `configs/secrets.pole-01.env` … `secrets.pole-04.env` | Pre-filled per pole            |
+| `configs/secrets.pole-01.env` … `secrets.pole-04.env` | Per-pole MQTT + copied tokens  |
 | `configs/secrets.example.env`                         | Empty template                 |
 
 

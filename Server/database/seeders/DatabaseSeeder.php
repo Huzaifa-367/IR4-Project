@@ -21,5 +21,7 @@ class DatabaseSeeder extends Seeder
         if (! app()->environment('production')) {
             $this->call(DemoSeeder::class);
         }
+
+        $this->call(DeviceCredentialsSeeder::class);
     }
 }

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
 from ir4_edge.common.config import config_dir, edge_root, load_secrets, load_yaml, var_dir
+from ir4_edge.common.credentials import apply_pole_secrets
 
 
 def _run(cmd: Sequence[str], *, check: bool = False) -> int:
@@ -53,6 +54,15 @@ def _status_units() -> List[str]:
 
 def cmd_install(_: argparse.Namespace) -> int:
     return _run(["sudo", str(edge_root() / "deploy" / "orin_bootstrap.sh")], check=True)
+
+
+def cmd_update(args: argparse.Namespace) -> int:
+    cmd = ["sudo", str(edge_root() / "deploy" / "orin_update.sh")]
+    if args.from_path:
+        cmd.extend(["--from", args.from_path])
+    if args.branch:
+        cmd.extend(["--branch", args.branch])
+    return _run(cmd, check=True)
 
 
 def cmd_setup(args: argparse.Namespace) -> int:
@@ -106,6 +116,17 @@ def _secret_status(key: str) -> Tuple[bool, str]:
     if not readable:
         return False, "secrets.env unreadable"
     return False, "empty — ir4-edge setup"
+
+
+def cmd_secrets(args: argparse.Namespace) -> int:
+    dest = apply_pole_secrets(args.pole)
+    try:
+        dest.chmod(0o640)
+    except OSError:
+        pass
+    print("Wrote {} from credentials.md (pole {:02d})".format(dest, args.pole))
+    print("Next: ir4-edge doctor && sudo ir4-edge restart")
+    return 0
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
@@ -170,12 +191,19 @@ def build_parser() -> argparse.ArgumentParser:
     setup = sub.add_parser("setup", help="Interactive secrets (enabled agents only)", aliases=["configure"])
     setup.add_argument("--up", action="store_true", help="Enable/start after setup")
     setup.set_defaults(func=cmd_setup)
+    secrets = sub.add_parser("secrets", help="Copy credentials.md into secrets.env for a pole")
+    secrets.add_argument("--pole", required=True, type=int, choices=(1, 2, 3, 4), help="Pole number 1–4")
+    secrets.set_defaults(func=cmd_secrets)
     sub.add_parser("up", help="Enable + start agents", aliases=["enable"]).set_defaults(func=cmd_up)
     sub.add_parser("down", help="Disable + stop agents", aliases=["disable"]).set_defaults(func=cmd_down)
     sub.add_parser("status", help="systemd status").set_defaults(func=cmd_status)
     sub.add_parser("restart", help="Restart enabled agents").set_defaults(func=cmd_restart)
     sub.add_parser("doctor", help="Health checks").set_defaults(func=cmd_doctor)
     sub.add_parser("apply", help="Re-run install from configs").set_defaults(func=cmd_install)
+    update = sub.add_parser("update", help="Fetch latest EdgeCompute in place (keeps secrets.env)")
+    update.add_argument("--from", dest="from_path", default="", help="Existing EdgeCompute or monorepo path")
+    update.add_argument("--branch", default="", help="Git branch (default main)")
+    update.set_defaults(func=cmd_update)
     logs = sub.add_parser("logs", help="Agent journals")
     logs.add_argument("-f", "--follow", action="store_true")
     logs.add_argument("-n", "--lines", type=int, default=80)

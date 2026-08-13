@@ -31,16 +31,18 @@ Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168
 | File | Role |
 |---|---|
 | [`../configs/edge.yaml`](../configs/edge.yaml) | Boot enable / install root / Mosquitto listener |
-| [`../configs/secrets.pole-01.env`](../configs/secrets.pole-01.env) … `secrets.pole-04.env` | Pre-filled per pole — copy to `secrets.env` |
+| [`../credentials.md`](../credentials.md) | Default UUID + tokens — `ir4-edge secrets --pole NN` copies these into `secrets.env` |
+| [`../configs/secrets.pole-01.env`](../configs/secrets.pole-01.env) … `secrets.pole-04.env` | Per-pole MQTT + copied tokens |
 | [`../configs/secrets.example.env`](../configs/secrets.example.env) | Empty template |
 | `../configs/secrets.env` | Live secrets (gitignored) |
 | [`../configs/gas.yaml`](../configs/gas.yaml) | Serial / Modbus / **per-pole** `device_ref` |
 | [`../configs/rfid.yaml`](../configs/rfid.yaml) | **Per-pole** MQTT topic + `reader_ref` |
 
-Before bootstrap, copy the pole file (`NN` = `01`…`04`):
+Before bootstrap, copy the pole file (`NN` = `01`…`04`). Tokens in those files are copied from `credentials.md`:
 
 ```bash
 cp configs/secrets.pole-NN.env configs/secrets.env
+# after install: ir4-edge secrets --pole N
 ```
 
 YAML `device_ref` / `reader_ref` / `topic` are fallbacks only. Mismatch → ingest `FORBIDDEN_REFERENCE`. See [runbook.md](runbook.md) and [../README.md](../README.md).

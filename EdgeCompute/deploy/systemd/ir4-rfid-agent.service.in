@@ -4,6 +4,7 @@ Documentation=file://@EDGE_ROOT@/docs/runbook.md
 After=network-online.target mosquitto.service
 Wants=network-online.target
 Requires=mosquitto.service
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -16,7 +17,6 @@ EnvironmentFile=-@EDGE_ROOT@/configs/secrets.env
 ExecStart=@INSTALL_ROOT@/venv/bin/ir4-rfid-agent
 Restart=on-failure
 RestartSec=10
-StartLimitIntervalSec=0
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=ir4-rfid-agent

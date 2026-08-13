@@ -8,6 +8,8 @@ use App\Models\Device;
 use App\Models\User;
 use App\Services\AssetHealthService;
 use App\Services\HardwareRegistryService;
+use App\Support\EdgeDeviceCredentials;
+use Database\Seeders\DeviceCredentialsSeeder;
 
 it('registers assets devices and cameras', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
@@ -155,6 +157,28 @@ it('updates and retires a camera without hard delete', function () {
 
     expect($camera->fresh()->status)->toBe(HardwareStatus::Retired)
         ->and(Camera::query()->whereKey($camera->id)->exists())->toBeTrue();
+});
+
+it('seeds default device credentials onto existing devices', function () {
+    $cred = EdgeDeviceCredentials::find('DEV-RFID-01');
+    expect($cred)->not->toBeNull();
+
+    $device = Device::factory()->create([
+        'reference' => 'DEV-RFID-01',
+        'api_token_hash' => hash('sha256', 'stale-token'),
+    ]);
+
+    $this->seed(DeviceCredentialsSeeder::class);
+
+    $device->refresh();
+    expect($device->uuid)->toBe($cred['uuid'])
+        ->and($device->api_token_hash)->toBe(hash('sha256', $cred['token']));
+
+    $this->postJson(route('api.devices.heartbeat', $device), [
+        'status' => 'online',
+    ], [
+        'X-Device-Token' => $cred['token'],
+    ])->assertOk();
 });
 
 it('retires a device and invalidates its token', function () {
