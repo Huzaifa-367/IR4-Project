@@ -137,7 +137,7 @@ RFID is **zone-level presence**, not coordinates. There is **no site map, lat/lo
 
 ## 8. Frontend (React / Inertia)
 
-- **`pages/dashboard/index.tsx`** — the widget grid; Inertia snapshot then Reverb deltas (`AlertRaised`/`AlertUpdated`, `HeadcountUpdated`/`PositionsUpdated`, `GasLiveUpdated`) with a 60 s poll of `/api/dashboard/summary` while the socket is down; LIVE/RECONNECTING pill.
+- **`pages/dashboard/index.tsx`** — the widget grid; Inertia snapshot then Reverb deltas via `useDashboardLive` (`AlertRaised`/`AlertUpdated`, `HeadcountUpdated`/`PositionsUpdated`, `GasLiveUpdated`, `DeviceStatusChanged`) with a 60 s poll of `/api/dashboard/summary` while the socket is down; LIVE/RECONNECTING pill. `DeviceStatusChanged` includes `asset_id` so system-health tiles patch without refetching the aggregate.
 - **Components (`components/ir4/`):** `StatCard` (label + value + delta chip + sparkline), `RangeToggle` (Day/Week/Month), `AnalyticalChart` (area/line + hover tooltip + crosshair, recharts), `ZoneOccupancyTable`, `GasPanelStrip`, `WeatherTiles`, `SystemHealthTiles`, `AlertFeed`, `SeverityBadge`, `LiveDot`.
 - **Design tokens** in `resources/css/app.css` (the §2 palette + radius + shadows); a small `useTheme()` for dark/light.
 - **Types (`types/dashboard.ts`):** `DashboardSummary` (typed to §3), `StatCardProps`, `ChartRange`.

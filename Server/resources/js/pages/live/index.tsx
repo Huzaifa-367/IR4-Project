@@ -5,7 +5,13 @@ import { LiveCameraFeed } from '@/components/ir4/live-camera-feed';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
-import { useReverbChannel } from '@/hooks/use-reverb-channel';
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
+import {
+    combineReverbStatus,
+    useReverbChannel,
+} from '@/hooks/use-reverb-channel';
+import live from '@/routes/live';
+import ppe from '@/routes/ppe';
 import { ViolationTypeLabels } from '@/types/enums';
 import type { LiveCamera } from '@/types/ppe';
 
@@ -23,12 +29,63 @@ type ToastPayload = {
     detected_at: string;
 };
 
+type DeviceStatusPayload = {
+    device_id: number;
+    status: string;
+    device_type?: string;
+    device_name: string;
+};
+
+function unwrapCameras(payload: unknown): LiveCamera[] | null {
+    if (!payload || typeof payload !== 'object' || !('data' in payload)) {
+        return null;
+    }
+
+    const data = (payload as { data?: { cameras?: unknown } }).data;
+
+    return Array.isArray(data?.cameras) ? (data.cameras as LiveCamera[]) : null;
+}
+
+function patchCameraChip(
+    cameras: LiveCamera[],
+    payload: DeviceStatusPayload,
+): LiveCamera[] {
+    const isCameraEvent =
+        payload.device_type === 'camera' ||
+        cameras.some((camera) => camera.name === payload.device_name);
+
+    if (!isCameraEvent) {
+        return cameras;
+    }
+
+    const offline = payload.status === 'offline' || payload.status === 'fault';
+
+    return cameras.map((camera) => {
+        const matches =
+            (payload.device_type === 'camera' &&
+                camera.id === payload.device_id) ||
+            camera.name === payload.device_name;
+
+        if (!matches) {
+            return camera;
+        }
+
+        return {
+            ...camera,
+            status: payload.status,
+            is_online: !offline,
+        };
+    });
+}
+
 export default function LiveWall({
-    cameras,
+    cameras: initialCameras,
     displayMode = false,
     canViewPpe,
 }: Props) {
-    const { status } = useReverbChannel({
+    const [cameras, setCameras] = usePropSyncedState(initialCameras);
+
+    const ppeLive = useReverbChannel({
         channel: 'ppe',
         events: ['.PpeViolationDetected'],
         onEvent: (payload: unknown) => {
@@ -37,8 +94,33 @@ export default function LiveWall({
                 `${ViolationTypeLabels[event.violation_type as keyof typeof ViolationTypeLabels] ?? event.violation_type} @ ${event.camera_ref}`,
             );
         },
+        snapshotUrl: live.violations.url(),
+        onSnapshot: (payload: unknown) => {
+            const next = unwrapCameras(payload);
+
+            if (next) {
+                setCameras(next);
+            }
+        },
         pollIntervalMs: 30_000,
     });
+
+    const systemLive = useReverbChannel({
+        channel: 'system',
+        events: ['.DeviceStatusChanged'],
+        onEvent: (payload: unknown) => {
+            const event = payload as DeviceStatusPayload;
+
+            if (typeof event.device_name !== 'string') {
+                return;
+            }
+
+            setCameras((current) => patchCameraChip(current, event));
+        },
+        pollIntervalMs: 30_000,
+    });
+
+    const status = combineReverbStatus(ppeLive.status, systemLive.status);
 
     return (
         <>
@@ -54,11 +136,19 @@ export default function LiveWall({
                             <LiveStatusPill status={status} />
                             {canViewPpe && (
                                 <Button asChild size="sm" variant="secondary">
-                                    <Link href="/ppe/violations">PPE log</Link>
+                                    <Link href={ppe.violations.index()}>
+                                        PPE log
+                                    </Link>
                                 </Button>
                             )}
                             <Button asChild size="sm" variant="outline">
-                                <Link href="/live?display=1">Kiosk</Link>
+                                <Link
+                                    href={live.index.url({
+                                        query: { display: '1' },
+                                    })}
+                                >
+                                    Kiosk
+                                </Link>
                             </Button>
                         </div>
                     </div>

@@ -272,6 +272,7 @@ final class HardwareRegistryService
                 $nextStatus->value,
                 $device->device_type->value,
                 $device->name,
+                $device->asset_id,
             ));
         }
 

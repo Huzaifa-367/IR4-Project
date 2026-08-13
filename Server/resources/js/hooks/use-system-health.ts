@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
+import { patchSystemHealth } from '@/lib/dashboard-live';
+import { summary as dashboardSummary } from '@/routes/dashboard';
 import type { DashboardSummary } from '@/types/dashboard';
 import { systemHealthAssets } from '@/types/dashboard';
 
@@ -10,6 +12,13 @@ export type SystemHealthSummary = {
     tone: 'ok' | 'warn' | 'crit' | 'muted';
     label: string;
     meta: string;
+};
+
+type DeviceStatusPayload = {
+    device_id: number;
+    status: string;
+    device_name: string;
+    asset_id?: number | null;
 };
 
 function unwrapSummary(payload: unknown): DashboardSummary | null {
@@ -27,11 +36,8 @@ function unwrapSummary(payload: unknown): DashboardSummary | null {
 }
 
 /**
- * Sidebar-wide hardware health summary (DOC-05 §6.6), fed by the same
- * dashboard snapshot the `/dashboard` page uses. Follows the DOC-08 §5.4
- * Reverb + poll-fallback pattern: the `system` channel's `DeviceStatusChanged`
- * event triggers a refetch, a snapshot covers mount/reconnect, and a 60s
- * poll covers socket downtime.
+ * Sidebar hardware health (DOC-05 §6.6). Snapshot/poll uses the dashboard
+ * summary; DeviceStatusChanged patches tiles without refetching the aggregate.
  */
 export function useSystemHealth(enabled: boolean): SystemHealthSummary | null {
     const [health, setHealth] = useState<DashboardSummary['system_health']>();
@@ -40,24 +46,19 @@ export function useSystemHealth(enabled: boolean): SystemHealthSummary | null {
         setHealth(unwrapSummary(payload)?.system_health);
     }, []);
 
-    const fetchHealth = useCallback(() => {
-        if (!enabled) {
-            return;
-        }
-
-        void fetch('/api/dashboard/summary', {
-            headers: { Accept: 'application/json' },
-            credentials: 'same-origin',
-        })
-            .then((r) => r.json())
-            .then(onSnapshot);
-    }, [enabled, onSnapshot]);
-
     useReverbChannel({
         channel: 'system',
         events: ['.DeviceStatusChanged'],
-        onEvent: fetchHealth,
-        snapshotUrl: enabled ? '/api/dashboard/summary' : undefined,
+        onEvent: (payload: unknown) => {
+            const event = payload as DeviceStatusPayload;
+
+            if (typeof event.device_name !== 'string') {
+                return;
+            }
+
+            setHealth((current) => patchSystemHealth(current, event));
+        },
+        snapshotUrl: enabled ? dashboardSummary.url() : undefined,
         onSnapshot,
         pollIntervalMs: 60_000,
     });

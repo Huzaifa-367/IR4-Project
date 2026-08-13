@@ -1,4 +1,5 @@
 import type { DashboardSummary } from '@/types/dashboard';
+import { systemHealthAssets } from '@/types/dashboard';
 
 type AlertPayload = {
     id: number;
@@ -22,6 +23,14 @@ type PositionDelta = {
     zone_id?: number | null;
     last_seen_at?: string;
     is_on_site?: boolean;
+};
+
+type DeviceStatusPayload = {
+    device_id: number;
+    status: string;
+    device_type?: string;
+    device_name: string;
+    asset_id?: number | null;
 };
 
 type GasPanelPayload = {
@@ -249,6 +258,81 @@ function applyGasPanel(
     };
 }
 
+export function patchSystemHealth(
+    health: DashboardSummary['system_health'],
+    payload: DeviceStatusPayload,
+): DashboardSummary['system_health'] {
+    const assets = systemHealthAssets(health);
+    const offline = payload.status === 'offline' || payload.status === 'fault';
+
+    const nextAssets = assets.map((asset) => {
+        const matchesAsset =
+            payload.asset_id != null
+                ? asset.asset_id === payload.asset_id
+                : asset.offline_components.includes(payload.device_name);
+
+        if (!matchesAsset) {
+            return asset;
+        }
+
+        const components = offline
+            ? asset.offline_components.includes(payload.device_name)
+                ? asset.offline_components
+                : [...asset.offline_components, payload.device_name]
+            : asset.offline_components.filter(
+                  (name) => name !== payload.device_name,
+              );
+        const status: 'green' | 'amber' | 'red' =
+            components.length === 0
+                ? 'green'
+                : components.length >= 2
+                  ? 'red'
+                  : 'amber';
+
+        return {
+            ...asset,
+            offline_components: components,
+            status,
+        };
+    });
+
+    if (!health || Array.isArray(health)) {
+        return nextAssets;
+    }
+
+    const online = nextAssets.filter(
+        (asset) => asset.status === 'green',
+    ).length;
+
+    return {
+        ...health,
+        assets: nextAssets,
+        online,
+        total: nextAssets.length,
+        uptime_pct:
+            nextAssets.length > 0
+                ? Math.round((online / nextAssets.length) * 1000) / 10
+                : 100,
+    };
+}
+
+function applyDeviceStatus(
+    summary: DashboardSummary,
+    payload: DeviceStatusPayload,
+): DashboardSummary {
+    if (!summary.system_health) {
+        return summary;
+    }
+
+    return {
+        ...summary,
+        system_health: patchSystemHealth(summary.system_health, payload),
+        meta: summary.meta
+            ? { ...summary.meta, as_of: new Date().toISOString() }
+            : summary.meta,
+    };
+}
+
 export function applyDashboardEvent(
     summary: DashboardSummary,
     payload: unknown,
@@ -275,6 +359,17 @@ export function applyDashboardEvent(
         return applyGasPanel(
             summary,
             payload.panel as unknown as GasPanelPayload,
+        );
+    }
+
+    if (
+        'device_id' in payload &&
+        'status' in payload &&
+        'device_name' in payload
+    ) {
+        return applyDeviceStatus(
+            summary,
+            payload as unknown as DeviceStatusPayload,
         );
     }
 

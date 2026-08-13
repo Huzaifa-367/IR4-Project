@@ -7,6 +7,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { visitFilters } from '@/lib/visit-filters';
+import gas from '@/routes/gas';
 import { GasTypeLabels } from '@/types/enums';
 import type { GasAlarm } from '@/types/gas';
 import type { PaginatedMeta } from '@/types/hardware';
@@ -44,7 +45,7 @@ export default function GasAlarmsIndex({
         const nextLevel = patch.level ?? level;
         const nextResolved = patch.resolved ?? resolved;
 
-        visitFilters('/gas/alarms', {
+        visitFilters(gas.alarms.index.url(), {
             gas_type: nextGasType === ALL ? undefined : nextGasType,
             level: nextLevel === ALL ? undefined : nextLevel,
             resolved: nextResolved === ALL ? undefined : nextResolved,
@@ -137,7 +138,7 @@ export default function GasAlarmsIndex({
                 description={`${alarms.meta.total} records`}
                 actions={
                     <Button asChild size="sm" variant="secondary">
-                        <Link href="/gas">Dashboard</Link>
+                        <Link href={gas.index()}>Dashboard</Link>
                     </Button>
                 }
                 filters={
@@ -196,7 +197,7 @@ export default function GasAlarmsIndex({
                     rows={alarms.data}
                     rowKey={(row) => row.id}
                     meta={alarms.meta}
-                    pageUrl="/gas/alarms"
+                    pageUrl={gas.alarms.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No alarms"
                     emptyDescription="No gas alarms match these filters."

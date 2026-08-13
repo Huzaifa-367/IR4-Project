@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\HardwareStatus;
+use App\Events\DeviceStatusChanged;
 use App\Models\Asset;
 use App\Models\AuditLog;
 use App\Models\Camera;
@@ -10,6 +11,7 @@ use App\Services\AssetHealthService;
 use App\Services\HardwareRegistryService;
 use App\Support\EdgeDeviceCredentials;
 use Database\Seeders\DeviceCredentialsSeeder;
+use Illuminate\Support\Facades\Event;
 
 it('registers assets devices and cameras', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
@@ -108,6 +110,26 @@ it('marks stale devices offline via health service', function () {
     app(AssetHealthService::class)->markStale();
 
     expect($device->fresh()->status)->toBe(HardwareStatus::Offline);
+});
+
+it('broadcasts camera offline on markStale with asset_id', function () {
+    Event::fake([DeviceStatusChanged::class]);
+
+    $camera = Camera::factory()->create([
+        'status' => HardwareStatus::Online,
+        'last_frame_at' => now()->subMinutes(20),
+    ]);
+
+    app(AssetHealthService::class)->markStale();
+
+    expect($camera->fresh()->status)->toBe(HardwareStatus::Offline);
+    Event::assertDispatched(
+        DeviceStatusChanged::class,
+        fn (DeviceStatusChanged $event): bool => $event->deviceId === $camera->id
+            && $event->deviceType === 'camera'
+            && $event->assetId === $camera->asset_id
+            && $event->status === HardwareStatus::Offline->value,
+    );
 });
 
 it('skips maintenance devices in markStale', function () {

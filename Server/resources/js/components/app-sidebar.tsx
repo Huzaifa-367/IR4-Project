@@ -49,7 +49,18 @@ import {
 } from '@/components/ui/sidebar';
 import { usePermissions } from '@/hooks/use-permissions';
 import { dashboard } from '@/routes';
+import alerts from '@/routes/alerts';
+import environment from '@/routes/environment';
+import equipment from '@/routes/equipment';
+import gas from '@/routes/gas';
+import hse from '@/routes/hse';
+import live from '@/routes/live';
+import permits from '@/routes/permits';
+import ppe from '@/routes/ppe';
+import reports from '@/routes/reports';
+import settings from '@/routes/settings';
 import tracking from '@/routes/tracking';
+import workOrders from '@/routes/work-orders';
 import type { NavItem } from '@/types';
 
 function hrefUrl(href: NavItem['href']): string | null {
@@ -81,14 +92,14 @@ export function AppSidebar() {
         },
         {
             title: bellCount > 0 ? `Alerts (${bellCount})` : 'Alerts',
-            href: '/alerts',
+            href: alerts.index(),
             icon: Bell,
         },
         ...(can('view-live-cameras')
             ? [
                   {
                       title: 'Live View',
-                      href: '/live',
+                      href: live.index(),
                       icon: Video,
                   } satisfies NavItem,
               ]
@@ -97,7 +108,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Environment',
-                      href: '/environment',
+                      href: environment.index(),
                       icon: CloudSun,
                   } satisfies NavItem,
               ]
@@ -106,7 +117,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Gas',
-                      href: '/gas',
+                      href: gas.index(),
                       icon: Wind,
                   } satisfies NavItem,
               ]
@@ -115,7 +126,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'PPE Trends',
-                      href: '/ppe',
+                      href: ppe.index(),
                       icon: TrendingUp,
                   } satisfies NavItem,
               ]
@@ -158,12 +169,12 @@ export function AppSidebar() {
             : []),
     ];
 
-    const live: NavItem[] =
+    const liveNav: NavItem[] =
         liveChildren.length > 0
             ? [
                   {
                       title: 'Site',
-                      href: firstHref(liveChildren, '/tracking'),
+                      href: firstHref(liveChildren, tracking.index.url()),
                       icon: Radio,
                       items: liveChildren,
                   },
@@ -177,7 +188,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Gas Alarms',
-                      href: '/gas/alarms',
+                      href: gas.alarms.index(),
                       icon: Wind,
                   } satisfies NavItem,
               ]
@@ -186,7 +197,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'PPE Violations',
-                      href: '/ppe/violations',
+                      href: ppe.violations.index(),
                       icon: Shield,
                   } satisfies NavItem,
               ]
@@ -195,7 +206,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'LSR',
-                      href: '/lsr-violations',
+                      href: hse.lsr.index(),
                       icon: ShieldAlert,
                   } satisfies NavItem,
               ]
@@ -204,7 +215,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Vehicle Violations',
-                      href: '/reports/vehicle-violations',
+                      href: reports.vehicleViolations.index(),
                       icon: Car,
                   } satisfies NavItem,
               ]
@@ -213,7 +224,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Incidents',
-                      href: '/incidents',
+                      href: hse.incidents.index(),
                       icon: FileWarning,
                   } satisfies NavItem,
               ]
@@ -221,16 +232,16 @@ export function AppSidebar() {
     ];
 
     // Equipment custody — above Workforce.
-    const equipment: NavItem[] = can('view-equipment')
+    const equipmentNav: NavItem[] = can('view-equipment')
         ? [
               {
                   title: 'Items',
-                  href: '/equipment',
+                  href: equipment.index(),
                   icon: Package,
               },
               {
                   title: 'Checkouts',
-                  href: '/equipment/checkouts',
+                  href: equipment.checkouts.index(),
                   icon: ClipboardList,
               },
           ]
@@ -242,7 +253,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Workers',
-                      href: '/workforce/workers',
+                      href: tracking.workers.index(),
                       icon: Users,
                   } satisfies NavItem,
               ]
@@ -251,12 +262,12 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Permits',
-                      href: '/workforce/permits',
+                      href: permits.index(),
                       icon: FileCheck,
                   } satisfies NavItem,
                   {
                       title: 'Work orders',
-                      href: '/workforce/work-orders',
+                      href: workOrders.index(),
                       icon: ClipboardList,
                   } satisfies NavItem,
               ]
@@ -267,7 +278,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Portable Devices',
-                      href: '/workforce/portable-devices',
+                      href: tracking.portableDevices.index(),
                       icon: Smartphone,
                   } satisfies NavItem,
               ]
@@ -279,7 +290,10 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Workforce',
-                      href: firstHref(workforceChildren, '/workforce/workers'),
+                      href: firstHref(
+                          workforceChildren,
+                          tracking.workers.index.url(),
+                      ),
                       icon: Users,
                       items: workforceChildren,
                   },
@@ -295,17 +309,17 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Permit types',
-                      href: '/workforce/permit-types',
+                      href: settings.permitTypes.index(),
                       icon: IdCard,
                   } satisfies NavItem,
                   {
                       title: 'Crew roles',
-                      href: '/workforce/crew-roles',
+                      href: settings.crewRoles.index(),
                       icon: HardHat,
                   } satisfies NavItem,
                   {
                       title: 'Document types',
-                      href: '/workforce/worker-document-types',
+                      href: settings.workerDocumentTypes.index(),
                       icon: ScrollText,
                   } satisfies NavItem,
               ]
@@ -319,7 +333,7 @@ export function AppSidebar() {
                       title: 'PTW catalogue',
                       href: firstHref(
                           catalogueChildren,
-                          '/workforce/permit-types',
+                          settings.permitTypes.index.url(),
                       ),
                       icon: IdCard,
                       items: catalogueChildren,
@@ -335,17 +349,17 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Assets',
-                      href: '/hardware/assets',
+                      href: settings.assets.index(),
                       icon: Boxes,
                   } satisfies NavItem,
                   {
                       title: 'Devices',
-                      href: '/hardware/devices',
+                      href: settings.devices.index(),
                       icon: Cpu,
                   } satisfies NavItem,
                   {
                       title: 'Cameras',
-                      href: '/hardware/cameras',
+                      href: settings.cameras.index(),
                       icon: Camera,
                   } satisfies NavItem,
               ]
@@ -354,7 +368,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Tags',
-                      href: '/hardware/tags',
+                      href: tracking.tags.index(),
                       icon: Tag,
                   } satisfies NavItem,
               ]
@@ -366,7 +380,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Users',
-                      href: '/access/users',
+                      href: settings.users.index(),
                       icon: UserCog,
                   } satisfies NavItem,
               ]
@@ -375,7 +389,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'User roles',
-                      href: '/access/roles',
+                      href: settings.roles.index(),
                       icon: Shield,
                   } satisfies NavItem,
               ]
@@ -387,7 +401,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Weekly Reports',
-                      href: '/reports',
+                      href: reports.index(),
                       icon: FileBarChart,
                   } satisfies NavItem,
               ]
@@ -403,7 +417,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'General',
-                      href: '/settings/general',
+                      href: settings.general.edit(),
                       icon: Settings2,
                   } satisfies NavItem,
               ]
@@ -412,7 +426,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Report settings',
-                      href: '/settings/reports',
+                      href: settings.reports.edit(),
                       icon: FileBarChart,
                   } satisfies NavItem,
               ]
@@ -424,12 +438,12 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Zones',
-                      href: '/settings/zones',
+                      href: settings.zones.index(),
                       icon: Layers,
                   } satisfies NavItem,
                   {
                       title: 'Repositioning',
-                      href: '/settings/repositioning',
+                      href: settings.repositioning(),
                       icon: Move,
                   } satisfies NavItem,
               ]
@@ -438,7 +452,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Gas thresholds',
-                      href: '/settings/gas-thresholds',
+                      href: gas.thresholds.index(),
                       icon: SlidersHorizontal,
                   } satisfies NavItem,
               ]
@@ -447,7 +461,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Audit Log',
-                      href: '/settings/audit-log',
+                      href: settings.auditLog.index(),
                       icon: ScrollText,
                   } satisfies NavItem,
               ]
@@ -459,7 +473,10 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Hardware',
-                      href: firstHref(hardwareChildren, '/hardware/assets'),
+                      href: firstHref(
+                          hardwareChildren,
+                          settings.assets.index.url(),
+                      ),
                       icon: Cpu,
                       items: hardwareChildren,
                   } satisfies NavItem,
@@ -469,7 +486,10 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Access',
-                      href: firstHref(accessChildren, '/access/users'),
+                      href: firstHref(
+                          accessChildren,
+                          settings.users.index.url(),
+                      ),
                       icon: UserCog,
                       items: accessChildren,
                   } satisfies NavItem,
@@ -479,7 +499,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Reports',
-                      href: firstHref(reportsChildren, '/reports'),
+                      href: firstHref(reportsChildren, reports.index.url()),
                       icon: FileBarChart,
                       items: reportsChildren,
                   } satisfies NavItem,
@@ -489,7 +509,10 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Settings',
-                      href: firstHref(settingsChildren, '/settings/general'),
+                      href: firstHref(
+                          settingsChildren,
+                          settings.general.edit.url(),
+                      ),
                       icon: Settings2,
                       items: settingsChildren,
                   } satisfies NavItem,
@@ -513,9 +536,9 @@ export function AppSidebar() {
 
             <SidebarContent className="gap-1 py-2">
                 <NavMain items={overview} label="Overview" />
-                <NavMain items={live} label="Live" />
+                <NavMain items={liveNav} label="Live" />
                 <NavMain items={safety} label="Safety" />
-                <NavMain items={equipment} label="Equipment" />
+                <NavMain items={equipmentNav} label="Equipment" />
                 <NavMain items={workforce} label="Workforce" />
                 <NavMain items={admin} label="Admin" />
                 <NavMain items={catalogue} label="Catalogue" />

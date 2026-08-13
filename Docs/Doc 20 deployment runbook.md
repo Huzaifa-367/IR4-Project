@@ -30,7 +30,7 @@
 
 The Laravel/Inertia app lives under **`Server/`** in the monorepo (Flutter under `Mobile/`, docs under `Docs/`).
 
-1. Clone the repo, then from `Server/`: `composer install --no-dev --optimize-autoloader`, `npm ci && npm run build` (Vite build; the built assets ship — no Node at runtime).
+1. Clone the repo, then from `Server/`: `composer install --no-dev --optimize-autoloader`, `npm ci && npm run build` (Vite build; the built assets ship — no Node at runtime). **Inertia SSR is disabled** (`config/inertia.php` `ssr.enabled=false`) — operator pages are CSR after the Vite build; do not run an SSR Node process. Fonts are self-hosted `@fontsource` (Inter / Inter Tight / JetBrains Mono). Do not add Bunny Fonts or any other CDN font plugin (DOC-01 on-prem grep).
 2. `Server/.env` from the production template: `APP_KEY`, `APP_TIMEZONE`, the fixed MySQL connection credentials, the maintenance-only `ir4_wipe` credentials, Redis, Reverb keys, storage paths, `BACKUP_DISK_ROOT=/data/ir4-backups`, `BACKUP_ARCHIVE_PASSWORD`, `MYSQL_DUMP_BINARY_PATH`, and `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT`. **Secrets live here, never in the DB.** After seed, `general.timezone` overrides `APP_TIMEZONE` at runtime (DOC-18).
 3. From `Server/`: `php artisan migrate --force`; `php artisan db:seed` (permissions, Super Admin role, settings defaults, **no hardware/zone inventory** — those are registered in-app, DOC-05/06).
 4. `php artisan ir4:install` — create the first Super Admin user (DOC-03 §7.3).

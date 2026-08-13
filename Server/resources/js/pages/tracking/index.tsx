@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
+import settings from '@/routes/settings';
 import tracking from '@/routes/tracking';
 import type {
     HeadcountSnapshot,
@@ -322,7 +323,7 @@ export default function TrackingIndex({
                             className="xl:col-span-5"
                             action={
                                 <Link
-                                    href="/settings/repositioning"
+                                    href={settings.repositioning()}
                                     className="text-xs text-[color:var(--accent)] hover:underline"
                                 >
                                     Rebind ›
@@ -394,10 +395,10 @@ export default function TrackingIndex({
 
                 <div className="flex flex-wrap gap-2">
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/hardware/tags">Tags</Link>
+                        <Link href={tracking.tags.index()}>Tags</Link>
                     </Button>
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/workforce/workers">Workers</Link>
+                        <Link href={tracking.workers.index()}>Workers</Link>
                     </Button>
                     <Button asChild variant="outline" size="sm">
                         <Link href={tracking.entryExit.index()}>
@@ -405,7 +406,7 @@ export default function TrackingIndex({
                         </Link>
                     </Button>
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/settings/zones">Zones</Link>
+                        <Link href={settings.zones.index()}>Zones</Link>
                     </Button>
                 </div>
             </div>

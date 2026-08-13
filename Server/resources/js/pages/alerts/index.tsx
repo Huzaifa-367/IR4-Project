@@ -1,5 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAlertStore } from '@/components/ir4/alert-provider';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
@@ -11,10 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
-import {
-    FILTER_SEARCH_DEBOUNCE_MS,
-    visitFilters,
-} from '@/lib/visit-filters';
+import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
+import { dashboard } from '@/routes';
+import alertsRoutes from '@/routes/alerts';
+import hse from '@/routes/hse';
 import type { Alert } from '@/types/alert';
 import type { PaginatedMeta } from '@/types/hardware';
 
@@ -47,6 +47,62 @@ const STATUS_TONE: Record<string, StatusPillTone> = {
     resolved: 'ok',
 };
 
+function alertPassesFilters(
+    alert: Alert,
+    filters: {
+        search: string;
+        severity: string;
+        alertType: string;
+        statusFilter: string;
+    },
+): boolean {
+    if (
+        filters.search &&
+        !alert.title.toLowerCase().includes(filters.search.toLowerCase())
+    ) {
+        return false;
+    }
+
+    if (filters.severity !== ALL && alert.severity !== filters.severity) {
+        return false;
+    }
+
+    if (filters.alertType !== ALL && alert.alert_type !== filters.alertType) {
+        return false;
+    }
+
+    if (filters.statusFilter === ALL) {
+        return alert.status === 'open' || alert.status === 'acknowledged';
+    }
+
+    return alert.status === filters.statusFilter;
+}
+
+function mergeLiveAlerts(
+    serverRows: Alert[],
+    live: Alert[],
+    filters: {
+        search: string;
+        severity: string;
+        alertType: string;
+        statusFilter: string;
+    },
+): Alert[] {
+    const byId = new Map(serverRows.map((alert) => [alert.id, alert]));
+
+    for (const alert of live) {
+        if (!alertPassesFilters(alert, filters)) {
+            continue;
+        }
+
+        byId.set(alert.id, alert);
+    }
+
+    return [...byId.values()].sort(
+        (a, b) => Date.parse(b.raised_at) - Date.parse(a.raised_at),
+    );
+}
+
 export default function AlertsIndex({
     alerts,
     filters,
@@ -56,11 +112,21 @@ export default function AlertsIndex({
     canAcknowledge,
     canResolve,
 }: Props) {
-    const { bellCount, status: liveStatus } = useAlertStore();
+    const { openAlerts, bellCount, status: liveStatus } = useAlertStore();
     const [search, setSearch] = useState(filters.search);
     const [severity, setSeverity] = useState(filters.severity || ALL);
     const [alertType, setAlertType] = useState(filters.alert_type || ALL);
     const [statusFilter, setStatusFilter] = useState(filters.status || ALL);
+    const rows = useMemo(
+        () =>
+            mergeLiveAlerts(alerts.data, openAlerts, {
+                search,
+                severity,
+                alertType,
+                statusFilter,
+            }),
+        [alerts.data, openAlerts, search, severity, alertType, statusFilter],
+    );
 
     function applyFilters(
         patch: Partial<{
@@ -75,7 +141,7 @@ export default function AlertsIndex({
         const nextAlertType = patch.alert_type ?? alertType;
         const nextStatus = patch.status ?? statusFilter;
 
-        visitFilters('/alerts', {
+        visitFilters(alertsRoutes.index.url(), {
             search: nextSearch || undefined,
             severity: nextSeverity === ALL ? undefined : nextSeverity,
             alert_type: nextAlertType === ALL ? undefined : nextAlertType,
@@ -140,7 +206,9 @@ export default function AlertsIndex({
                             {alert.payload.suggested_action ===
                             'create_incident' ? (
                                 <Link
-                                    href={`/incidents?alert_id=${alert.id}`}
+                                    href={hse.incidents.index.url({
+                                        query: { alert_id: String(alert.id) },
+                                    })}
                                     className="text-[color:var(--accent)] hover:underline"
                                 >
                                     Create incident
@@ -148,7 +216,9 @@ export default function AlertsIndex({
                             ) : null}
                             {alert.payload.suggested_action === 'log_lsr' ? (
                                 <Link
-                                    href={`/lsr-violations?alert_id=${alert.id}`}
+                                    href={hse.lsr.index.url({
+                                        query: { alert_id: String(alert.id) },
+                                    })}
                                     className="text-[color:var(--accent)] hover:underline"
                                 >
                                     Log LSR
@@ -290,10 +360,10 @@ export default function AlertsIndex({
             >
                 <SettingsDataTable
                     columns={columns}
-                    rows={alerts.data}
+                    rows={rows}
                     rowKey={(alert) => alert.id}
                     meta={alerts.meta}
-                    pageUrl="/alerts"
+                    pageUrl={alertsRoutes.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No alerts"
                     emptyDescription="No alerts match these filters."
@@ -302,7 +372,7 @@ export default function AlertsIndex({
 
             <div className="px-4 pb-4 md:px-6">
                 <Link
-                    href="/dashboard"
+                    href={dashboard()}
                     className="text-sm text-[color:var(--accent)] hover:underline"
                 >
                     ← Dashboard

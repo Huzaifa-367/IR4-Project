@@ -53,6 +53,7 @@ final class AssetHealthService
                         HardwareStatus::Offline->value,
                         $device->device_type->value,
                         $device->name,
+                        $device->asset_id,
                     ));
                 }
 
@@ -101,6 +102,13 @@ final class AssetHealthService
 
                 if ($camera->status !== HardwareStatus::Offline) {
                     $camera->forceFill(['status' => HardwareStatus::Offline])->save();
+                    broadcast(new DeviceStatusChanged(
+                        $camera->id,
+                        HardwareStatus::Offline->value,
+                        'camera',
+                        $camera->name,
+                        $camera->asset_id,
+                    ));
                 }
 
                 $this->alerts->raise(

@@ -2,6 +2,7 @@
 
 use App\Enums\AlertStatus;
 use App\Enums\AlertType;
+use App\Enums\HardwareStatus;
 use App\Enums\ReviewStatus;
 use App\Events\PpeViolationDetected;
 use App\Models\Alert;
@@ -260,6 +261,23 @@ it('uses same-origin hls proxy template on the live wall', function () {
             ->where('cameras.0.playback_url', '/hls/cam-proxy-01/'));
 });
 
+it('includes cameras on the live wall poll snapshot', function () {
+    $operator = User::factory()->withRole('SCC Operator')->create();
+    $camera = Camera::factory()->create([
+        'name' => 'Wall cam',
+        'status' => HardwareStatus::Online,
+        'last_frame_at' => now(),
+    ]);
+
+    $this->actingAs($operator)
+        ->getJson(route('live.violations'))
+        ->assertOk()
+        ->assertJsonPath('data.cameras.0.id', $camera->id)
+        ->assertJsonPath('data.cameras.0.name', 'Wall cam')
+        ->assertJsonPath('data.cameras.0.is_online', true)
+        ->assertJsonStructure(['data' => ['cameras', 'violations']]);
+});
+
 it('renders the live wall kiosk without the dashboard display route', function () {
     $operator = User::factory()->withRole('SCC Operator')->create();
 
@@ -287,7 +305,7 @@ it('proxies mediamtx hls through same-origin /hls', function () {
     $this->actingAs($operator)
         ->get('/hls/cam-ppe-01/')
         ->assertOk()
-        ->assertSee('player', false);
+        ->assertStreamedContent('<html>player</html>');
 
     Http::assertSent(fn ($request) => $request->url() === 'http://mediamtx.test:8888/cam-ppe-01/');
 });

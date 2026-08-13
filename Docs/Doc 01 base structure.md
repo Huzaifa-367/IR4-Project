@@ -22,7 +22,7 @@ IR4 is a **standalone, on-premise safety command-centre platform**. A single ins
 | Framework | **Laravel 13.9+** | API + Inertia server |
 | Starter kit | **Laravel React Starter Kit** | React 19, TypeScript, Inertia 3, Tailwind 4, shadcn/ui, Vite |
 | Auth scaffolding | **Laravel Fortify** (ships with the kit) | extended in DOC-02; RBAC in DOC-03 |
-| Frontend | **React 19 + TypeScript** | Inertia pages; NOT a separate SPA |
+| Frontend | **React 19 + TypeScript** | Inertia pages; NOT a separate SPA. **CSR only** — `ssr.enabled=false` (Node is build-only, DOC-20) |
 | UI kit | **shadcn/ui + Radix + Tailwind 4** | components published into `resources/js/components/ui` |
 | Realtime | **Laravel Reverb** (self-hosted WebSockets) | cloud Pusher is forbidden (on-prem rule) |
 | Queue/cache | **Redis** (preferred) or database driver | queues: `ingest`, `default`, `reports` |

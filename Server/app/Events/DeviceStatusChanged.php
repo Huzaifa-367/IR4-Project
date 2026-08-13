@@ -17,6 +17,7 @@ final class DeviceStatusChanged implements ShouldBroadcastNow
         public string $status,
         public string $deviceType,
         public string $deviceName,
+        public ?int $assetId = null,
     ) {}
 
     /**
@@ -42,6 +43,7 @@ final class DeviceStatusChanged implements ShouldBroadcastNow
             'status' => $this->status,
             'device_type' => $this->deviceType,
             'device_name' => $this->deviceName,
+            'asset_id' => $this->assetId,
         ];
     }
 }

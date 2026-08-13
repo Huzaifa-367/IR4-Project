@@ -17,17 +17,16 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import { ZoneOccupancyTable } from '@/components/ir4/zone-tables';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useDashboardLive } from '@/hooks/use-dashboard-live';
 import { usePermissions } from '@/hooks/use-permissions';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
-import {
-    combineReverbStatus,
-    useReverbChannel,
-} from '@/hooks/use-reverb-channel';
 import { dashboardInfo } from '@/lib/dashboard-info';
-import { applyDashboardEvent } from '@/lib/dashboard-live';
 import { visitFilters } from '@/lib/visit-filters';
 import { dashboard } from '@/routes';
+import alerts from '@/routes/alerts';
 import { summary as dashboardSummary } from '@/routes/dashboard';
+import hse from '@/routes/hse';
+import ppe from '@/routes/ppe';
 import tracking from '@/routes/tracking';
 import type {
     DashboardPermissions,
@@ -117,41 +116,11 @@ export default function DashboardIndex({
         [range, from, to],
     );
 
-    const onLiveEvent = useCallback(
-        (payload: unknown) => {
-            setSummary((current) => applyDashboardEvent(current, payload));
-        },
-        [setSummary],
-    );
-
-    const alertsLive = useReverbChannel({
-        channel: 'alerts',
-        events: ['.AlertRaised', '.AlertUpdated'],
-        onEvent: onLiveEvent,
+    const liveStatus = useDashboardLive({
         snapshotUrl: summaryQuery(),
         onSnapshot,
-        pollIntervalMs: 60_000,
+        setSummary,
     });
-
-    const trackingLive = useReverbChannel({
-        channel: 'tracking',
-        events: ['.HeadcountUpdated', '.PositionsUpdated'],
-        onEvent: onLiveEvent,
-        pollIntervalMs: 60_000,
-    });
-
-    const gasLive = useReverbChannel({
-        channel: 'gas',
-        events: ['.GasLiveUpdated'],
-        onEvent: onLiveEvent,
-        pollIntervalMs: 60_000,
-    });
-
-    const liveStatus = combineReverbStatus(
-        alertsLive.status,
-        trackingLive.status,
-        gasLive.status,
-    );
 
     useEffect(() => {
         const id = window.setInterval(() => {
@@ -169,7 +138,7 @@ export default function DashboardIndex({
         }
 
         visitFilters(
-            '/dashboard',
+            dashboard.url(),
             { range: nextRange },
             { only: ['summary', 'filters'] },
         );
@@ -177,7 +146,7 @@ export default function DashboardIndex({
 
     const applyCustomRange = (): void => {
         visitFilters(
-            '/dashboard',
+            dashboard.url(),
             { range: 'custom', from, to },
             { only: ['summary', 'filters'] },
         );
@@ -359,7 +328,7 @@ export default function DashboardIndex({
                         <StatCard
                             label="Open Alerts"
                             value={summary.alerts.open_critical}
-                            href="/alerts"
+                            href={alerts.index.url()}
                             info={dashboardInfo.alerts}
                             pulseCrit={summary.alerts.open_critical > 0}
                             sparkline={summary.alerts.sparkline}
@@ -385,7 +354,7 @@ export default function DashboardIndex({
                         <StatCard
                             label="PPE Compliance"
                             value={`${summary.ppe_today.compliance_pct ?? '—'}%`}
-                            href="/ppe/violations"
+                            href={ppe.violations.index.url()}
                             info={dashboardInfo.ppeCompliance}
                             delta={`${(summary.ppe_today.compliance_delta ?? 0) >= 0 ? '▲ +' : '▼ '}${Math.abs(summary.ppe_today.compliance_delta ?? 0)}% vs prior period`}
                             deltaTone={
@@ -784,7 +753,9 @@ export default function DashboardIndex({
                         info={dashboardInfo.openRecords}
                         action={
                             <Button variant="outline" size="sm" asChild>
-                                <Link href="/incidents">View all ›</Link>
+                                <Link href={hse.incidents.index()}>
+                                    View all ›
+                                </Link>
                             </Button>
                         }
                     >

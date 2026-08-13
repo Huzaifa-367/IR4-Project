@@ -22,28 +22,9 @@ final class LiveWallController extends BaseController
         abort_unless($request->user()?->can('view-live-cameras'), 403);
 
         $display = $request->boolean('display');
-        $playbackUrlTemplate = config('camera_stream.browser_url_template');
-        $cameraStaleMinutes = (int) app(SettingsService::class)->get('health.camera_stale_minutes', 3);
-
-        $cameras = Camera::query()
-            ->with('asset')
-            ->orderBy('name')
-            ->get()
-            ->map(fn (Camera $camera): array => [
-                'id' => $camera->id,
-                'uuid' => $camera->uuid,
-                'name' => $camera->name,
-                'reference' => $camera->reference,
-                'playback_url' => $this->playbackUrl($playbackUrlTemplate, $camera->reference),
-                'ai_enabled' => $camera->ai_enabled,
-                'status' => $camera->status->value,
-                'is_online' => HardwarePresence::isCameraOnline($camera, $cameraStaleMinutes),
-                'last_frame_at' => $camera->last_frame_at?->toIso8601String(),
-                'location_label' => $camera->asset?->current_location_label,
-            ]);
 
         return Inertia::render($display ? 'display/live' : 'live/index', [
-            'cameras' => $cameras,
+            'cameras' => $this->cameraRows(),
             'displayMode' => $display,
             'canViewPpe' => $request->user()?->can('view-ppe') ?? false,
         ]);
@@ -63,7 +44,38 @@ final class LiveWallController extends BaseController
             ->map(fn (PpeViolation $v) => $ppe->toArray($v))
             ->values();
 
-        return ApiResponse::ok(['violations' => $recent]);
+        return ApiResponse::ok([
+            'cameras' => $this->cameraRows(),
+            'violations' => $recent,
+        ]);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function cameraRows(): array
+    {
+        $playbackUrlTemplate = config('camera_stream.browser_url_template');
+        $cameraStaleMinutes = (int) app(SettingsService::class)->get('health.camera_stale_minutes', 3);
+
+        return Camera::query()
+            ->with('asset')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Camera $camera): array => [
+                'id' => $camera->id,
+                'uuid' => $camera->uuid,
+                'name' => $camera->name,
+                'reference' => $camera->reference,
+                'playback_url' => $this->playbackUrl($playbackUrlTemplate, $camera->reference),
+                'ai_enabled' => $camera->ai_enabled,
+                'status' => $camera->status->value,
+                'is_online' => HardwarePresence::isCameraOnline($camera, $cameraStaleMinutes),
+                'last_frame_at' => $camera->last_frame_at?->toIso8601String(),
+                'location_label' => $camera->asset?->current_location_label,
+            ])
+            ->values()
+            ->all();
     }
 
     private function playbackUrl(mixed $template, string $reference): ?string

@@ -11,6 +11,7 @@ import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { useAuth, useSharedSettings } from '@/hooks/use-auth';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import type { ReverbLiveStatus } from '@/hooks/use-reverb-channel';
+import alerts from '@/routes/alerts';
 import type { Alert } from '@/types/alert';
 
 type AlertStore = {
@@ -63,7 +64,7 @@ function AlertsReverbBridge({
         channel: 'alerts',
         events: ['.AlertRaised', '.AlertUpdated'],
         onEvent: (payload) => onEvent(payload.alert),
-        snapshotUrl: '/api/alerts/open',
+        snapshotUrl: alerts.open.url(),
         onSnapshot: handleSnapshot,
         pollIntervalMs: 30_000,
     });
@@ -283,13 +284,7 @@ function AlertToastCard({
         );
 
         return () => window.clearTimeout(timer);
-    }, [
-        alert.id,
-        alert.severity,
-        signature,
-        warningToastSeconds,
-        onDismiss,
-    ]);
+    }, [alert.id, alert.severity, signature, warningToastSeconds, onDismiss]);
 
     const toneClass =
         alert.severity === 'critical'

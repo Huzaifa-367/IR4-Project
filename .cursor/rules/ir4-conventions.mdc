@@ -14,7 +14,7 @@ alwaysApply: true
 | Doc | Owns |
 |---|---|
 | 01 | Stack, layout, three surfaces, enums, envelope, validation, three-path origin, files, settings |
-| 02 | Fortify auth, idle timeout, display keep-alive, `auth.device` contract entry |
+| 02 | Fortify auth, idle timeout (no display keep-alive), `auth.device` contract entry |
 | 03 | RBAC catalogue, Super Admin, four enforcement layers, Field Staff = public QR only |
 | 04 | Workers registry, `view-worker-identity` stripping, Worker≠User |
 | 05 | Assets/cameras/devices, tokens, heartbeats, fully dynamic hardware |

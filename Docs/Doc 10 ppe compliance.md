@@ -111,8 +111,9 @@ Real life: the first days of on-site AI calibration, plus dust/glare/PPE-color e
 
 ## 7. Live wall (`view-live-cameras`)
 
-- **`GET /live`** — LiveWallPage: a grid of camera feeds (stream descriptors from DOC-05/16) with an AI-status chip per camera (ai_enabled + online), and **real-time violation toasts** as `PpeViolationDetected` events arrive on the `ppe` channel.
+- **`GET /live`** — LiveWallPage: a grid of camera feeds (stream descriptors from DOC-05/16) with an AI-status chip per camera (ai_enabled + online), and **real-time violation toasts** as `PpeViolationDetected` events arrive on the `ppe` channel. `DeviceStatusChanged` on `system` patches the online chip without a full reload.
 - **`GET /live?display=1`** — same feeds in a chrome-less kiosk shell (`DisplayLayout`) for casting the camera wall. Same session and idle timeout as `/live` (DOC-02). This is **not** the old `/display` dashboard kiosk — the 55″ command wall still casts `/dashboard` (DOC-16).
+- **`GET /api/live/violations`** — poll-fallback snapshot: camera rows (online/status) plus the latest unreviewed non-backfill violations.
 - Pole cameras processed on a different edge unit still show under their own camera (events resolve by `camera_ref`, DOC-05/08).
 
 ---

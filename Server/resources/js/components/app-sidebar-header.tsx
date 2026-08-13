@@ -6,6 +6,7 @@ import { useAlertStore } from '@/components/ir4/alert-provider';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { Button } from '@/components/ui/button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import alerts from '@/routes/alerts';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 export function AppSidebarHeader({
@@ -29,7 +30,7 @@ export function AppSidebarHeader({
                     size="icon"
                     className="relative text-text-dim"
                 >
-                    <Link href="/alerts" aria-label="Alerts">
+                    <Link href={alerts.index()} aria-label="Alerts">
                         <Bell className="size-4" />
                         {bellCount > 0 ? (
                             <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-pill bg-[color:var(--crit)] px-1 text-[10px] font-semibold text-white">

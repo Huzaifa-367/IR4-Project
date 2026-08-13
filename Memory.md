@@ -81,7 +81,9 @@ _None — Control Room UI pass landed; module pages inherit tokens/components ne
 - Nested `<AppLayout>` on pages doubles the sidebar — pages must rely on `app.tsx` layout resolver only
 - Demo logins after seed: `operator@ir4.local` / `safety@ir4.local` / `pm@ir4.local` (password: `password`)
 - Sensitive settings require `confirmed` (or UI confirm flow) — report settings page keys do not
-- Shared Inertia `settings` drives client idle timeout, display keep-alive, poll fallback, and toast duration
+- Shared Inertia `settings` drives client idle timeout, poll fallback, and toast duration (no display keep-alive; 55″ wall uses the same idle timeout as `/dashboard`)
+- Dashboard live deltas go through `useDashboardLive` + `applyDashboardEvent` (PascalCase Reverb names). `DeviceStatusChanged` carries `asset_id`; sidebar health patches locally — do not refetch `/api/dashboard/summary` on every device event
+- Inertia SSR is off (`ssr.enabled=false`); fonts are `@fontsource`, never Bunny CDN
 
 ---
 
