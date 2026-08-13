@@ -1,7 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { useAlertStore } from '@/components/ir4/alert-provider';
-import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
@@ -112,7 +111,7 @@ export default function AlertsIndex({
     canAcknowledge,
     canResolve,
 }: Props) {
-    const { openAlerts, bellCount, status: liveStatus } = useAlertStore();
+    const { openAlerts, bellCount } = useAlertStore();
     const [search, setSearch] = useState(filters.search);
     const [severity, setSeverity] = useState(filters.severity || ALL);
     const [alertType, setAlertType] = useState(filters.alert_type || ALL);
@@ -290,7 +289,6 @@ export default function AlertsIndex({
             <SettingsPageShell
                 title="Alert Centre"
                 description={`${bellCount} open`}
-                actions={<LiveStatusPill status={liveStatus} />}
                 filters={
                     <>
                         <Input

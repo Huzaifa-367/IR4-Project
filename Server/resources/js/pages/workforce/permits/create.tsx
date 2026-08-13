@@ -20,7 +20,7 @@ type Props = {
     permitTypes: PermitTypeSummary[];
     zones: ZoneOption[];
     workOrders: WorkOrderOption[];
-    workers: WorkerOption[];
+    workers?: WorkerOption[];
     initialWorkOrderId?: number | null;
 };
 
@@ -61,7 +61,7 @@ export default function PermitCreate({
     permitTypes,
     zones,
     workOrders,
-    workers,
+    workers = [],
     initialWorkOrderId = null,
 }: Props) {
     const page = usePage();
@@ -554,7 +554,7 @@ export default function PermitCreate({
 PermitCreate.layout = {
     breadcrumbs: [
         { title: 'Workforce', href: tracking.workers.index() },
-        { title: 'Permits', href: permits.index() },
+        { title: 'Permits', href: permits.board() },
         { title: 'Request', href: permits.create() },
     ],
 };

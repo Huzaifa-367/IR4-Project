@@ -3,6 +3,7 @@
 use App\Enums\AlertType;
 use App\Enums\PermitStatus;
 use App\Enums\WorkerDocumentVerificationStatus;
+use App\Events\PermitUpdated;
 use App\Models\Alert;
 use App\Models\Permit;
 use App\Models\PermitType;
@@ -19,6 +20,7 @@ use App\Services\PermitDetectionService;
 use App\Services\PermitService;
 use Database\Seeders\PermitCatalogueSeeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
@@ -801,4 +803,129 @@ it('raises work without permit alert during detection', function (): void {
         ->where('alert_type', AlertType::System)
         ->where('dedupe_key', "ptw:no_permit:{$zone->id}:{$worker->id}")
         ->exists())->toBeTrue();
+});
+
+it('renders the live permit board and snapshot without crew identity', function (): void {
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $coldWork = PermitType::query()->where('code', 'cold_work')->firstOrFail();
+    $zone = Zone::factory()->create(['name' => 'Unit Alpha']);
+
+    $this->actingAs($admin)
+        ->post(route('permits.store'), [
+            'permit_type_id' => $coldWork->id,
+            'zone_id' => $zone->id,
+            'task_description' => 'Board inspection card.',
+        ])
+        ->assertRedirect();
+
+    $inspection = Permit::query()->firstOrFail();
+    $this->actingAs($admin)
+        ->put(route('permits.update', $inspection), [
+            'zone_id' => $inspection->zone_id,
+            'task_description' => $inspection->task_description,
+            'checklist' => coldWorkChecklist(),
+        ])
+        ->assertRedirect();
+    $this->actingAs($admin)->post(route('permits.submit', $inspection))->assertRedirect();
+
+    $issue = Permit::query()->create([
+        'permit_number' => 'PTW-BOARD-ISSUE',
+        'permit_type_id' => $coldWork->id,
+        'zone_id' => $zone->id,
+        'task_description' => 'Waiting on issue.',
+        'receiver_id' => $admin->id,
+        'status' => PermitStatus::PendingIssue,
+        'source' => 'user',
+        'created_by' => $admin->id,
+    ]);
+
+    $active = Permit::query()->create([
+        'permit_number' => 'PTW-BOARD-ACTIVE',
+        'permit_type_id' => $coldWork->id,
+        'zone_id' => $zone->id,
+        'task_description' => 'Live work.',
+        'receiver_id' => $admin->id,
+        'status' => PermitStatus::Active,
+        'valid_to' => now()->addDays(1),
+        'source' => 'user',
+        'created_by' => $admin->id,
+    ]);
+
+    $expiring = Permit::query()->create([
+        'permit_number' => 'PTW-BOARD-EXP',
+        'permit_type_id' => $coldWork->id,
+        'zone_id' => $zone->id,
+        'task_description' => 'About to lapse.',
+        'receiver_id' => $admin->id,
+        'status' => PermitStatus::Active,
+        'valid_to' => now()->addMinutes(45),
+        'source' => 'user',
+        'created_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('permits.board'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('workforce/permits/board')
+            ->has('columns.pending_inspection', 1)
+            ->has('columns.pending_issue', 1)
+            ->has('columns.active', 1)
+            ->has('columns.expiring', 1)
+            ->where('columns.pending_inspection.0.uuid', $inspection->uuid)
+            ->where('columns.pending_issue.0.uuid', $issue->uuid)
+            ->where('columns.active.0.uuid', $active->uuid)
+            ->where('columns.expiring.0.uuid', $expiring->uuid)
+            ->missing('columns.pending_inspection.0.receiver')
+            ->missing('columns.active.0.personnel'));
+
+    $this->actingAs($admin)
+        ->getJson(route('permits.live'))
+        ->assertOk()
+        ->assertJsonPath('data.columns.expiring.0.permit_number', 'PTW-BOARD-EXP')
+        ->assertJsonPath('data.columns.expiring.0.expiring', true)
+        ->assertJsonMissingPath('data.columns.expiring.0.receiver');
+
+    $this->get(route('permits.board'))->assertOk();
+});
+
+it('broadcasts PermitUpdated when a permit is issued', function (): void {
+    Event::fake([PermitUpdated::class]);
+
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $coldWork = PermitType::query()->where('code', 'cold_work')->firstOrFail();
+    $zone = Zone::factory()->create();
+
+    $this->actingAs($admin)
+        ->post(route('permits.store'), [
+            'permit_type_id' => $coldWork->id,
+            'zone_id' => $zone->id,
+            'task_description' => 'Broadcast on issue.',
+            'checklist' => coldWorkChecklist(),
+        ])
+        ->assertRedirect();
+
+    $permit = Permit::query()->firstOrFail();
+    $permit = advanceColdWorkPermitToPendingIssue($permit, $admin);
+
+    Event::fake([PermitUpdated::class]);
+
+    $this->actingAs($admin)
+        ->post(route('permits.issue', $permit))
+        ->assertRedirect();
+
+    Event::assertDispatched(PermitUpdated::class, function (PermitUpdated $event) use ($permit): bool {
+        return $event->permit->is($permit)
+            && $event->broadcastAs() === 'PermitUpdated'
+            && $event->broadcastWith()['permit']['column'] === 'active'
+            && ! array_key_exists('personnel', $event->broadcastWith()['permit']);
+    });
+});
+
+it('denies the permit board without view-permits', function (): void {
+    $user = User::factory()->withRole('Field Staff')->create();
+
+    $this->actingAs($user)
+        ->get(route('permits.board'))
+        ->assertForbidden();
 });

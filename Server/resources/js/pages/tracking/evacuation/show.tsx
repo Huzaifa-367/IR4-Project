@@ -1,5 +1,4 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { Panel } from '@/components/ir4/panel';
 import { StatusPill } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
@@ -47,7 +46,7 @@ export default function EvacuationShow({
 }: Props) {
     const [report, setReport] = usePropSyncedState(initialReport);
     const snapshotUrl = tracking.evacuation.snapshot.url(report.uuid);
-    const { status } = useReverbChannel({
+    useReverbChannel({
         channel: 'tracking',
         events: ['.EvacuationEntryUpdated'],
         onEvent: (payload: unknown) => {
@@ -120,7 +119,6 @@ export default function EvacuationShow({
                             {report.accounted}/{report.total} accounted ({pct}%)
                         </p>
                     </div>
-                    <LiveStatusPill status={status} />
                 </div>
 
                 <div className="h-2 overflow-hidden rounded-pill bg-surface-3">

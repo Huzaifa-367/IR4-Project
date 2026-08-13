@@ -3,7 +3,6 @@ import { useCallback, useMemo } from 'react';
 import { AnalyticalChart } from '@/components/ir4/analytical-chart';
 import { CardHeading } from '@/components/ir4/card-heading';
 import { GasChannelGauges } from '@/components/ir4/gas-channel-gauges';
-import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { MetricRow } from '@/components/ir4/metric-row';
 import { RangeToggle } from '@/components/ir4/range-toggle';
 import { StatCard } from '@/components/ir4/stat-card';
@@ -233,7 +232,7 @@ export default function GasDashboard({
         [setPanels, setSnapshot],
     );
 
-    const { status } = useReverbChannel({
+    useReverbChannel({
         channel: 'gas',
         events: ['.GasLiveUpdated'],
         onEvent: (payload: unknown) => {
@@ -328,7 +327,6 @@ export default function GasDashboard({
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <LiveStatusPill status={status} />
                         <Button asChild size="sm" variant="secondary">
                             <Link href={gas.alarms.index()}>Alarms</Link>
                         </Button>

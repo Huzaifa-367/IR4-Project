@@ -90,6 +90,15 @@ it('exposes health and classifies unauthenticated surfaces', function () {
     }
 });
 
+it('keeps Inertia SSR disabled for the on-prem CSR-only runtime', function () {
+    expect(config('inertia.ssr.enabled'))->toBeFalse();
+
+    $config = file_get_contents(base_path('config/inertia.php'));
+
+    expect($config)->toBeString()
+        ->and($config)->toContain("'enabled' => false");
+});
+
 it('falls back to zpl download when printer host is not configured', function () {
     config(['ir4.equipment.printer_host' => '']);
     $equipment = Equipment::factory()->create();

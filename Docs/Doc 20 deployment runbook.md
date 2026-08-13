@@ -62,7 +62,7 @@ Long-running processes are brought up by **`ir4.target`** (system systemd — te
 ## 5. Nginx, TLS & LAN enforcement
 
 ### 5.1 Reverse proxy
-- Nginx terminates TLS (a self-signed or client-CA cert for the LAN hostname; the on-prem box has no public domain) and proxies to php-fpm + Reverb (WS upgrade for the Reverb path).
+- Nginx terminates TLS (a self-signed or client-CA cert for the LAN hostname; the on-prem box has no public domain) and proxies to php-fpm + Reverb. Lerd’s site vhost must forward `/app` and `/apps` with `Upgrade` / `Connection` headers to the Reverb process (`REVERB_SERVER_HOST=0.0.0.0`, `REVERB_SERVER_PORT=8080`). The operator browser uses that same site origin for WebSockets (DOC-08 §5.6) — not `127.0.0.1`.
 - Large body allowance on `/api/ingest/*` for batched snapshots; sane timeouts.
 
 ### 5.2 LAN segmentation (the security spine)

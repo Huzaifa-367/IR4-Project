@@ -78,6 +78,24 @@ export type PermitListItem = {
     } | null;
 };
 
+export type PermitBoardColumnKey =
+    | 'pending_inspection'
+    | 'pending_gas_test'
+    | 'pending_issue'
+    | 'active'
+    | 'suspended'
+    | 'expiring';
+
+export type PermitBoardCard = PermitListItem & {
+    expiring: boolean;
+    column: string;
+};
+
+export type PermitBoardColumns = Record<
+    PermitBoardColumnKey,
+    PermitBoardCard[]
+>;
+
 export type PermitPersonnelDocumentStatus = {
     status: 'green' | 'amber' | 'red' | string;
     missing: string[];

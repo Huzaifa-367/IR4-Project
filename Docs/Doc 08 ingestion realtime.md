@@ -122,6 +122,9 @@ Private channels (authorized in `routes/channels.php`); since the platform is a 
 ### 5.5 Frontend hook
 - **`useReverbChannel(channel, handlers)`** — subscribes on mount, unsubscribes on unmount, exposes connection status, and wires the poll fallback + reconnect-reconcile. Every live page uses it; individual DOCs specify which channel/events.
 
+### 5.6 Client connection (Lerd / workstations)
+The Echo client connects **same-origin** as the operator page (`ws`/`wss` on the host and port in the browser bar, path `/app/{key}`). Lerd’s `reverb:start` binds the process on `0.0.0.0:8080` and proxies `/app` (and `/apps`) on the site vhost with WebSocket Upgrade headers. Laravel PHP broadcasts to `REVERB_HOST`/`REVERB_PORT` on loopback; those values are not what the workstation uses. Never compile `VITE_REVERB_HOST=127.0.0.1` or `localhost` — on an operator PC that is the PC itself, so the dashboard can load while Reverb stays offline. Poll fallback (§5.4) still runs when the socket cannot connect.
+
 ---
 
 ## 6. Security & robustness

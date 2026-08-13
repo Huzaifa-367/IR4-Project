@@ -17,6 +17,12 @@ Route::prefix('workforce/permits')->name('permits.')->group(function (): void {
     Route::post('/', [PermitController::class, 'store'])
         ->middleware('permission:create-permits')
         ->name('store');
+    Route::get('board', [PermitController::class, 'board'])
+        ->middleware('permission:view-permits')
+        ->name('board');
+    Route::get('live', [PermitController::class, 'live'])
+        ->middleware('permission:view-permits')
+        ->name('live');
     Route::get('{permit}', [PermitController::class, 'show'])
         ->middleware('permission:view-permits')
         ->name('show');

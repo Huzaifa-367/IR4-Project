@@ -131,6 +131,15 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
+        ...(can('view-permits')
+            ? [
+                  {
+                      title: 'Permits',
+                      href: permits.board(),
+                      icon: FileCheck,
+                  } satisfies NavItem,
+              ]
+            : []),
     ];
 
     // Live operations only — zone setup lives under Settings.
@@ -261,7 +270,7 @@ export function AppSidebar() {
         ...(can('view-permits')
             ? [
                   {
-                      title: 'Permits',
+                      title: 'Permit register',
                       href: permits.index(),
                       icon: FileCheck,
                   } satisfies NavItem,

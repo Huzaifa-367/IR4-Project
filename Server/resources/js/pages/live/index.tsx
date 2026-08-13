@@ -41,9 +41,9 @@ function unwrapCameras(payload: unknown): LiveCamera[] | null {
         return null;
     }
 
-    const data = (payload as { data?: { cameras?: unknown } }).data;
+    const cameras = (payload as { data?: { cameras?: unknown } }).data?.cameras;
 
-    return Array.isArray(data?.cameras) ? (data.cameras as LiveCamera[]) : null;
+    return Array.isArray(cameras) ? (cameras as LiveCamera[]) : null;
 }
 
 function patchCameraChip(
@@ -133,7 +133,6 @@ export default function LiveWall({
                             description={`${cameras.length} cameras`}
                         />
                         <div className="flex items-center gap-2">
-                            <LiveStatusPill status={status} />
                             {canViewPpe && (
                                 <Button asChild size="sm" variant="secondary">
                                     <Link href={ppe.violations.index()}>

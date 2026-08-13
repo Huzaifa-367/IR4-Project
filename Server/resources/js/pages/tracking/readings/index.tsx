@@ -4,6 +4,7 @@ import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { StatusPill } from '@/components/ir4/status-pill';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
@@ -178,114 +179,127 @@ export default function ReadingsIndex({
                 title="Tag readings"
                 description="Every RFID read as a record — filter by time, zone, reader, or tag"
                 actions={
-                    <Link
-                        href={tracking.index()}
-                        className="text-xs text-[color:var(--accent)] hover:underline"
-                    >
-                        Live tracking ›
-                    </Link>
+                    <Button asChild variant="outline" size="sm">
+                        <Link href={tracking.index()}>Live tracking</Link>
+                    </Button>
                 }
                 filters={
-                    <>
-                        <Input
-                            type="search"
-                            placeholder="Tag or reader"
-                            value={search}
-                            onChange={(event) => {
-                                const value = event.target.value;
-                                setSearch(value);
-                                applySearch(value);
-                            }}
-                            className="w-44"
-                        />
-                        <SearchableSelect
-                            value={zoneId}
-                            onValueChange={(value) => {
-                                setZoneId(value);
-                                applyFilters({ zone_id: value });
-                            }}
-                            placeholder="Zone"
-                            triggerClassName="w-44"
-                            options={[
-                                { value: ALL, label: 'All zones' },
-                                { value: 'unbound', label: 'Unbound' },
-                                ...zones.map((zone) => ({
-                                    value: String(zone.id),
-                                    label: zone.name,
-                                })),
-                            ]}
-                        />
-                        <SearchableSelect
-                            value={readerId}
-                            onValueChange={(value) => {
-                                setReaderId(value);
-                                applyFilters({ reader_id: value });
-                            }}
-                            placeholder="Reader"
-                            triggerClassName="w-44"
-                            options={[
-                                { value: ALL, label: 'All readers' },
-                                ...readers.map((reader) => ({
-                                    value: String(reader.id),
-                                    label:
-                                        reader.reference ??
-                                        reader.name ??
-                                        `#${reader.id}`,
-                                })),
-                            ]}
-                        />
-                        <Input
-                            type="datetime-local"
-                            value={from}
-                            onChange={(event) => {
-                                const value = event.target.value;
-                                setFrom(value);
-                                applyFilters({ from: value });
-                            }}
-                            aria-label="From"
-                            className="w-48"
-                        />
-                        <Input
-                            type="datetime-local"
-                            value={to}
-                            onChange={(event) => {
-                                const value = event.target.value;
-                                setTo(value);
-                                applyFilters({ to: value });
-                            }}
-                            aria-label="To"
-                            className="w-48"
-                        />
-                        <SearchableSelect
-                            value={backfill}
-                            onValueChange={(value) => {
-                                setBackfill(value);
-                                applyFilters({ backfill: value });
-                            }}
-                            placeholder="Kind"
-                            triggerClassName="w-36"
-                            options={[
-                                { value: ALL, label: 'Live + backfill' },
-                                { value: 'live', label: 'Live only' },
-                                { value: 'backfill', label: 'Backfill only' },
-                            ]}
-                        />
-                        <SearchableSelect
-                            value={proximity}
-                            onValueChange={(value) => {
-                                setProximity(value);
-                                applyFilters({ proximity: value });
-                            }}
-                            placeholder="Proximity"
-                            triggerClassName="w-36"
-                            options={[
-                                { value: ALL, label: 'Any proximity' },
-                                { value: 'near', label: 'Near' },
-                                { value: 'mid', label: 'Mid' },
-                                { value: 'far', label: 'Far' },
-                            ]}
-                        />
-                    </>
+                    <div className="flex w-full min-w-0 flex-col gap-2">
+                        <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
+                            <Input
+                                type="search"
+                                placeholder="Tag or reader"
+                                value={search}
+                                onChange={(event) => {
+                                    const value = event.target.value;
+                                    setSearch(value);
+                                    applySearch(value);
+                                }}
+                                aria-label="Search tag or reader"
+                                className="min-w-0"
+                            />
+                            <SearchableSelect
+                                value={zoneId}
+                                onValueChange={(value) => {
+                                    setZoneId(value);
+                                    applyFilters({ zone_id: value });
+                                }}
+                                placeholder="Zone"
+                                className="min-w-0"
+                                options={[
+                                    { value: ALL, label: 'All zones' },
+                                    { value: 'unbound', label: 'Unbound' },
+                                    ...zones.map((zone) => ({
+                                        value: String(zone.id),
+                                        label: zone.name,
+                                    })),
+                                ]}
+                            />
+                            <SearchableSelect
+                                value={readerId}
+                                onValueChange={(value) => {
+                                    setReaderId(value);
+                                    applyFilters({ reader_id: value });
+                                }}
+                                placeholder="Reader"
+                                className="min-w-0"
+                                options={[
+                                    { value: ALL, label: 'All readers' },
+                                    ...readers.map((reader) => ({
+                                        value: String(reader.id),
+                                        label:
+                                            reader.reference ??
+                                            reader.name ??
+                                            `#${reader.id}`,
+                                    })),
+                                ]}
+                            />
+                            <SearchableSelect
+                                value={proximity}
+                                onValueChange={(value) => {
+                                    setProximity(value);
+                                    applyFilters({ proximity: value });
+                                }}
+                                placeholder="Proximity"
+                                className="min-w-0"
+                                options={[
+                                    { value: ALL, label: 'Any proximity' },
+                                    { value: 'near', label: 'Near' },
+                                    { value: 'mid', label: 'Mid' },
+                                    { value: 'far', label: 'Far' },
+                                ]}
+                            />
+                            <SearchableSelect
+                                value={backfill}
+                                onValueChange={(value) => {
+                                    setBackfill(value);
+                                    applyFilters({ backfill: value });
+                                }}
+                                placeholder="Kind"
+                                className="min-w-0"
+                                options={[
+                                    { value: ALL, label: 'Live + backfill' },
+                                    { value: 'live', label: 'Live only' },
+                                    {
+                                        value: 'backfill',
+                                        label: 'Backfill only',
+                                    },
+                                ]}
+                            />
+                        </div>
+                        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:max-w-2xl">
+                            <label className="grid min-w-0 gap-1">
+                                <span className="text-[11px] font-medium tracking-wide text-text-faint uppercase">
+                                    From
+                                </span>
+                                <Input
+                                    type="datetime-local"
+                                    value={from}
+                                    onChange={(event) => {
+                                        const value = event.target.value;
+                                        setFrom(value);
+                                        applyFilters({ from: value });
+                                    }}
+                                    className="min-w-0"
+                                />
+                            </label>
+                            <label className="grid min-w-0 gap-1">
+                                <span className="text-[11px] font-medium tracking-wide text-text-faint uppercase">
+                                    To
+                                </span>
+                                <Input
+                                    type="datetime-local"
+                                    value={to}
+                                    onChange={(event) => {
+                                        const value = event.target.value;
+                                        setTo(value);
+                                        applyFilters({ to: value });
+                                    }}
+                                    className="min-w-0"
+                                />
+                            </label>
+                        </div>
+                    </div>
                 }
             >
                 <SettingsDataTable

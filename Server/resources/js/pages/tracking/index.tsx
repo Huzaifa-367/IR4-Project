@@ -1,7 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useCallback, useMemo, useState } from 'react';
 import Heading from '@/components/heading';
-import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { MetricRow } from '@/components/ir4/metric-row';
 import { Panel } from '@/components/ir4/panel';
 import {
@@ -171,7 +170,7 @@ export default function TrackingIndex({
         zoneFilter,
     ]);
 
-    const { status } = useReverbChannel({
+    useReverbChannel({
         channel: 'tracking',
         events: [
             '.HeadcountUpdated',
@@ -242,7 +241,6 @@ export default function TrackingIndex({
                         description="Who is on site now, which reader covers which zone, latest reads"
                     />
                     <div className="flex items-center gap-2">
-                        <LiveStatusPill status={status} />
                         <Button
                             type="button"
                             variant="secondary"

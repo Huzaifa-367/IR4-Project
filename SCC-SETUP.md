@@ -24,6 +24,8 @@ Design rules: `Docs/` DOC-01…22 · Full ops depth: [DOC-20](Docs/Doc%2020%20de
 | **A — LAN HTTP (commissioning)** | First bring-up, no TLS yet      | `http://<SCC-IP>:9100`     | `APP_URL=http://<SCC-IP>:9100` · `SESSION_SECURE_COOKIE=false`    |
 | **B — HTTPS (production)**       | After `lerd secure` + hosts/DNS | `https://ir4-project.test` | `APP_URL=https://ir4-project.test` · `SESSION_SECURE_COOKIE=true` |
 
+Reverb WebSockets use **the same origin as that browser URL** (Lerd proxies `/app` on the site vhost). Do not bake `127.0.0.1` / `localhost` into the frontend — that is the SCC, not the workstation.
+
 
 Example for this site (replace IP if yours differs):
 
@@ -154,7 +156,44 @@ SESSION_DOMAIN=
 
 
 
-### 4b. Core services
+### 4b. Reverb (workstation LIVE vs SCC-only LIVE)
+
+Laravel HTTP can work through Lerd’s exposed URL while the WebSocket still fails. The Reverb **process** listens internally; the **browser** must reach it through that same Lerd site.
+
+```env
+# Process bind — never 127.0.0.1 (workstations cannot connect to the SCC’s loopback)
+REVERB_SERVER_HOST=0.0.0.0
+REVERB_SERVER_PORT=8080
+
+# PHP inside Lerd talking to Reverb (not the operator PC)
+REVERB_HOST=127.0.0.1
+REVERB_PORT=8080
+REVERB_SCHEME=http
+
+VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
+```
+
+On the SCC:
+
+```bash
+lerd reverb:start    # regenerates the site vhost with /app WebSocket proxy
+lerd worker list     # reverb must be running
+```
+
+The compiled UI opens `ws(s)://<page-host>:<page-port>/app/<APP_KEY>…` (same origin as the dashboard). After changing `REVERB_APP_KEY`, rebuild (`npm run build` / `05-update.sh`) and `lerd artisan reverb:restart`.
+
+**Check from a workstation (not from the SCC):** Chrome → F12 → Network → WS → reload `/dashboard`.
+
+| You see | Meaning |
+| -------- | ------- |
+| `ws://192.168.8.40:9100/app/…` or `wss://ir4-project.test/app/…` then 101 | Correct |
+| `ws://127.0.0.1:8080` or `ws://localhost:8080` | Old frontend still targeting the workstation itself — pull + rebuild |
+| Correct host but 404 / 502 | `lerd reverb:start` not running, or vhost missing Upgrade headers — restart Reverb so Lerd regenerates nginx |
+
+Dashboard LIVE on the SCC but offline on a workstation is almost always this path, not Inertia.
+
+
+### 4c. Core services
 
 ```env
 APP_TIMEZONE=Asia/Riyadh
@@ -170,7 +209,7 @@ CACHE_STORE=database
 
 
 
-### 4c. Cameras + backups
+### 4d. Cameras + backups
 
 **Always set MediaMTX to this SCC’s LAN IP** — do not copy `MEDIAMTX_`* / `CAMERA_BROWSER_*` from another box (e.g. SCC1 `192.168.3.149` will break live wall on SCC2).
 
@@ -439,6 +478,8 @@ sed -i 's|^SESSION_DOMAIN=.*|SESSION_DOMAIN=|' .env
 
 lerd artisan config:clear
 lerd artisan cache:clear
+lerd reverb:stop || true
+lerd reverb:start
 
 # Export root CA for operator PCs (copy the file or print base64)
 mkcert -CAROOT

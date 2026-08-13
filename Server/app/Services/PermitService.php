@@ -23,6 +23,8 @@ use Illuminate\Validation\ValidationException;
 
 final class PermitService
 {
+    public const BOARD_EXPIRING_HOURS = 2;
+
     public function __construct(
         private readonly WorkerDocumentReadinessService $readiness,
     ) {}
@@ -1147,6 +1149,114 @@ final class PermitService
             'co_ppm' => 'co_ppm',
             'co2_ppm' => 'co2_ppm',
             default => null,
+        };
+    }
+
+    /**
+     * Slim live-board snapshot (DOC-22 §10.3) — no crew names.
+     *
+     * @return array{columns: array<string, list<array<string, mixed>>>, expiring_within_hours: int}
+     */
+    public function boardSnapshot(): array
+    {
+        $hours = self::BOARD_EXPIRING_HOURS;
+        $expiringBefore = now()->addHours($hours);
+        $columns = [
+            'pending_inspection' => [],
+            'pending_gas_test' => [],
+            'pending_issue' => [],
+            'active' => [],
+            'suspended' => [],
+            'expiring' => [],
+        ];
+
+        $rows = Permit::query()
+            ->with([
+                'type:id,uuid,name,colour_token',
+                'zone:id,uuid,name',
+            ])
+            ->whereIn('status', [
+                PermitStatus::PendingInspection,
+                PermitStatus::PendingGasTest,
+                PermitStatus::PendingIssue,
+                PermitStatus::PendingApproval,
+                PermitStatus::Active,
+                PermitStatus::Suspended,
+            ])
+            ->orderBy('valid_to')
+            ->orderBy('permit_number')
+            ->get();
+
+        foreach ($rows as $permit) {
+            $card = $this->toBoardCard($permit, $hours);
+            $column = $this->boardColumn($permit, $expiringBefore);
+
+            if (! array_key_exists($column, $columns)) {
+                continue;
+            }
+
+            $columns[$column][] = $card;
+        }
+
+        return [
+            'columns' => $columns,
+            'expiring_within_hours' => $hours,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toBoardCard(Permit $permit, ?int $expiringHours = null): array
+    {
+        $permit->loadMissing([
+            'type:id,uuid,name,colour_token',
+            'zone:id,uuid,name',
+        ]);
+
+        $hours = $expiringHours ?? self::BOARD_EXPIRING_HOURS;
+        $expiringBefore = now()->addHours($hours);
+        $column = $this->boardColumn($permit, $expiringBefore);
+
+        return [
+            'id' => $permit->id,
+            'uuid' => $permit->uuid,
+            'permit_number' => $permit->permit_number,
+            'status' => $permit->status->value,
+            'status_label' => $permit->status->label(),
+            'task_description' => $permit->task_description,
+            'valid_to' => $permit->valid_to?->toIso8601String(),
+            'expiring' => $column === 'expiring',
+            'column' => $column,
+            'type' => $permit->type === null ? null : [
+                'id' => $permit->type->id,
+                'name' => $permit->type->name,
+                'colour_token' => $permit->type->colour_token,
+            ],
+            'zone' => $permit->zone === null ? null : [
+                'id' => $permit->zone->id,
+                'name' => $permit->zone->name,
+            ],
+        ];
+    }
+
+    private function boardColumn(Permit $permit, \DateTimeInterface $expiringBefore): string
+    {
+        if ($permit->status === PermitStatus::Active
+            && $permit->valid_to !== null
+            && $permit->valid_to->gt(now())
+            && $permit->valid_to->lte($expiringBefore)
+        ) {
+            return 'expiring';
+        }
+
+        return match ($permit->status) {
+            PermitStatus::PendingInspection => 'pending_inspection',
+            PermitStatus::PendingGasTest => 'pending_gas_test',
+            PermitStatus::PendingIssue, PermitStatus::PendingApproval => 'pending_issue',
+            PermitStatus::Active => 'active',
+            PermitStatus::Suspended => 'suspended',
+            default => $permit->status->value,
         };
     }
 }

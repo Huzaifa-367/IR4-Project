@@ -3,7 +3,6 @@ import { CloudSun, Droplets, Radio, Wind } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { AnalyticalChart } from '@/components/ir4/analytical-chart';
 import { CardHeading } from '@/components/ir4/card-heading';
-import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { MetricRow } from '@/components/ir4/metric-row';
 import { RangeToggle } from '@/components/ir4/range-toggle';
 import { StatCard } from '@/components/ir4/stat-card';
@@ -92,7 +91,7 @@ export default function EnvironmentTrends({
         [setSnapshot],
     );
 
-    const { status } = useReverbChannel({
+    useReverbChannel({
         channel: 'environment',
         events: ['.EnvironmentUpdated'],
         onEvent: (payload: unknown) => {
@@ -206,7 +205,6 @@ export default function EnvironmentTrends({
                             alarms in v1
                         </p>
                     </div>
-                    <LiveStatusPill status={status} />
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -6,7 +6,6 @@ import { DonutChart, RadialGauge } from '@/components/ir4/donut-chart';
 import { GasChannelGauges } from '@/components/ir4/gas-channel-gauges';
 import { HorizontalBars } from '@/components/ir4/horizontal-bars';
 import { LiveFeed } from '@/components/ir4/live-feed';
-import { LiveStatusPill } from '@/components/ir4/live-status-pill';
 import { MetricRow } from '@/components/ir4/metric-row';
 import { MiniProgress } from '@/components/ir4/mini-progress';
 import { Panel } from '@/components/ir4/panel';
@@ -117,7 +116,7 @@ export default function DashboardIndex({
         [range, from, to],
     );
 
-    const liveStatus = useDashboardLive({
+    useDashboardLive({
         snapshotUrl: summaryQuery(),
         onSnapshot,
         setSummary,
@@ -252,7 +251,6 @@ export default function DashboardIndex({
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <LiveStatusPill status={liveStatus} />
                         <RangeToggle
                             options={RANGE_OPTIONS}
                             value={range}

@@ -160,15 +160,20 @@ export default function PermitsIndex({
             <SettingsPageShell
                 eyebrow="Workforce"
                 title="Permits to Work"
-                description="GI 2.100-aligned permit board. Draft → inspect → gas → issue."
+                description="History register — live status lives on the permit board."
                 actions={
-                    canRequest ? (
-                        <Button asChild>
-                            <Link href={permitRoutes.create()}>
-                                Request permit
-                            </Link>
+                    <div className="flex flex-wrap gap-2">
+                        <Button asChild variant="outline">
+                            <Link href={permitRoutes.board()}>Live board</Link>
                         </Button>
-                    ) : undefined
+                        {canRequest ? (
+                            <Button asChild>
+                                <Link href={permitRoutes.create()}>
+                                    Request permit
+                                </Link>
+                            </Button>
+                        ) : null}
+                    </div>
                 }
                 filters={
                     <>
@@ -218,6 +223,6 @@ export default function PermitsIndex({
 PermitsIndex.layout = {
     breadcrumbs: [
         { title: 'Workforce', href: tracking.workers.index() },
-        { title: 'Permits', href: permitRoutes.index() },
+        { title: 'Permits', href: permitRoutes.board() },
     ],
 };

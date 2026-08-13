@@ -124,11 +124,11 @@ RFID is **zone-level presence**, not coordinates. There is **no site map, lat/lo
 ## 7. Navigation & shell
 
 - **Sidebar** (quiet, `--surface`, active item in `--accent`): grouped, with items hidden unless the user holds the matching `view-*` permission (DOC-03):
-  - **Overview** — Dashboard, Alerts, Live View, Environment, Gas, PPE Trends
+  - **Overview** — Dashboard, Alerts, Live View, Environment, Gas, PPE Trends, Permits (live board)
   - **Site** — Live Tracking, Tag readings, Entry/Exit, Evacuation
   - **Safety** — Gas Alarms, PPE Violations, LSR, Vehicle Violations, Incidents
   - **Equipment** — Items, Checkouts
-  - **Workforce** — Workers, Permits, Work orders, Portable Devices
+  - **Workforce** — Workers, Permit register, Work orders, Portable Devices
   - **Admin** — Hardware, Access, Reports, Settings (General, Zones, Repositioning, Audit Log, …)
 - **Top bar:** global search (workers/equipment/incidents), the **alert bell** with open count (DOC-07), the LIVE/RECONNECTING pill, the user menu (profile, theme toggle, logout), and an idle-timeout indicator (DOC-02).
 - **`AppLayout`** hosts `AlertProvider` (toasts/chime), `useIdleLogout`, and the shared permission context.

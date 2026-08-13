@@ -18,9 +18,11 @@ use App\Models\WorkOrder;
 use App\Models\Zone;
 use App\Services\PermitService;
 use App\Services\WorkerDocumentReadinessService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -30,7 +32,10 @@ final class PermitController extends BaseController
     {
         $this->authorize('viewAny', Permit::class);
 
-        $query = Permit::query()->with(['type', 'zone']);
+        $query = Permit::query()->with([
+            'type:id,uuid,name,colour_token',
+            'zone:id,uuid,name',
+        ]);
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status')->toString());
@@ -90,6 +95,26 @@ final class PermitController extends BaseController
         ]);
     }
 
+    public function board(PermitService $permits): InertiaResponse
+    {
+        $this->authorize('viewAny', Permit::class);
+
+        $snapshot = $permits->boardSnapshot();
+
+        return Inertia::render('workforce/permits/board', [
+            'columns' => $snapshot['columns'],
+            'expiringWithinHours' => $snapshot['expiring_within_hours'],
+            'canRequest' => request()->user()?->can('create-permits') ?? false,
+        ]);
+    }
+
+    public function live(PermitService $permits): JsonResponse
+    {
+        $this->authorize('viewAny', Permit::class);
+
+        return ApiResponse::ok($permits->boardSnapshot());
+    }
+
     public function create(Request $request, WorkerDocumentReadinessService $readiness): InertiaResponse
     {
         $this->authorize('create', Permit::class);
@@ -105,12 +130,6 @@ final class PermitController extends BaseController
                 'documentRequirements.workerDocumentType',
             ])
             ->orderBy('sort_order')
-            ->get();
-
-        $workers = Worker::query()
-            ->where('is_active', true)
-            ->with(['documents.documentType'])
-            ->orderBy('name')
             ->get();
 
         return Inertia::render('workforce/permits/create', [
@@ -183,29 +202,11 @@ final class PermitController extends BaseController
                 ])
                 ->values()
                 ->all(),
-            'workers' => $workers->map(function (Worker $worker) use ($canSeeIdentity, $readiness, $permitTypes): array {
-                $roleEligibility = [];
-
-                foreach ($permitTypes as $type) {
-                    foreach ($type->roles as $role) {
-                        $assessment = $readiness->assessRole($worker->id, $type, $role->role_code);
-                        $roleEligibility[$type->id.':'.$role->role_code] = [
-                            'ready' => $assessment['ready'],
-                            'missing' => $assessment['missing'],
-                            'missing_labels' => $assessment['missing_labels'],
-                        ];
-                    }
-                }
-
-                return [
-                    'id' => $worker->id,
-                    'uuid' => $worker->uuid,
-                    'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
-                    'reference' => $canSeeIdentity ? $worker->employee_code : null,
-                    'verified_document_codes' => $readiness->gateSatisfyingCodes($worker),
-                    'role_eligibility' => $roleEligibility,
-                ];
-            })->values()->all(),
+            'workers' => Inertia::defer(fn (): array => $this->workerOptions(
+                $permitTypes,
+                $canSeeIdentity,
+                $readiness,
+            )),
             'initialWorkOrderId' => $request->filled('work_order_id')
                 ? (int) $request->input('work_order_id')
                 : null,
@@ -249,37 +250,7 @@ final class PermitController extends BaseController
         $canUpdate = $user?->can('update', $permit) ?? false;
         $type = $permit->type;
 
-        $workers = [];
-
-        if ($isEditable && $canUpdate && $type instanceof PermitType) {
-            $workers = Worker::query()
-                ->where('is_active', true)
-                ->with(['documents.documentType'])
-                ->orderBy('name')
-                ->get()
-                ->map(function (Worker $worker) use ($canSeeIdentity, $readiness, $type): array {
-                    $roleEligibility = [];
-
-                    foreach ($type->roles as $role) {
-                        $assessment = $readiness->assessRole($worker->id, $type, $role->role_code);
-                        $roleEligibility[(string) $type->id.':'.$role->role_code] = [
-                            'ready' => $assessment['ready'],
-                            'missing' => $assessment['missing'],
-                            'missing_labels' => $assessment['missing_labels'],
-                        ];
-                    }
-
-                    return [
-                        'id' => $worker->id,
-                        'uuid' => $worker->uuid,
-                        'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
-                        'reference' => $canSeeIdentity ? $worker->employee_code : null,
-                        'role_eligibility' => $roleEligibility,
-                    ];
-                })
-                ->values()
-                ->all();
-        }
+        $permitTypeId = $type?->id;
 
         return Inertia::render('workforce/permits/show', [
             'permit' => $permits->toArray($permit),
@@ -302,7 +273,15 @@ final class PermitController extends BaseController
             'zones' => $isEditable && $canUpdate
                 ? Zone::query()->where('is_active', true)->orderBy('name')->get(['id', 'uuid', 'name', 'requires_permit'])
                 : [],
-            'workers' => $workers,
+            'workers' => $isEditable && $canUpdate && $permitTypeId !== null
+                ? Inertia::defer(fn (): array => $this->workerOptionsForType(
+                    PermitType::query()
+                        ->with(['roles' => fn ($query) => $query->orderBy('sort_order')])
+                        ->findOrFail($permitTypeId),
+                    $canSeeIdentity,
+                    $readiness,
+                ))
+                : [],
             'typeRoles' => ($type?->roles ?? collect())->map(fn ($role): array => [
                 'id' => $role->id,
                 'uuid' => $role->uuid,
@@ -428,5 +407,83 @@ final class PermitController extends BaseController
         $permits->reject($permit, $request->user(), $request->string('note')->toString());
 
         return back()->with('flash', ['success' => 'Permit rejected.']);
+    }
+
+    /**
+     * @param  Collection<int, PermitType>  $permitTypes
+     * @return list<array<string, mixed>>
+     */
+    private function workerOptions(
+        Collection $permitTypes,
+        bool $canSeeIdentity,
+        WorkerDocumentReadinessService $readiness,
+    ): array {
+        return Worker::query()
+            ->where('is_active', true)
+            ->with(['documents.documentType'])
+            ->orderBy('name')
+            ->get(['id', 'uuid', 'name', 'employee_code'])
+            ->map(function (Worker $worker) use ($canSeeIdentity, $readiness, $permitTypes): array {
+                $roleEligibility = [];
+
+                foreach ($permitTypes as $type) {
+                    foreach ($type->roles as $role) {
+                        $assessment = $readiness->assessRole($worker->id, $type, $role->role_code);
+                        $roleEligibility[$type->id.':'.$role->role_code] = [
+                            'ready' => $assessment['ready'],
+                            'missing' => $assessment['missing'],
+                            'missing_labels' => $assessment['missing_labels'],
+                        ];
+                    }
+                }
+
+                return [
+                    'id' => $worker->id,
+                    'uuid' => $worker->uuid,
+                    'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
+                    'reference' => $canSeeIdentity ? $worker->employee_code : null,
+                    'verified_document_codes' => $readiness->gateSatisfyingCodes($worker),
+                    'role_eligibility' => $roleEligibility,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function workerOptionsForType(
+        PermitType $type,
+        bool $canSeeIdentity,
+        WorkerDocumentReadinessService $readiness,
+    ): array {
+        return Worker::query()
+            ->where('is_active', true)
+            ->with(['documents.documentType'])
+            ->orderBy('name')
+            ->get(['id', 'uuid', 'name', 'employee_code'])
+            ->map(function (Worker $worker) use ($canSeeIdentity, $readiness, $type): array {
+                $roleEligibility = [];
+
+                foreach ($type->roles as $role) {
+                    $assessment = $readiness->assessRole($worker->id, $type, $role->role_code);
+                    $roleEligibility[(string) $type->id.':'.$role->role_code] = [
+                        'ready' => $assessment['ready'],
+                        'missing' => $assessment['missing'],
+                        'missing_labels' => $assessment['missing_labels'],
+                    ];
+                }
+
+                return [
+                    'id' => $worker->id,
+                    'uuid' => $worker->uuid,
+                    'label' => $canSeeIdentity ? $worker->name : $worker->anonymizedLabel(),
+                    'reference' => $canSeeIdentity ? $worker->employee_code : null,
+                    'role_eligibility' => $roleEligibility,
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

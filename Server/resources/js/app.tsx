@@ -6,6 +6,7 @@ import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import DisplayLayout from '@/layouts/display-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { buildReverbEchoOptions } from '@/lib/reverb-client';
 
 const reverbAppKey = import.meta.env.VITE_REVERB_APP_KEY;
 
@@ -14,10 +15,9 @@ const reverbAppKey = import.meta.env.VITE_REVERB_APP_KEY;
 if (import.meta.env.SSR) {
     configureEcho({ broadcaster: 'null' });
 } else if (typeof reverbAppKey === 'string' && reverbAppKey.length > 0) {
-    configureEcho({
-        broadcaster: 'reverb',
-        key: reverbAppKey,
-    });
+    // Same-origin socket (Lerd proxies /app on the site vhost). Do not use
+    // baked VITE_REVERB_HOST — localhost is the SCC, not the workstation.
+    configureEcho(buildReverbEchoOptions(reverbAppKey, window.location));
 } else {
     configureEcho({
         broadcaster: 'null',

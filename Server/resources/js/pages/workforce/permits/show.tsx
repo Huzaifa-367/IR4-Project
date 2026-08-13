@@ -28,7 +28,7 @@ type Props = {
     gasChannels: PermitTypeGasChannel[];
     checklistItems: PermitTypeChecklistItem[];
     zones: ZoneOption[];
-    workers: WorkerOption[];
+    workers?: WorkerOption[];
     typeRoles: PermitTypeRole[];
     allowsExtended: boolean;
     gasPhaseOptions: PermitOption[];
@@ -277,7 +277,7 @@ export default function PermitShow({
     gasChannels,
     checklistItems,
     zones,
-    workers,
+    workers = [],
     typeRoles,
     allowsExtended,
     gasPhaseOptions,
@@ -1714,6 +1714,6 @@ export default function PermitShow({
 PermitShow.layout = {
     breadcrumbs: [
         { title: 'Workforce', href: tracking.workers.index() },
-        { title: 'Permits', href: permits.index() },
+        { title: 'Permits', href: permits.board() },
     ],
 };

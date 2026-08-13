@@ -74,7 +74,11 @@
             "npm run format:check",
             "npm run types:check",
             "npm run test",
+            "@ir4:gates",
             "@test"
+        ],
+        "ir4:gates": [
+            "@php artisan ir4:export-enums --check"
         ],
         "types:check": [
             "phpstan analyse --memory-limit=1G"

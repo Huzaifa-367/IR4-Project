@@ -659,6 +659,20 @@ export const ScheduleTypeLabels: Record<ScheduleType, string> = {
     service: 'Service',
 };
 
+export const TagProximity = {
+    Near: 'near',
+    Mid: 'mid',
+    Far: 'far',
+} as const;
+
+export type TagProximity = (typeof TagProximity)[keyof typeof TagProximity];
+
+export const TagProximityLabels: Record<TagProximity, string> = {
+    near: 'Near',
+    mid: 'Mid',
+    far: 'Far',
+};
+
 export const TagStatus = {
     InStock: 'in_stock',
     Assigned: 'assigned',
@@ -675,20 +689,6 @@ export const TagStatusLabels: Record<TagStatus, string> = {
     lost: 'Lost',
     damaged: 'Damaged',
     retired: 'Retired',
-};
-
-export const TagProximity = {
-    Near: 'near',
-    Mid: 'mid',
-    Far: 'far',
-} as const;
-
-export type TagProximity = (typeof TagProximity)[keyof typeof TagProximity];
-
-export const TagProximityLabels: Record<TagProximity, string> = {
-    near: 'Near',
-    mid: 'Mid',
-    far: 'Far',
 };
 
 export const ThresholdDirection = {
@@ -777,7 +777,6 @@ export const ZoneTypeLabels: Record<ZoneType, string> = {
 };
 
 // --- Permission catalogue (DOC-03) ---
-// Updated by `php artisan ir4:export-permissions`.
 export const Permission = {
     ViewDashboard: 'view-dashboard',
     ViewLiveCameras: 'view-live-cameras',

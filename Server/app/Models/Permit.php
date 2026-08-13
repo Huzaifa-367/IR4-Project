@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PermitStatus;
+use App\Events\PermitUpdated;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasCreatedBy;
 use App\Models\Concerns\HasPublicUuid;
@@ -155,5 +156,23 @@ final class Permit extends Model
     public function needsApprover(): bool
     {
         return $this->is_extended || ($this->type?->requires_approver ?? false);
+    }
+
+    protected static function booted(): void
+    {
+        self::saved(function (Permit $permit): void {
+            if (! $permit->wasRecentlyCreated && ! $permit->wasChanged([
+                'status',
+                'valid_to',
+                'zone_id',
+                'permit_type_id',
+                'task_description',
+                'permit_number',
+            ])) {
+                return;
+            }
+
+            PermitUpdated::dispatch($permit);
+        });
     }
 }
