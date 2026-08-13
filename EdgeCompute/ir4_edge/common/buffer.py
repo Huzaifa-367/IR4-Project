@@ -1,4 +1,19 @@
-"""SQLite outage buffer for idempotent IR4 ingest flush (DOC-08)."""
+"""SQLite outage buffer for idempotent IR4 ingest flush (DOC-08).
+
+Capacity (approx. 400–600 bytes/row including SQLite overhead):
+
+- Gas: 1 reading / 30 s → ~2/min → 200_000 rows ≈ 69 days.
+- RFID: debounce 2 s; even at 50 unique tags/min, 200_000 rows ≈ 2.8 days
+  (FXR90 also holds ~150k / 500 min on the reader).
+- 72 GB Orin disk: years at these rates. The row cap is a disk-safety bound,
+  not a retention policy.
+
+On overflow, drop oldest first so responders keep the newest readings.
+Heartbeat counters are omitted: SCC already sees last_seen / offline from
+ingest and heartbeats; overflow is a pole journal line, not a new health
+channel. Server-rejected rows in an accepted 202 batch stay deleted — they
+are already old relative to live state and not worth a second spool.
+"""
 
 from __future__ import annotations
 
@@ -8,21 +23,30 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, List, Mapping, Sequence
 
 from ir4_edge.common.client import IngestResult, Ir4Client
 
 log = logging.getLogger("ir4_edge.buffer")
 
 MAX_BATCH = 1000
+# Pending-row cap (not the flush batch size).
+DEFAULT_MAX_ROWS = 200_000
 
 
 class OutageBuffer:
     """Persist events locally; flush in ≤1000 batches keeping event_uid."""
 
-    def __init__(self, db_path: Path, stream: str) -> None:
+    def __init__(
+        self,
+        db_path: Path,
+        stream: str,
+        *,
+        max_rows: int = DEFAULT_MAX_ROWS,
+    ) -> None:
         self.db_path = Path(db_path)
         self.stream = stream
+        self.max_rows = max(1, int(max_rows))
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
@@ -47,6 +71,7 @@ class OutageBuffer:
     def enqueue(self, events: Sequence[Mapping[str, Any]]) -> int:
         """Insert events; ignore duplicates by event_uid. Returns inserted count."""
         inserted = 0
+        dropped = 0
         now = time.time()
         with self._lock:
             for event in events:
@@ -63,16 +88,47 @@ class OutageBuffer:
                         inserted += 1
                 except sqlite3.Error as exc:
                     log.error("Buffer enqueue failed: %s", exc)
+            if inserted:
+                dropped = self._evict_oldest_locked()
             self._conn.commit()
+        if dropped:
+            log.warning(
+                "Buffer cap %d: dropped %d oldest %s events (kept newest)",
+                self.max_rows,
+                dropped,
+                self.stream,
+            )
         return inserted
 
     def pending_count(self) -> int:
         with self._lock:
-            row = self._conn.execute(
-                "SELECT COUNT(*) FROM events WHERE stream = ?",
-                (self.stream,),
-            ).fetchone()
+            return self._count_locked()
+
+    def _count_locked(self) -> int:
+        row = self._conn.execute(
+            "SELECT COUNT(*) FROM events WHERE stream = ?",
+            (self.stream,),
+        ).fetchone()
         return int(row[0]) if row else 0
+
+    def _evict_oldest_locked(self) -> int:
+        """Delete oldest rows until at cap. Caller holds the lock and commits."""
+        excess = self._count_locked() - self.max_rows
+        if excess <= 0:
+            return 0
+        self._conn.execute(
+            """
+            DELETE FROM events
+            WHERE id IN (
+                SELECT id FROM events
+                WHERE stream = ?
+                ORDER BY id ASC
+                LIMIT ?
+            )
+            """,
+            (self.stream, excess),
+        )
+        return excess
 
     def _peek(self, limit: int = MAX_BATCH) -> List[Dict[str, Any]]:
         with self._lock:
@@ -154,7 +210,6 @@ class OutageBuffer:
             return IngestResult(status_code=0)
         result = sender(client, events)
         if result.status_code in (200, 202) and not result.retriable:
-            # Also flush any backlog while the link is healthy.
             self.flush(client, sender)
             return result
         if result.retriable or result.status_code >= 500 or result.status_code == 0:
@@ -165,6 +220,5 @@ class OutageBuffer:
                 result.error or result.status_code,
             )
             return result
-        # Non-retriable: still buffer so we do not drop machine truth; operator must fix auth.
         self.enqueue(events)
         return result
