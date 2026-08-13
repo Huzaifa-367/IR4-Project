@@ -11,9 +11,15 @@ type Props = {
     status?: string;
     timeout?: boolean;
     locked?: boolean;
+    sessionExpired?: boolean;
 };
 
-export default function Login({ status, timeout, locked }: Props) {
+export default function Login({
+    status,
+    timeout,
+    locked,
+    sessionExpired,
+}: Props) {
     const pageUrl = usePage().url;
     const showTimeout =
         timeout ||
@@ -23,6 +29,8 @@ export default function Login({ status, timeout, locked }: Props) {
         locked ||
         pageUrl.includes('locked=1') ||
         pageUrl.includes('locked=true');
+    const showSessionExpired =
+        sessionExpired || pageUrl.includes('session=expired');
 
     return (
         <>
@@ -38,6 +46,14 @@ export default function Login({ status, timeout, locked }: Props) {
                 <div className="mb-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-foreground">
                     Account temporarily locked after too many failed attempts.
                     Try again later.
+                </div>
+            )}
+
+            {showSessionExpired && (
+                <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
+                    Your session expired or cookies could not be set. Refresh
+                    and try again. If this keeps happening, confirm you are
+                    using the same URL as APP_URL (HTTP vs HTTPS).
                 </div>
             )}
 

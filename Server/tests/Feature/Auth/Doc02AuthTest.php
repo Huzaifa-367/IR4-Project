@@ -24,6 +24,17 @@ it('rejects email verification routes', function () {
     $this->actingAs($user)->get('/email/verify')->assertNotFound();
 });
 
+it('shows a credentials error on bad password', function () {
+    $user = User::factory()->create();
+
+    $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'not-the-password',
+    ])->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+});
+
 it('sets last_login_at on successful login', function () {
     $user = User::factory()->create();
 

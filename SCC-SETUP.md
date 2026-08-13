@@ -172,7 +172,7 @@ CACHE_STORE=database
 
 ### 4c. Cameras + backups
 
-**Always set MediaMTX to this SCC’s LAN IP** — do not copy `MEDIAMTX_*` / `CAMERA_BROWSER_*` from another box (e.g. SCC1 `192.168.3.149` will break live wall on SCC2).
+**Always set MediaMTX to this SCC’s LAN IP** — do not copy `MEDIAMTX_`* / `CAMERA_BROWSER_*` from another box (e.g. SCC1 `192.168.3.149` will break live wall on SCC2).
 
 Permanent contract (auto-applied by `scripts/ensure-mediamtx-env.sh` and by `03-ensure-mediamtx.sh`):
 
@@ -196,14 +196,16 @@ BACKUP_ARCHIVE_PASSWORD=<strong-site-secret>
 MYSQL_DUMP_BINARY_PATH=/usr/bin
 ```
 
-| Key | Permanent value |
-| --- | ----------------- |
-| `CAMERA_BROWSER_STREAM_URL_TEMPLATE` | **`/hls/{reference}/`** (same-origin HLS `<video>` — works on LAN IP and HTTPS) |
-| `MEDIAMTX_API_URL` | `http://<this-SCC-IP>:9997` |
-| `MEDIAMTX_HOST_IP` | This SCC LAN IP |
-| `MEDIAMTX_SOURCE_ON_DEMAND` | `false` (warm RTSP for live wall) |
-| `MEDIAMTX_RTSP_TRANSPORT` | `tcp` |
-| `MEDIAMTX_API_USER` / `PASS` | Empty |
+
+| Key                                  | Permanent value                                                             |
+| ------------------------------------ | --------------------------------------------------------------------------- |
+| `CAMERA_BROWSER_STREAM_URL_TEMPLATE` | `/hls/{reference}/` (same-origin HLS `<video>` — works on LAN IP and HTTPS) |
+| `MEDIAMTX_API_URL`                   | `http://<this-SCC-IP>:9997`                                                 |
+| `MEDIAMTX_HOST_IP`                   | This SCC LAN IP                                                             |
+| `MEDIAMTX_SOURCE_ON_DEMAND`          | `false` (warm RTSP for live wall)                                           |
+| `MEDIAMTX_RTSP_TRANSPORT`            | `tcp`                                                                       |
+| `MEDIAMTX_API_USER` / `PASS`         | Empty                                                                       |
+
 
 **Do not** use `http://<SCC-IP>:8888/{reference}` in the browser template (breaks HTTPS / mixed content). Live wall plays via `hls.js` → `/hls/{reference}/index.m3u8` → MediaMTX.
 
@@ -260,8 +262,8 @@ Or set a known password:
 
 ```bash
 lerd artisan tinker --execute="
-\$u = App\Models\User::where('email','admin@ir4.local')->firstOrFail();
-\$u->password = 'Password123!';
+\$u = App\Models\User::where('email','admin@gmail.com')->firstOrFail();
+\$u->password = '12345677';
 \$u->must_change_password = true;
 \$u->is_active = true;
 \$u->save();
@@ -300,13 +302,14 @@ lerd artisan config:show session.domain
 ```
 
 
-| Symptom                   | Fix                                                             |
-| ------------------------- | --------------------------------------------------------------- |
-| Page refreshes, no error  | `APP_URL` / `SESSION_SECURE_COOKIE` mismatch — see §4a          |
-| Login **419** / cookies rejected as “secure” on HTTP | `.env` still has HTTPS settings — set §4a LAN HTTP values, then `lerd artisan config:clear` |
+| Symptom                                                                  | Fix                                                                                                                  |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Page refreshes, no error                                                 | Usually `SESSION_SECURE_COOKIE` / `APP_URL` mismatch — see §4a. Also: bare `false` in `.env` used to be treated as secure (fixed in `config/session.php`); run `lerd artisan config:clear` after pull. |
+| Login **419** / cookies rejected as “secure” on HTTP                     | `.env` still has HTTPS settings — set §4a LAN HTTP values, then `lerd artisan config:clear`                          |
+| CSRF / session expired banner on login                                   | Cookies blocked or CSRF stale — refresh once; confirm scheme matches `APP_URL`                                       |
 | Assets load from `https://ir4-project.test` / Vite `ws://127.0.0.1:5173` | Wrong `APP_URL`, or leftover Vite hot file: `rm -f public/hot` then `npm run build` (or `bash scripts/05-update.sh`) |
-| “Credentials don’t match” | Wrong email — check `ir4:install` output or reset command above |
-| Locked account            | `lerd artisan ir4:user:reset <email>`                           |
+| “Credentials don’t match”                                                | Wrong email — check `ir4:install` output or reset command above                                                      |
+| Locked account                                                           | `lerd artisan ir4:user:reset <email>`                                                                                |
 
 
 ---
@@ -368,6 +371,8 @@ bash scripts/05-update.sh
 # or: npm run build && lerd restart
 ```
 
+
+
 ### Smoothness
 
 HLS always has a few seconds of lag. Defaults from `ensure-mediamtx-env.sh` + `scripts/mediamtx.yml` (warm RTSP, TCP, LL-HLS, streaming PHP proxy) are the permanent tuning. Re-apply after cloning `.env` from another SCC:
@@ -379,11 +384,13 @@ lerd artisan config:clear
 lerd artisan ir4:sync-camera-streams
 ```
 
+
+
 ### Edge / workstation cannot open `/live`
 
-1. Open `http://192.168.8.40:9100/login` first (must be logged in — `/hls` requires auth).  
-2. `APP_URL` must match how you browse (`http://192.168.8.40:9100` for LAN).  
-3. From the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.40:9100/up` → `200`.  
+1. Open `http://192.168.8.40:9100/login` first (must be logged in — `/hls` requires auth).
+2. `APP_URL` must match how you browse (`http://192.168.8.40:9100` for LAN).
+3. From the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.40:9100/up` → `200`.
 4. Hard-refresh `/live` after login.
 
 Config template: `scripts/mediamtx.yml`.
@@ -601,13 +608,15 @@ ir4_artisan wayfinder:generate --with-form -v
 
 Common causes:
 
-| Symptom | Fix |
-| -------- | ----- |
+
+| Symptom                             | Fix                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------- |
 | `Please provide a valid cache path` | `bash scripts/ensure-storage-dirs.sh` (creates `storage/framework/views`, etc.) |
-| `.env` missing | `cp .env.example .env` then `lerd artisan key:generate --force` |
-| `lerd: command not found` | Install Lerd (`01-setup.sh`) or add `~/.local/share/lerd/bin` to PATH |
-| DB / bootstrap errors | `lerd artisan optimize:clear` then retry |
-| Stale bootstrap cache after rsync | `05-update.sh` now runs `package:discover` + `optimize:clear` before build |
+| `.env` missing                      | `cp .env.example .env` then `lerd artisan key:generate --force`                 |
+| `lerd: command not found`           | Install Lerd (`01-setup.sh`) or add `~/.local/share/lerd/bin` to PATH           |
+| DB / bootstrap errors               | `lerd artisan optimize:clear` then retry                                        |
+| Stale bootstrap cache after rsync   | `05-update.sh` now runs `package:discover` + `optimize:clear` before build      |
+
 
 ---
 

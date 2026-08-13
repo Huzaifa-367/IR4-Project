@@ -71,7 +71,9 @@ class FortifyServiceProvider extends ServiceProvider
                     user: $user,
                 );
 
-                return null;
+                throw ValidationException::withMessages([
+                    Fortify::username() => __('These credentials do not match our records.'),
+                ]);
             }
 
             if (! $user->is_active) {
@@ -119,6 +121,7 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
             'timeout' => $request->boolean('timeout'),
             'locked' => $request->boolean('locked'),
+            'sessionExpired' => $request->query('session') === 'expired',
         ]));
 
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
