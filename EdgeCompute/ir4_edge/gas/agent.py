@@ -81,6 +81,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
         device_token=ir4.get("device_token") or "",
         device_uuid=ir4.get("device_uuid") or "",
         dry_run=bool(ir4.get("dry_run")),
+        device_ref=str(device_ref or ""),
     )
     buffer = OutageBuffer(buffer_path, stream="gas_readings")
     stop = {"flag": False}
@@ -95,6 +96,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     def meta_provider() -> Dict[str, Any]:
         return {
             "agent": "ir4-gas-agent",
+            "device_ref": device_ref,
             "serial_port": resolved_port,
             "pending_events": buffer.pending_count(),
             "poll_interval_seconds": poll_interval,

@@ -47,5 +47,9 @@ class HeartbeatLoop:
             meta = self.meta_provider() if self.meta_provider else {}
             ok = self.client.heartbeat(status=self.status, meta=meta)
             if not ok:
-                log.warning("Heartbeat unsuccessful")
+                log.warning(
+                    "Heartbeat unsuccessful device_ref=%s uuid=%s",
+                    self.client.device_ref or "-",
+                    self.client.device_uuid or "-",
+                )
             self._stop.wait(self.interval_seconds)

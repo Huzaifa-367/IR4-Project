@@ -136,6 +136,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
         device_token=ir4.get("device_token") or "",
         device_uuid=ir4.get("device_uuid") or "",
         dry_run=bool(ir4.get("dry_run")),
+        device_ref=reader_ref,
     )
     buffer = OutageBuffer(buffer_path, stream="tag_readings")
     batcher = TagBatcher(
