@@ -49,7 +49,7 @@ prompt_secret() {
 yaml_val() { grep -E "^[[:space:]]*$2:" "$1" | head -1 | awk '{print $2}' | tr -d '"'; }
 
 echo "==> ir4-edge setup (gas=${EDGE_ENABLE_GAS} rfid=${EDGE_ENABLE_RFID})"
-BASE_URL="$(prompt "IR4_BASE_URL" "${IR4_BASE_URL:-https://ir4.ispc-ai.com}")"
+BASE_URL="$(prompt "IR4_BASE_URL" "${IR4_BASE_URL:-http://192.168.8.40:9100}")"
 [[ "${BASE_URL}" == http* && "${BASE_URL}" != *" "* ]] || {
   echo "ERROR: bad IR4_BASE_URL" >&2; exit 1
 }

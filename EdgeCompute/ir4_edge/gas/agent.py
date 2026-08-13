@@ -77,7 +77,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     ser = yt98h.open_port(resolved_port, baud, parity, stopbits)
 
     client = Ir4Client(
-        base_url=ir4.get("base_url") or "https://ir4.ispc-ai.com",
+        base_url=ir4.get("base_url") or "",
         device_token=ir4.get("device_token") or "",
         device_uuid=ir4.get("device_uuid") or "",
         dry_run=bool(ir4.get("dry_run")),

@@ -111,8 +111,6 @@ def apply_env_overrides(
         ir4["device_uuid"] = uuid_value
     if _env("IR4_DRY_RUN") is not None:
         ir4["dry_run"] = _env("IR4_DRY_RUN", "0") in ("1", "true", "True", "yes")
-    if not ir4.get("base_url"):
-        ir4["base_url"] = "https://ir4.ispc-ai.com"
     config["ir4"] = ir4
 
     agent = dict(config.get("agent") or {})

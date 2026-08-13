@@ -22,7 +22,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Smoke POST one gas-readings batch")
     parser.add_argument(
         "--base-url",
-        default=os.environ.get("IR4_BASE_URL", "https://ir4.ispc-ai.com"),
+        default=os.environ.get("IR4_BASE_URL") or "",
     )
     parser.add_argument(
         "--token",
@@ -50,8 +50,12 @@ def main() -> int:
     }
     print(json.dumps({"events": [event]}, indent=2))
 
+    if args.live and not args.base_url:
+        print("IR4_BASE_URL / --base-url is required for --live", file=sys.stderr)
+        return 1
+
     client = Ir4Client(
-        base_url=args.base_url or "https://ir4.ispc-ai.com",
+        base_url=args.base_url,
         device_token=args.token,
         device_uuid=args.uuid,
         dry_run=not args.live,
