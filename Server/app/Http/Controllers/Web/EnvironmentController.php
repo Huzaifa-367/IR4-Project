@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Services\EnvironmentalDataService;
 use App\Support\ApiResponse;
+use App\Support\TrendRange;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -25,7 +26,17 @@ final class EnvironmentController extends BaseController
     {
         abort_unless($request->user()?->can('view-dashboard'), 403);
 
-        return ApiResponse::ok(['sensors' => $environment->latest()]);
+        [$range, $from, $to] = TrendRange::resolve($request);
+
+        return ApiResponse::ok([
+            'sensors' => $environment->latest(),
+            'snapshot' => $environment->dashboardSnapshot($from, $to),
+            'filters' => [
+                'range' => $range,
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+            ],
+        ]);
     }
 
     public function trends(Request $request, EnvironmentalDataService $environment): InertiaResponse|JsonResponse

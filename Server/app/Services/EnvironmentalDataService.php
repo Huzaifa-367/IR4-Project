@@ -7,6 +7,7 @@ use App\Enums\DeviceType;
 use App\Events\EnvironmentUpdated;
 use App\Models\Device;
 use App\Models\EnvironmentalReading;
+use App\Support\HardwarePresence;
 use App\Support\Ingest\IngestEventRejected;
 use App\Support\Ingest\IngestTimestamps;
 use App\Support\Ingest\ReferenceResolver;
@@ -291,13 +292,18 @@ final class EnvironmentalDataService
      */
     private function sensorPayload(Device $device, ?EnvironmentalReading $reading, int $staleMinutes): array
     {
+        $recordedAt = $reading?->recorded_at;
+
         return [
             'device_id' => $device->id,
             'device_name' => $device->name,
             'device_ref' => $device->reference,
+            'device_status' => $device->status->value,
             'asset_label' => $device->asset?->current_location_label,
-            'recorded_at' => $reading?->recorded_at->toIso8601String(),
-            'is_stale' => $reading === null || $reading->recorded_at->lessThan(now()->subMinutes($staleMinutes)),
+            'recorded_at' => $recordedAt?->toIso8601String(),
+            'last_seen_at' => $device->last_seen_at?->toIso8601String(),
+            'is_online' => HardwarePresence::isDeviceOnline($device, $staleMinutes),
+            'is_stale' => HardwarePresence::isTelemetryStale($recordedAt, $staleMinutes),
             'temperature_c' => $reading?->temperature_c !== null ? (float) $reading->temperature_c : null,
             'humidity_pct' => $reading?->humidity_pct !== null ? (float) $reading->humidity_pct : null,
             'wind_speed_ms' => $reading?->wind_speed_ms !== null ? (float) $reading->wind_speed_ms : null,
@@ -406,8 +412,9 @@ final class EnvironmentalDataService
             'sensors' => $sensors,
             'sensor_health' => [
                 'total' => count($sensors),
-                'current' => collect($sensors)->where('is_stale', false)->count(),
+                'current' => collect($sensors)->where('is_stale', false)->where('is_online', true)->count(),
                 'stale' => collect($sensors)->where('is_stale', true)->count(),
+                'offline' => collect($sensors)->where('is_online', false)->count(),
             ],
             'metrics' => $metrics,
             'extra_metrics' => $extraMetrics,

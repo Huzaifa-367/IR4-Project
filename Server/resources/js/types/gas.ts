@@ -3,8 +3,11 @@ export type GasLivePanel = {
     device_name: string;
     device_ref: string;
     device_type: string;
+    device_status?: string;
     asset_label: string | null;
     recorded_at: string | null;
+    last_seen_at?: string | null;
+    is_online?: boolean;
     is_stale: boolean;
     lel_pct: number | null;
     h2s_ppm: number | null;
@@ -65,6 +68,7 @@ export type GasDashboardSnapshot = {
         total: number;
         current: number;
         stale: number;
+        offline?: number;
     };
     open_alarms: number;
     metrics: Array<{

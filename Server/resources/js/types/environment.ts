@@ -2,8 +2,11 @@ export type EnvironmentSensor = {
     device_id: number;
     device_name: string;
     device_ref: string;
+    device_status?: string;
     asset_label: string | null;
     recorded_at: string | null;
+    last_seen_at?: string | null;
+    is_online?: boolean;
     is_stale: boolean;
     temperature_c: number | null;
     humidity_pct: number | null;

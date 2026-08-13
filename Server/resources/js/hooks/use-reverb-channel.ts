@@ -12,6 +12,11 @@ type UseReverbChannelOptions<TPayload> = {
     snapshotUrl?: string;
     onSnapshot?: (data: unknown) => void;
     pollIntervalMs?: number;
+    /**
+     * Keep polling even while Reverb is connected (needed when ingest can be
+     * backfill-only with no broadcast, e.g. gas buffer flush).
+     */
+    pollWhileLive?: boolean;
 };
 
 export type UseReverbChannelResult = {
@@ -53,6 +58,7 @@ export function useReverbChannel<TPayload = unknown>({
     snapshotUrl,
     onSnapshot,
     pollIntervalMs,
+    pollWhileLive = false,
 }: UseReverbChannelOptions<TPayload>): UseReverbChannelResult {
     const { isAuthenticated } = useAuth();
     const { poll_fallback_seconds: pollFallbackSeconds } = useSharedSettings();
@@ -109,7 +115,7 @@ export function useReverbChannel<TPayload = unknown>({
 
         void refresh();
 
-        if (status === 'live') {
+        if (status === 'live' && !pollWhileLive) {
             return;
         }
 
@@ -118,7 +124,14 @@ export function useReverbChannel<TPayload = unknown>({
         }, resolvedPollIntervalMs);
 
         return () => window.clearInterval(id);
-    }, [isAuthenticated, status, snapshotUrl, resolvedPollIntervalMs, refresh]);
+    }, [
+        isAuthenticated,
+        status,
+        snapshotUrl,
+        resolvedPollIntervalMs,
+        refresh,
+        pollWhileLive,
+    ]);
 
     useEffect(() => {
         if (prevStatus.current !== 'live' && status === 'live' && snapshotUrl) {

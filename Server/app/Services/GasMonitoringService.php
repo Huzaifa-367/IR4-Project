@@ -22,6 +22,7 @@ use App\Support\Ingest\IngestEventRejected;
 use App\Support\Ingest\IngestTimestamps;
 use App\Support\Ingest\ReferenceResolver;
 use App\Support\SqlTimeBucket;
+use App\Support\HardwarePresence;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -216,8 +217,9 @@ final class GasMonitoringService
             'as_of' => now()->toIso8601String(),
             'panel_health' => [
                 'total' => count($panels),
-                'current' => collect($panels)->where('is_stale', false)->count(),
+                'current' => collect($panels)->where('is_stale', false)->where('is_online', true)->count(),
                 'stale' => collect($panels)->where('is_stale', true)->count(),
+                'offline' => collect($panels)->where('is_online', false)->count(),
             ],
             'open_alarms' => $openAlarms,
             'metrics' => $metrics,
@@ -730,15 +732,19 @@ final class GasMonitoringService
             ->all();
 
         $recordedAt = $latest?->recorded_at;
-        $isStale = $recordedAt === null || $recordedAt->lessThan(now()->subMinutes($staleMinutes));
+        $isStale = HardwarePresence::isTelemetryStale($recordedAt, $staleMinutes);
+        $isOnline = HardwarePresence::isDeviceOnline($device, $staleMinutes);
 
         return [
             'device_id' => $device->id,
             'device_name' => $device->name,
             'device_ref' => $device->reference,
             'device_type' => $device->device_type->value,
+            'device_status' => $device->status->value,
             'asset_label' => $device->asset?->current_location_label,
             'recorded_at' => $recordedAt?->toIso8601String(),
+            'last_seen_at' => $device->last_seen_at?->toIso8601String(),
+            'is_online' => $isOnline,
             'is_stale' => $isStale,
             'lel_pct' => $latest?->lel_pct !== null ? (float) $latest->lel_pct : null,
             'h2s_ppm' => $latest?->h2s_ppm !== null ? (float) $latest->h2s_ppm : null,

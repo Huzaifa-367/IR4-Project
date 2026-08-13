@@ -7,6 +7,7 @@ use App\Enums\AlertType;
 use App\Enums\AssetStatus;
 use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
+use App\Events\DeviceStatusChanged;
 use App\Models\Asset;
 use App\Models\Camera;
 use App\Models\Device;
@@ -47,6 +48,12 @@ final class AssetHealthService
 
                 if ($device->status !== HardwareStatus::Offline) {
                     $device->forceFill(['status' => HardwareStatus::Offline])->save();
+                    broadcast(new DeviceStatusChanged(
+                        $device->id,
+                        HardwareStatus::Offline->value,
+                        $device->device_type->value,
+                        $device->name,
+                    ));
                 }
 
                 $this->alerts->raise(

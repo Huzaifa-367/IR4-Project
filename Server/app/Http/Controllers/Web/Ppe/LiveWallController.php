@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers\Web\Ppe;
 
-use App\Enums\HardwareStatus;
 use App\Enums\ReviewStatus;
 use App\Http\Controllers\Web\BaseController;
 use App\Models\Camera;
 use App\Models\PpeViolation;
 use App\Services\PpeViolationService;
+use App\Services\SettingsService;
 use App\Support\ApiResponse;
+use App\Support\HardwarePresence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,6 +23,7 @@ final class LiveWallController extends BaseController
 
         $display = $request->boolean('display');
         $playbackUrlTemplate = config('camera_stream.browser_url_template');
+        $cameraStaleMinutes = (int) app(SettingsService::class)->get('health.camera_stale_minutes', 3);
 
         $cameras = Camera::query()
             ->with('asset')
@@ -35,8 +37,7 @@ final class LiveWallController extends BaseController
                 'playback_url' => $this->playbackUrl($playbackUrlTemplate, $camera->reference),
                 'ai_enabled' => $camera->ai_enabled,
                 'status' => $camera->status->value,
-                'is_online' => $camera->status === HardwareStatus::Online
-                    || ($camera->last_frame_at !== null && $camera->last_frame_at->greaterThan(now()->subMinutes(5))),
+                'is_online' => HardwarePresence::isCameraOnline($camera, $cameraStaleMinutes),
                 'last_frame_at' => $camera->last_frame_at?->toIso8601String(),
                 'location_label' => $camera->asset?->current_location_label,
             ]);

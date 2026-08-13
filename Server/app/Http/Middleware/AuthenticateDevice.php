@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Device;
+use App\Services\HardwareRegistryService;
 use App\Support\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
@@ -10,6 +11,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class AuthenticateDevice
 {
+    public function __construct(
+        private readonly HardwareRegistryService $hardware,
+    ) {}
+
     /**
      * @param  Closure(Request): Response  $next
      */
@@ -33,8 +38,9 @@ final class AuthenticateDevice
             return ApiResponse::error('FORBIDDEN', 'Device is retired.', status: 403);
         }
 
+        // Keep last_seen + Online status aligned with health checks (DOC-05).
+        $device = $this->hardware->touchPresence($device);
         $request->attributes->set('device', $device);
-        $device->forceFill(['last_seen_at' => now()])->save();
 
         return $next($request);
     }

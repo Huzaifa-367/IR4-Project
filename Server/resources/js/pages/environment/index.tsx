@@ -1,6 +1,6 @@
-import { Head, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { CloudSun, Droplets, Radio, Wind } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnalyticalChart } from '@/components/ir4/analytical-chart';
 import { CardHeading } from '@/components/ir4/card-heading';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
@@ -42,49 +42,73 @@ export default function EnvironmentTrends({
     snapshot: initialSnapshot,
     filters,
 }: Props) {
-    const [liveSensors, setLiveSensors] = useState<EnvironmentSensor[] | null>(
-        null,
-    );
+    const [snapshot, setSnapshot] = useState(initialSnapshot);
     const [range, setRange] = usePropSyncedState<RangeValue>(
         (filters.range as RangeValue) || 'day',
     );
     const [from, setFrom] = usePropSyncedState(filters.from);
     const [to, setTo] = usePropSyncedState(filters.to);
 
-    const snapshot = {
-        ...initialSnapshot,
-        sensors: liveSensors ?? initialSnapshot.sensors,
-    };
+    useEffect(() => {
+        setSnapshot(initialSnapshot);
+    }, [initialSnapshot]);
 
-    const updateSensor = (sensor: EnvironmentSensor): void => {
-        setLiveSensors((current) =>
-            [
-                ...(current ?? initialSnapshot.sensors).filter(
-                    (item) => item.device_id !== sensor.device_id,
-                ),
-                sensor,
-            ].sort((a, b) => a.device_name.localeCompare(b.device_name)),
-        );
-    };
+    const liveUrl = useMemo(() => {
+        const params = new URLSearchParams();
+        params.set('range', range);
+
+        if (range === 'custom') {
+            if (from) {
+                params.set('from', from);
+            }
+
+            if (to) {
+                params.set('to', to);
+            }
+        }
+
+        return `/api/environment/live?${params.toString()}`;
+    }, [range, from, to]);
+
+    const onSnapshot = useCallback((payload: unknown) => {
+        const response = payload as {
+            data: {
+                sensors: EnvironmentSensor[];
+                snapshot?: EnvironmentDashboardSnapshot;
+            };
+        };
+
+        if (response.data.snapshot) {
+            setSnapshot(response.data.snapshot);
+
+            return;
+        }
+
+        setSnapshot((current) => ({
+            ...current,
+            sensors: response.data.sensors,
+        }));
+    }, []);
 
     const { status } = useReverbChannel({
         channel: 'environment',
         events: ['.EnvironmentUpdated'],
         onEvent: (payload: unknown) => {
             const event = payload as { sensor: EnvironmentSensor };
-            updateSensor(event.sensor);
-            router.reload({
-                only: ['snapshot'],
-            });
+            setSnapshot((current) => ({
+                ...current,
+                sensors: [
+                    ...current.sensors.filter(
+                        (item) => item.device_id !== event.sensor.device_id,
+                    ),
+                    event.sensor,
+                ].sort((a, b) => a.device_name.localeCompare(b.device_name)),
+            }));
         },
-        snapshotUrl: '/api/environment/live',
-        onSnapshot: (payload: unknown) => {
-            const response = payload as {
-                data: { sensors: EnvironmentSensor[] };
-            };
-            setLiveSensors(response.data.sensors);
-        },
+        snapshotUrl: liveUrl,
+        onSnapshot,
         pollIntervalMs: 30_000,
+        pollWhileLive: true,
     });
 
     const chartData = useMemo(() => {
@@ -142,7 +166,7 @@ export default function EnvironmentTrends({
     const humidity = metricByKey.get('humidity_pct');
     const wind = metricByKey.get('wind_speed_ms');
     const freshSensors = snapshot.sensors.filter(
-        (sensor) => !sensor.is_stale,
+        (sensor) => sensor.is_online !== false && !sensor.is_stale,
     ).length;
 
     const applyRange = (nextRange: RangeValue): void => {
@@ -426,12 +450,18 @@ export default function EnvironmentTrends({
                                     </div>
                                     <StatusPill
                                         label={
-                                            sensor.is_stale
-                                                ? 'Stale'
-                                                : 'Current'
+                                            sensor.is_online === false
+                                                ? 'Offline'
+                                                : sensor.is_stale
+                                                  ? 'Stale'
+                                                  : 'Current'
                                         }
                                         tone={
-                                            sensor.is_stale ? 'warn' : 'ok'
+                                            sensor.is_online === false
+                                                ? 'crit'
+                                                : sensor.is_stale
+                                                  ? 'warn'
+                                                  : 'ok'
                                         }
                                     />
                                 </div>

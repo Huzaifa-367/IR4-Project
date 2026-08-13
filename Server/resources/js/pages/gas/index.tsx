@@ -1,5 +1,5 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { Head, Link } from '@inertiajs/react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnalyticalChart } from '@/components/ir4/analytical-chart';
 import { CardHeading } from '@/components/ir4/card-heading';
 import { GasChannelGauges } from '@/components/ir4/gas-channel-gauges';
@@ -178,6 +178,7 @@ export default function GasDashboard({
     canManageThresholds,
 }: Props) {
     const [panels, setPanels] = useState(initialPanels);
+    const [snapshot, setSnapshot] = useState(initialSnapshot);
     const [deviceId, setDeviceId] = usePropSyncedState(
         filters.device_id || ALL_DEVICES,
     );
@@ -186,6 +187,43 @@ export default function GasDashboard({
     );
     const [from, setFrom] = usePropSyncedState(filters.from);
     const [to, setTo] = usePropSyncedState(filters.to);
+
+    const liveUrl = useMemo(() => {
+        const params = new URLSearchParams();
+        params.set('range', range);
+
+        if (deviceId !== ALL_DEVICES) {
+            params.set('device_id', deviceId);
+        }
+
+        if (range === 'custom') {
+            if (from) {
+                params.set('from', from);
+            }
+
+            if (to) {
+                params.set('to', to);
+            }
+        }
+
+        return `/gas/api/live?${params.toString()}`;
+    }, [deviceId, range, from, to]);
+
+    const onSnapshot = useCallback((data: unknown) => {
+        const json = data as {
+            data: { panels: GasLivePanel[]; snapshot?: GasDashboardSnapshot };
+        };
+        setPanels(json.data.panels);
+
+        if (json.data.snapshot) {
+            setSnapshot(json.data.snapshot);
+        }
+    }, []);
+
+    useEffect(() => {
+        setPanels(initialPanels);
+        setSnapshot(initialSnapshot);
+    }, [initialPanels, initialSnapshot]);
 
     const { status } = useReverbChannel({
         channel: 'gas',
@@ -201,17 +239,12 @@ export default function GasDashboard({
                     a.device_name.localeCompare(b.device_name),
                 );
             });
-            router.reload({ only: ['snapshot'] });
         },
-        snapshotUrl: '/gas/api/live',
-        onSnapshot: (data) => {
-            const json = data as { data: { panels: GasLivePanel[] } };
-            setPanels(json.data.panels);
-        },
+        snapshotUrl: liveUrl,
+        onSnapshot,
         pollIntervalMs: 15_000,
+        pollWhileLive: true,
     });
-
-    const snapshot = initialSnapshot;
     const chartData = useMemo(
         () => buildTrendChartData(snapshot.trend.series, range),
         [snapshot.trend.series, range],
@@ -361,11 +394,21 @@ export default function GasDashboard({
                     <StatCard
                         label="Detector health"
                         value={`${snapshot.panel_health.current}/${snapshot.panel_health.total}`}
-                        delta={`${snapshot.panel_health.stale} stale`}
+                        delta={`${snapshot.panel_health.stale} stale${
+                            (snapshot.panel_health.offline ?? 0) > 0
+                                ? ` · ${snapshot.panel_health.offline} offline`
+                                : ''
+                        }`}
                         deltaTone={
-                            snapshot.panel_health.stale > 0 ? 'crit' : 'ok'
+                            (snapshot.panel_health.offline ?? 0) > 0 ||
+                            snapshot.panel_health.stale > 0
+                                ? 'crit'
+                                : 'ok'
                         }
-                        pulseCrit={snapshot.panel_health.stale > 0}
+                        pulseCrit={
+                            (snapshot.panel_health.offline ?? 0) > 0 ||
+                            snapshot.panel_health.stale > 0
+                        }
                         info={gasInfo.health}
                     />
                 </div>
@@ -538,9 +581,19 @@ export default function GasDashboard({
                                     </div>
                                     <StatusPill
                                         label={
-                                            panel.is_stale ? 'Stale' : 'Live'
+                                            panel.is_online === false
+                                                ? 'Offline'
+                                                : panel.is_stale
+                                                  ? 'Stale'
+                                                  : 'Live'
                                         }
-                                        tone={panel.is_stale ? 'warn' : 'ok'}
+                                        tone={
+                                            panel.is_online === false
+                                                ? 'crit'
+                                                : panel.is_stale
+                                                  ? 'warn'
+                                                  : 'ok'
+                                        }
                                     />
                                 </div>
                                 <GasChannelGauges

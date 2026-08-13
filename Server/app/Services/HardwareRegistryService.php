@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\AssetStatus;
 use App\Enums\HardwareStatus;
+use App\Events\DeviceStatusChanged;
 use App\Models\Asset;
 use App\Models\AuditLog;
 use App\Models\Camera;
@@ -225,22 +226,13 @@ final class HardwareRegistryService
             throw new HttpException(422, 'Heartbeat cannot retire a device.');
         }
 
-        $nextStatus = match (true) {
-            $status !== null => $status,
-            $device->status === HardwareStatus::Maintenance => HardwareStatus::Maintenance,
-            default => HardwareStatus::Online,
-        };
-
-        $attributes = [
-            'last_seen_at' => now(),
-            'status' => $nextStatus,
-        ];
+        $device = $this->touchPresence($device, $status);
 
         if ($meta !== null) {
-            $attributes['config'] = array_merge($device->config ?? [], $meta);
+            $device->forceFill([
+                'config' => array_merge($device->config ?? [], $meta),
+            ])->save();
         }
-
-        $device->forceFill($attributes)->save();
 
         if ($device->asset_id !== null) {
             Asset::query()->whereKey($device->asset_id)->update([
@@ -248,7 +240,40 @@ final class HardwareRegistryService
             ]);
         }
 
+        return $device->fresh() ?? $device;
+    }
+
+    /**
+     * Update last_seen_at and restore Online (unless Maintenance). Used by device auth.
+     */
+    public function touchPresence(Device $device, ?HardwareStatus $status = null): Device
+    {
+        if ($device->isRetired()) {
+            throw new HttpException(403, 'Device is retired.');
+        }
+
+        $previousStatus = $device->status;
+        $nextStatus = match (true) {
+            $status !== null => $status,
+            $device->status === HardwareStatus::Maintenance => HardwareStatus::Maintenance,
+            default => HardwareStatus::Online,
+        };
+
+        $device->forceFill([
+            'last_seen_at' => now(),
+            'status' => $nextStatus,
+        ])->save();
+
         $this->alerts->resolveByDedupeKey("device_offline:{$device->id}");
+
+        if ($previousStatus !== $nextStatus) {
+            broadcast(new DeviceStatusChanged(
+                $device->id,
+                $nextStatus->value,
+                $device->device_type->value,
+                $device->name,
+            ));
+        }
 
         return $device->fresh() ?? $device;
     }

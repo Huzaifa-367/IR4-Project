@@ -64,7 +64,19 @@ final class GasDashboardController extends BaseController
     {
         abort_unless($request->user()?->can('view-gas'), 403);
 
-        return ApiResponse::ok(['panels' => $gas->livePanels()]);
+        [$range, $from, $to] = TrendRange::resolve($request);
+        $deviceId = $request->filled('device_id') ? $request->integer('device_id') : null;
+
+        return ApiResponse::ok([
+            'panels' => $gas->livePanels(),
+            'snapshot' => $gas->dashboardSnapshot($from, $to, $deviceId),
+            'filters' => [
+                'device_id' => $deviceId !== null ? (string) $deviceId : '',
+                'range' => $range,
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+            ],
+        ]);
     }
 
     public function trends(Request $request, GasMonitoringService $gas): JsonResponse|RedirectResponse

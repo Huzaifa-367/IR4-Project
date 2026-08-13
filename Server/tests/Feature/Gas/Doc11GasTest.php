@@ -223,7 +223,10 @@ it('updates thresholds with audit and manage permission', function () {
 
 it('returns live panels with stale badge', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
-    $device = Device::factory()->gasDetector()->create();
+    $device = Device::factory()->gasDetector()->create([
+        'last_seen_at' => now(),
+        'status' => \App\Enums\HardwareStatus::Online,
+    ]);
     GasReading::factory()->create([
         'device_id' => $device->id,
         'asset_id' => $device->asset_id,
@@ -236,7 +239,9 @@ it('returns live panels with stale badge', function () {
         ->getJson(route('gas.api.live'))
         ->assertOk()
         ->assertJsonPath('data.panels.0.is_stale', true)
-        ->assertJsonPath('data.panels.0.device_id', $device->id);
+        ->assertJsonPath('data.panels.0.is_online', true)
+        ->assertJsonPath('data.panels.0.device_id', $device->id)
+        ->assertJsonStructure(['data' => ['panels', 'snapshot']]);
 });
 
 it('gates gas views by permission', function () {
