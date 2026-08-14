@@ -104,8 +104,8 @@ install_app_dependencies() {
     php artisan key:generate --force
   fi
 
-  log "npm install"
-  npm install --no-audit --no-fund
+  log "npm ci"
+  npm ci --no-audit --no-fund
 
   log "building frontend assets"
   npm run build
