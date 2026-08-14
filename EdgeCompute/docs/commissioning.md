@@ -10,7 +10,7 @@ Do this on the IR4 Server **before** enabling agents on the Orin.
 4. Bind the RFID reader to the correct zone(s) (DOC-06).
 5. Issue an API token for **each** device (Settings → Devices → Token). Keep the
    plaintext and each device **UUID** for `ir4-edge setup`.
-6. Confirm the Orin can reach SCC at `http://192.168.8.40:9100`.
+6. Confirm the Orin can reach **its** SCC (poles 1–4 → SCC2, poles 5–8 → SCC1). Per-pole IPs: [site-network.md](site-network.md).
 7. For RFID live tracking: unknown EPCs are **auto-registered** as `in_stock` tags
    on first ingest. Assign them to workers in Hardware → Tags before they appear
    on the live map. Each reading stores `rssi` (peakRssi) and `antenna`. The
@@ -20,10 +20,12 @@ Do this on the IR4 Server **before** enabling agents on the Orin.
 
 | Who / phase | URL | Why |
 |---|---|---|
-| **Orin agents (SCC2)** | `http://192.168.8.40:9100` | SCC2 LAN (`IR4_BASE_URL`) |
-| **Operator browsers (SCC2)** | `http://192.168.8.40:9100` or `https://ir4-project.test` | Operator / MediaMTX LAN |
+| **Orin agents (SCC2, poles 1–4)** | `http://172.16.<pole-subnet>.40:9100` | Pole VLAN — see [site-network.md](site-network.md) |
+| **SSH to SCC2 (no display / AnyDesk)** | `ssh scc2@100.118.103.39` | Tailscale |
+| **Operator browsers (SCC2)** | `http://<SCC2-LAN>:9100` or `https://ir4-project.test` | Operator / MediaMTX LAN |
+| **Laptop over Tailscale (either SCC)** | `https://ir4-project.test` after hosts → that SCC | [SCC-REMOTE-ACCESS.md](../../SCC-REMOTE-ACCESS.md) |
 
-Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.40:9100/up`
+Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://172.16.<subnet>.40:9100/up` (expect `200`). Subnet per pole is in [site-network.md](site-network.md).
 
 ## Config files (no copy step)
 

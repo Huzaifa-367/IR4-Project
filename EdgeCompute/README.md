@@ -9,6 +9,7 @@ Gas (YT-98H) and RFID (FXR90) ingest agents. Each runs as its **own** systemd un
 | Day-2 runbook     | `[docs/runbook.md](docs/runbook.md)`                 |
 | Troubleshooting   | `[docs/troubleshooting.md](docs/troubleshooting.md)` |
 | Credentials notes | `[credentials.md](credentials.md)`                   |
+| Site IPs / SCC split | `[docs/site-network.md](docs/site-network.md)`     |
 
 
 ---

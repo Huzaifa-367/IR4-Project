@@ -15,6 +15,14 @@ Design rules: `Docs/` DOC-01…22 · Full ops depth: [DOC-20](Docs/Doc%2020%20de
 | Backup volume   | `/data/ir4-backups` (separate disk; must be mounted in Lerd)      |
 | Scripts on SCC  | `/data2/laravel/IR4-Project/scripts/01-setup.sh` … `05-update.sh` |
 
+**Pole split and field IPs:** [EdgeCompute/docs/site-network.md](EdgeCompute/docs/site-network.md) — SCC2 = poles **1–4**, SCC1 = poles **5–8**. Remote access is **SSH over Tailscale only** (no AnyDesk / KVM).
+
+Laptop → Tailscale → `https://ir4-project.test` (mount `/data2`, re-link Lerd, hosts file): [SCC-REMOTE-ACCESS.md](SCC-REMOTE-ACCESS.md).
+
+```text
+ssh scc2@100.118.103.39    # SCC2
+ssh scc1@100.96.105.106    # SCC1
+```
 
 **Pick one browser URL mode and stick to it.** Mixing IP + `.test` breaks login (session cookies and redirects).
 
