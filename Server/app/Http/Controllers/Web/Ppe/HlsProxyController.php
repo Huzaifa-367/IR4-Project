@@ -21,8 +21,6 @@ final class HlsProxyController extends BaseController
 {
     public function __invoke(Request $request, CameraStreamGatewayService $streams, ?string $path = null): Response|StreamedResponse
     {
-        abort_unless($request->user()?->can('view-live-cameras'), 403);
-
         $upstream = $streams->hlsUpstreamBaseUrl();
         if ($upstream === '') {
             abort(503, 'MediaMTX HLS upstream is not configured.');

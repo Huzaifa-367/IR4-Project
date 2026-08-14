@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\SettingsService;
+use Closure;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Throwable;
@@ -26,6 +27,20 @@ class HandleInertiaRequests extends Middleware
     public function version(Request $request): ?string
     {
         return parent::version($request);
+    }
+
+    /**
+     * HLS segments are binary proxy hits, not Inertia pages. Sharing roles,
+     * permissions, and settings on every .mp4 repeats the same cache/RBAC
+     * queries (Nightwatch "similar query 3×") across every camera.
+     */
+    public function handle(Request $request, Closure $next)
+    {
+        if ($request->is('hls', 'hls/*')) {
+            return $next($request);
+        }
+
+        return parent::handle($request, $next);
     }
 
     /**

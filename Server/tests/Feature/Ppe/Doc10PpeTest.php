@@ -12,6 +12,7 @@ use App\Models\IngestEvent;
 use App\Models\PpeViolation;
 use App\Models\User;
 use App\Models\Zone;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
@@ -308,6 +309,48 @@ it('proxies mediamtx hls through same-origin /hls', function () {
         ->assertStreamedContent('<html>player</html>');
 
     Http::assertSent(fn ($request) => $request->url() === 'http://mediamtx.test:8888/cam-ppe-01/');
+});
+
+it('does not refresh idle timeout on hls media segments', function () {
+    config()->set('camera_stream.mediamtx.hls_url', 'http://mediamtx.test:8888');
+    Http::fake([
+        'mediamtx.test:8888/*' => Http::response('segment', 200, [
+            'Content-Type' => 'video/mp4',
+        ]),
+    ]);
+
+    $operator = User::factory()->withRole('SCC Operator')->create();
+
+    $this->actingAs($operator)
+        ->withSession(['last_activity_at' => now()->subMinutes(5)->getTimestamp()])
+        ->get('/hls/CAM-FIXED-03/seg321.mp4')
+        ->assertOk();
+
+    expect(session('last_activity_at'))->toBe(now()->subMinutes(5)->getTimestamp());
+});
+
+it('does not repeat similar queries on hls media segments', function () {
+    config()->set('camera_stream.mediamtx.hls_url', 'http://mediamtx.test:8888');
+    Http::fake([
+        'mediamtx.test:8888/*' => Http::response('segment', 200, [
+            'Content-Type' => 'video/mp4',
+        ]),
+    ]);
+
+    $operator = User::factory()->withRole('SCC Operator')->create();
+    $this->actingAs($operator);
+
+    $queries = [];
+    DB::listen(static function ($query) use (&$queries): void {
+        $queries[] = $query->sql;
+    });
+
+    $this->get('/hls/CAM-FIXED-03/seg321.mp4')->assertOk();
+
+    expect(collect($queries)->filter(fn (string $sql) => str_contains($sql, 'settings')))->toBeEmpty();
+
+    $maxRepeats = collect($queries)->countBy(fn (string $sql) => $sql)->max() ?? 0;
+    expect($maxRepeats)->toBeLessThan(3);
 });
 
 it('exports csv excluding false positives', function () {
