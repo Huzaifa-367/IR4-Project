@@ -13,6 +13,20 @@ if command -v fnm >/dev/null 2>&1 || [ -x "$HOME/.local/share/fnm/fnm" ]; then
   eval "$(fnm env --use-on-cd)" 2>/dev/null || true
 fi
 
+# Prefer the invoking SCC user when someone typed `sudo scripts/05-update.sh`.
+if [ "$(id -u)" -eq 0 ]; then
+  if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+    echo "ERROR: do not run 05-update.sh with sudo." >&2
+    echo "Lerd lives under ${SUDO_USER}'s home; root falls back to host PHP and" >&2
+    echo "cannot resolve DB_HOST=lerd-mysql. Re-run as ${SUDO_USER}:" >&2
+    echo "  cd /data2/laravel/IR4-Project && bash scripts/05-update.sh" >&2
+    exit 1
+  fi
+  echo "ERROR: do not run 05-update.sh as root." >&2
+  echo "Run as the SCC operator user that owns Lerd (~/.local/share/lerd)." >&2
+  exit 1
+fi
+
 export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
 
 if [ ! -d "$REPO_CACHE/.git" ]; then
@@ -61,6 +75,7 @@ cd "$APP_ROOT"
 
 # shellcheck source=resolve-artisan.sh
 source "$APP_ROOT/scripts/resolve-artisan.sh"
+ir4_require_lerd
 
 if [ ! -f ".env" ]; then
   echo "ERROR: .env missing at $APP_ROOT/.env" >&2

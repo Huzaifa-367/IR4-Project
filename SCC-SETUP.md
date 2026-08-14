@@ -626,6 +626,8 @@ cd /data2/laravel/IR4-Project
 bash scripts/05-update.sh
 ```
 
+Do **not** use `sudo` — Lerd is installed for the SCC user; root falls back to host PHP and cannot resolve `DB_HOST=lerd-mysql` (`CACHE_STORE=database`).
+
 Preserves `.env`, TLS certs, `vendor/`, and `storage/`. Re-run `lerd artisan config:clear` if `.env` changed.
 
 ### If `npm run build` fails on Wayfinder
@@ -655,6 +657,7 @@ Common causes:
 | `Please provide a valid cache path` | `bash scripts/ensure-storage-dirs.sh` (creates `storage/framework/views`, etc.) |
 | `.env` missing                      | `cp .env.example .env` then `lerd artisan key:generate --force`                 |
 | `lerd: command not found`           | Install Lerd (`01-setup.sh`) or add `~/.local/share/lerd/bin` to PATH           |
+| `getaddrinfo for lerd-mysql failed` | Ran update as root/`sudo` — re-run as the SCC user: `bash scripts/05-update.sh` |
 | DB / bootstrap errors               | `lerd artisan optimize:clear` then retry                                        |
 | Stale bootstrap cache after rsync   | `05-update.sh` now runs `package:discover` + `optimize:clear` before build      |
 
