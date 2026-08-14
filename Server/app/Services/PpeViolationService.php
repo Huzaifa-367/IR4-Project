@@ -29,8 +29,6 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class PpeViolationService
 {
-    private const MINIMAL_JPEG = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGfAP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//Z';
-
     public function __construct(
         private readonly IngestTimestamps $timestamps,
         private readonly ReferenceResolver $refs,
@@ -377,7 +375,7 @@ final class PpeViolationService
             'reviewed_at' => $violation->reviewed_at?->toIso8601String(),
             'review_note' => $violation->review_note,
             'is_backfill' => $violation->is_backfill,
-            'snapshot_url' => $this->signedUrls->temporaryUrl($violation->snapshot_path),
+            'snapshot_url' => $this->snapshotUrl($violation->snapshot_path),
         ];
     }
 
@@ -449,7 +447,7 @@ final class PpeViolationService
                     'violation_type' => $violationType->value,
                     'detected_at' => $detectedAt->toIso8601String(),
                     'snapshot_path' => $snapshotPath,
-                    'snapshot_url' => $this->signedUrls->temporaryUrl($snapshotPath),
+                    'snapshot_url' => $this->snapshotUrl($snapshotPath),
                     'suggested_action' => 'log_lsr',
                 ],
                 source: $violation,
@@ -461,7 +459,7 @@ final class PpeViolationService
                 'uuid' => $violation->uuid,
                 'violation_type' => $violationType->value,
                 'camera_ref' => $camera->reference,
-                'snapshot_url' => $this->signedUrls->temporaryUrl($snapshotPath),
+                'snapshot_url' => $this->snapshotUrl($snapshotPath),
                 'detected_at' => $detectedAt->toIso8601String(),
             ]));
         }
@@ -529,7 +527,7 @@ final class PpeViolationService
                 'camera_ref' => $camera->reference,
                 'detected_at' => $detectedAt->toIso8601String(),
                 'snapshot_path' => $snapshotPath,
-                'snapshot_url' => $this->signedUrls->temporaryUrl($snapshotPath),
+                'snapshot_url' => $this->snapshotUrl($snapshotPath),
                 'zone_id' => $zoneId,
                 'zone_name' => $zone?->name,
                 'suggested_action' => 'create_incident',
@@ -544,18 +542,26 @@ final class PpeViolationService
         return $normalized['clock_skew'] ? 'skew' : 'accepted';
     }
 
-    private function storeSnapshot(?string $base64): string
+    private function snapshotUrl(?string $path): ?string
     {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        return $this->signedUrls->temporaryUrl($path);
+    }
+
+    private function storeSnapshot(?string $base64): ?string
+    {
+        if ($base64 === null || $base64 === '') {
+            return null;
+        }
+        $decoded = base64_decode($base64, true);
+        if ($decoded === false || $decoded === '') {
+            return null;
+        }
         $path = 'snapshots/'.now()->format('Y/m/d').'/'.Str::uuid().'.jpg';
-        $binary = '';
-        if ($base64 !== null && $base64 !== '') {
-            $decoded = base64_decode($base64, true);
-            $binary = $decoded !== false ? $decoded : '';
-        }
-        if ($binary === '') {
-            $binary = (string) base64_decode(self::MINIMAL_JPEG, true);
-        }
-        Storage::disk('private')->put($path, $binary);
+        Storage::disk('private')->put($path, $decoded);
 
         return $path;
     }

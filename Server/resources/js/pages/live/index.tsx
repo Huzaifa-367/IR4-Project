@@ -25,7 +25,7 @@ type ToastPayload = {
     id: number;
     violation_type: string;
     camera_ref: string;
-    snapshot_url: string;
+    snapshot_url: string | null;
     detected_at: string;
 };
 

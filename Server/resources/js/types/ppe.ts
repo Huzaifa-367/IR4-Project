@@ -16,7 +16,7 @@ export type PpeViolation = {
     reviewed_at: string | null;
     review_note: string | null;
     is_backfill: boolean;
-    snapshot_url: string;
+    snapshot_url: string | null;
 };
 
 export type LiveCamera = {

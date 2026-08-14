@@ -1,6 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { DetailField, FactTile } from '@/components/ir4/fact-tile';
 import { Panel } from '@/components/ir4/panel';
+import { PpeSnapshotStill } from '@/components/ir4/ppe-snapshot-still';
 import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
@@ -63,10 +64,10 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                     <div className={cn('h-1.5 w-full', heroBar)} aria-hidden />
                     <div className="flex flex-wrap items-start justify-between gap-4 p-4 md:p-5">
                         <div className="flex min-w-0 flex-1 items-start gap-4">
-                            <img
-                                src={violation.snapshot_url}
+                            <PpeSnapshotStill
+                                url={violation.snapshot_url}
                                 alt=""
-                                className="size-16 shrink-0 rounded-[var(--radius)] border border-border object-cover md:size-20"
+                                className="size-16 shrink-0 md:size-20"
                             />
                             <div className="min-w-0 space-y-2">
                                 <p className="eyebrow">PPE #{violation.id}</p>
@@ -135,10 +136,10 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                         title="Snapshot"
                         subtitle="Camera frame at detection"
                     >
-                        <img
-                            src={violation.snapshot_url}
+                        <PpeSnapshotStill
+                            url={violation.snapshot_url}
                             alt="Violation snapshot"
-                            className="w-full rounded-[var(--radius-sm)] border border-border object-contain"
+                            className="aspect-video w-full object-contain"
                         />
                     </Panel>
 

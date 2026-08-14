@@ -1,5 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
+import { PpeSnapshotStill } from '@/components/ir4/ppe-snapshot-still';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
@@ -158,10 +159,9 @@ export default function PpeViolationsIndex({
             key: 'snapshot',
             header: 'Snapshot',
             cell: (row) => (
-                <img
-                    src={row.snapshot_url}
-                    alt=""
-                    className="h-12 w-16 rounded-[var(--radius-sm)] object-cover"
+                <PpeSnapshotStill
+                    url={row.snapshot_url}
+                    className="h-12 w-16"
                 />
             ),
         },

@@ -294,6 +294,19 @@ Edit `/etc/hosts` IPv4 for `ir4-project.test` to the Tailscale IP of the SCC you
 
 ---
 
+## 9. Poles not ready (SCC2 walkthrough standby)
+
+Poles 1–4 may not be live. Operator cheat sheet (plain language): [Server/scripts/ir4-standby/README.md](Server/scripts/ir4-standby/README.md).
+
+Someone at a pole with a badge does **not** update tracking — type `ir4:s a 1` (pole RFID only; no gate).
+
+```bash
+lerd artisan ir4:s t --loop   # leave running: gas looks healthy
+lerd artisan ir4:s a 1        # RFID at pole 1
+lerd artisan ir4:s h 1        # missing helmet at pole 1 (no photo)
+lerd artisan ir4:s v 2        # missing vest at pole 2 (no photo)
+```
+
 ## 8. Aftercare (optional)
 
 - `sudo mount -a` after reboot; confirm `findmnt /data2` before expecting `:9100` / 443.

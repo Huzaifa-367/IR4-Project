@@ -17,7 +17,7 @@ final class PpeViolationDetected implements ShouldBroadcastNow
      *     id: int,
      *     violation_type: string,
      *     camera_ref: string,
-     *     snapshot_url: string,
+     *     snapshot_url: string|null,
      *     detected_at: string
      * }  $payload
      */

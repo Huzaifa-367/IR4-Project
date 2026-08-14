@@ -67,6 +67,24 @@ it('ingests a ppe violation into a row alert and broadcast', function () {
     Event::assertDispatched(PpeViolationDetected::class);
 });
 
+it('accepts helmet and vest ingest without a camera still', function () {
+    $plain = 'ppe-no-still';
+    Device::factory()->withPlainToken($plain)->create();
+    $camera = Camera::factory()->create(['reference' => 'cam-no-still']);
+    $event = ppeEvent($camera->reference, 'missing_vest');
+    unset($event['snapshot']);
+
+    $this->postJson(route('api.ingest.ppe-violations'), [
+        'events' => [$event],
+    ], ppeIngestHeaders($plain))
+        ->assertAccepted()
+        ->assertJsonPath('accepted', 1);
+
+    $violation = PpeViolation::query()->first();
+    expect($violation?->snapshot_path)->toBeNull()
+        ->and($violation?->violation_type->value)->toBe('missing_vest');
+});
+
 it('routes fall events to fall_detection without a ppe row', function () {
     $plain = 'ppe-fall';
     Device::factory()->withPlainToken($plain)->create();

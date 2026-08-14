@@ -21,7 +21,7 @@ use Illuminate\Support\Carbon;
  * @property ViolationType $violation_type
  * @property Carbon $detected_at
  * @property int $worker_count
- * @property string $snapshot_path
+ * @property string|null $snapshot_path
  * @property string|null $confidence
  * @property string|null $location_label
  * @property int|null $alert_id
