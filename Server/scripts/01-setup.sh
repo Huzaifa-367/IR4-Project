@@ -144,6 +144,7 @@ rsync -a --delete \
 #########################################
 
 cd "$APP_ROOT"
+rm -f "$APP_ROOT/public/hot"
 
 # shellcheck source=resolve-artisan.sh
 source "$APP_ROOT/scripts/resolve-artisan.sh"

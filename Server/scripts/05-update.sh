@@ -73,6 +73,11 @@ rsync -a --delete \
 
 cd "$APP_ROOT"
 
+# Vite writes public/hot when `npm run dev` ran here. Laravel then injects
+# http://127.0.0.1:5173 into HTTPS pages. rsync --exclude keeps that file —
+# always remove it so SCC serves public/build.
+rm -f "$APP_ROOT/public/hot"
+
 # shellcheck source=resolve-artisan.sh
 source "$APP_ROOT/scripts/resolve-artisan.sh"
 ir4_require_lerd
@@ -101,6 +106,12 @@ ir4_artisan wayfinder:generate --with-form
 
 echo "Building frontend..."
 npm run build
+
+if [ ! -f "$APP_ROOT/public/build/manifest.json" ]; then
+  echo "ERROR: public/build/manifest.json missing after npm run build." >&2
+  echo "Vite assets were not compiled; the UI will try to load 127.0.0.1:5173." >&2
+  exit 1
+fi
 
 echo "Running migrations..."
 ir4_artisan migrate --force

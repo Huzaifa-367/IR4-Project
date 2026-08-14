@@ -346,7 +346,7 @@ lerd artisan config:show session.domain
 | Page refreshes, no error                                                 | Usually `SESSION_SECURE_COOKIE` / `APP_URL` mismatch — see §4a. Also: bare `false` in `.env` used to be treated as secure (fixed in `config/session.php`); run `lerd artisan config:clear` after pull. |
 | Login **419** / cookies rejected as “secure” on HTTP                     | `.env` still has HTTPS settings — set §4a LAN HTTP values, then `lerd artisan config:clear`                          |
 | CSRF / session expired banner on login                                   | Cookies blocked or CSRF stale — refresh once; confirm scheme matches `APP_URL`                                       |
-| Assets load from `https://ir4-project.test` / Vite `ws://127.0.0.1:5173` | Wrong `APP_URL`, or leftover Vite hot file: `rm -f public/hot` then `npm run build` (or `bash scripts/05-update.sh`) |
+| Assets load from `http://127.0.0.1:5173` (`NS_ERROR_CORRUPTED_CONTENT`) | Leftover Vite hot file. SCC must serve `public/build`, never the Vite HMR port. `rm -f public/hot` then hard-refresh. If `public/build/manifest.json` is missing, `npm run build` (or `bash scripts/05-update.sh`). |
 | “Credentials don’t match”                                                | Wrong email — check `ir4:install` output or reset command above                                                      |
 | Locked account                                                           | `lerd artisan ir4:user:reset <email>`                                                                                |
 
@@ -697,3 +697,12 @@ Common causes:
 | [README.md](README.md)                            | Monorepo map              |
 
 
+SCC1 Pole cameras feed
+pole 1
+rtsp://admin:UNity@320@@192.168.1.164:554/Streaming/Channels/101
+
+Pole 2 
+rtsp://admin:UNity%40320%40@192.168.1.64:554/Streaming/Channels/101
+
+Pole 3
+rtsp://admin:UNity%40320%40@192.168.1.10:554/Streaming/Channels/101
