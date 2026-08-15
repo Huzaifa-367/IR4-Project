@@ -121,6 +121,14 @@ test -f artisan && test -f .env && test -f public/index.php && test -f vendor/au
 grep -E '^(APP_NAME|APP_ENV|APP_URL|SESSION_SECURE_COOKIE)=' .env
 ```
 
+5. **Restart Lerd** so the PHP container remounts the real disk (otherwise it still sees the empty stub — `Could not open input file: artisan` on `lerd artisan` / `npm run build`):
+
+```bash
+export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
+lerd restart
+lerd artisan --version   # must print Laravel Framework …
+```
+
 Do not overwrite `.env` from `.env.example`. Optional backup only:
 
 ```bash
@@ -272,6 +280,7 @@ curl -skS -o /dev/null -w '%{http_code}\n' \
 | `419 Page Expired` | `SESSION_SECURE_COOKIE=true` on HTTP, or wrong `APP_URL` | Stay on HTTPS `.test`; `config:clear` |
 | Console `@lerd-vite` 404 | `public/hot` | `rm -f public/hot` on the SCC |
 | Login HTML 502 | `/data2` unmounted or Lerd site unlinked | Steps 1–2 |
+| `Could not open input file: artisan` / Wayfinder build fails while host `ls` shows `artisan` | Lerd container still on pre-mount stub | `lerd restart` after `/data2` is healthy (step 1 §5) |
 | TLS `unrecognized name` on `:443` | Site HTTP-only | `lerd secure` (step 3) |
 | curl DNS timeout, `ping` works | Chrome/curl DoH | Disable Secure DNS; `curl --resolve ...` |
 

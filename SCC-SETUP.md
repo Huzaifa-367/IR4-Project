@@ -640,13 +640,27 @@ Preserves `.env`, TLS certs, `vendor/`, and `storage/`. Re-run `lerd artisan con
 
 ### If `npm run build` fails on Wayfinder
 
-The Vite plugin runs `wayfinder:generate` via PHP. On SCC that must use **Lerd PHP** (`lerd artisan`), not the host `php` binary.
+The Vite plugin runs `wayfinder:generate` via PHP. On SCC, `PATH` usually prefers Lerd’s `php` shim (`~/.local/share/lerd/bin/php`), which runs **inside** the FPM container. That must see the real app tree and use Lerd’s MySQL DNS — not a bare host `php` without Lerd, and not a **stale container mount**.
 
-After pulling this fix, re-run:
+**After remounting `/data2`** (empty file-manager stub → real 1.8T disk), always restart Lerd before build/update. The container can still be bound to the old empty stub (`scripts/` only) until restart:
 
 ```bash
+export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
 cd /data2/laravel/IR4-Project
+findmnt /data2          # must be the 1.8T volume, not OS /
+test -f artisan && echo OK
+lerd restart            # remounts the site into the PHP container
+lerd artisan --version  # must print Laravel Framework … not "Could not open input file: artisan"
 bash scripts/05-update.sh
+```
+
+Prefer `bash scripts/05-update.sh` over a raw `npm run build`. The update script sets `WAYFINDER_COMMAND` to `lerd artisan wayfinder:generate`. Manual build:
+
+```bash
+export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
+cd /data2/laravel/IR4-Project
+export WAYFINDER_COMMAND="lerd artisan wayfinder:generate"
+npm run build
 ```
 
 To see the real PHP error (instead of the vague Rolldown message):
@@ -660,14 +674,17 @@ ir4_artisan wayfinder:generate --with-form -v
 Common causes:
 
 
-| Symptom                             | Fix                                                                             |
-| ----------------------------------- | ------------------------------------------------------------------------------- |
+| Symptom | Fix |
+| --- | --- |
+| `Could not open input file: artisan` while host `ls` shows `artisan` | `/data2` was remounted but Lerd still sees the stub — `lerd restart`, then retry |
+| File manager / `ls` shows only `scripts/` under the project | `/data2` not mounted — see [SCC-REMOTE-ACCESS.md](SCC-REMOTE-ACCESS.md) §1, then `lerd restart` |
 | `Please provide a valid cache path` | `bash scripts/ensure-storage-dirs.sh` (creates `storage/framework/views`, etc.) |
-| `.env` missing                      | `cp .env.example .env` then `lerd artisan key:generate --force`                 |
-| `lerd: command not found`           | Install Lerd (`01-setup.sh`) or add `~/.local/share/lerd/bin` to PATH           |
+| `.env` missing | `cp .env.example .env` then `lerd artisan key:generate --force` |
+| `lerd: command not found` | Install Lerd (`01-setup.sh`) or add `~/.local/share/lerd/bin` to PATH |
 | `getaddrinfo for lerd-mysql failed` | Ran update as root/`sudo` — re-run as the SCC user: `bash scripts/05-update.sh` |
-| DB / bootstrap errors               | `lerd artisan optimize:clear` then retry                                        |
-| Stale bootstrap cache after rsync   | `05-update.sh` now runs `package:discover` + `optimize:clear` before build      |
+| DB / bootstrap errors | `lerd artisan optimize:clear` then retry |
+| Stale bootstrap cache after rsync | `05-update.sh` now runs `package:discover` + `optimize:clear` before build |
+
 
 
 ---
