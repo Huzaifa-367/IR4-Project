@@ -296,15 +296,18 @@ Edit `/etc/hosts` IPv4 for `ir4-project.test` to the Tailscale IP of the SCC you
 
 ## 9. Poles not ready (SCC2 walkthrough standby)
 
-Poles 1–4 may not be live. Operator cheat sheet (plain language): [Server/scripts/ir4-standby/README.md](Server/scripts/ir4-standby/README.md).
+Poles 1–4 may not be live. Cheat sheet: [Server/scripts/ir4-standby/Cheatsheet.md](Server/scripts/ir4-standby/Cheatsheet.md).
 
-Someone at a pole with a badge does **not** update tracking — type `ir4:s a 1` (pole RFID only; no gate).
+`ir4:s` calls the **same device APIs** as EdgeCompute (`/api/ingest/*`, heartbeats). Base URL: `--url` → `IR4_STANDBY_URL` → `IR4_BASE_URL` → `APP_URL`. Expect ingest `http=202`. On a laptop, do not target Flutter `:9100`.
+
+Someone at a pole with a badge does **not** update tracking — type `ir4:s r 1`.
 
 ```bash
-lerd artisan ir4:s t --loop   # leave running: gas looks healthy
-lerd artisan ir4:s a 1        # RFID at pole 1
-lerd artisan ir4:s h 1        # missing helmet at pole 1 (no photo)
-lerd artisan ir4:s v 2        # missing vest at pole 2 (no photo)
+lerd artisan ir4:s t --loop             # ambient gas + online poles 1–4
+lerd artisan ir4:s g 1 --alarm --loop   # hold gas alarm on pole 1
+lerd artisan ir4:s r 1                  # RFID at pole 1
+lerd artisan ir4:s h 1                  # missing helmet (no photo)
+lerd artisan ir4:s v 2                  # missing vest (no photo)
 ```
 
 ## 8. Aftercare (optional)
