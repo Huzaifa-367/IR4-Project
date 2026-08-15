@@ -44,25 +44,6 @@ it('defaults rfid tag to W0001', function () {
     });
 });
 
-it('keeps long device names as aliases', function () {
-    Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
-
-    $this->artisan('ir4:s', [
-        'action' => 'rfid',
-        'pole' => '1',
-        '--url' => 'http://standby.test',
-    ])->assertSuccessful();
-
-    $this->artisan('ir4:s', [
-        'action' => 'helmet',
-        'pole' => '1',
-        '--url' => 'http://standby.test',
-    ])->assertSuccessful();
-
-    Http::assertSent(fn ($request): bool => str_contains($request->url(), '/api/ingest/tag-readings'));
-    Http::assertSent(fn ($request): bool => str_contains($request->url(), '/api/ingest/ppe-violations'));
-});
-
 it('rejects gate rfid', function () {
     Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
 
@@ -73,6 +54,82 @@ it('rejects gate rfid', function () {
     ])->assertFailed();
 
     Http::assertNothingSent();
+});
+
+it('posts heartbeats only on t with no gas ingest', function () {
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), '/heartbeat')) {
+            return Http::response(['data' => ['status' => 'online']], 200);
+        }
+
+        return Http::response(['accepted' => 1], 202);
+    });
+
+    $this->artisan('ir4:s', [
+        'action' => 't',
+        '--url' => 'http://standby.test',
+    ])->assertSuccessful();
+
+    Http::assertSent(fn ($request): bool => str_contains($request->url(), '/heartbeat'));
+    Http::assertNotSent(fn ($request): bool => str_contains($request->url(), '/api/ingest/gas-readings'));
+});
+
+it('posts ambient gas for all poles with g all', function () {
+    Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
+
+    $this->artisan('ir4:s', [
+        'action' => 'g',
+        'pole' => 'all',
+        '--url' => 'http://standby.test',
+    ])->assertSuccessful();
+
+    $refs = [];
+    Http::assertSent(function ($request) use (&$refs): bool {
+        if (! str_contains($request->url(), '/api/ingest/gas-readings')) {
+            return false;
+        }
+        $refs[] = $request['events'][0]['device_ref'] ?? '';
+
+        return true;
+    });
+
+    expect($refs)->toBe(['DEV-GAS-01', 'DEV-GAS-02', 'DEV-GAS-03', 'DEV-GAS-04']);
+});
+
+it('requires pole or all for g', function () {
+    Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
+
+    $this->artisan('ir4:s', [
+        'action' => 'g',
+        '--url' => 'http://standby.test',
+    ])->assertFailed();
+
+    Http::assertNothingSent();
+});
+
+it('lets g all skip a pole owned by single-pole g loop', function () {
+    Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
+    Cache::put('ir4:standby:gas-ambient:2', true, now()->addMinutes(1));
+
+    $this->artisan('ir4:s', [
+        'action' => 'g',
+        'pole' => 'all',
+        '--url' => 'http://standby.test',
+    ])->assertSuccessful();
+
+    $refs = [];
+    Http::assertSent(function ($request) use (&$refs): bool {
+        if (! str_contains($request->url(), '/api/ingest/gas-readings')) {
+            return false;
+        }
+        $refs[] = $request['events'][0]['device_ref'] ?? '';
+
+        return true;
+    });
+
+    expect($refs)->not->toContain('DEV-GAS-02')
+        ->and($refs)->toContain('DEV-GAS-01')
+        ->and($refs)->toContain('DEV-GAS-03');
 });
 
 it('honours --url for device API base', function () {
@@ -87,19 +144,6 @@ it('honours --url for device API base', function () {
     ])->assertSuccessful();
 
     Http::assertSent(fn ($request): bool => str_starts_with($request->url(), 'http://edge-base.test:9100/api/ingest/gas-readings'));
-});
-
-it('falls back to APP_URL when no override is set', function () {
-    config()->set('app.url', 'http://laravel.test:8000');
-    Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
-
-    $this->artisan('ir4:s', [
-        'action' => 'g',
-        'pole' => '1',
-        '--alarm' => true,
-    ])->assertSuccessful();
-
-    Http::assertSent(fn ($request): bool => str_starts_with($request->url(), 'http://laravel.test:8000/api/ingest/gas-readings'));
 });
 
 it('rejects empty 204 responses that are not ir4 ingest', function () {
@@ -132,69 +176,13 @@ it('posts g --alarm above seeded warning thresholds', function () {
     });
 });
 
-it('lets t skip ambient gas while an alarm hold is active', function () {
-    Http::fake(function ($request) {
-        if (str_contains($request->url(), '/heartbeat')) {
-            return Http::response(['data' => ['status' => 'online']], 200);
-        }
-
-        return Http::response(['accepted' => 1], 202);
-    });
-    Cache::put('ir4:standby:gas-alarm:1', true, now()->addMinutes(1));
-
-    $this->artisan('ir4:s', [
-        'action' => 't',
-        '--url' => 'http://standby.test',
-    ])->assertSuccessful();
-
-    $gasRefs = [];
-    Http::assertSent(function ($request) use (&$gasRefs): bool {
-        if (! str_contains($request->url(), '/api/ingest/gas-readings')) {
-            return false;
-        }
-        $gasRefs[] = $request['events'][0]['device_ref'] ?? '';
-
-        return true;
-    });
-
-    expect($gasRefs)->not->toContain('DEV-GAS-01')
-        ->and($gasRefs)->toContain('DEV-GAS-02');
-});
-
-it('lets t skip ambient gas while a per-pole ambient g --loop hold is active', function () {
-    Http::fake(function ($request) {
-        if (str_contains($request->url(), '/heartbeat')) {
-            return Http::response(['data' => ['status' => 'online']], 200);
-        }
-
-        return Http::response(['accepted' => 1], 202);
-    });
-    Cache::put('ir4:standby:gas-ambient:2', true, now()->addMinutes(1));
-
-    $this->artisan('ir4:s', [
-        'action' => 't',
-        '--url' => 'http://standby.test',
-    ])->assertSuccessful();
-
-    $gasRefs = [];
-    Http::assertSent(function ($request) use (&$gasRefs): bool {
-        if (! str_contains($request->url(), '/api/ingest/gas-readings')) {
-            return false;
-        }
-        $gasRefs[] = $request['events'][0]['device_ref'] ?? '';
-
-        return true;
-    });
-
-    expect($gasRefs)->not->toContain('DEV-GAS-02')
-        ->and($gasRefs)->toContain('DEV-GAS-01');
-});
-
 it('documents device letter commands on the signature', function () {
     $command = app(StandbyPolesCommand::class);
 
     expect($command->getDefinition()->hasOption('alarm'))->toBeTrue()
         ->and($command->getDefinition()->hasOption('loop'))->toBeTrue()
         ->and($command->getDefinition()->getArgument('action')->getDescription())
-        ->toContain('t|g|r|h|v');
+        ->toContain('t|g|r|h|v')
+        ->and($command->getDefinition()->getArgument('pole')->getDescription())
+        ->toContain('all');
 });

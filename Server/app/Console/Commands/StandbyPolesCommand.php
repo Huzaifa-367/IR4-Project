@@ -13,7 +13,7 @@ use Throwable;
 /**
  * Walkthrough stand-in for poles 1–4: same IR4_BASE_URL + /api/ingest/* + heartbeats as EdgeCompute.
  *
- * Device letters: t=tick/online, g=gas, r=rfid, h=helmet, v=vest.
+ * t = heartbeats only · g = gas (one pole or all) · r = rfid · h = helmet · v = vest
  */
 final class StandbyPolesCommand extends Command
 {
@@ -21,12 +21,15 @@ final class StandbyPolesCommand extends Command
 
     private const ALARM_HOLD_SECONDS = 45;
 
+    /** @var list<int> */
+    private const POLES = [1, 2, 3, 4];
+
     protected $signature = 'ir4:s
-                            {action? : t|g|r|h|v (tick, gas, rfid, helmet, vest)}
-                            {pole? : pole 1-4}
+                            {action? : t|g|r|h|v (tick/heartbeat, gas, rfid, helmet, vest)}
+                            {pole? : pole 1-4, or all for g}
                             {tag? : rfid tag number or EPC (default 1)}
                             {--alarm : With g: post above warn thresholds}
-                            {--loop : Repeat t (all poles) or g (one pole) every 30s}
+                            {--loop : Repeat t (heartbeats) or g (gas) every 30s}
                             {--url= : Device API base (default IR4_BASE_URL → APP_URL)}';
 
     /** @var list<string> */
@@ -49,7 +52,7 @@ final class StandbyPolesCommand extends Command
 
         try {
             return match ($action) {
-                't', 'tick', 'online' => $this->runOnline($client),
+                't', 'tick', 'online', 'heartbeat' => $this->runHeartbeats($client),
                 'g', 'gas' => $this->runGas($client),
                 'r', 'rfid', 'a', 'at', 'arrive' => $this->runRfid($client),
                 'h', 'helmet' => $this->runPpe($client, 'missing_helmet'),
@@ -71,17 +74,18 @@ final class StandbyPolesCommand extends Command
         $this->table(
             ['Command', 'Device', 'What it does'],
             [
-                ['ir4:s t --loop', 'tick', 'Ambient gas + heartbeats poles 1–4 every 30s'],
-                ['ir4:s g {pole}', 'gas', 'One ambient gas reading'],
-                ['ir4:s g {pole} --loop', 'gas', 'Normal gas readings every 30s for that pole'],
-                ['ir4:s g {pole} --alarm', 'gas', 'One reading above warn thresholds'],
-                ['ir4:s g {pole} --alarm --loop', 'gas', 'Alarm readings every 30s for that pole'],
+                ['ir4:s t --loop', 'tick', 'Heartbeats only for poles 1–4 every 30s'],
+                ['ir4:s g all --loop', 'gas', 'Normal gas readings for poles 1–4 every 30s'],
+                ['ir4:s g {pole} --loop', 'gas', 'Normal gas readings for one pole every 30s'],
+                ['ir4:s g all --alarm --loop', 'gas', 'Alarm gas for all poles every 30s'],
+                ['ir4:s g {pole} --alarm --loop', 'gas', 'Alarm gas for one pole every 30s'],
+                ['ir4:s g {pole|all}', 'gas', 'One-shot ambient (add --alarm to spike)'],
                 ['ir4:s r {pole} [tag]', 'rfid', 'POST /api/ingest/tag-readings (default tag 1)'],
                 ['ir4:s h {pole}', 'helmet', 'POST /api/ingest/ppe-violations missing_helmet'],
                 ['ir4:s v {pole}', 'vest', 'POST /api/ingest/ppe-violations missing_vest'],
             ],
         );
-        $this->line('Long names also work: online, gas, rfid, helmet, vest (and a=rfid).');
+        $this->line('t never posts gas. Run t --loop and g all --loop (or g 1 --loop) together.');
         $this->line('Expect ingest http=202. Do not point at a Flutter :9100 process.');
     }
 
@@ -115,18 +119,13 @@ final class StandbyPolesCommand extends Command
         return self::FAILURE;
     }
 
-    private function runOnline(StandbyPoleIngest $client): int
+    private function runHeartbeats(StandbyPoleIngest $client): int
     {
         $once = function () use ($client): void {
-            foreach ([1, 2, 3, 4] as $pole) {
-                if ($this->isPoleGasOwned($pole)) {
-                    $this->line("pole-0{$pole} gas skipped (per-pole gas loop owns it)");
-                } else {
-                    $this->postGas($client, $pole, alarm: false);
-                }
+            foreach (self::POLES as $pole) {
                 $this->heartbeatPole($client, $pole);
             }
-            $this->line('online poles 1–4 (ambient gas + heartbeats)');
+            $this->line('heartbeat poles 1–4 (no gas)');
         };
 
         $once();
@@ -134,7 +133,7 @@ final class StandbyPolesCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->warn('online loop '.self::LOOP_SECONDS.'s. Ctrl-C to stop.');
+        $this->warn('heartbeat loop '.self::LOOP_SECONDS.'s. Ctrl-C to stop.');
         while (true) {
             sleep(self::LOOP_SECONDS);
             $once();
@@ -143,17 +142,29 @@ final class StandbyPolesCommand extends Command
 
     private function runGas(StandbyPoleIngest $client): int
     {
-        $pole = $this->pole((string) $this->argument('pole'));
+        $poles = $this->resolveGasPoles();
         $alarm = (bool) $this->option('alarm');
-        $once = function () use ($client, $pole, $alarm): void {
-            $result = $this->postGas($client, $pole, alarm: $alarm);
-            if ($alarm) {
-                $this->holdAlarm($pole);
-            } elseif ($this->option('loop')) {
-                $this->holdAmbientLoop($pole);
+        $singlePole = count($poles) === 1;
+
+        $once = function () use ($client, $poles, $alarm, $singlePole): void {
+            foreach ($poles as $pole) {
+                if (! $singlePole && $this->isPoleGasOwned($pole)) {
+                    $this->line("pole-0{$pole} gas skipped (single-pole g loop owns it)");
+
+                    continue;
+                }
+
+                $result = $this->postGas($client, $pole, alarm: $alarm);
+                if ($singlePole && $this->option('loop')) {
+                    if ($alarm) {
+                        $this->holdAlarm($pole);
+                    } else {
+                        $this->holdAmbientLoop($pole);
+                    }
+                }
+                $mode = $alarm ? 'alarm' : 'ambient';
+                $this->info("gas {$mode} DEV-GAS-0{$pole} http={$result['status']}");
             }
-            $mode = $alarm ? 'alarm' : 'ambient';
-            $this->info("gas {$mode} DEV-GAS-0{$pole} http={$result['status']}");
         };
 
         $once();
@@ -161,18 +172,36 @@ final class StandbyPolesCommand extends Command
             return self::SUCCESS;
         }
 
+        $scope = $singlePole ? 'pole-0'.$poles[0] : 'poles 1–4';
         $label = $alarm ? 'alarm' : 'ambient';
-        $this->warn("gas {$label} loop ".self::LOOP_SECONDS."s on pole-0{$pole}. Ctrl-C to stop.");
+        $this->warn("gas {$label} loop ".self::LOOP_SECONDS."s on {$scope}. Ctrl-C to stop.");
         while (true) {
             sleep(self::LOOP_SECONDS);
             $once();
         }
     }
 
+    /**
+     * @return list<int>
+     */
+    private function resolveGasPoles(): array
+    {
+        $raw = strtolower(trim((string) $this->argument('pole')));
+        if ($raw === '' || $raw === 'all' || $raw === '*') {
+            if ($raw === '') {
+                throw new RuntimeException('Usage: ir4:s g {1-4|all} [--alarm] [--loop]');
+            }
+
+            return self::POLES;
+        }
+
+        return [$this->pole($raw)];
+    }
+
     private function runRfid(StandbyPoleIngest $client): int
     {
         $rawPole = strtolower(trim((string) $this->argument('pole')));
-        if ($rawPole === '' || $rawPole === 'g' || $rawPole === 'gate') {
+        if ($rawPole === '' || $rawPole === 'g' || $rawPole === 'gate' || $rawPole === 'all') {
             $this->error('Usage: ir4:s r {1-4} [tag]  (poles only; no gate)');
 
             return self::FAILURE;
@@ -299,7 +328,7 @@ final class StandbyPolesCommand extends Command
     {
         $pole = (int) preg_replace('/\D+/', '', $raw);
         if ($pole < 1 || $pole > 4) {
-            throw new RuntimeException('Pole must be 1–4.');
+            throw new RuntimeException('Pole must be 1–4 (or all for g).');
         }
 
         return $pole;

@@ -303,7 +303,8 @@ Poles 1–4 may not be live. Cheat sheet: [Server/scripts/ir4-standby/Cheatsheet
 Someone at a pole with a badge does **not** update tracking — type `ir4:s r 1`.
 
 ```bash
-lerd artisan ir4:s t --loop             # ambient gas + online poles 1–4
+lerd artisan ir4:s t --loop             # heartbeats poles 1–4
+lerd artisan ir4:s g all --loop         # ambient gas poles 1–4
 lerd artisan ir4:s g 1 --alarm --loop   # hold gas alarm on pole 1
 lerd artisan ir4:s r 1                  # RFID at pole 1
 lerd artisan ir4:s h 1                  # missing helmet (no photo)
