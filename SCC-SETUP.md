@@ -35,13 +35,14 @@ ssh scc1@100.96.105.106    # SCC1
 Reverb WebSockets use **the same origin as that browser URL** (Lerd proxies `/app` on the site vhost). Do not bake `127.0.0.1` / `localhost` into the frontend — that is the SCC, not the workstation.
 
 
-Example for this site (replace IP if yours differs):
+**Known office LAN IPs (hosts → `ir4-project.test`):**
 
-```text
-SCC IP:     192.168.8.40
-LAN URL:    http://192.168.8.40:9100
-HTTPS URL:  https://ir4-project.test   (after step 8)
-```
+| SCC | Fill-in IP | Commissioning URL (mode A) | Production URL (mode B) |
+| --- | --- | --- | --- |
+| **SCC1** | `192.168.3.149` | `http://192.168.3.149:9100` | `https://ir4-project.test` |
+| **SCC2** | `192.168.2.91` | `http://192.168.2.91:9100` | `https://ir4-project.test` |
+
+Workstation setup for mode B is **§10** below. Remote / Tailscale laptop: [SCC-REMOTE-ACCESS.md](SCC-REMOTE-ACCESS.md).
 
 ---
 
@@ -467,17 +468,36 @@ Detail: [DOC-19](Docs/Doc%2019%20retention%20backup.md) · [DOC-20 §8](Docs/Doc
 
 
 
-## 10. TLS + operator workstations (optional)
+## 10. HTTPS dashboard on a workstation (mode B)
 
-Only when moving from LAN HTTP (mode A) to HTTPS (mode B).
+**Goal:** open the Control Room from an office PC as `https://ir4-project.test` with a green/trusted padlock.
 
-### 10a. On the SCC (once)
+**You need three things on the PC:**
+
+1. **Hosts** — name `ir4-project.test` → this SCC’s office LAN IP  
+2. **CA trust** — install that SCC’s mkcert `rootCA.pem` (removes “Not secure”)  
+3. **Browser URL** — only `https://ir4-project.test` (never `:9100` in mode B)
+
+Both SCCs share the **same hostname**. The PC can point at **only one** SCC at a time (change the hosts IP to switch). Each SCC has its **own** CA file — SCC1’s CA does not trust SCC2’s certificate.
+
+| Which SCC? | Hosts IP | CA file to install |
+| --- | --- | --- |
+| SCC1 | `192.168.3.149` | `lerd-rootCA-scc1.pem` |
+| SCC2 | `192.168.2.91` | `lerd-rootCA-scc2.pem` |
+
+SCC2 also has `192.168.2.42` on the same NIC — use **`.91`** unless it is missing (`ip -4 addr show eno8303`).  
+Do **not** put pole IPs (`172.16.*`), Tailscale (`100.*`), or `192.0.2.1` in hosts for LAN workstations.
+
+---
+
+### Step A — On the SCC (once per box)
+
+Run on the SCC you want operators to use (example: SCC2).
 
 ```bash
 cd /data2/laravel/IR4-Project
 lerd secure
 
-# Switch app to HTTPS mode
 sed -i 's|^APP_URL=.*|APP_URL=https://ir4-project.test|' .env
 grep -q '^SESSION_SECURE_COOKIE=' .env \
   && sed -i 's|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|' .env \
@@ -488,96 +508,141 @@ lerd artisan config:clear
 lerd artisan cache:clear
 lerd reverb:stop || true
 lerd reverb:start
-
-# Export root CA for operator PCs (copy the file or print base64)
-mkcert -CAROOT
-cat "$(mkcert -CAROOT)/rootCA.pem"
 ```
 
-Copy `rootCA.pem` to each operator PC (USB, SCP, or paste base64). **Never share** `rootCA-key.pem`**.**
+**Export the CA** (this is what the workstation installs — not the site leaf cert):
 
 ```bash
-# Optional — SCP to an operator PC:
-scp "$(mkcert -CAROOT)/rootCA.pem" operator@192.168.8.100:~/Downloads/lerd-rootCA.pem
+mkcert -CAROOT
+# → e.g. /home/scc2/.local/share/mkcert/rootCA.pem
+
+# Prove the dashboard cert is mkcert for ir4-project.test
+echo | openssl s_client -connect 127.0.0.1:443 -servername ir4-project.test 2>/dev/null \
+  | openssl x509 -noout -subject -issuer -dates
+
+# Put a copy on the Desktop (USB / easy copy). Rename for SCC1 → …-scc1.pem
+cp "$(mkcert -CAROOT)/rootCA.pem" ~/Desktop/lerd-rootCA-scc2.pem
 ```
 
+**Never copy** `rootCA-key.pem` off the SCC.
 
+Copy the Desktop file to the PC (USB, shared folder, or SCP), e.g. from a laptop:
 
-### 10b. On each operator PC
+```bash
+scp scc2@100.118.103.39:~/Desktop/lerd-rootCA-scc2.pem ~/Downloads/
+```
 
-Replace `192.168.8.40` if your SCC IP differs.
+---
 
-#### 1) Hosts file — map `ir4-project.test` → SCC
+### Step B — On the Windows workstation
 
-**Windows (PowerShell as Administrator):**
+Do this on the **operator PC**, PowerShell **as Administrator**.  
+Examples below are for **SCC2**. For SCC1, use `192.168.3.149` and `lerd-rootCA-scc1.pem` instead.
+
+#### B1 — Hosts (name → IP)
+
+**Must have a space** between IP and name.  
+Wrong: `192.168.2.91ir4-project.test` → ping fails.  
+Right: `192.168.2.91 ir4-project.test`
+
+**Option 1 — Notepad (same method used on SCC1):**
+
+1. Open Notepad **as Administrator**  
+2. Open `C:\Windows\System32\drivers\etc\hosts`  
+3. Delete any old line containing `ir4-project.test`  
+4. Add one line: `192.168.2.91 ir4-project.test`  
+5. Save  
+6. Run: `ipconfig /flushdns`
+
+**Option 2 — PowerShell (one line at a time):**
 
 ```powershell
-Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "`n192.168.8.40`tir4-project.test"
+$hostsFile = "$env:SystemRoot\System32\drivers\etc\hosts"
+```
+
+```powershell
+$lines = Get-Content $hostsFile | Where-Object { $_ -notmatch 'ir4-project\.test' }
+```
+
+```powershell
+Set-Content -Path $hostsFile -Value $lines
+```
+
+```powershell
+Add-Content -Path $hostsFile -Value "192.168.2.91 ir4-project.test"
+```
+
+```powershell
+ipconfig /flushdns
+```
+
+```powershell
+Select-String -Path $hostsFile -Pattern "ir4-project\.test"
+```
+
+```powershell
 ping ir4-project.test
 ```
 
-**macOS / Linux:**
+**Pass:** Select-String shows `192.168.2.91 ir4-project.test` and ping replies from that IP.
 
-```bash
-echo '192.168.8.40 ir4-project.test' | sudo tee -a /etc/hosts
-ping -c 1 ir4-project.test
-```
+**Chrome:** Settings → Privacy and security → Security → turn **off** “Use secure DNS” (otherwise `.test` may ignore hosts).
 
+#### B2 — Trust the CA (padlock)
 
-
-#### 2) Trust the SCC mkcert root CA
-
-**Windows:**
-
-1. Copy `lerd-rootCA.pem` to the desktop, rename to `lerd-rootCA.crt` if needed.
-2. Double-click → **Install Certificate** → **Local Machine** → **Trusted Root Certification Authorities**.
-3. Or (PowerShell as Administrator):
+1. Copy `lerd-rootCA-scc2.pem` into Downloads (rename to `.crt` if Windows asks).  
+2. Double-click → **Install Certificate** → **Local Machine** → **Trusted Root Certification Authorities** → Finish.  
+   Or Admin PowerShell:
 
 ```powershell
-certutil -addstore -f "ROOT" "$env:USERPROFILE\Downloads\lerd-rootCA.pem"
+certutil -addstore -f "ROOT" "$env:USERPROFILE\Downloads\lerd-rootCA-scc2.pem"
 ```
 
-Restart Chrome/Edge/Firefox.
+3. Fully quit and reopen Chrome/Edge.
 
-**macOS:**
-
-```bash
-brew install mkcert nss   # once, if missing
-sudo security add-trusted-cert -d -r trustRoot \
-  -k /Library/Keychains/System.keychain ~/Downloads/lerd-rootCA.pem
-```
-
-**Linux (Debian/Ubuntu):**
-
-```bash
-sudo apt install -y mkcert libnss3-tools   # once, if missing
-sudo cp ~/Downloads/lerd-rootCA.pem /usr/local/share/ca-certificates/lerd-ir4.crt
-sudo update-ca-certificates
-CAROOT=~/mkcert-ca mkdir -p ~/mkcert-ca
-cp ~/Downloads/lerd-rootCA.pem ~/mkcert-ca/rootCA.pem
-mkcert -install
-```
-
-
-
-#### 3) Open the app
-
-In the browser (not on the SCC):
+#### B3 — Open the dashboard
 
 ```text
 https://ir4-project.test/login
 ```
 
-Do **not** use `http://192.168.8.40:9100` after switching to HTTPS mode — sessions and redirects expect `https://ir4-project.test`.
-
-**Verify from operator PC:**
-
-```bash
-curl -sk -o /dev/null -w '%{http_code}\n' https://ir4-project.test/up
-# expect 200
-```
+| Do | Don’t |
+| --- | --- |
+| `https://ir4-project.test` | `http://192.168.2.91:9100` |
+| Hosts IP = office LAN | Pole / Tailscale / `lerd0` IPs |
 
 Login: `admin@ir4.local` (or the email from `ir4:install`).
+
+---
+
+### Step C — Switch the PC from SCC1 ↔ SCC2
+
+1. Change the hosts IP (B1) to the other SCC.  
+2. Install that SCC’s CA if not already trusted (B2).  
+3. Flush DNS, restart the browser, open `https://ir4-project.test` again.
+
+---
+
+### macOS / Linux workstation (hosts + CA)
+
+```bash
+# Hosts — SCC2 example
+sudo sed -i.bak '/ir4-project\.test/d' /etc/hosts
+echo '192.168.2.91 ir4-project.test' | sudo tee -a /etc/hosts
+ping -c 1 ir4-project.test
+
+# CA — macOS
+sudo security add-trusted-cert -d -r trustRoot \
+  -k /Library/Keychains/System.keychain ~/Downloads/lerd-rootCA-scc2.pem
+
+# CA — Debian/Ubuntu
+sudo cp ~/Downloads/lerd-rootCA-scc2.pem /usr/local/share/ca-certificates/lerd-ir4-scc2.crt
+sudo update-ca-certificates
+```
+
+Then open `https://ir4-project.test/login`.
+
+---
 
 ## 11. Reboot proof
 
@@ -586,7 +651,7 @@ sudo reboot
 # after reboot:
 systemctl is-active ir4.target
 lerd worker list
-curl -sk https://ir4-project.test/up    # or http://192.168.8.40:9100/up on LAN HTTP
+curl -sk https://ir4-project.test/up    # mode B; or http://<SCC-IP>:9100/up for mode A
 ls -lah /data/ir4-backups/IR4/
 ```
 
