@@ -99,7 +99,6 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
             "device_ref": device_ref,
             "serial_port": resolved_port,
             "pending_events": buffer.pending_count(),
-            "dead_letter_count": buffer.dead_letter_count(),
             "poll_interval_seconds": poll_interval,
         }
 
