@@ -34,6 +34,6 @@ it('keeps default device credentials in sync with EdgeCompute/credentials.md', f
         'token' => $row['token'],
     ], $php);
 
-    expect($fromPhp)->toHaveCount(33)
+    expect($fromPhp)->toHaveCount(17)
         ->and($fromPhp)->toEqual($md);
 });

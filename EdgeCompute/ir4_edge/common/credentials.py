@@ -102,8 +102,8 @@ def apply_credentials_to_values(
     existing: MutableMapping[str, str],
     creds: Optional[Mapping[str, Dict[str, str]]] = None,
 ) -> Dict[str, str]:
-    if pole < 1 or pole > 8:
-        raise ValueError("pole must be 1–8")
+    if pole < 1 or pole > 4:
+        raise ValueError("pole must be 1–4")
     pad = "{:02d}".format(pole)
     table = creds or load_credentials()
     gas = table.get("DEV-GAS-{}".format(pad))
@@ -144,7 +144,7 @@ def apply_pole_secrets(pole: int, dest: Optional[Path] = None) -> Path:
 
 def refresh_committed_pole_files() -> None:
     creds = load_credentials()
-    for pole in (1, 2, 3, 4, 5, 6, 7, 8):
+    for pole in (1, 2, 3, 4):
         path = pole_secrets_path(pole)
         values = apply_credentials_to_values(pole, read_env(path), creds)
         pad = "{:02d}".format(pole)

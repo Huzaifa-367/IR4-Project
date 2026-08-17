@@ -192,7 +192,7 @@ def build_parser() -> argparse.ArgumentParser:
     setup.add_argument("--up", action="store_true", help="Enable/start after setup")
     setup.set_defaults(func=cmd_setup)
     secrets = sub.add_parser("secrets", help="Copy credentials.md into secrets.env for a pole")
-    secrets.add_argument("--pole", required=True, type=int, choices=(1, 2, 3, 4, 5, 6, 7, 8), help="Pole number 1–8")
+    secrets.add_argument("--pole", required=True, type=int, choices=(1, 2, 3, 4), help="Pole number 1–4")
     secrets.set_defaults(func=cmd_secrets)
     sub.add_parser("up", help="Enable + start agents", aliases=["enable"]).set_defaults(func=cmd_up)
     sub.add_parser("down", help="Disable + stop agents", aliases=["disable"]).set_defaults(func=cmd_down)
