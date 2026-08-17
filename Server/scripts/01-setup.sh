@@ -144,10 +144,12 @@ rsync -a --delete \
 #########################################
 
 cd "$APP_ROOT"
-rm -f "$APP_ROOT/public/hot"
 
 # shellcheck source=resolve-artisan.sh
 source "$APP_ROOT/scripts/resolve-artisan.sh"
+# shellcheck source=ensure-no-vite-hmr.sh
+source "$APP_ROOT/scripts/ensure-no-vite-hmr.sh"
+ir4_stop_vite_hmr "$APP_ROOT" "setup"
 
 composer install
 
@@ -168,6 +170,7 @@ npm install
 export WAYFINDER_COMMAND
 ir4_artisan wayfinder:generate --with-form
 npm run build
+ir4_stop_vite_hmr "$APP_ROOT" "after setup build"
 
 #########################################
 # Database
@@ -184,6 +187,9 @@ fi
 #########################################
 
 lerd start
+
+ir4_stop_vite_hmr "$APP_ROOT" "after lerd start"
+ir4_verify_production_frontend "$APP_ROOT"
 
 if ! php -r 'exit(is_dir("/data") ? 0 : 1);'; then
   echo "ERROR: /data is not mounted inside the Lerd PHP runtime." >&2

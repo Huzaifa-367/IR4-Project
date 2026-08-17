@@ -234,7 +234,7 @@ final class SettingsRegistry
                 'label' => 'RFID reader stale after',
                 'unit' => 'minutes',
                 'min' => 1,
-                'max' => 120,
+                'max' => 360,
             ],
             'health.gas_stale_minutes' => [
                 'default' => 5,
@@ -245,7 +245,7 @@ final class SettingsRegistry
                 'label' => 'Gas detector stale after',
                 'unit' => 'minutes',
                 'min' => 1,
-                'max' => 120,
+                'max' => 360,
             ],
             'health.sensor_stale_minutes' => [
                 'default' => 5,
@@ -256,7 +256,7 @@ final class SettingsRegistry
                 'label' => 'Sensor/gateway stale after',
                 'unit' => 'minutes',
                 'min' => 1,
-                'max' => 120,
+                'max' => 360,
             ],
             'health.edge_stale_minutes' => [
                 'default' => 3,
@@ -267,7 +267,7 @@ final class SettingsRegistry
                 'label' => 'Edge compute stale after',
                 'unit' => 'minutes',
                 'min' => 1,
-                'max' => 120,
+                'max' => 360,
             ],
             'health.camera_stale_minutes' => [
                 'default' => 3,
@@ -278,7 +278,7 @@ final class SettingsRegistry
                 'label' => 'Camera stale after',
                 'unit' => 'minutes',
                 'min' => 1,
-                'max' => 120,
+                'max' => 360,
             ],
             'health.gas_offline_escalate_minutes' => [
                 'default' => 30,

@@ -73,13 +73,10 @@ rsync -a --delete \
 
 cd "$APP_ROOT"
 
-# Vite writes public/hot when `npm run dev` ran here. Laravel then injects
-# http://127.0.0.1:5173 into HTTPS pages. rsync --exclude keeps that file —
-# always remove it so SCC serves public/build.
-rm -f "$APP_ROOT/public/hot"
-
 # shellcheck source=resolve-artisan.sh
 source "$APP_ROOT/scripts/resolve-artisan.sh"
+# shellcheck source=ensure-no-vite-hmr.sh
+source "$APP_ROOT/scripts/ensure-no-vite-hmr.sh"
 ir4_require_lerd
 
 if [ ! -f ".env" ]; then
@@ -87,6 +84,10 @@ if [ ! -f ".env" ]; then
   echo "Run scripts/01-setup.sh first, or: cp .env.example .env && ir4_artisan key:generate --force" >&2
   exit 1
 fi
+
+# Stop Vite before build: HMR writes public/hot and causes HTTPS reload-loops.
+# rsync --exclude='public/hot' can leave a stale hot file from a prior `npm run dev`.
+ir4_stop_vite_hmr "$APP_ROOT" "before build"
 
 bash "$APP_ROOT/scripts/ensure-storage-dirs.sh" "$APP_ROOT"
 
@@ -107,9 +108,11 @@ ir4_artisan wayfinder:generate --with-form
 echo "Building frontend..."
 npm run build
 
+# Build must not leave HMR on; fail the update if it did.
+ir4_stop_vite_hmr "$APP_ROOT" "after build"
 if [ ! -f "$APP_ROOT/public/build/manifest.json" ]; then
   echo "ERROR: public/build/manifest.json missing after npm run build." >&2
-  echo "Vite assets were not compiled; the UI will try to load 127.0.0.1:5173." >&2
+  echo "Vite assets were not compiled; the UI will try to load HMR / 127.0.0.1:5173." >&2
   exit 1
 fi
 
@@ -119,8 +122,13 @@ ir4_artisan migrate --force
 echo "Restarting Lerd..."
 lerd restart
 
+# `lerd restart` must not leave Vite running — stop again and prove login HTML.
+ir4_stop_vite_hmr "$APP_ROOT" "after lerd restart"
+ir4_verify_production_frontend "$APP_ROOT"
+
 echo
 echo "=================================="
 echo "Project Updated Successfully"
 echo "App root: $APP_ROOT"
+echo "Frontend: public/build only (Vite HMR stopped)"
 echo "=================================="

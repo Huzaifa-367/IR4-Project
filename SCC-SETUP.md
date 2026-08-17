@@ -355,7 +355,7 @@ lerd artisan config:show session.domain
 | Page refreshes, no error                                                 | Usually `SESSION_SECURE_COOKIE` / `APP_URL` mismatch — see §4a. Also: bare `false` in `.env` used to be treated as secure (fixed in `config/session.php`); run `lerd artisan config:clear` after pull. |
 | Login **419** / cookies rejected as “secure” on HTTP                     | `.env` still has HTTPS settings — set §4a LAN HTTP values, then `lerd artisan config:clear`                          |
 | CSRF / session expired banner on login                                   | Cookies blocked or CSRF stale — refresh once; confirm scheme matches `APP_URL`                                       |
-| Assets load from `http://127.0.0.1:5173` (`NS_ERROR_CORRUPTED_CONTENT`) | Leftover Vite hot file. SCC must serve `public/build`, never the Vite HMR port. `rm -f public/hot` then hard-refresh. If `public/build/manifest.json` is missing, `npm run build` (or `bash scripts/05-update.sh`). |
+| Page reload-loops / assets from Vite HMR (`/@lerd-vite/`, `127.0.0.1:5173`) | SCC must serve `public/build` only. Do **not** run `npm run dev` or `lerd worker start vite` on the SCC. `bash scripts/05-update.sh` stops Vite, deletes `public/hot`, rebuilds, and **fails** if login HTML still references HMR. Emergency: `lerd worker stop vite && rm -f public/hot` then hard-refresh. |
 | “Credentials don’t match”                                                | Wrong email — check `ir4:install` output or reset command above                                                      |
 | Locked account                                                           | `lerd artisan ir4:user:reset <email>`                                                                                |
 
@@ -436,9 +436,9 @@ lerd artisan ir4:sync-camera-streams
 
 ### Edge / workstation cannot open `/live`
 
-1. Open `http://192.168.8.40:9100/login` first (must be logged in — `/hls` requires auth).
-2. `APP_URL` must match how you browse (`http://192.168.8.40:9100` for LAN).
-3. From the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.40:9100/up` → `200`.
+1. Open `https://ir4-project.test/login` (or LAN HTTP mode A) first — `/hls` requires auth.
+2. `APP_URL` must match how you browse.
+3. From the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://172.16.<subnet>.40:9100/up` → `200` (see §12a).
 4. Hard-refresh `/live` after login.
 
 Config template: `scripts/mediamtx.yml`.
@@ -569,7 +569,7 @@ Set-Content -Path $hostsFile -Value $lines
 ```
 
 ```powershell
-Add-Content -Path $hostsFile -Value "192.168.2.91 ir4-project.test"
+Add-Content -Path $hostsFile -Value "192.168.2.101 ir4-project.test"
 ```
 
 ```powershell
@@ -663,27 +663,198 @@ Full acceptance: [DOC-20 §10](Docs/Doc%2020%20deployment%20runbook.md).
 
 ## 12. Edge poles (Orins — separate hosts)
 
-SCC must be reachable from each Orin at the same base URL used in pole secrets:
+Poles **1–4** ingest to **SCC2**. Each Jetson uses the SCC IP on **that pole’s VLAN** (port `9100`), not the office LAN and not `https://ir4-project.test`.
 
-```env
-IR4_BASE_URL=http://192.168.8.40:9100
-```
+Authoritative IPs: [EdgeCompute/docs/site-network.md](EdgeCompute/docs/site-network.md).
 
-(Operators still use `http://192.168.8.40:9100` / `https://ir4-project.test`.)
+### 12a. `IR4_BASE_URL` (EdgeCompute secrets)
 
-On **each Orin** (`NN` = `01` … `04`):
+| Pole | Jetson LAN | `IR4_BASE_URL` in `configs/secrets.env` |
+| --- | --- | --- |
+| 1 | `172.16.3.2` | `http://172.16.3.40:9100` |
+| 2 | `172.16.2.2` | `http://172.16.2.40:9100` |
+| 3 | `172.16.1.50` | `http://172.16.1.40:9100` |
+| 4 | `172.16.4.2` | `http://172.16.4.40:9100` |
+
+From the Orin (example pole 2):
 
 ```bash
-sudo mkdir -p /opt/ir4-edge
-git clone --depth 1 https://github.com/Huzaifa-367/IR4-Project.git /tmp/IR4-Project
-sudo cp -a /tmp/IR4-Project/EdgeCompute /opt/ir4-edge/EdgeCompute
+curl -sS -o /dev/null -w '%{http_code}\n' http://172.16.2.40:9100/up
+# expect 200
+```
 
+Do **not** point poles at `http://192.168.2.91:9100`, Tailscale, or old template `192.168.8.40`. Operators still use `https://ir4-project.test` (hosts → `192.168.2.91`) — that is a different path.
+
+### 12b. SSH to a pole desktop / Jetson — two ways
+
+Keep **both** paths available.
+
+| Path | When | How |
+| --- | --- | --- |
+| **A — Online (Tailscale direct)** | Pole shows **active** on the tailnet | Laptop → `poleN@100.x` (no SCC hop) |
+| **B — LAN (via SCC)** | Tailscale offline / last-seen stale | Laptop → SCC Tailscale → `poleN@172.16.x.y` |
+
+---
+
+#### A) Online Tailscale — direct access setup
+
+Goal: SSH/rsync from your laptop **straight to the Jetson** on Tailscale (same pattern as SCC access).
+
+##### 1) On the Jetson / pole desktop (once per pole)
+
+Connect over **LAN via SCC** first if Tailscale is not up yet (§12b B), then:
+
+```bash
+# Install (Ubuntu / Jetson)
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+# Follow the URL / auth key for the IR4 tailnet
+
+# Stable MagicDNS name (example pole 2)
+sudo hostnamectl set-hostname pole2-desktop
+sudo tailscale set --hostname=pole2-desktop
+
+# Optional: Tailscale SSH (needs tailnet ssh ACL — see SCC-REMOTE-ACCESS.md)
+sudo tailscale set --ssh=true
+
+# Always keep a normal sshd key for user pole2 as fallback
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+# paste laptop/SCC public key into ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+
+tailscale ip -4
+tailscale status
+```
+
+Record the printed `100.x` address in the table below.
+
+##### 2) On your laptop (every session)
+
+```bash
+# Same tailnet as SCCs / poles
+tailscale status | grep -iE 'pole|scc'
+
+# Expect "active" (not "offline, last seen …")
+# Direct SSH — pole 2 example:
+ssh pole2@100.104.14.30
+# MagicDNS (if enabled on the tailnet):
+ssh pole2@pole2-desktop
+```
+
+Copy / update EdgeCompute **directly** when online:
+
+```bash
+rsync -az --delete \
+  --exclude 'configs/secrets.env' \
+  --exclude '.venv' --exclude 'venv' --exclude '__pycache__' \
+  ./EdgeCompute/ pole2@100.104.14.30:/tmp/EdgeCompute/
+
+ssh pole2@100.104.14.30 \
+  'sudo mkdir -p /opt/ir4-edge && sudo rsync -a --delete --exclude configs/secrets.env \
+   /tmp/EdgeCompute/ /opt/ir4-edge/EdgeCompute/ && \
+   cd /opt/ir4-edge/EdgeCompute && sudo ./deploy/orin_update.sh'
+```
+
+##### 3) Known Tailscale targets (fill as poles come online)
+
+| Pole | Linux user | Tailscale IP | MagicDNS / hostname | LAN IP (fallback §12b B) |
+| --- | --- | --- | --- | --- |
+| 1 | `pole1` (confirm) | *(from `tailscale ip -4`)* | `pole1-desktop` | `172.16.3.2` |
+| **2** | **`pole2`** | **`100.104.14.30`** | **`pole2-desktop`** | **`172.16.2.2`** |
+| 3 | `pole3` (confirm) | *(fill)* | `pole3-desktop` | `172.16.1.50` |
+| 4 | `pole4` (confirm) | *(fill)* | `pole4-desktop` | `172.16.4.2` |
+
+SCC2 for comparison: `scc2@100.118.103.39` (`scc2-poweredge-r360`).
+
+##### 4) If direct Tailscale fails
+
+| Symptom | Action |
+| --- | --- |
+| `offline, last seen …` | Bring Jetson online; check WAN/LTE/Teltonika; or use **§12b B** |
+| Connection timeout | `tailscale ping 100.104.14.30` from laptop; check ACL / key expiry |
+| Permission denied | Install SSH pubkey for `pole2` (Tailscale SSH ACL alone may not cover all users) |
+
+**Do not** set `IR4_BASE_URL` to a Tailscale IP — ingest stays on VLAN `http://172.16.x.40:9100`.
+
+---
+
+#### B) LAN SSH (via SCC2)
+
+Use when Tailscale on the Jetson is down. SCC reaches the pole over the radio/VLAN.
+
+```bash
+# Laptop → SCC2
+ssh scc2@100.118.103.39
+
+# SCC2 → Jetson (pole 2)
+ssh pole2@172.16.2.2
+# prompt: pole2@pole2-desktop:~$
+```
+
+One-liner (ProxyJump):
+
+```bash
+ssh -J scc2@100.118.103.39 pole2@172.16.2.2
+```
+
+| Pole | LAN SSH from SCC2 |
+| --- | --- |
+| 1 | `ssh pole1@172.16.3.2` (confirm user) |
+| 2 | `ssh pole2@172.16.2.2` |
+| 3 | `ssh pole3@172.16.1.50` (confirm user) |
+| 4 | `ssh pole4@172.16.4.2` (confirm user) |
+
+Prerequisite: from SCC2, `ping 172.16.2.2` (etc.) succeeds. User `scc2` needs key/password access to `poleN@…`.
+
+### 12c. Push EdgeCompute from SCC → Orin (preferred on site)
+
+Yes — if the **`EdgeCompute/`** tree is on the SCC, you can update poles over the pole VLAN without USB or public git on the Jetson.
+
+**SCC2 app root is usually flattened Laravel only** (`/data2/laravel/IR4-Project` = `Server/`). That tree does **not** include `EdgeCompute/`. Put a copy on the SCC first, e.g.:
+
+```bash
+# From your laptop (monorepo):
+scp -r EdgeCompute scc2@100.118.103.39:~/EdgeCompute
+```
+
+Then on **SCC2**, rsync to the pole (example pole 2) and run the Orin updater:
+
+```bash
+# On SCC2 — sync code (does not overwrite secrets.env on first copy if dest missing; update script preserves secrets)
+rsync -az --delete \
+  --exclude 'configs/secrets.env' \
+  --exclude '.venv' --exclude 'venv' --exclude '__pycache__' \
+  ~/EdgeCompute/ pole2@172.16.2.2:/tmp/EdgeCompute/
+
+ssh pole2@172.16.2.2 'sudo mkdir -p /opt/ir4-edge && sudo rsync -a --delete \
+  --exclude configs/secrets.env \
+  /tmp/EdgeCompute/ /opt/ir4-edge/EdgeCompute/ && \
+  cd /opt/ir4-edge/EdgeCompute && sudo ./deploy/orin_update.sh'
+```
+
+First-time install on a blank Orin (instead of `orin_update.sh`):
+
+```bash
+ssh pole2@172.16.2.2
+sudo mkdir -p /opt/ir4-edge
+sudo rsync -a /tmp/EdgeCompute/ /opt/ir4-edge/EdgeCompute/
 cd /opt/ir4-edge/EdgeCompute
-git pull    # or re-copy after SCC re-seed
-cp configs/secrets.pole-NN.env configs/secrets.env
+cp configs/secrets.pole-02.env configs/secrets.env
+# set IR4_BASE_URL=http://172.16.2.40:9100
 sudo ./deploy/orin_bootstrap.sh
+```
+
+You can also sync over **Tailscale** when the pole is online (`rsync … pole2@100.104.14.30:…`) — same exclude rules. Prefer LAN (§12b B) when Tailscale is offline.
+
+### 12d. Deploy notes
+
+On **each Orin** (`NN` = `01` … `04`), after SSH (§12b) and code sync (§12c):
+
+```bash
+cd /opt/ir4-edge/EdgeCompute
+# Ensure IR4_BASE_URL matches §12a
 ir4-edge doctor
-curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.8.40:9100/up
+curl -sS -o /dev/null -w '%{http_code}\n' "$(grep ^IR4_BASE_URL= configs/secrets.env | cut -d= -f2-)/up"
 ```
 
 Full detail: [EdgeCompute/README.md](EdgeCompute/README.md) · [EdgeCompute/docs/commissioning.md](EdgeCompute/docs/commissioning.md).
@@ -702,6 +873,8 @@ bash scripts/05-update.sh
 Do **not** use `sudo` — Lerd is installed for the SCC user; root falls back to host PHP and cannot resolve `DB_HOST=lerd-mysql` (`CACHE_STORE=database`).
 
 Preserves `.env`, TLS certs, `vendor/`, and `storage/`. Re-run `lerd artisan config:clear` if `.env` changed.
+
+**Frontend on SCC = compiled assets only.** The update script (via `scripts/ensure-no-vite-hmr.sh`) stops the Lerd Vite worker, removes `public/hot` before/after build and after `lerd restart`, then verifies `https://…/login` serves `/build/assets/` and not `@lerd-vite`. Never start Vite on the SCC for day-2 ops.
 
 ### If `npm run build` fails on Wayfinder
 

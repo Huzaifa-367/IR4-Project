@@ -67,3 +67,37 @@ Standard last-octet (poles 1–2 and 4–8):
 | SCC on this VLAN | 172.16.3.40 | 172.16.2.40 | 172.16.1.40 | 172.16.4.40 | 172.16.5.40 | 172.16.6.40 | 172.16.7.40 | 172.16.8.40 |
 
 From a pole Jetson, IR4 HTTP is that row’s **SCC on this VLAN** (port `9100`), e.g. pole 1 → `http://172.16.3.40:9100`. Operator / Tailscale management of the R360 is a separate path (`ssh scc2@100.118.103.39`).
+
+### SSH to pole Jetson / desktop — two ways
+
+| Path | When | Example (pole 2) |
+|---|---|---|
+| **A — Online (Tailscale direct)** | Device **active** on tailnet | `ssh pole2@100.104.14.30` or `ssh pole2@pole2-desktop` |
+| **B — LAN (via SCC)** | Tailscale offline | `ssh -J scc2@100.118.103.39 pole2@172.16.2.2` |
+
+**A — bring the pole onto Tailscale (once), then direct access:**
+
+```bash
+# On Jetson (first time — often over LAN SSH)
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+sudo hostnamectl set-hostname pole2-desktop
+sudo tailscale set --hostname=pole2-desktop
+sudo tailscale set --ssh=true   # optional; also keep ~/.ssh/authorized_keys
+tailscale ip -4
+
+# From laptop
+tailscale status | grep -i pole2
+ssh pole2@100.104.14.30
+```
+
+**B — LAN via SCC2 (always works if radio/VLAN is up):**
+
+```bash
+ssh scc2@100.118.103.39
+ssh pole2@172.16.2.2
+```
+
+`IR4_BASE_URL` for agents stays on the **VLAN** (`http://172.16.x.40:9100`), not Tailscale.
+
+Full tables + rsync: [SCC-SETUP.md §12](../../SCC-SETUP.md).
