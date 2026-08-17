@@ -30,14 +30,14 @@ use Illuminate\Support\Str;
  * Initial site registry (baseline hardware for first install).
  * Device UUID + tokens come from database/data/device_credentials.php.
  *
- * Poles 1–4: RFID, gas, fixed + PTZ stream cameras, and two edge_compute
+ * Poles 1–8: RFID, gas, fixed + PTZ stream cameras, and two edge_compute
  * camera-AI devices each. Also: main gate, starter workers + tags, spare
  * tags, and equipment. More can be added via the operator UI after install.
  * Idempotent: skips when AST-POLE-01 already exists.
  */
 final class DemoSeeder extends Seeder
 {
-    private const POLE_COUNT = 4;
+    private const POLE_COUNT = 8;
 
     private User $admin;
 
@@ -112,6 +112,10 @@ final class DemoSeeder extends Seeder
             ['key' => 2, 'name' => 'Pole 02 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
             ['key' => 3, 'name' => 'Pole 03 Laydown', 'type' => ZoneType::Laydown, 'color' => '#F5A524'],
             ['key' => 4, 'name' => 'Pole 04 Height Work', 'type' => ZoneType::HeightWork, 'color' => '#F97316'],
+            ['key' => 5, 'name' => 'Pole 05 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
+            ['key' => 6, 'name' => 'Pole 06 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
+            ['key' => 7, 'name' => 'Pole 07 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
+            ['key' => 8, 'name' => 'Pole 08 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
         ];
 
         $this->zones = collect();
