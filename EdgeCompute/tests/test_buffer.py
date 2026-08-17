@@ -60,6 +60,43 @@ class OutageBufferTest(unittest.TestCase):
         self.assertEqual(buf.pending_count(), 1)
         buf.close()
 
+    def test_flush_rejected_event_lands_in_dead_letters(self) -> None:
+        buf = OutageBuffer(self.path, "gas_readings", max_rows=10)
+        buf.enqueue([_event(1)])
+
+        def sender(_client: Ir4Client, events: Sequence[Mapping[str, Any]]) -> IngestResult:
+            return IngestResult(
+                accepted=0,
+                status_code=202,
+                rejected=[{"index": 0, "code": "FORBIDDEN_REFERENCE"}],
+            )
+
+        removed = buf.flush(_FakeClient(), sender)  # type: ignore[arg-type]
+        self.assertEqual(removed, 1)
+        self.assertEqual(buf.pending_count(), 0)
+        self.assertEqual(buf.dead_letter_count(), 1)
+        row = buf._conn.execute(
+            "SELECT event_uid, reason_code FROM dead_letters WHERE stream = ?",
+            ("gas_readings",),
+        ).fetchone()
+        self.assertEqual(row, ("uid-0001", "FORBIDDEN_REFERENCE"))
+        buf.close()
+
+    def test_submit_rejected_event_lands_in_dead_letters(self) -> None:
+        buf = OutageBuffer(self.path, "gas_readings", max_rows=10)
+
+        def sender(_client: Ir4Client, events: Sequence[Mapping[str, Any]]) -> IngestResult:
+            return IngestResult(
+                accepted=0,
+                status_code=202,
+                rejected=[{"index": 0, "code": "FORBIDDEN_REFERENCE"}],
+            )
+
+        result = buf.submit(_FakeClient(), [_event(1)], sender)  # type: ignore[arg-type]
+        self.assertEqual(result.rejected, [{"index": 0, "code": "FORBIDDEN_REFERENCE"}])
+        self.assertEqual(buf.dead_letter_count(), 1)
+        buf.close()
+
 
 if __name__ == "__main__":
     unittest.main()

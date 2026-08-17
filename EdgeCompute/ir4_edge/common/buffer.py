@@ -11,8 +11,10 @@ Capacity (approx. 400–600 bytes/row including SQLite overhead):
 On overflow, drop oldest first so responders keep the newest readings.
 Heartbeat counters are omitted: SCC already sees last_seen / offline from
 ingest and heartbeats; overflow is a pole journal line, not a new health
-channel. Server-rejected rows in an accepted 202 batch stay deleted — they
-are already old relative to live state and not worth a second spool.
+channel. Server-rejected rows in an accepted 202 batch are removed from the
+outage buffer (they are already old relative to live state and not worth a
+second spool) but recorded in `dead_letters` with their reason code so a
+rejection is never silently dropped (DOC-08 / DEV-1843).
 """
 
 from __future__ import annotations
@@ -62,6 +64,18 @@ class OutageBuffer:
             )
             """
         )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS dead_letters (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                stream TEXT NOT NULL,
+                event_uid TEXT,
+                reason_code TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                rejected_at REAL NOT NULL
+            )
+            """
+        )
         self._conn.commit()
 
     def close(self) -> None:
@@ -103,6 +117,37 @@ class OutageBuffer:
     def pending_count(self) -> int:
         with self._lock:
             return self._count_locked()
+
+    def record_rejected(
+        self,
+        events: Sequence[Mapping[str, Any]],
+        rejected: Sequence[Mapping[str, Any]],
+    ) -> None:
+        """Persist server-rejected events with their reason code (DEV-1843)."""
+        if not rejected:
+            return
+        now = time.time()
+        with self._lock:
+            for item in rejected:
+                idx = item.get("index")
+                reason = str(item.get("code") or "UNKNOWN")
+                event = events[idx] if isinstance(idx, int) and 0 <= idx < len(events) else {}
+                event_uid = str(event.get("event_uid") or "")
+                self._conn.execute(
+                    "INSERT INTO dead_letters (stream, event_uid, reason_code, payload, rejected_at) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (self.stream, event_uid, reason, json.dumps(dict(event)), now),
+                )
+            self._conn.commit()
+        log.warning("Dead-lettered %d %s events", len(rejected), self.stream)
+
+    def dead_letter_count(self) -> int:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT COUNT(*) FROM dead_letters WHERE stream = ?",
+                (self.stream,),
+            ).fetchone()
+            return int(row[0]) if row else 0
 
     def _count_locked(self) -> int:
         row = self._conn.execute(
@@ -188,6 +233,7 @@ class OutageBuffer:
                     len(result.rejected),
                     result.rejected[:5],
                 )
+                self.record_rejected(batch, result.rejected)
             self._delete_ids(ids)
             removed += len(ids)
             log.info(
@@ -210,6 +256,8 @@ class OutageBuffer:
             return IngestResult(status_code=0)
         result = sender(client, events)
         if result.status_code in (200, 202) and not result.retriable:
+            if result.rejected:
+                self.record_rejected(events, result.rejected)
             self.flush(client, sender)
             return result
         if result.retriable or result.status_code >= 500 or result.status_code == 0:

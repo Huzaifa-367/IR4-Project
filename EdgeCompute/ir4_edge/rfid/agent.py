@@ -162,6 +162,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
             "mqtt_topic": topic,
             "messages": state.messages,
             "pending_events": buffer.pending_count(),
+            "dead_letter_count": buffer.dead_letter_count(),
             "reader_ref": reader_ref,
         }
 
@@ -181,7 +182,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
         code = int(getattr(reason_code, "value", reason_code))
         if code == 0:
             state.mqtt_connected = True
-            mqtt_client.subscribe(topic)
+            mqtt_client.subscribe(topic, qos=1)
             log.info("MQTT connected; subscribed to %s", topic)
         else:
             state.mqtt_connected = False
@@ -223,6 +224,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     mqtt_client = mqtt.Client(
         mqtt.CallbackAPIVersion.VERSION2,
         client_id="ir4-rfid-agent",
+        clean_session=False,
     )
     if use_auth and username:
         mqtt_client.username_pw_set(str(username), str(password) if password else None)
