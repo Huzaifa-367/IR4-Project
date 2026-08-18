@@ -40,6 +40,30 @@ whoami       # scc1
 tailscale ip -4
 ```
 
+### SSH from SCC2 to poles (LAN fallback)
+
+When Tailscale on a pole is offline, hop to SCC2 first, then SSH over the pole VLAN:
+
+```bash
+ssh scc2@100.118.103.39
+ssh pole2@172.16.2.2
+```
+
+Quick map (SCC2 manages poles 1-4):
+
+| Pole | SSH from SCC2 |
+|---|---|
+| 1 | `ssh pole1@172.16.3.2` |
+| 2 | `ssh pole2@172.16.2.2` |
+| 3 | `ssh pole3@172.16.1.50` |
+| 4 | `ssh pole4@172.16.4.2` |
+
+One-liner from laptop:
+
+```bash
+ssh -J scc2@100.118.103.39 pole2@172.16.2.2
+```
+
 ---
 
 ## 1. Confirm the 2 TB app disk is actually mounted

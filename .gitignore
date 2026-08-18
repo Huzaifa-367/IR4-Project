@@ -51,3 +51,5 @@ Mobile/.packages
 # Keep Release/README.md tracked; ignore generated payload.
 Release/server/
 Release/MANIFEST.sha256
+
+/linkedin_posts

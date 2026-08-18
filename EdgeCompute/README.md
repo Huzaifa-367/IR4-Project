@@ -55,7 +55,32 @@ ir4-edge secrets --pole 1                            # day-2 refresh
 | 3 | `cp configs/secrets.pole-03.env configs/secrets.env` | `ir4-edge secrets --pole 3` |
 | 4 | `cp configs/secrets.pole-04.env configs/secrets.env` | `ir4-edge secrets --pole 4` |
 
-On-site `IR4_BASE_URL` is `http://192.168.8.40:9100` (SCC2). Operator UI may use the same URL or `https://ir4-project.test`.
+On-site `IR4_BASE_URL` must be the SCC VLAN IP for that pole (not office LAN / Tailscale):
+
+| Pole | `IR4_BASE_URL` |
+|---|---|
+| 1 | `http://172.16.3.40:9100` |
+| 2 | `http://172.16.2.40:9100` |
+| 3 | `http://172.16.1.40:9100` |
+| 4 | `http://172.16.4.40:9100` |
+
+Operator UI stays on `https://ir4-project.test`.
+
+### SSH to poles via SCC2 (fallback path)
+
+When a pole is offline on Tailscale, use SCC2 as the jump host:
+
+```bash
+# laptop -> SCC2 -> pole 2 Jetson
+ssh -J scc2@100.118.103.39 pole2@172.16.2.2
+```
+
+Or in two steps:
+
+```bash
+ssh scc2@100.118.103.39
+ssh pole2@172.16.2.2
+```
 
 YAML `device_ref` / `reader_ref` / `mqtt.topic` are fallbacks only. Token UUID must match the ref — mismatch → `FORBIDDEN_REFERENCE`.
 

@@ -9,6 +9,11 @@ export default function Welcome() {
             <Head title="Welcome" />
             <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-foreground">
                 <div className="w-full max-w-lg space-y-8 text-center">
+                    <img
+                        src="/images/logo.png"
+                        alt="IR4"
+                        className="mx-auto h-16 w-auto max-w-[260px] object-contain"
+                    />
                     <div className="space-y-2">
                         <p className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
                             IR4

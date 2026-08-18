@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { Bell } from 'lucide-react';
+import { AppBrandName } from '@/components/app-brand-name';
 import AppearanceTabs from '@/components/appearance-tabs';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { useAlertStore } from '@/components/ir4/alert-provider';
@@ -18,8 +19,10 @@ export function AppSidebarHeader({
 
     return (
         <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur md:px-6">
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-3">
                 <SidebarTrigger className="-ml-1" />
+                <AppBrandName className="hidden shrink-0 sm:block" compact />
+                <div className="hidden h-8 w-px shrink-0 bg-border sm:block" />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
             </div>
             <div className="flex shrink-0 items-center gap-2">

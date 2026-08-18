@@ -530,20 +530,28 @@ export function AppSidebar() {
     ];
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader className="border-b border-sidebar-border">
-                <SidebarMenu>
+        <Sidebar collapsible="icon" variant="inset" className="p-1">
+            <SidebarHeader className="border-b border-sidebar-border p-0">
+                <SidebarMenu className="gap-0">
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
-                                <AppLogo />
+                        <SidebarMenuButton
+                            size="lg"
+                            asChild
+                            className="h-auto justify-center gap-0 p-0 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:p-0!"
+                        >
+                            <Link
+                                href={dashboard()}
+                                prefetch
+                                className="block leading-none"
+                            >
+                                <AppLogo iconClassName="h-16 max-w-[240px] group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:max-w-[2.25rem]" />
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent className="gap-1 py-2">
+            <SidebarContent className="gap-1 py-1">
                 <NavMain items={overview} label="Overview" />
                 <NavMain items={liveNav} label="Live" />
                 <NavMain items={safety} label="Safety" />
