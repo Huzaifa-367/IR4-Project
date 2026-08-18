@@ -157,6 +157,7 @@ final class EvacuationController extends BaseController
                 'id' => $e->id,
                 'uuid' => $e->uuid,
                 'worker_id' => $e->worker_id,
+                'worker_uuid' => $e->worker?->uuid,
                 'worker_name' => $e->worker?->name,
                 'last_zone' => $e->lastZone?->name,
                 'last_seen_at' => $e->last_seen_at?->toIso8601String(),

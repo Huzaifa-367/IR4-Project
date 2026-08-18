@@ -801,6 +801,7 @@ final class PermitService
                 return [
                     'id' => $row->id,
                     'worker_id' => $row->worker_id,
+                    'worker_uuid' => $worker?->uuid,
                     'worker_label' => $worker === null
                         ? null
                         : ($canSeeIdentity ? $worker->name : $worker->anonymizedLabel()),

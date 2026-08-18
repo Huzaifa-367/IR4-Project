@@ -201,6 +201,7 @@ final class LsrService
             'category_label' => $lsr->category->label(),
             'occurred_at' => optional($lsr->occurred_at)?->toIso8601String(),
             'worker_id' => $lsr->worker_id,
+            'worker_uuid' => $worker?->uuid,
             'worker_label' => $worker === null
                 ? null
                 : ($canSeeIdentity ? $worker->name : $worker->anonymizedLabel()),
@@ -209,6 +210,7 @@ final class LsrService
             'camera_id' => $lsr->camera_id,
             'alert_id' => $lsr->alert_id,
             'ppe_violation_id' => $lsr->ppe_violation_id,
+            'ppe_violation_uuid' => $lsr->ppeViolation?->uuid,
             'description' => $lsr->description,
             'action_taken' => $lsr->action_taken,
             'status' => $lsr->status->value,

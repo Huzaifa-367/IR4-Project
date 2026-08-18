@@ -6,6 +6,7 @@ import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import DisplayLayout from '@/layouts/display-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { enableHistoryReload } from '@/lib/reload-on-history';
 import { buildReverbEchoOptions } from '@/lib/reverb-client';
 
 const reverbAppKey = import.meta.env.VITE_REVERB_APP_KEY;
@@ -56,6 +57,9 @@ createInertiaApp({
         color: '#0B6E4F',
     },
 });
+
+// Permanent: back/forward refetch and swap only when page data changed.
+enableHistoryReload();
 
 // This will set light / dark mode on load...
 initializeTheme();

@@ -105,6 +105,7 @@ export type PermitPersonnelDocumentStatus = {
 export type PermitPersonnel = {
     id: number;
     worker_id: number;
+    worker_uuid: string | null;
     worker_label: string | null;
     employee_code: string | null;
     role_code: string;

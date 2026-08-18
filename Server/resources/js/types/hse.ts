@@ -14,6 +14,7 @@ export type HseOption = { value: string; label: string };
 export type IncidentPersonnel = {
     id: number;
     worker_id: number;
+    worker_uuid: string | null;
     worker_label: string | null;
     involvement: Involvement | string;
     involvement_label: string;
@@ -26,6 +27,7 @@ export type IncidentEvidence = {
     download_url: string | null;
     payload: Record<string, unknown> | null;
     ppe_violation_id: number | null;
+    ppe_violation_uuid: string | null;
     camera_id: number | null;
     captured_at: string | null;
     auto_captured: boolean;
@@ -71,12 +73,14 @@ export type LsrViolation = {
     category_label: string;
     occurred_at: string | null;
     worker_id: number | null;
+    worker_uuid: string | null;
     worker_label: string | null;
     zone_id: number | null;
     zone_name: string | null;
     camera_id: number | null;
     alert_id: number | null;
     ppe_violation_id: number | null;
+    ppe_violation_uuid: string | null;
     description: string | null;
     action_taken: string | null;
     status: LsrStatus | string;

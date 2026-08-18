@@ -1375,10 +1375,22 @@ export default function PermitShow({
                                             )}
                                         >
                                             <div>
-                                                <p className="font-medium text-text">
-                                                    {person.worker_label ??
-                                                        `#${person.worker_id}`}
-                                                </p>
+                                                {person.worker_uuid ? (
+                                                    <Link
+                                                        href={tracking.workers.show.url(
+                                                            person.worker_uuid,
+                                                        )}
+                                                        className="font-medium text-[color:var(--accent)] hover:underline"
+                                                    >
+                                                        {person.worker_label ??
+                                                            `#${person.worker_id}`}
+                                                    </Link>
+                                                ) : (
+                                                    <p className="font-medium text-text">
+                                                        {person.worker_label ??
+                                                            `#${person.worker_id}`}
+                                                    </p>
+                                                )}
                                                 <p className="text-xs text-text-dim">
                                                     {person.role_code}
                                                 </p>

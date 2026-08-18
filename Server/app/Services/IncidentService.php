@@ -293,6 +293,7 @@ final class IncidentService
                 return [
                     'id' => $row->id,
                     'worker_id' => $row->worker_id,
+                    'worker_uuid' => $worker?->uuid,
                     'worker_label' => $worker === null
                         ? null
                         : ($canSeeIdentity ? $worker->name : $worker->anonymizedLabel()),
@@ -310,6 +311,7 @@ final class IncidentService
                         : null,
                     'payload' => $row->payload,
                     'ppe_violation_id' => $row->ppe_violation_id,
+                    'ppe_violation_uuid' => $row->ppeViolation?->uuid,
                     'camera_id' => $row->camera_id,
                     'captured_at' => optional($row->captured_at)?->toIso8601String(),
                     'auto_captured' => $row->isAutoCaptured(),

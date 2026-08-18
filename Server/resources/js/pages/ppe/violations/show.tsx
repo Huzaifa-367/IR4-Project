@@ -6,6 +6,7 @@ import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import hse from '@/routes/hse';
 import ppe from '@/routes/ppe';
 import { ViolationTypeLabels } from '@/types/enums';
 import type { PpeViolation } from '@/types/ppe';
@@ -96,11 +97,28 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                                 </p>
                             </div>
                         </div>
-                        <Button asChild variant="outline">
-                            <Link href={ppe.violations.index()}>
-                                All violations
-                            </Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            {violation.alert_id ? (
+                                <Button asChild variant="secondary">
+                                    <Link
+                                        href={hse.lsr.index.url({
+                                            query: {
+                                                alert_id: String(
+                                                    violation.alert_id,
+                                                ),
+                                            },
+                                        })}
+                                    >
+                                        Log LSR
+                                    </Link>
+                                </Button>
+                            ) : null}
+                            <Button asChild variant="outline">
+                                <Link href={ppe.violations.index()}>
+                                    All violations
+                                </Link>
+                            </Button>
+                        </div>
                     </div>
                 </header>
 

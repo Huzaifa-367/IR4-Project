@@ -182,6 +182,30 @@ it('closes lsr only with action_taken and keeps ppe-linked worker null', functio
     expect($lsr->fresh()?->status)->toBe(LsrStatus::Closed);
 });
 
+it('resolves linked ppe and worker show routes from uuid not integer id', function () {
+    $operator = User::factory()->withRole('SCC Operator')->create();
+    $ppe = PpeViolation::factory()->create();
+    $worker = Worker::factory()->create();
+    $lsr = LsrViolation::factory()->create([
+        'ppe_violation_id' => $ppe->id,
+        'worker_id' => $worker->id,
+    ]);
+
+    $this->actingAs($operator)
+        ->get(route('hse.lsr.show', $lsr))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('hse/lsr/show')
+            ->where('violation.ppe_violation_id', $ppe->id)
+            ->where('violation.ppe_violation_uuid', $ppe->uuid)
+            ->where('violation.worker_uuid', $worker->uuid));
+
+    $this->get(route('ppe.violations.show', $ppe))->assertOk();
+    $this->get('/ppe/violations/'.$ppe->id)->assertNotFound();
+    $this->get('/workforce/workers/'.$worker->id)->assertNotFound();
+    $this->get(route('tracking.workers.show', $worker))->assertOk();
+});
+
 it('prefills lsr from alert without inserting until submit', function () {
     $operator = User::factory()->withRole('SCC Operator')->create();
     $zone = Zone::factory()->create();

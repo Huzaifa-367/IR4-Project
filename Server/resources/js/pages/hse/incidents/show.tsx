@@ -11,6 +11,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { cn } from '@/lib/utils';
 import alerts from '@/routes/alerts';
 import hse from '@/routes/hse';
+import ppe from '@/routes/ppe';
 import tracking from '@/routes/tracking';
 import type { HseIncident, HseOption } from '@/types/hse';
 
@@ -341,14 +342,18 @@ export default function IncidentShow({
                                     key={row.id}
                                     className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface-2/30 px-3 py-2"
                                 >
-                                    <Link
-                                        href={tracking.workers.show.url(
-                                            String(row.worker_id),
-                                        )}
-                                        className="text-[color:var(--accent)] hover:underline"
-                                    >
-                                        {row.worker_label}
-                                    </Link>
+                                    {row.worker_uuid ? (
+                                        <Link
+                                            href={tracking.workers.show.url(
+                                                row.worker_uuid,
+                                            )}
+                                            className="text-[color:var(--accent)] hover:underline"
+                                        >
+                                            {row.worker_label}
+                                        </Link>
+                                    ) : (
+                                        <span>{row.worker_label}</span>
+                                    )}
                                     <span className="text-text-dim">
                                         {row.involvement_label}
                                     </span>
@@ -376,6 +381,16 @@ export default function IncidentShow({
                                                 ? ' (auto-captured)'
                                                 : ` · ${row.added_by_name ?? 'user'}`}
                                         </div>
+                                        {row.ppe_violation_uuid ? (
+                                            <Link
+                                                href={ppe.violations.show.url(
+                                                    row.ppe_violation_uuid,
+                                                )}
+                                                className="text-xs text-[color:var(--accent)] hover:underline"
+                                            >
+                                                PPE #{row.ppe_violation_id}
+                                            </Link>
+                                        ) : null}
                                         {row.payload && (
                                             <pre className="mt-1 max-h-24 overflow-auto text-xs text-text-faint">
                                                 {JSON.stringify(row.payload)}

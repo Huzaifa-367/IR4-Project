@@ -491,12 +491,10 @@ export default function PermitCreate({
                                                     )}
                                                 {eligibility &&
                                                     !eligibility.ready &&
-                                                    row.worker_id && (
+                                                    worker?.uuid && (
                                                         <Link
                                                             href={tracking.workers.show.url(
-                                                                String(
-                                                                    row.worker_id,
-                                                                ),
+                                                                worker.uuid,
                                                                 {
                                                                     query: {
                                                                         onboarding:

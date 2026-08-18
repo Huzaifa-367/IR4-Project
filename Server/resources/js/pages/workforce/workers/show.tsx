@@ -21,6 +21,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import hse from '@/routes/hse';
 import tracking from '@/routes/tracking';
 import type { Worker } from '@/types/worker';
 
@@ -526,7 +527,9 @@ export default function WorkersShow({
                                         >
                                             <div>
                                                 <Link
-                                                    href={`/incidents/${incident.uuid}`}
+                                                    href={hse.incidents.show(
+                                                        incident.uuid,
+                                                    )}
                                                     className="font-mono text-xs text-[color:var(--accent)] hover:underline"
                                                 >
                                                     {incident.incident_number}
@@ -570,7 +573,9 @@ export default function WorkersShow({
                                         >
                                             <div>
                                                 <Link
-                                                    href={`/lsr-violations/${lsr.uuid}`}
+                                                    href={hse.lsr.show(
+                                                        lsr.uuid,
+                                                    )}
                                                     className="text-[color:var(--accent)] hover:underline"
                                                 >
                                                     LSR #{lsr.id} ·{' '}

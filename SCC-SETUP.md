@@ -409,7 +409,7 @@ lerd artisan ir4:sync-camera-streams --probe
 lerd artisan ir4:sync-camera-streams
 ```
 
-Camera `stream_url` in the UI is **RTSP** (e.g. `rtsp://admin:Unity@320@@192.168.1.185:554/Streaming/Channels/101`).  
+Camera `stream_url` in the UI is **RTSP** (e.g. `rtsp://admin:UNity@320@@172.16.2.10:554/Streaming/Channels/101`). Full pole list is **§13**.  
 Browsers use **HLS** via `/hls/{reference}/` — `ffplay` on RTSP working is not enough until sync succeeds.
 
 After pulling live-wall frontend changes, rebuild once:
@@ -948,6 +948,44 @@ Common causes:
 
 
 
+## 13. Pole camera RTSP
+
+Paste these as `stream_url` on each camera in Hardware → Cameras. User/pass is the same on every pole: **`admin` / `UNity@320@`**. Path is Hikvision main stream (`/Streaming/Channels/101`). `.10` = PTZ, `.11` = bullet.
+
+VLAN map: [EdgeCompute/docs/site-network.md](EdgeCompute/docs/site-network.md). Play from a host on that pole’s VLAN (SCC2 for poles **1–4**, SCC1 for poles **5–8**).
+
+```bash
+ffplay -rtsp_transport tcp "rtsp://admin:UNity@320@@172.16.2.10:554/Streaming/Channels/101"
+```
+
+### SCC2 — poles 1–4
+
+| Pole | Camera | IP | RTSP |
+| --- | --- | --- | --- |
+| 1 | PTZ | `172.16.3.10` | `rtsp://admin:UNity@320@@172.16.3.10:554/Streaming/Channels/101` |
+| 1 | Bullet | `172.16.3.11` | `rtsp://admin:UNity@320@@172.16.3.11:554/Streaming/Channels/101` |
+| 2 | PTZ | `172.16.2.10` | `rtsp://admin:UNity@320@@172.16.2.10:554/Streaming/Channels/101` |
+| 2 | Bullet | `172.16.2.11` | `rtsp://admin:UNity@320@@172.16.2.11:554/Streaming/Channels/101` |
+| 3 | PTZ | `172.16.1.10` | `rtsp://admin:UNity@320@@172.16.1.10:554/Streaming/Channels/101` |
+| 3 | Bullet | `172.16.1.11` | `rtsp://admin:UNity@320@@172.16.1.11:554/Streaming/Channels/101` |
+| 4 | PTZ | `172.16.4.10` | `rtsp://admin:UNity@320@@172.16.4.10:554/Streaming/Channels/101` |
+| 4 | Bullet | `172.16.4.11` | `rtsp://admin:UNity@320@@172.16.4.11:554/Streaming/Channels/101` |
+
+### SCC1 — poles 5–8
+
+| Pole | Camera | IP | RTSP |
+| --- | --- | --- | --- |
+| 5 | PTZ | `172.16.5.10` | `rtsp://admin:UNity@320@@172.16.5.10:554/Streaming/Channels/101` |
+| 5 | Bullet | `172.16.5.11` | `rtsp://admin:UNity@320@@172.16.5.11:554/Streaming/Channels/101` |
+| 6 | PTZ | `172.16.6.10` | `rtsp://admin:UNity@320@@172.16.6.10:554/Streaming/Channels/101` |
+| 6 | Bullet | `172.16.6.11` | `rtsp://admin:UNity@320@@172.16.6.11:554/Streaming/Channels/101` |
+| 7 | PTZ | `172.16.7.10` | `rtsp://admin:UNity@320@@172.16.7.10:554/Streaming/Channels/101` |
+| 7 | Bullet | `172.16.7.11` | `rtsp://admin:UNity@320@@172.16.7.11:554/Streaming/Channels/101` |
+| 8 | PTZ | `172.16.8.10` | `rtsp://admin:UNity@320@@172.16.8.10:554/Streaming/Channels/101` |
+| 8 | Bullet | `172.16.8.11` | `rtsp://admin:UNity@320@@172.16.8.11:554/Streaming/Channels/101` |
+
+MediaMTX encodes `@` in the password as `%40` when it pulls the stream. Leave the **unencoded** URL in the UI as above.
+
 ## Related docs
 
 
@@ -958,14 +996,3 @@ Common causes:
 | [Server/README.md](Server/README.md)              | Hostinger / local dev     |
 | [EdgeCompute/README.md](EdgeCompute/README.md)    | Orin gas + RFID agents    |
 | [README.md](README.md)                            | Monorepo map              |
-
-
-SCC1 Pole cameras feed
-pole 1
-rtsp://admin:UNity@320@@192.168.1.164:554/Streaming/Channels/101
-
-Pole 2 
-rtsp://admin:UNity%40320%40@192.168.1.64:554/Streaming/Channels/101
-
-Pole 3
-rtsp://admin:UNity%40320%40@192.168.1.10:554/Streaming/Channels/101

@@ -659,7 +659,7 @@ final class DashboardService
                         'status_label' => $incident->status->label(),
                         'action_progress' => $progress,
                         'age' => $this->humanAge($incident->occurred_at),
-                        'href' => '/incidents/'.$incident->uuid,
+                        'href' => route('hse.incidents.show', $incident, false),
                         'occurred_at' => optional($incident->occurred_at)?->toIso8601String(),
                     ];
                 });
@@ -690,7 +690,7 @@ final class DashboardService
                         'status_label' => $lsr->status->label(),
                         'action_progress' => $progress,
                         'age' => $this->humanAge($lsr->occurred_at),
-                        'href' => '/lsr-violations/'.$lsr->uuid,
+                        'href' => route('hse.lsr.show', $lsr, false),
                         'occurred_at' => optional($lsr->occurred_at)?->toIso8601String(),
                     ];
                 });

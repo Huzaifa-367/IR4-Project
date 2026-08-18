@@ -10,6 +10,7 @@ type Entry = {
     id: number;
     uuid: string;
     worker_id: number;
+    worker_uuid: string | null;
     worker_name: string | null;
     last_zone: string | null;
     muster_status: string;
@@ -136,17 +137,26 @@ export default function EvacuationShow({
                                     key={entry.id}
                                     className="flex items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
                                 >
-                                    <Link
-                                        href={tracking.workers.show.url(
-                                            String(entry.worker_id),
-                                        )}
-                                        className="text-text hover:text-[color:var(--accent)] hover:underline"
-                                    >
-                                        {entry.worker_name}
-                                        <span className="ml-1.5 text-xs text-text-faint">
-                                            {entry.last_zone ?? '—'}
+                                    {entry.worker_uuid ? (
+                                        <Link
+                                            href={tracking.workers.show.url(
+                                                entry.worker_uuid,
+                                            )}
+                                            className="text-text hover:text-[color:var(--accent)] hover:underline"
+                                        >
+                                            {entry.worker_name}
+                                            <span className="ml-1.5 text-xs text-text-faint">
+                                                {entry.last_zone ?? '—'}
+                                            </span>
+                                        </Link>
+                                    ) : (
+                                        <span>
+                                            {entry.worker_name}
+                                            <span className="ml-1.5 text-xs text-text-faint">
+                                                {entry.last_zone ?? '—'}
+                                            </span>
                                         </span>
-                                    </Link>
+                                    )}
                                     {canManage && report.status === 'open' && (
                                         <Form
                                             action={tracking.evacuation.account.url(
@@ -184,14 +194,18 @@ export default function EvacuationShow({
                                     key={entry.id}
                                     className="flex items-center justify-between gap-2 border-b border-border pb-2 last:border-0"
                                 >
-                                    <Link
-                                        href={tracking.workers.show.url(
-                                            String(entry.worker_id),
-                                        )}
-                                        className="text-text hover:text-[color:var(--accent)] hover:underline"
-                                    >
-                                        {entry.worker_name}
-                                    </Link>
+                                    {entry.worker_uuid ? (
+                                        <Link
+                                            href={tracking.workers.show.url(
+                                                entry.worker_uuid,
+                                            )}
+                                            className="text-text hover:text-[color:var(--accent)] hover:underline"
+                                        >
+                                            {entry.worker_name}
+                                        </Link>
+                                    ) : (
+                                        <span>{entry.worker_name}</span>
+                                    )}
                                     <StatusPill
                                         label={entry.accounted_source ?? '—'}
                                         tone="ok"

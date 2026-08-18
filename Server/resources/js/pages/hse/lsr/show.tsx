@@ -59,10 +59,10 @@ export default function LsrShow({ violation, canClose }: Props) {
                     <FactTile
                         label="Worker"
                         value={
-                            violation.worker_id ? (
+                            violation.worker_uuid ? (
                                 <Link
                                     href={tracking.workers.show.url(
-                                        String(violation.worker_id),
+                                        violation.worker_uuid,
                                     )}
                                     className="text-[color:var(--accent)] hover:underline"
                                 >
@@ -101,13 +101,13 @@ export default function LsrShow({ violation, canClose }: Props) {
                                 }
                             />
                         ) : null}
-                        {violation.ppe_violation_id ? (
+                        {violation.ppe_violation_uuid ? (
                             <DetailField
                                 label="Linked PPE"
                                 value={
                                     <Link
                                         href={ppe.violations.show.url(
-                                            String(violation.ppe_violation_id),
+                                            violation.ppe_violation_uuid,
                                         )}
                                         className="text-[color:var(--accent)] hover:underline"
                                     >
