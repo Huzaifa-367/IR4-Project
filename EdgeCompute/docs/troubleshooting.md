@@ -3,7 +3,7 @@
 | Symptom | Likely cause |
 |---|---|
 | `orin_bootstrap.sh` dies on `nvidia-l4t-kernel` / dpkg | Jetson L4T package half-configured — bootstrap now skips apt when python/mosquitto already installed. If apt is still required: `sudo apt-mark hold nvidia-l4t-kernel nvidia-l4t-kernel-headers nvidia-l4t-kernel-dtbs nvidia-l4t-display-kernel` then retry, or install packages by hand without `apt-get update` |
-| Cannot reach IR4 from Orin | Wrong `IR4_BASE_URL` — poles use `http://192.168.8.40:9100`. Confirm `curl …/up` from the Orin returns 200. |
+| Cannot reach IR4 from Orin | Wrong `IR4_BASE_URL` — use that pole’s SCC VLAN (`http://172.16.<subnet>.40:9100`, see README). Confirm `curl …/up` from the Orin returns 200. |
 | Missing device token | Run `ir4-edge setup` or fill `configs/secrets.env` |
 | `ERR_NAME_NOT_RESOLVED` on workstation | Point hosts/DNS at SCC (`192.168.8.40 ir4-project.test`) and open `https://ir4-project.test`, or use `http://192.168.8.40:9100` on LAN HTTP |
 | Permission denied on `/dev/ttyUSB*` | User not in `dialout`; re-login after bootstrap |
@@ -17,7 +17,8 @@
 | Unknown EPC | Auto-registered as `in_stock` (Hardware → Tags); assign to a worker to track |
 | `UNAUTHENTICATED` / `Invalid device token` (401) | SCC hash ≠ pole secrets. On SCC: `php artisan db:seed --class=DeviceCredentialsSeeder --force` (or `php artisan ir4:sync-edge-tokens`). On the pole: `ir4-edge secrets --pole NN && sudo ir4-edge restart`. |
 | `StartLimitIntervalSec` unknown in `[Service]` | Old Jetson systemd — key belongs in `[Unit]`. Harmless after `sudo ir4-edge update` (units re-rendered). |
-| Updating wipes tokens / need uninstall | Do not `rm -rf /opt/ir4-edge`. Use `sudo ir4-edge update` (or `deploy/orin_update.sh`) — keeps `secrets.env`. |
+| `pip` / `git clone` fails on the Orin | Pole has no internet — use Method 1 or 3 in [deploy/README.md](../deploy/README.md) |
+| Updating wipes tokens / need uninstall | Do not `rm -rf /opt/ir4-edge`. Re-run the same method in [deploy/README.md](../deploy/README.md); all keep `secrets.env`. |
 | Rate limited `429` | Inventory flood — lower reader rate or raise `debounce_seconds` |
 
 ## Useful commands

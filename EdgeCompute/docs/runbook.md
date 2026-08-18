@@ -1,47 +1,16 @@
 # Orin bring-up runbook
 
-After [commissioning.md](commissioning.md). Host details: [../deploy/README.md](../deploy/README.md).
+After [commissioning.md](commissioning.md).
 
-## 1. Configure + bootstrap (once)
-
-Pick pole **NN** (`01`…`04`). Pole files are already filled from `credentials.md`:
-
-```bash
-cp configs/secrets.pole-NN.env configs/secrets.env
-# after install: ir4-edge secrets --pole N
-```
-
-| Pole | First install | Day-2 |
-|------|---------------|-------|
-| 1 | `cp configs/secrets.pole-01.env configs/secrets.env` | `ir4-edge secrets --pole 1` |
-| 2 | `cp configs/secrets.pole-02.env configs/secrets.env` | `ir4-edge secrets --pole 2` |
-| 3 | `cp configs/secrets.pole-03.env configs/secrets.env` | `ir4-edge secrets --pole 3` |
-| 4 | `cp configs/secrets.pole-04.env configs/secrets.env` | `ir4-edge secrets --pole 4` |
+**Install and update:** [../deploy/README.md](../deploy/README.md) — three methods only (SCC → pole, pole with internet, pole with USB).
 
 Token authenticates the device; `device_ref` / `reader_ref` in the payload must be **that same** reference or ingest returns `FORBIDDEN_REFERENCE` (HTTP still 202).
 
-```bash
-sudo mkdir -p /opt/ir4-edge
-# Place EdgeCompute at /opt/ir4-edge/EdgeCompute (clone/copy from monorepo)
-cd /opt/ir4-edge/EdgeCompute
-cp configs/secrets.pole-02.env configs/secrets.env
-sudo ./deploy/orin_bootstrap.sh
-# In-place install: venv + var under /opt/ir4-edge/; code stays here
-# later: sudo ir4-edge apply
-# Day-2 config: /opt/ir4-edge/EdgeCompute/configs/
-```
-
 If secrets are already filled, install **starts** the agents immediately (`services.auto_start` in `configs/edge.yaml`).
-
-One-shot interactive + start (prompts only for enabled agents):
-
-```bash
-ir4-edge setup --up
-```
 
 Log out/in once if you were just added to `dialout`.
 
-## 2. Everyday ops
+## 1. Everyday ops
 
 ```bash
 ir4-edge doctor
@@ -52,18 +21,7 @@ ir4-edge restart
 
 Agents start on every reboot. To run **gas only** or **RFID only**: set `services.gas` / `services.rfid` in `configs/edge.yaml`, then `sudo ir4-edge apply`. The other unit is disabled and left alone.
 
-## 2b. Update code (no uninstall)
-
-```bash
-sudo ir4-edge update
-# first time this script is missing on the pole:
-git clone --depth 1 https://github.com/Huzaifa-367/IR4-Project /tmp/IR4-Project
-sudo /tmp/IR4-Project/EdgeCompute/deploy/orin_update.sh
-```
-
-Keeps `configs/secrets.env`. Does **not** `rm -rf` the install or remove the service user.
-
-## 3. Gas (YT-98H)
+## 2. Gas (YT-98H)
 
 - 24 V, Output Mode = RS485, warm-up 2–5 min.
 - USB–RS485 dongle → plug into **USB port 3** on the Orin → `/dev/yt98h-rs485` (udev) or `/dev/ttyUSB0`.
@@ -79,7 +37,7 @@ ir4-edge logs -f
 
 Expect O₂ ≈ 20.9 %VOL, CO₂ ≈ 800–1200 ppm indoors.
 
-## 4. RFID (FXR90)
+## 3. RFID (FXR90)
 
 Production path: **FXR90 IoT Connector → MQTT → Mosquitto on Orin → `ir4-rfid-agent` → IR4 ingest**.
 

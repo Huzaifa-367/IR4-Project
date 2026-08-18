@@ -6,6 +6,7 @@ Gas (YT-98H) and RFID (FXR90) ingest agents. Each runs as its **own** systemd un
 | Doc               | Path                                                 |
 | ----------------- | ---------------------------------------------------- |
 | Commissioning     | `[docs/commissioning.md](docs/commissioning.md)`     |
+| Install / update  | `[deploy/README.md](deploy/README.md)`               |
 | Day-2 runbook     | `[docs/runbook.md](docs/runbook.md)`                 |
 | Troubleshooting   | `[docs/troubleshooting.md](docs/troubleshooting.md)` |
 | Credentials notes | `[credentials.md](credentials.md)`                   |
@@ -18,51 +19,7 @@ Gas (YT-98H) and RFID (FXR90) ingest agents. Each runs as its **own** systemd un
 
 ## Setup
 
-Install lives at `/opt/ir4-edge/EdgeCompute` (code) with `venv/` + `var/` beside it. Clone or copy the `EdgeCompute` tree there, then bootstrap in place.
-
-```bash
-# Place the EdgeCompute folder (from the IR4 monorepo) at the install path:
-sudo mkdir -p /opt/ir4-edge
-# Example from a full clone:
-  sudo rm -rf /tmp/IR4-Project
-  git clone https://github.com/Huzaifa-367/IR4-Project /tmp/IR4-Project
-  sudo rm -rf /opt/ir4-edge/EdgeCompute
-  sudo cp -a /tmp/IR4-Project/EdgeCompute /opt/ir4-edge/EdgeCompute
-  sudo rm -rf /tmp/IR4-Project
-
-cd /opt/ir4-edge/EdgeCompute
-cp configs/secrets.pole-01.env configs/secrets.env   # already filled from credentials.md
-sudo ./deploy/orin_bootstrap.sh
-hash -r
-ir4-edge doctor
-```
-
-Bootstrap refuses to run from other paths (e.g. `~/Downloads/EdgeCompute`).
-
-### Per-pole secrets
-
-`configs/secrets.pole-NN.env` is already filled from [credentials.md](credentials.md). Copy it before bootstrap; after install, refresh from the table:
-
-```bash
-cp configs/secrets.pole-01.env configs/secrets.env   # first install
-ir4-edge secrets --pole 1                            # day-2 refresh
-```
-
-| Pole | First install | Day-2 |
-| ---- | ------------- | ----- |
-| 1 | `cp configs/secrets.pole-01.env configs/secrets.env` | `ir4-edge secrets --pole 1` |
-| 2 | `cp configs/secrets.pole-02.env configs/secrets.env` | `ir4-edge secrets --pole 2` |
-| 3 | `cp configs/secrets.pole-03.env configs/secrets.env` | `ir4-edge secrets --pole 3` |
-| 4 | `cp configs/secrets.pole-04.env configs/secrets.env` | `ir4-edge secrets --pole 4` |
-
-On-site `IR4_BASE_URL` must be the SCC VLAN IP for that pole (not office LAN / Tailscale):
-
-| Pole | `IR4_BASE_URL` |
-|---|---|
-| 1 | `http://172.16.3.40:9100` |
-| 2 | `http://172.16.2.40:9100` |
-| 3 | `http://172.16.1.40:9100` |
-| 4 | `http://172.16.4.40:9100` |
+**Install and update (all three methods):** [deploy/README.md](deploy/README.md)
 
 Operator UI stays on `https://ir4-project.test`.
 
@@ -83,27 +40,6 @@ ssh pole2@172.16.2.2
 ```
 
 YAML `device_ref` / `reader_ref` / `mqtt.topic` are fallbacks only. Token UUID must match the ref — mismatch → `FORBIDDEN_REFERENCE`.
-
-Day-2 CLI:
-
-```bash
-cd /opt/ir4-edge/EdgeCompute
-sudo ir4-edge update    # fetch latest code in place (keeps secrets.env)
-sudo ir4-edge apply     # re-run pip + units from this tree only
-ir4-edge setup          # interactive secrets
-ir4-edge doctor
-```
-
-Update (no uninstall / no `rm -rf`):
-
-```bash
-# After this commit is on GitHub — from the live install:
-sudo ir4-edge update
-
-# First time the new script is not on the pole yet:
-git clone --depth 1 https://github.com/Huzaifa-367/IR4-Project /tmp/IR4-Project
-sudo /tmp/IR4-Project/EdgeCompute/deploy/orin_update.sh
-```
 
 ---
 
@@ -200,17 +136,12 @@ ir4-edge logs -f
 ## Day-2
 
 ```bash
-ir4-edge status | restart | logs -f | doctor
-ir4-edge up | down          # only agents enabled in edge.yaml
+ir4-edge doctor | status | logs -f
+sudo ir4-edge restart
+ir4-edge up | down
 ```
 
-Upgrade code:
-
-```bash
-cd /opt/ir4-edge/EdgeCompute
-# refresh tree (git pull if this folder is a checkout, or re-copy from monorepo)
-sudo ./deploy/orin_bootstrap.sh
-```
+Upgrade: [deploy/README.md](deploy/README.md).
 
 ---
 

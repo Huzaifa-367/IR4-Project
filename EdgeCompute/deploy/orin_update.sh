@@ -1,15 +1,12 @@
 #!/usr/bin/env bash
-# Day-2 update — overlay new EdgeCompute code, keep secrets.env, reinstall
-# the Python package + systemd units. Does not uninstall or wipe /opt/ir4-edge.
+# Pole has internet — overlay latest EdgeCompute, keep secrets.env, reinstall
+# venv + systemd. Does not uninstall or wipe /opt/ir4-edge.
 #
-# From a USB /tmp clone (first time the new script lands on the pole):
-#   git clone --depth 1 https://github.com/Huzaifa-367/IR4-Project /tmp/IR4-Project
-#   sudo /tmp/IR4-Project/EdgeCompute/deploy/orin_update.sh
-#
-# After that:
 #   sudo ir4-edge update
 #   sudo ./deploy/orin_update.sh
 #   sudo ./deploy/orin_update.sh --from /path/to/EdgeCompute
+#
+# No internet on the Orin: use scc_install.sh or USB (deploy/README.md).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,8 +22,9 @@ usage() {
   cat <<'EOF'
 Usage: sudo ./deploy/orin_update.sh [--from DIR] [--branch NAME]
 
-Overlay the latest EdgeCompute tree onto /opt/ir4-edge/EdgeCompute.
+Pole with internet: overlay EdgeCompute onto /opt/ir4-edge/EdgeCompute.
 Keeps configs/secrets.env. Re-runs pip + systemd (no uninstall).
+No internet: use scc_install.sh or USB install.sh (deploy/README.md).
 EOF
 }
 

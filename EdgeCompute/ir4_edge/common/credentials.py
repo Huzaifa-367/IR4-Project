@@ -26,6 +26,14 @@ _ROW = re.compile(
     re.IGNORECASE,
 )
 
+# On-site ingest: pole VLAN SCC IP (DOC site-network). Never office LAN / Tailscale.
+_POLE_BASE_URL = {
+    1: "http://172.16.3.40:9100",
+    2: "http://172.16.2.40:9100",
+    3: "http://172.16.1.40:9100",
+    4: "http://172.16.4.40:9100",
+}
+
 _ENV_ORDER = (
     "IR4_BASE_URL",
     "APP_TIMEZONE",
@@ -111,7 +119,7 @@ def apply_credentials_to_values(
     if gas is None or rfid is None:
         raise RuntimeError("credentials.md missing DEV-GAS-{0} / DEV-RFID-{0}".format(pad))
     merged = dict(existing)
-    merged.setdefault("IR4_BASE_URL", "http://192.168.8.40:9100")
+    merged["IR4_BASE_URL"] = _POLE_BASE_URL[pole]
     merged.setdefault("APP_TIMEZONE", "Asia/Riyadh")
     merged["IR4_GAS_DEVICE_REF"] = gas["ref"]
     merged["IR4_GAS_DEVICE_TOKEN"] = gas["token"]

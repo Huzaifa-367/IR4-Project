@@ -39,23 +39,9 @@ Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://172.16.
 | [`../configs/gas.yaml`](../configs/gas.yaml) | Serial / Modbus / **per-pole** `device_ref` |
 | [`../configs/rfid.yaml`](../configs/rfid.yaml) | **Per-pole** MQTT topic + `reader_ref` |
 
-Before bootstrap, copy the pole file (`NN` = `01`…`04`). Tokens in those files are copied from `credentials.md`:
+Install and update: **[../deploy/README.md](../deploy/README.md)**.
 
-```bash
-cp configs/secrets.pole-NN.env configs/secrets.env
-# after install: ir4-edge secrets --pole N
-```
-
-YAML `device_ref` / `reader_ref` / `topic` are fallbacks only. Mismatch → ingest `FORBIDDEN_REFERENCE`. See [runbook.md](runbook.md) and [../README.md](../README.md).
-
-```bash
-sudo mkdir -p /opt/ir4-edge
-# Place EdgeCompute at /opt/ir4-edge/EdgeCompute (clone/copy from monorepo)
-cd /opt/ir4-edge/EdgeCompute
-cp configs/secrets.pole-01.env configs/secrets.env
-sudo ./deploy/orin_bootstrap.sh                      # in-place install
-ir4-edge doctor
-```
+YAML `device_ref` / `reader_ref` / `topic` are fallbacks only. Mismatch → ingest `FORBIDDEN_REFERENCE`. See [runbook.md](runbook.md).
 
 | Variable | Used by |
 |---|---|

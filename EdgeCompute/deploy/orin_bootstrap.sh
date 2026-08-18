@@ -88,8 +88,25 @@ fi
 mkdir -p "${INSTALL_ROOT}/var"
 
 python3 -m venv "${INSTALL_ROOT}/venv"
-"${INSTALL_ROOT}/venv/bin/pip" install -q --upgrade pip
-"${INSTALL_ROOT}/venv/bin/pip" install -q -e "${EDGE_ROOT}"
+WHEELHOUSE="${IR4_EDGE_WHEELHOUSE:-}"
+[[ -z "${WHEELHOUSE}" && -d "${INSTALL_ROOT}/wheels" ]] && WHEELHOUSE="${INSTALL_ROOT}/wheels"
+[[ -z "${WHEELHOUSE}" && -d "${EDGE_ROOT}/.wheels" ]] && WHEELHOUSE="${EDGE_ROOT}/.wheels"
+if [[ -n "${WHEELHOUSE}" && -d "${WHEELHOUSE}" && -n "$(ls -A "${WHEELHOUSE}" 2>/dev/null)" ]]; then
+  echo "==> Offline pip from ${WHEELHOUSE}"
+  "${INSTALL_ROOT}/venv/bin/pip" install -q --no-index --find-links "${WHEELHOUSE}" \
+    pip wheel setuptools || true
+  "${INSTALL_ROOT}/venv/bin/pip" install -q --no-index --no-build-isolation \
+    --find-links "${WHEELHOUSE}" -e "${EDGE_ROOT}"
+else
+  echo "==> Online pip (this Orin needs internet)"
+  if ! "${INSTALL_ROOT}/venv/bin/pip" install -q --upgrade pip; then
+    echo "ERROR: pip needs internet on this Orin." >&2
+    echo "       No internet: from SCC run ~/EdgeCompute/deploy/scc_install.sh" >&2
+    echo "       or USB: ./deploy/pack_bundle.sh then sudo ./install.sh --pole N" >&2
+    exit 1
+  fi
+  "${INSTALL_ROOT}/venv/bin/pip" install -q -e "${EDGE_ROOT}"
+fi
 
 if [[ ! -x "${INSTALL_ROOT}/venv/bin/ir4-edge" ]]; then
   echo "ERROR: pip install did not create ${INSTALL_ROOT}/venv/bin/ir4-edge" >&2

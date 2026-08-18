@@ -1,11 +1,14 @@
-# Scripts — prefer `ir4-edge`
+# Scripts
 
-| Command | Script |
+Install and update: [../deploy/README.md](../deploy/README.md).
+
+Day-2 on a pole that is already installed:
+
+| Command | What |
 |---|---|
-| `ir4-edge install` | `deploy/orin_bootstrap.sh` |
-| `ir4-edge update` | `deploy/orin_update.sh` |
-| `ir4-edge setup` | `scripts/configure.sh` |
-| `ir4-edge up` | `scripts/enable_services.sh` |
-| `ir4-edge doctor` / `status` / `logs` | `ir4_edge/ctl.py` |
+| `ir4-edge doctor` | Health check |
+| `ir4-edge status` / `restart` / `logs -f` | Agents |
+| `ir4-edge secrets --pole N` | Rewrite this pole’s URL + tokens |
+| `ir4-edge up` / `down` | Enable/disable agents in `edge.yaml` |
 
 Optional: `validate_api_contract.py`, `smoke_gas_dry_run.py`, `smoke_rfid_dry_run.py`

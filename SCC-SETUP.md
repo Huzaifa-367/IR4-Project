@@ -409,7 +409,7 @@ lerd artisan ir4:sync-camera-streams --probe
 lerd artisan ir4:sync-camera-streams
 ```
 
-Camera `stream_url` in the UI is **RTSP** (e.g. `rtsp://admin:UNity@320@@172.16.2.10:554/Streaming/Channels/101`). Full pole list is **§13**.  
+Camera `stream_url` in the UI is **RTSP** (e.g. `rtsp://admin:Unity@320@@172.16.2.10:554/Streaming/Channels/101`). Full pole list is **§13**.  
 Browsers use **HLS** via `/hls/{reference}/` — `ffplay` on RTSP working is not enough until sync succeeds.
 
 After pulling live-wall frontend changes, rebuild once:
@@ -806,45 +806,9 @@ ssh -J scc2@100.118.103.39 pole2@172.16.2.2
 
 Prerequisite: from SCC2, `ping 172.16.2.2` (etc.) succeeds. User `scc2` needs key/password access to `poleN@…`.
 
-### 12c. Push EdgeCompute from SCC → Orin (preferred on site)
+### 12c. EdgeCompute on poles
 
-Yes — if the **`EdgeCompute/`** tree is on the SCC, you can update poles over the pole VLAN without USB or public git on the Jetson.
-
-**SCC2 app root is usually flattened Laravel only** (`/data2/laravel/IR4-Project` = `Server/`). That tree does **not** include `EdgeCompute/`. Put a copy on the SCC first, e.g.:
-
-```bash
-# From your laptop (monorepo):
-scp -r EdgeCompute scc2@100.118.103.39:~/EdgeCompute
-```
-
-Then on **SCC2**, rsync to the pole (example pole 2) and run the Orin updater:
-
-```bash
-# On SCC2 — sync code (does not overwrite secrets.env on first copy if dest missing; update script preserves secrets)
-rsync -az --delete \
-  --exclude 'configs/secrets.env' \
-  --exclude '.venv' --exclude 'venv' --exclude '__pycache__' \
-  ~/EdgeCompute/ pole2@172.16.2.2:/tmp/EdgeCompute/
-
-ssh pole2@172.16.2.2 'sudo mkdir -p /opt/ir4-edge && sudo rsync -a --delete \
-  --exclude configs/secrets.env \
-  /tmp/EdgeCompute/ /opt/ir4-edge/EdgeCompute/ && \
-  cd /opt/ir4-edge/EdgeCompute && sudo ./deploy/orin_update.sh'
-```
-
-First-time install on a blank Orin (instead of `orin_update.sh`):
-
-```bash
-ssh pole2@172.16.2.2
-sudo mkdir -p /opt/ir4-edge
-sudo rsync -a /tmp/EdgeCompute/ /opt/ir4-edge/EdgeCompute/
-cd /opt/ir4-edge/EdgeCompute
-cp configs/secrets.pole-02.env configs/secrets.env
-# set IR4_BASE_URL=http://172.16.2.40:9100
-sudo ./deploy/orin_bootstrap.sh
-```
-
-You can also sync over **Tailscale** when the pole is online (`rsync … pole2@100.104.14.30:…`) — same exclude rules. Prefer LAN (§12b B) when Tailscale is offline.
+Install and update (SCC → pole, pole with internet, pole with USB): **[EdgeCompute/deploy/README.md](EdgeCompute/deploy/README.md)**. Do not copy commands here.
 
 ### 12d. Deploy notes
 
@@ -950,26 +914,29 @@ Common causes:
 
 ## 13. Pole camera RTSP
 
-Paste these as `stream_url` on each camera in Hardware → Cameras. User/pass is the same on every pole: **`admin` / `UNity@320@`**. Path is Hikvision main stream (`/Streaming/Channels/101`). `.10` = PTZ, `.11` = bullet.
+Paste these as `stream_url` on each camera in Hardware → Cameras. Path is Hikvision main stream (`/Streaming/Channels/101`). `.10` = PTZ, `.11` = bullet.
+
+- **SCC2 (poles 1–4):** `admin` / `Unity@320@`
+- **SCC1 (poles 5–8):** `admin` / `UNity@320@`
 
 VLAN map: [EdgeCompute/docs/site-network.md](EdgeCompute/docs/site-network.md). Play from a host on that pole’s VLAN (SCC2 for poles **1–4**, SCC1 for poles **5–8**).
 
 ```bash
-ffplay -rtsp_transport tcp "rtsp://admin:UNity@320@@172.16.2.10:554/Streaming/Channels/101"
+ffplay -rtsp_transport tcp "rtsp://admin:Unity@320@@172.16.2.10:554/Streaming/Channels/101"
 ```
 
 ### SCC2 — poles 1–4
 
 | Pole | Camera | IP | RTSP |
 | --- | --- | --- | --- |
-| 1 | PTZ | `172.16.3.10` | `rtsp://admin:UNity@320@@172.16.3.10:554/Streaming/Channels/101` |
-| 1 | Bullet | `172.16.3.11` | `rtsp://admin:UNity@320@@172.16.3.11:554/Streaming/Channels/101` |
-| 2 | PTZ | `172.16.2.10` | `rtsp://admin:UNity@320@@172.16.2.10:554/Streaming/Channels/101` |
-| 2 | Bullet | `172.16.2.11` | `rtsp://admin:UNity@320@@172.16.2.11:554/Streaming/Channels/101` |
-| 3 | PTZ | `172.16.1.10` | `rtsp://admin:UNity@320@@172.16.1.10:554/Streaming/Channels/101` |
-| 3 | Bullet | `172.16.1.11` | `rtsp://admin:UNity@320@@172.16.1.11:554/Streaming/Channels/101` |
-| 4 | PTZ | `172.16.4.10` | `rtsp://admin:UNity@320@@172.16.4.10:554/Streaming/Channels/101` |
-| 4 | Bullet | `172.16.4.11` | `rtsp://admin:UNity@320@@172.16.4.11:554/Streaming/Channels/101` |
+| 1 | PTZ | `172.16.3.10` | `rtsp://admin:Unity@320@@172.16.3.10:554/Streaming/Channels/101` |
+| 1 | Bullet | `172.16.3.11` | `rtsp://admin:Unity@320@@172.16.3.11:554/Streaming/Channels/101` |
+| 2 | PTZ | `172.16.2.10` | `rtsp://admin:Unity@320@@172.16.2.10:554/Streaming/Channels/101` |
+| 2 | Bullet | `172.16.2.11` | `rtsp://admin:Unity@320@@172.16.2.11:554/Streaming/Channels/101` |
+| 3 | PTZ | `172.16.1.10` | `rtsp://admin:Unity@320@@172.16.1.10:554/Streaming/Channels/101` |
+| 3 | Bullet | `172.16.1.11` | `rtsp://admin:Unity@320@@172.16.1.11:554/Streaming/Channels/101` |
+| 4 | PTZ | `172.16.4.10` | `rtsp://admin:Unity@320@@172.16.4.10:554/Streaming/Channels/101` |
+| 4 | Bullet | `172.16.4.11` | `rtsp://admin:Unity@320@@172.16.4.11:554/Streaming/Channels/101` |
 
 ### SCC1 — poles 5–8
 

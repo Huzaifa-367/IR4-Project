@@ -187,7 +187,7 @@ def cmd_doctor(_: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ir4-edge", description="IR4 Edge — install, setup, run")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("install", help="Bootstrap host (sudo)").set_defaults(func=cmd_install)
+    sub.add_parser("install", help="Pole with internet: bootstrap venv + units (sudo)").set_defaults(func=cmd_install)
     setup = sub.add_parser("setup", help="Interactive secrets (enabled agents only)", aliases=["configure"])
     setup.add_argument("--up", action="store_true", help="Enable/start after setup")
     setup.set_defaults(func=cmd_setup)
@@ -200,7 +200,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("restart", help="Restart enabled agents").set_defaults(func=cmd_restart)
     sub.add_parser("doctor", help="Health checks").set_defaults(func=cmd_doctor)
     sub.add_parser("apply", help="Re-run install from configs").set_defaults(func=cmd_install)
-    update = sub.add_parser("update", help="Fetch latest EdgeCompute in place (keeps secrets.env)")
+    update = sub.add_parser("update", help="Pole with internet: overlay latest (keeps secrets.env)")
     update.add_argument("--from", dest="from_path", default="", help="Existing EdgeCompute or monorepo path")
     update.add_argument("--branch", default="", help="Git branch (default main)")
     update.set_defaults(func=cmd_update)
