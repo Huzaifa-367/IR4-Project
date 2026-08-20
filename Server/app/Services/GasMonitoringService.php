@@ -103,6 +103,7 @@ final class GasMonitoringService
     {
         $staleMinutes = (int) $this->settings->get('health.gas_stale_minutes', 5);
         $devices = Device::query()
+            ->operational()
             ->where('device_type', DeviceType::GasDetector)
             ->with('asset')
             ->orderBy('name')

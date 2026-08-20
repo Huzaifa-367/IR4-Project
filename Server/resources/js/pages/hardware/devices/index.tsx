@@ -203,9 +203,12 @@ export default function DevicesIndex({
                             {device.has_token ? 'Rotate token' : 'Issue token'}
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                            disabled={device.status === 'retired'}
                             onClick={() => {
-                                setNextStatus('maintenance');
+                                setNextStatus(
+                                    device.status === 'retired'
+                                        ? 'online'
+                                        : 'maintenance',
+                                );
                                 setStatusTarget(device);
                             }}
                         >
@@ -444,7 +447,7 @@ export default function DevicesIndex({
                     }
                 }}
                 title="Retire device"
-                description="Retiring invalidates the API token and blocks ingestion. Historical telemetry is retained."
+                description="Retiring hides the device from Live View and filters, invalidates the API token, and blocks ingestion. Historical telemetry is retained."
                 action={
                     retireTarget
                         ? settings.devices.status.url(retireTarget.uuid)
@@ -464,7 +467,7 @@ export default function DevicesIndex({
                     }
                 }}
                 title="Set device status"
-                description="Maintenance skips offline health alerts until restored."
+                description="Maintenance and retired devices are hidden from operator live surfaces. Restoring from retired requires issuing a new token."
                 action={
                     statusTarget
                         ? settings.devices.status.url(statusTarget.uuid)

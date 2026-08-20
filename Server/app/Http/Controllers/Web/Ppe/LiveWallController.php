@@ -59,6 +59,7 @@ final class LiveWallController extends BaseController
         $cameraStaleMinutes = (int) app(SettingsService::class)->get('health.camera_stale_minutes', 3);
 
         return Camera::query()
+            ->operational()
             ->with('asset')
             ->orderBy('name')
             ->get()

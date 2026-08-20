@@ -127,7 +127,7 @@ public function asset(): BelongsTo
 // Device (from DOC-06/09/11 — reverse sides declared there)
 public function zoneBindings(): HasMany   // reader_zone_bindings (rfid_reader only) — DOC-06
 ```
-Delete rules: an asset with attached cameras/devices → `restrictOnDelete` (409 in the service before it reaches the DB, with a clear message). Retire hardware (status `retired`) rather than deleting it, so historical telemetry keeps a valid device reference.
+Delete rules: an asset with attached cameras/devices → `restrictOnDelete` (409 in the service before it reaches the DB, with a clear message). Retire hardware (status `retired`) rather than deleting it, so historical telemetry keeps a valid device reference. Operator live surfaces (Live View, gas/env/tracking panels, PPE/vehicle camera filters, MediaMTX sync) load only **operational** cameras/devices — excluding `retired` and `maintenance`. Hardware admin indexes still list every row so operators can restore status without a delete.
 
 ---
 

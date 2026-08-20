@@ -51,6 +51,7 @@ final class GasDashboardController extends BaseController
                 'to' => $to->toDateString(),
             ],
             'devices' => Device::query()
+                ->operational()
                 ->where('device_type', DeviceType::GasDetector)
                 ->orderBy('name')
                 ->get(['id', 'uuid', 'name', 'reference']),

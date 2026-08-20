@@ -53,16 +53,19 @@ export default function CamerasIndex({
     cameras,
     assets,
     cameraTypes,
+    statuses,
     filters,
 }: Props) {
     const [form, setForm] = useState<FormState | null>(null);
     const [retireTarget, setRetireTarget] = useState<CameraRow | null>(null);
+    const [statusTarget, setStatusTarget] = useState<CameraRow | null>(null);
     const [aiTarget, setAiTarget] = useState<CameraRow | null>(null);
     const [q, setQ] = useState(filters.q);
     const [status, setStatus] = useState(filters.status || 'all');
     const [assetId, setAssetId] = useState('');
     const [typeValue, setTypeValue] = useState('fixed');
     const [aiEnabled, setAiEnabled] = useState(true);
+    const [nextStatus, setNextStatus] = useState('maintenance');
 
     const queryParams = {
         q: q || undefined,
@@ -165,6 +168,18 @@ export default function CamerasIndex({
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setAiTarget(camera)}>
                             {camera.ai_enabled ? 'Disable AI' : 'Enable AI'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onClick={() => {
+                                setNextStatus(
+                                    camera.status === 'retired'
+                                        ? 'online'
+                                        : 'maintenance',
+                                );
+                                setStatusTarget(camera);
+                            }}
+                        >
+                            Set status
                         </DropdownMenuItem>
                         <DropdownMenuItem
                             className="text-destructive"
@@ -398,7 +413,7 @@ export default function CamerasIndex({
                     }
                 }}
                 title="Retire camera"
-                description="Retiring keeps the camera row for historical PPE and incident links."
+                description="Retiring hides the camera from Live View and filters. The row stays for historical PPE and incident links."
                 action={
                     retireTarget
                         ? settings.cameras.status.url(retireTarget.uuid)
@@ -409,6 +424,41 @@ export default function CamerasIndex({
                 confirmLabel="Retire"
                 destructive
             />
+
+            <CrudFormDialog
+                open={statusTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setStatusTarget(null);
+                    }
+                }}
+                title="Set camera status"
+                description="Maintenance and retired cameras are hidden from Live View. Restore with online/offline when ready."
+                action={
+                    statusTarget
+                        ? settings.cameras.status.url(statusTarget.uuid)
+                        : settings.cameras.index.url()
+                }
+                method="patch"
+                submitLabel="Update status"
+                transform={() => ({ status: nextStatus })}
+            >
+                {() => (
+                    <div className="flex flex-col gap-2">
+                        <Label>Status</Label>
+                        <SearchableSelect
+                            value={nextStatus}
+                            onValueChange={setNextStatus}
+                            options={statuses
+                                .filter((item) => item.value !== 'retired')
+                                .map((item) => ({
+                                    value: item.value,
+                                    label: item.label,
+                                }))}
+                        />
+                    </div>
+                )}
+            </CrudFormDialog>
         </>
     );
 }

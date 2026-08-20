@@ -44,7 +44,7 @@ final class VehicleViolationController extends BaseController
                 'search' => $request->string('search')->toString(),
             ],
             'violationTypes' => VehicleViolationService::violationTypes(),
-            'cameras' => Camera::query()->orderBy('name')->get(['id', 'uuid', 'name', 'reference']),
+            'cameras' => Camera::query()->operational()->orderBy('name')->get(['id', 'uuid', 'name', 'reference']),
             'canCreate' => $request->user()?->can('create-vehicle-violations') ?? false,
         ]);
     }

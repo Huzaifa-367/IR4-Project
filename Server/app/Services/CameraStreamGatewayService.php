@@ -180,7 +180,7 @@ final class CameraStreamGatewayService
         $errors = [];
         $detail = '';
 
-        Camera::query()->orderBy('id')->each(function (Camera $camera) use (&$synced, &$failed, &$errors, &$detail): void {
+        Camera::query()->operational()->orderBy('id')->each(function (Camera $camera) use (&$synced, &$failed, &$errors, &$detail): void {
             if ($this->sync($camera)) {
                 $synced++;
 

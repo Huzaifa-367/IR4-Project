@@ -22,4 +22,22 @@ enum HardwareStatus: string
             self::Retired => 'Retired',
         };
     }
+
+    /**
+     * Statuses hidden from Live View and operator filter selects (DOC-05: retire / maintenance, don't delete).
+     *
+     * @return list<string>
+     */
+    public static function nonOperationalValues(): array
+    {
+        return [
+            self::Retired->value,
+            self::Maintenance->value,
+        ];
+    }
+
+    public function isOperational(): bool
+    {
+        return ! in_array($this->value, self::nonOperationalValues(), true);
+    }
 }

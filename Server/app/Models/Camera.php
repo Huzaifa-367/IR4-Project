@@ -7,6 +7,7 @@ use App\Enums\HardwareStatus;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\CameraFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -103,5 +104,16 @@ final class Camera extends Model
     public function lsrViolations(): HasMany
     {
         return $this->hasMany(LsrViolation::class);
+    }
+
+    /**
+     * Live View / operator selects — exclude retired and maintenance (DOC-05: don't delete).
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeOperational(Builder $query): Builder
+    {
+        return $query->whereNotIn('status', HardwareStatus::nonOperationalValues());
     }
 }

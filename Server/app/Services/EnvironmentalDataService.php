@@ -75,6 +75,7 @@ final class EnvironmentalDataService
         $staleMinutes = (int) $this->settings->get('health.sensor_stale_minutes', 5);
 
         return array_values(Device::query()
+            ->operational()
             ->where('device_type', DeviceType::EnvironmentalSensor)
             ->with('asset')
             ->orderBy('name')

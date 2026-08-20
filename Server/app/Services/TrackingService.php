@@ -627,6 +627,7 @@ final class TrackingService
     public function liveCoverage(): array
     {
         return Device::query()
+            ->operational()
             ->where('device_type', DeviceType::RfidReader)
             ->with(['currentZoneBinding.zone:id,uuid,name,zone_type,color'])
             ->orderBy('name')

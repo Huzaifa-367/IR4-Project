@@ -141,6 +141,7 @@ final class ReadingsController extends BaseController
                 ])
                 ->all(),
             'readers' => Device::query()
+                ->operational()
                 ->where('device_type', DeviceType::RfidReader)
                 ->orderBy('name')
                 ->get(['id', 'name', 'reference'])
