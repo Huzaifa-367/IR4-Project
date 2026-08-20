@@ -143,6 +143,24 @@ it('skips maintenance devices in markStale', function () {
     expect($device->fresh()->status)->toBe(HardwareStatus::Maintenance);
 });
 
+it('keeps maintenance when heartbeat posts online', function () {
+    $device = Device::factory()->create([
+        'status' => HardwareStatus::Maintenance,
+        'api_token_hash' => hash('sha256', 'maint-token'),
+        'last_seen_at' => now()->subHour(),
+    ]);
+
+    $this->postJson(route('api.devices.heartbeat', $device), [
+        'status' => 'online',
+    ], [
+        'X-Device-Token' => 'maint-token',
+    ])->assertOk()
+        ->assertJsonPath('data.status', 'maintenance');
+
+    expect($device->fresh()->status)->toBe(HardwareStatus::Maintenance)
+        ->and($device->fresh()->last_seen_at?->greaterThan(now()->subMinute()))->toBeTrue();
+});
+
 it('forbids hardware settings without view-devices', function () {
     $user = User::factory()->withRole('SCC Operator')->create();
 

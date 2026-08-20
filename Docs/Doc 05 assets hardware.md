@@ -190,7 +190,7 @@ Retired devices: setting status `retired` invalidates the token (treated as no v
 - The next heartbeat/ingest/frame from an offline device/camera flips `status` back to `online` and resolves the open offline alert (`resolveByDedupeKey`).
 
 ### 6.4 Maintenance suppression
-- A device or asset set to `maintenance` (③, e.g. gas detector removed for a bump test — DOC-11 §E-S3) is **skipped by `markStale`** — no offline alert while under maintenance. Restoring it to `active` re-enables monitoring.
+- A device or asset set to `maintenance` (③, e.g. gas detector removed for a bump test — DOC-11 §E-S3) is **skipped by `markStale`** — no offline alert while under maintenance. Heartbeat/ingest may still refresh `last_seen_at` but **must not** flip the device out of `maintenance` (agents post `status=online`). Only an operator status change restores monitoring / Live View.
 
 ### 6.5 Escalation (gas telemetry)
 - If a `gas_detector` (or its `wifi_gateway`) stays offline **> 30 minutes**, raise an additional **critical** `system` alert ("Gas telemetry lost on {asset} — detector local alarms still active; dispatch a check"), because on-detector alarms still protect the crew even when the dashboard is blind (proposal §6.2). This is the one health case escalated to critical.

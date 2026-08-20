@@ -244,7 +244,8 @@ final class HardwareRegistryService
     }
 
     /**
-     * Update last_seen_at and restore Online (unless Maintenance). Used by device auth.
+     * Update last_seen_at and restore Online (unless operator-held Maintenance).
+     * Used by device auth + heartbeats. Explicit heartbeat status must not leave maintenance.
      */
     public function touchPresence(Device $device, ?HardwareStatus $status = null): Device
     {
@@ -253,11 +254,16 @@ final class HardwareRegistryService
         }
 
         $previousStatus = $device->status;
-        $nextStatus = match (true) {
-            $status !== null => $status,
-            $device->status === HardwareStatus::Maintenance => HardwareStatus::Maintenance,
-            default => HardwareStatus::Online,
-        };
+
+        // Operator-set maintenance is sticky until an operator restores status (DOC-05 §6.4).
+        // Edge agents always post status=online; that must not undo disable-without-delete.
+        if ($previousStatus === HardwareStatus::Maintenance) {
+            $device->forceFill(['last_seen_at' => now()])->save();
+
+            return $device->fresh() ?? $device;
+        }
+
+        $nextStatus = $status ?? HardwareStatus::Online;
 
         $device->forceFill([
             'last_seen_at' => now(),
