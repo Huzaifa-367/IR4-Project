@@ -35,6 +35,8 @@ IR4 is a **standalone, on-premise safety command-centre platform**. A single ins
 
 **On-premise hard rule (applies to every DOC):** no outbound internet HTTP anywhere — no CDN scripts or fonts, no analytics, no cloud SDKs, no external mail relays except a local SMTP host if configured. All fonts and assets are bundled and served by Vite. CI includes a grep check that fails the build on `https://` references to known CDN/analytics/cloud hosts in shipped code.
 
+**Documented exception (DOC-12):** when `weather.source=api`, the scheduler may call `api.openweathermap.org` (Current Weather only) using coordinates and API key from the **settings** table. Soft-fail if unreachable; never fall back to sensors automatically.
+
 **Packages to add on top of the fresh starter kit:**
 ```bash
 composer require spatie/laravel-permission laravel/reverb barryvdh/laravel-dompdf \

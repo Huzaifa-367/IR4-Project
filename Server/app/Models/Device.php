@@ -6,6 +6,7 @@ use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasPublicUuid;
+use App\Support\WeatherSettings;
 use Database\Factories\DeviceFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -105,6 +106,17 @@ final class Device extends Model
     public function scopeOperational(Builder $query): Builder
     {
         return $query->whereNotIn('status', HardwareStatus::nonOperationalValues());
+    }
+
+    /**
+     * Operator hardware registry — exclude system weather API device.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeFieldHardware(Builder $query): Builder
+    {
+        return $query->where('reference', '!=', WeatherSettings::DEVICE_REFERENCE);
     }
 
     public function hasToken(): bool

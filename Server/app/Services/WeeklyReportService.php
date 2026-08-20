@@ -24,6 +24,7 @@ use App\Models\VehicleViolation;
 use App\Models\WeeklyReport;
 use App\Notifications\WeeklyReportReadyNotification;
 use App\Support\SqlTimeBucket;
+use App\Support\WeatherSettings;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,7 @@ final class WeeklyReportService
         private readonly SignedStorageUrlService $signedUrls,
         private readonly PpeViolationService $ppe,
         private readonly LsrService $lsr,
+        private readonly WeatherSettings $weather,
     ) {}
 
     /**
@@ -402,8 +404,21 @@ final class WeeklyReportService
     private function itemWeather(Carbon $start, Carbon $end): array
     {
         $dayExpr = SqlTimeBucket::day('recorded_at');
-        $byDay = EnvironmentalReading::query()
-            ->whereBetween('recorded_at', [$start, $end])
+        $query = EnvironmentalReading::query()
+            ->whereBetween('recorded_at', [$start, $end]);
+
+        $systemDeviceId = $this->weather->systemDeviceId();
+        if ($this->weather->usesApi()) {
+            if ($systemDeviceId === null) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where('device_id', $systemDeviceId);
+            }
+        } elseif ($systemDeviceId !== null) {
+            $query->where('device_id', '!=', $systemDeviceId);
+        }
+
+        $byDay = $query
             ->selectRaw(implode(', ', [
                 "{$dayExpr} as day",
                 'MIN(temperature_c) as temp_min',

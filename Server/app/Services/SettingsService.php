@@ -69,6 +69,13 @@ final class SettingsService
         }
 
         $normalized = $this->validateAndNormalize($key, $value, $definition);
+
+        if (SettingsRegistry::isSecret($key) && $normalized === SettingsRegistry::secretPlaceholder()) {
+            $existing = Setting::query()->where('key', $key)->first();
+
+            return $existing ?? new Setting(['key' => $key, 'value' => '']);
+        }
+
         $old = $this->get($key);
         $actorId = $actor?->getKey() ?? auth()->id();
 
@@ -83,12 +90,14 @@ final class SettingsService
         Cache::forget($this->cacheKey($key));
 
         if ($old !== $normalized) {
+            $auditOld = SettingsRegistry::isSecret($key) ? $this->maskSecret((string) $old) : $old;
+            $auditNew = SettingsRegistry::isSecret($key) ? $this->maskSecret((string) $normalized) : $normalized;
             $this->audit->record(
                 AuditEvent::ConfigChanged,
                 $setting,
                 "Setting {$key} changed.",
-                oldValues: ['key' => $key, 'value' => $old],
-                newValues: ['key' => $key, 'value' => $normalized],
+                oldValues: ['key' => $key, 'value' => $auditOld],
+                newValues: ['key' => $key, 'value' => $auditNew],
                 user: $actor,
             );
         }
@@ -151,6 +160,11 @@ final class SettingsService
             $canEdit = ($definition['editable'] ?? true)
                 && $user->can($permission);
             $row = $rows->get($key);
+            $rawValue = $this->get($key);
+            $isSecret = SettingsRegistry::isSecret($key);
+            $displayValue = $isSecret && is_string($rawValue) && $rawValue !== ''
+                ? SettingsRegistry::secretPlaceholder()
+                : $rawValue;
 
             $grouped[$definition['group']]['settings'][] = [
                 'key' => $key,
@@ -158,12 +172,13 @@ final class SettingsService
                 'description' => $definition['description'] ?? null,
                 'type' => $definition['type'],
                 'unit' => $definition['unit'] ?? null,
-                'value' => $this->get($key),
+                'value' => $displayValue,
                 'default' => $definition['default'],
                 'min' => $definition['min'] ?? null,
                 'max' => $definition['max'] ?? null,
                 'options' => $definition['options'] ?? null,
                 'requires_confirm' => $definition['requires_confirm'],
+                'secret' => $isSecret,
                 'editable' => $canEdit,
                 'permission' => $permission,
                 'updated_at' => optional($row?->updated_at)?->toIso8601String(),
@@ -366,5 +381,14 @@ final class SettingsService
     private function cacheKey(string $key): string
     {
         return "ir4.settings.{$key}";
+    }
+
+    private function maskSecret(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        return SettingsRegistry::secretPlaceholder();
     }
 }

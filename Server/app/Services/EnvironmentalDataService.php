@@ -11,6 +11,8 @@ use App\Support\HardwarePresence;
 use App\Support\Ingest\IngestEventRejected;
 use App\Support\Ingest\IngestTimestamps;
 use App\Support\Ingest\ReferenceResolver;
+use App\Support\WeatherSettings;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -25,6 +27,7 @@ final class EnvironmentalDataService
         private readonly ReferenceResolver $references,
         private readonly AlertService $alerts,
         private readonly SettingsService $settings,
+        private readonly WeatherSettings $weather,
     ) {}
 
     /**
@@ -72,9 +75,14 @@ final class EnvironmentalDataService
      */
     public function latest(): array
     {
+        if ($this->weather->usesApi()) {
+            return $this->latestFromApiSource();
+        }
+
         $staleMinutes = (int) $this->settings->get('health.sensor_stale_minutes', 5);
 
         return array_values(Device::query()
+            ->fieldHardware()
             ->operational()
             ->where('device_type', DeviceType::EnvironmentalSensor)
             ->with('asset')
@@ -86,7 +94,10 @@ final class EnvironmentalDataService
                     ->latest('recorded_at')
                     ->first();
 
-                return $this->sensorPayload($device, $reading, $staleMinutes);
+                $payload = $this->sensorPayload($device, $reading, $staleMinutes);
+                $payload['weather_source'] = WeatherSettings::SOURCE_SENSOR;
+
+                return $payload;
             })
             ->all());
     }
@@ -102,14 +113,13 @@ final class EnvironmentalDataService
     ): array {
         $from = Carbon::instance($from);
         $to = Carbon::instance($to);
+        $resolvedDeviceId = $this->resolveTrendDeviceId($deviceId);
+
         if ($from->diffInHours($to) <= 24) {
-            $query = EnvironmentalReading::query()
+            $points = array_values($this->readingsQuery($resolvedDeviceId)
                 ->whereBetween('recorded_at', [$from, $to])
-                ->orderBy('recorded_at');
-            if ($deviceId !== null) {
-                $query->where('device_id', $deviceId);
-            }
-            $points = array_values($query->get()
+                ->orderBy('recorded_at')
+                ->get()
                 ->map(fn (EnvironmentalReading $reading): array => $this->rawPoint($reading, $parameter))
                 ->filter(fn (array $point): bool => $point['avg'] !== null)
                 ->all());
@@ -117,7 +127,7 @@ final class EnvironmentalDataService
             return ['points' => $points, 'source' => 'raw'];
         }
 
-        return $this->trendsFromRawHourly($parameter, $deviceId, $from, $to);
+        return $this->trendsFromRawHourly($parameter, $resolvedDeviceId, $from, $to);
     }
 
     /**
@@ -131,12 +141,9 @@ final class EnvironmentalDataService
         Carbon $from,
         Carbon $to,
     ): array {
-        $query = EnvironmentalReading::query()
-            ->whereBetween('recorded_at', [$from, $to]);
-        if ($deviceId !== null) {
-            $query->where('device_id', $deviceId);
-        }
-        $readings = $query->get();
+        $readings = $this->readingsQuery($deviceId)
+            ->whereBetween('recorded_at', [$from, $to])
+            ->get();
         if ($readings->isEmpty()) {
             return ['points' => [], 'source' => 'raw-hourly'];
         }
@@ -464,5 +471,65 @@ final class EnvironmentalDataService
         $driverCode = (int) ($exception->errorInfo[1] ?? 0);
 
         return $sqlState === '23000' || $driverCode === 1062 || str_contains($exception->getMessage(), 'UNIQUE');
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function latestFromApiSource(): array
+    {
+        $staleMinutes = $this->weather->staleMinutes();
+        $device = $this->weather->systemDevice();
+        $reading = EnvironmentalReading::query()
+            ->where('device_id', $device->id)
+            ->latest('recorded_at')
+            ->first();
+
+        $payload = $this->sensorPayload($device, $reading, $staleMinutes);
+        $payload['weather_source'] = WeatherSettings::SOURCE_API;
+
+        return [$payload];
+    }
+
+    private function resolveTrendDeviceId(?int $requestedDeviceId): ?int
+    {
+        if ($this->weather->usesApi()) {
+            return $this->weather->systemDeviceId();
+        }
+
+        $systemId = $this->weather->systemDeviceId();
+        if ($requestedDeviceId !== null && $systemId !== null && $requestedDeviceId === $systemId) {
+            return null;
+        }
+
+        return $requestedDeviceId;
+    }
+
+    /**
+     * @return Builder<EnvironmentalReading>
+     */
+    private function readingsQuery(?int $deviceId = null): Builder
+    {
+        $query = EnvironmentalReading::query();
+
+        if ($this->weather->usesApi()) {
+            $systemId = $this->weather->systemDeviceId();
+            if ($systemId === null) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            return $query->where('device_id', $systemId);
+        }
+
+        $systemId = $this->weather->systemDeviceId();
+        if ($deviceId !== null) {
+            return $query->where('device_id', $deviceId);
+        }
+
+        if ($systemId !== null) {
+            $query->where('device_id', '!=', $systemId);
+        }
+
+        return $query;
     }
 }

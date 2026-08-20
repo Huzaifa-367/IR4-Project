@@ -22,7 +22,7 @@ final class DeviceController extends BaseController
     {
         $this->authorize('viewAny', Device::class);
 
-        $query = Device::query()->with('asset:id,uuid,name');
+        $query = Device::query()->fieldHardware()->with('asset:id,uuid,name');
 
         if ($request->filled('device_type')) {
             $query->where('device_type', $request->string('device_type')->toString());

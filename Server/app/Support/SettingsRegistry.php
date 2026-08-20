@@ -17,7 +17,8 @@ namespace App\Support;
  *     max?: int|float,
  *     options?: list<string>,
  *     editable?: bool,
- *     unit?: string
+ *     unit?: string,
+ *     secret?: bool
  * }
  */
 final class SettingsRegistry
@@ -54,6 +55,24 @@ final class SettingsRegistry
                 'requires_confirm' => false,
                 'label' => 'Default theme',
                 'options' => ['dark', 'light'],
+            ],
+            'general.site_latitude' => [
+                'default' => '',
+                'type' => 'string',
+                'group' => 'general',
+                'permission' => 'update-settings',
+                'requires_confirm' => false,
+                'label' => 'Site latitude',
+                'description' => 'SCC coordinates for OpenWeatherMap (decimal degrees). Use Refresh location or enter manually.',
+            ],
+            'general.site_longitude' => [
+                'default' => '',
+                'type' => 'string',
+                'group' => 'general',
+                'permission' => 'update-settings',
+                'requires_confirm' => false,
+                'label' => 'Site longitude',
+                'description' => 'SCC coordinates for OpenWeatherMap (decimal degrees). Use Refresh location or enter manually.',
             ],
 
             'auth.session_timeout_minutes' => [
@@ -371,6 +390,57 @@ final class SettingsRegistry
                 'editable' => false,
             ],
 
+            'weather.source' => [
+                'default' => 'api',
+                'type' => 'enum',
+                'group' => 'weather',
+                'permission' => 'update-settings',
+                'requires_confirm' => false,
+                'label' => 'Weather source',
+                'description' => 'Exclusive: sensor (edge environmental_sensor) or api (OpenWeatherMap). No automatic fallback.',
+                'options' => ['sensor', 'api'],
+            ],
+            'weather.provider' => [
+                'default' => 'openweathermap',
+                'type' => 'enum',
+                'group' => 'weather',
+                'permission' => 'update-settings',
+                'requires_confirm' => false,
+                'label' => 'Weather API provider',
+                'options' => ['openweathermap'],
+            ],
+            'weather.api_base_url' => [
+                'default' => 'https://api.openweathermap.org',
+                'type' => 'string',
+                'group' => 'weather',
+                'permission' => 'update-settings',
+                'requires_confirm' => true,
+                'label' => 'Weather API base URL',
+                'description' => 'OpenWeatherMap host (default free API).',
+            ],
+            'weather.api_key' => [
+                'default' => '',
+                'type' => 'string',
+                'group' => 'weather',
+                'permission' => 'update-settings',
+                'requires_confirm' => true,
+                'secret' => true,
+                'label' => 'OpenWeatherMap API key',
+                'description' => 'Required when weather source is api. Stored in settings DB — not .env.',
+            ],
+            'weather.refresh_minutes' => [
+                'default' => 60,
+                'type' => 'int',
+                'group' => 'weather',
+                'permission' => 'update-settings',
+                'requires_confirm' => false,
+                'label' => 'Weather API refresh interval',
+                'unit' => 'minutes',
+                'min' => 5,
+                'max' => 1440,
+                'description' => 'How often the scheduler polls OpenWeatherMap (manual artisan always fetches).',
+            ],
+
             'equipment.public_rate_limit_per_min' => [
                 'default' => 30,
                 'type' => 'int',
@@ -544,9 +614,22 @@ final class SettingsRegistry
             'tracking' => 'Tracking / RFID',
             'gas' => 'Gas',
             'environment' => 'Dashboard — Environment',
+            'weather' => 'Dashboard — Weather',
             'equipment' => 'Equipment / QR',
             'reports' => 'Reports',
             'retention' => 'Administration — Retention & backup',
         ];
+    }
+
+    public static function isSecret(string $key): bool
+    {
+        $definition = self::get($key);
+
+        return (bool) ($definition['secret'] ?? false);
+    }
+
+    public static function secretPlaceholder(): string
+    {
+        return '********';
     }
 }

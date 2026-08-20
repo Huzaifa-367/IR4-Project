@@ -8,9 +8,15 @@ use App\Models\Device;
 use App\Models\EnvironmentalReading;
 use App\Models\IngestEvent;
 use App\Models\User;
+use App\Services\SettingsService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
+
+beforeEach(function () {
+    Cache::flush();
+    app(SettingsService::class)->set('weather.source', 'sensor');
+});
 
 function environmentHeaders(string $token): array
 {

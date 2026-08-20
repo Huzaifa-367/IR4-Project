@@ -10,6 +10,7 @@ export type SettingGroupKey =
     | 'tracking'
     | 'gas'
     | 'environment'
+    | 'weather'
     | 'equipment'
     | 'reports'
     | 'retention';
@@ -26,6 +27,7 @@ export type SettingSchema = {
     max: number | null;
     options: string[] | null;
     requires_confirm: boolean;
+    secret?: boolean;
     editable: boolean;
     permission: string;
     updated_at: string | null;

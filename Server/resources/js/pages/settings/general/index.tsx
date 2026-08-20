@@ -42,11 +42,14 @@ export default function GeneralSettingsPage({
         value: string | number | boolean;
     } | null>(null);
     const [processing, setProcessing] = useState(false);
+    const [locating, setLocating] = useState(false);
+    const [locationError, setLocationError] = useState<string | null>(null);
 
     if (initialValues !== prevInitialValues) {
         setPrevInitialValues(initialValues);
         setValues(initialValues);
         setConfirmedKeys([]);
+        setLocationError(null);
     }
 
     const settingIndex = useMemo(() => {
@@ -60,6 +63,10 @@ export default function GeneralSettingsPage({
 
         return map;
     }, [groups]);
+
+    const canEditCoords =
+        (settingIndex.get('general.site_latitude')?.editable ?? false) &&
+        (settingIndex.get('general.site_longitude')?.editable ?? false);
 
     const dirtyKeys = Object.keys(values).filter((key) => {
         const setting = settingIndex.get(key);
@@ -88,9 +95,48 @@ export default function GeneralSettingsPage({
         setConfirmedKeys((current) => current.filter((item) => item !== key));
     };
 
+    const refreshLocation = (): void => {
+        if (!canEditCoords || locating) {
+            return;
+        }
+
+        if (!navigator.geolocation) {
+            setLocationError('Geolocation is not available in this browser.');
+
+            return;
+        }
+
+        setLocating(true);
+        setLocationError(null);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude.toFixed(6);
+                const lon = position.coords.longitude.toFixed(6);
+                setValues((current) => ({
+                    ...current,
+                    'general.site_latitude': lat,
+                    'general.site_longitude': lon,
+                }));
+                setLocating(false);
+            },
+            (error) => {
+                const message =
+                    error.code === error.PERMISSION_DENIED
+                        ? 'Location permission denied.'
+                        : error.code === error.TIMEOUT
+                          ? 'Location request timed out.'
+                          : 'Unable to determine location.';
+                setLocationError(message);
+                setLocating(false);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+        );
+    };
+
     const discard = (): void => {
         setValues(initialValues);
         setConfirmedKeys([]);
+        setLocationError(null);
     };
 
     const submit = (): void => {
@@ -150,6 +196,35 @@ export default function GeneralSettingsPage({
                                         </Link>
                                         .
                                     </p>
+                                ) : group.key === 'general' &&
+                                  canEditCoords ? (
+                                    <div className="flex flex-col gap-2 border-t border-border pt-3">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={refreshLocation}
+                                                disabled={
+                                                    locating || processing
+                                                }
+                                            >
+                                                {locating
+                                                    ? 'Detecting…'
+                                                    : 'Refresh location'}
+                                            </Button>
+                                            <p className="text-xs text-text-dim">
+                                                Fills latitude/longitude from
+                                                this browser (use at the SCC),
+                                                then Save.
+                                            </p>
+                                        </div>
+                                        {locationError ? (
+                                            <p className="text-xs text-[color:var(--danger)]">
+                                                {locationError}
+                                            </p>
+                                        ) : null}
+                                    </div>
                                 ) : null
                             }
                         />

@@ -60,6 +60,19 @@ Consolidated from DOC-02–17. Each row: key · default · unit/type · edit per
 | `general.timezone` | `Asia/Riyadh` | tz string | update-settings | display/reports/scheduler (DOC-01) |
 | `general.locale` | `en` | string | update-settings | UI |
 | `general.theme_default` | `dark` | enum(dark,light) | update-settings | DOC-16 |
+| `general.site_latitude` | `''` | string (decimal degrees) | update-settings | weather API (DOC-12) |
+| `general.site_longitude` | `''` | string (decimal degrees) | update-settings | weather API (DOC-12) |
+
+### 4.1b Weather (DOC-12)
+| key | default | type | edit perm | used by |
+|---|---|---|---|---|
+| `weather.source` | `api` | enum(sensor,api) | update-settings | exclusive env source |
+| `weather.provider` | `openweathermap` | enum | update-settings | API client |
+| `weather.api_base_url` | `https://api.openweathermap.org` | string + confirm | update-settings | API client |
+| `weather.api_key` | `''` | string + confirm + secret | update-settings | OWM `appid` (settings DB, not `.env`) |
+| `weather.refresh_minutes` | `60` | int 5–1440 | update-settings | scheduler poll interval |
+
+---
 
 ### 4.2 Authentication & session (DOC-02)
 | key | default | type | edit perm | used by |

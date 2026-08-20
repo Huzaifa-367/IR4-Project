@@ -14,9 +14,24 @@ Site conditions (heat, humidity, wind, air quality) matter for safety planning a
 
 ## 2. Data origin
 
-- **① device:** readings via `/api/ingest/environmental-readings` (DOC-08) from an `environmental_sensor` device (edge RS485).
-- **② system:** weekly stats (SQL aggregates over raw), live-widget broadcast.
-- **③ user:** **none.** No thresholds, no manual entry, no review. Pure display/report data.
+- **① device:** readings via `/api/ingest/environmental-readings` (DOC-08) from an `environmental_sensor` device (edge RS485), when `weather.source=sensor`.
+- **② system:** OpenWeatherMap **Current Weather** poll (`ir4:fetch-weather-api`) when `weather.source=api`, on the schedule set by `weather.refresh_minutes`. Uses SCC lat/lon from settings; weekly stats (SQL aggregates over raw), live-widget broadcast. Each successful poll inserts one `environmental_readings` row (no cache / no skip-if-recent).
+- **③ user:** **none** for readings. Source, API key, and site coordinates are runtime **settings** (DOC-18) — not `.env`.
+
+`weather.source` is **exclusive**: never fall back from api→sensor or sensor→api. If the API is unreachable, keep the last successful snapshot and wait for the next scheduled poll. Manual `php artisan ir4:fetch-weather-api` always fetches and stores a row when the call succeeds.
+
+### 2.1 OpenWeatherMap free Current Weather fields used
+
+`GET /data/2.5/weather?lat=&lon=&units=metric&appid=` maps to:
+
+| OWM field | IR4 |
+|---|---|
+| `main.temp` | `temperature_c` |
+| `main.humidity` | `humidity_pct` |
+| `wind.speed` | `wind_speed_ms` |
+| `main.feels_like`, `main.pressure`, `wind.deg`/`gust`, `clouds.all`, `visibility`, `weather[0].id` | `extra.*` (numeric) |
+
+Coordinates: `general.site_latitude` / `general.site_longitude` (Settings UI **Refresh location** uses browser geolocation, then Save).
 
 ---
 

@@ -73,8 +73,21 @@ Schedule::job(new PruneExportFiles)
     ->name('ir4:prune-export-files')
     ->withoutOverlapping(60);
 
-// Expired Laravel DB cache/locks — runs inline (not queued) every hour.
-// Hostinger: requires cron `* * * * * php artisan schedule:run` and DELETE on `cache`.
+// Weather poll — frequency from weather.refresh_minutes; each run fetches and stores a row.
+$weatherRefreshMinutes = max(5, min(1440, (int) app(SettingsService::class)->get('weather.refresh_minutes', 60)));
+$weatherCron = $weatherRefreshMinutes < 60
+    ? sprintf('*/%d * * * *', $weatherRefreshMinutes)
+    : ($weatherRefreshMinutes % 60 === 0
+        ? (intdiv($weatherRefreshMinutes, 60) === 1
+            ? '0 * * * *'
+            : sprintf('0 */%d * * *', intdiv($weatherRefreshMinutes, 60)))
+        : '0 * * * *');
+
+Schedule::command('ir4:fetch-weather-api')
+    ->cron($weatherCron)
+    ->name('ir4:fetch-weather-api')
+    ->withoutOverlapping(max(1, $weatherRefreshMinutes - 1));
+
 Schedule::command('ir4:prune-expired-cache')
     ->hourly()
     ->name('ir4:prune-expired-cache')
