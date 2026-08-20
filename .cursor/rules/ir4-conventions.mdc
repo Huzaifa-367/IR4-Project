@@ -62,7 +62,7 @@ PHP 8.4+, Laravel 13.9+, Laravel React Starter Kit (React 19 + TypeScript + Iner
 
 ## 4. Global data conventions
 
-- Soft deletes on compliance/evidence/log tables. **Exception:** `audit_logs` is append-only (no `deleted_at`, never pruned; only the privileged DOC-19 wipe may remove them).
+- Soft deletes on compliance/evidence/log tables. **Exception:** `audit_logs` is append-only (no `deleted_at`, never pruned, never deleted by the app).
 - `created_by` on human-writable tables; machine/system rows leave it null. Actor columns (`generated_by`, `published_by`, `logged_by`, …) follow the same nullable-FK pattern.
 - No `site_id`/tenant column ever.
 - Timestamps UTC. Enums: PHP backed enums are mirrored in `resources/js/types/enums.ts` (keep both in sync when adding cases).

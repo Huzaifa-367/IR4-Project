@@ -72,7 +72,7 @@ Integration tests that exercise a whole flow across DOCs — the highest-value t
 9. **Equipment lifecycle:** import → one-click labels → mobile-scan checkout → return (damaged → maintenance) → overdue flag; worker with open checkout can't be offboarded (DOC-13/04).
 10. **Weekly report:** seed a week of module data (incl. an outage) → generate → all 9 items present, PPE excludes false positives, incidents/LSR auto-included, completeness note for the outage → publish (lock) → regenerate → supersedes, original intact (DOC-15).
 11. **Read-only client week:** a read-only-role user browses dashboards/reports → every request writes `data_access` → they can't reach any write route (DOC-03/17).
-12. **End-of-project:** seed data → `ir4:export-all` archive verifiable → `ir4:secure-wipe` refuses without a verified export, then wipes and records the marker (DOC-19).
+12. **End-of-project:** Spatie backups copy off-box (DOC-19).
 
 ---
 
@@ -102,7 +102,6 @@ The pipeline fails on any of:
 - **PHPStan** (high level) — static analysis on app code.
 - **TypeScript** `tsc --noEmit` — no type errors.
 - **Enum sync** — a check that every PHP backed enum has a matching TS union in `enums.ts` (DOC-01 §6) — values can't drift between backend and frontend.
-- **PERMISSIONS.md** — Super Admin holds every permission and every permission is exported (DOC-03 §regeneration).
 - **On-prem / standalone grep guards** — CI greps that fail the build if forbidden patterns appear:
   - no `site_id` / `sites` table / location-segmented codes (standalone, DOC-01).
   - no `worker_id` on `ppe_violations` (DOC-10).
@@ -154,7 +153,7 @@ DOC-01 through DOC-21 form the complete build specification for the IR4 Safety C
 - **Cross-cutting systems (07–08):** unified alerts, ingestion + real-time backbone.
 - **Modules (09–14):** RFID tracking, PPE, gas/CO₂, environmental, QR equipment (+ custody), HSE incidents & LSR.
 - **Surfaces & reporting (15–16):** weekly report, dashboard + display + design language.
-- **Operations (17–20):** audit, settings, retention/wipe, deployment runbook.
+- **Operations (17–20):** audit, settings, retention/backup/export, deployment runbook.
 - **Quality (21):** this testing strategy.
 
 Every module DOC carries its own Tests section; this document aggregates them into a matrix, a scenario catalogue, the invariant guards, and the CI gates — so the hard rules the design depends on are enforced continuously, not just asserted in prose.

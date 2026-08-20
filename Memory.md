@@ -22,12 +22,12 @@
 
 ### Phase 9d — Settings (DOC-18)
 - [x] `SettingsRegistry` + validated `SettingsService` whitelist/`config_changed`
-- [x] Legacy settings key migration; printer host/port in `.env`/`config/ir4.php`
+- [x] Runtime settings registry only (canonical keys; no legacy alias map)
 - [x] `/settings/general` grouped editor with per-key permissions + confirm
 
 ### Phase 9e — Retention & backup (DOC-19)
 - [x] `PruneRawSensorData`, `PruneExportFiles`
-- [x] Encrypted Spatie backup/cleanup/monitoring; events → `AlertService` (no mail); `ir4:export-all`, `ir4:secure-wipe`
+- [x] Encrypted Spatie backup/cleanup/monitoring; events → `AlertService` (no mail)
 - [x] Disk-space / missing-backup `system` alerts
 
 ### Docs
@@ -42,7 +42,7 @@
 - [x] `/live` renders browser-safe MediaMTX feeds; raw RTSP URLs and credentials remain server-side
 
 ### Demo data
-- [x] Non-production `DemoSeeder` — ~4 months of site scenario data
+- [x] `ir4:install` seeds Super Admin + **initial site registry** (`DemoSeeder`: poles, devices, cameras, workers, equipment)
 
 ---
 
@@ -56,12 +56,11 @@ _None — Control Room UI pass landed; module pages inherit tokens/components ne
 
 - Prior decisions still apply
 - DOC-18 registry wins for `retention.exports_days` = **7** (DOC-19 prose corrected)
-- Secure wipe default mode = **crypto_erase**; overwrite available via `IR4_WIPE_MODE`
+- No in-app export-all or wipe command — decommissioning is a host/ops step after copying Spatie backups
 - No sensor rollup tables — gas and env trends/reports use on-read SQL aggregates; gas/env/tag raw rows prune after window unconditionally
 - No tag-reading rollup table — manpower stays entry/exit-derived; tags prune after window unconditionally
-- Wipe writes a separate receipt on the exports disk (does not mutate a verified handover archive)
-- `dashboard.cache_seconds` is canonical (replaces `dashboard.cache_ttl_seconds`)
-- `DemoSeeder` is local/staging only; skips if `Main Gate` zone already exists; never runs in production
+- `dashboard.cache_seconds` is canonical (no legacy settings-key aliases)
+- `DemoSeeder` is the initial site registry on `ir4:install` (idempotent on `AST-POLE-01`); extra convenience logins are non-production only
 - Docs 01–21 are the complete authoritative specification set
 - **Frontend chrome + `/dashboard` layout:** `Docs/Ir4 ui styling guide.md` + `Docs/Ir4 dashboard mockup.html` are authoritative (dark-first Control Room tokens, Inter / Inter Tight / JetBrains Mono via `@fontsource`, shared `components/ir4/*`). Module pages inherit. The 55″ wall casts `/dashboard` (no separate kiosk).
 - Dashboard summary includes mockup analytics: headcount flow/sparklines, PPE compliance + heatmap, multi-series H₂S trend (`gas_range`), safety score, evacuation readiness, open incidents/LSR table. Default shift window **06:00–18:00** `[CONFIRM AT DESIGN]`.
@@ -94,7 +93,7 @@ _None — Control Room UI pass landed; module pages inherit tokens/components ne
 | Settings registry | `app/Support/SettingsRegistry.php` |
 | Settings service / UI | `app/Services/SettingsService.php`, `resources/js/pages/settings/general/index.tsx` |
 | Retention | `app/Services/RetentionService.php` |
-| Backup / export / wipe | `app/Services/Backup/*`, `app/Console/Commands/{Backup,Restore,ExportAll,SecureWipe}*` |
+| Backup | `app/Services/RetentionService.php`, Spatie `backup:*` |
 | Doc18 / Doc19 tests | `tests/Feature/Settings/Doc18SettingsTest.php`, `tests/Feature/Retention/Doc19RetentionBackupTest.php` |
 | Demo seeder | `database/seeders/DemoSeeder.php` |
 | Deploy runbook | `Docs/Doc 20 deployment runbook.md` |

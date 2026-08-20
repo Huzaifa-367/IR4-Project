@@ -1,10 +1,17 @@
 <?php
 
+use App\Enums\TagStatus;
+use App\Models\Asset;
+use App\Models\Camera;
+use App\Models\RfidTag;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Worker;
 use App\Services\RoleService;
 use App\Services\UserProvisioningService;
 use App\Support\PermissionCatalogue;
+use App\Support\SiteRfidTags;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
@@ -203,7 +210,53 @@ it('creates the first Super Admin via ir4:install', function () {
     $user = User::query()->where('email', 'root@ir4.local')->firstOrFail();
 
     expect($user->hasRole('Super Admin'))->toBeTrue()
-        ->and($user->must_change_password)->toBeTrue();
+        ->and($user->must_change_password)->toBeTrue()
+        ->and(Asset::query()->where('identifier', 'AST-POLE-01')->exists())->toBeTrue()
+        ->and(Camera::query()->where('reference', 'CAM-PTZ-01')->value('stream_url'))
+        ->toBe('rtsp://admin:Unity@320@@172.16.3.10:554/Streaming/Channels/101')
+        ->and(Camera::query()->where('reference', 'CAM-FIXED-01')->value('stream_url'))
+        ->toBe('rtsp://admin:Unity@320@@172.16.3.11:554/Streaming/Channels/101');
+
+    $epcs = SiteRfidTags::all();
+
+    expect(RfidTag::query()->where('tag_uid', 'like', 'E280%')->exists())->toBeFalse()
+        ->and(RfidTag::query()->orderBy('tag_uid')->pluck('tag_uid')->all())->toBe($epcs)
+        ->and(Worker::query()->where('employee_code', 'EMP-0001')->first()?->tags()->value('tag_uid'))
+        ->toBe($epcs[0])
+        ->and(Worker::query()->where('employee_code', 'EMP-0002')->first()?->tags()->value('tag_uid'))
+        ->toBe($epcs[1])
+        ->and(Worker::query()->where('employee_code', 'EMP-0003')->first()?->tags()->value('tag_uid'))
+        ->toBe($epcs[2])
+        ->and(RfidTag::query()->where('status', TagStatus::InStock)->count())->toBe(count($epcs) - 3);
+});
+
+it('seeds only catalogue permission names on starter roles', function () {
+    $catalogue = PermissionCatalogue::all();
+
+    foreach (RolePermissionSeeder::starterRoleDefinitions() as $definition) {
+        expect(array_values(array_diff($definition['permissions'], $catalogue)))->toBe([]);
+    }
+});
+
+it('prunes permission names that are not in the catalogue', function () {
+    Permission::findOrCreate('manage-workers', PermissionCatalogue::GUARD);
+
+    $this->seed(RolePermissionSeeder::class);
+
+    expect(Permission::query()->where('name', 'manage-workers')->exists())->toBeFalse()
+        ->and(Permission::query()->where('guard_name', PermissionCatalogue::GUARD)->count())
+        ->toBe(count(PermissionCatalogue::all()));
+});
+
+it('blocks deleting the last Super Admin account', function () {
+    $admin = User::factory()->withRole('Super Admin')->create();
+
+    $this->actingAs($admin)
+        ->from(route('profile.edit'))
+        ->delete(route('profile.destroy'), ['password' => 'password']);
+
+    expect($admin->fresh())->not->toBeNull()
+        ->and($admin->fresh()?->trashed())->toBeFalse();
 });
 
 it('keeps the committed Permission catalogue mirror in enums.ts', function () {

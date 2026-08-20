@@ -175,7 +175,7 @@ Prefer **deactivation** over deletion to preserve audit/history integrity:
 - **Guard:** a worker with an `assigned` tag must have the tag unassigned first (DOC-09) → 409 otherwise. The UI offers a combined "offboard" action that unassigns the tag (marking it back to the spare pool) and then deactivates, in one audited transaction.
 - **Guard:** a worker with any **open equipment checkout** must return (or reassign) those items first (DOC-13) → 409 otherwise. The offboard flow surfaces "N items still checked out."
 - **Deactivation** (`is_active=false`) keeps the row and all references intact; the worker vanishes from active lists but their historical incidents/LSR/entry-exit remain linked and reportable.
-- **Soft delete** is reserved for genuine data-entry mistakes / GDPR-style removal; it hides the worker but keeps FK integrity via `nullOnDelete` on downstream references where configured. Actual hard removal only via the end-of-project wipe (DOC-19).
+- **Soft delete** is reserved for genuine data-entry mistakes / GDPR-style removal; it hides the worker but keeps FK integrity via `nullOnDelete` on downstream references where configured.
 
 ### 6.5 Reactivation
 A deactivated worker can be reactivated by `manage-workers` (audited) and re-issued a tag.

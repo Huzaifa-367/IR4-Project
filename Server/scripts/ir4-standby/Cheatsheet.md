@@ -22,8 +22,10 @@ Device letters: **t** heartbeat · **g** gas · **r** rfid · **h** helmet · **
 | `php artisan ir4:s g all --alarm --loop` | Alarm gas for all poles every 30s |
 | `php artisan ir4:s g 1 --alarm --loop` | Alarm gas for pole 1 every 30s |
 | `php artisan ir4:s g 1` / `g all` | One-shot ambient (add `--alarm` to spike) |
-| `php artisan ir4:s r 2 3` | RFID at pole 2, tag 3 (omit tag → 1) |
+| `php artisan ir4:s r 2 3` | RFID at pole 2, 3rd site EPC (omit → first; or pass a full EPC) |
 | `php artisan ir4:s h 1` | Missing helmet, no photo |
 | `php artisan ir4:s v 3` | Missing vest, no photo |
+
+RFID indexes are 1-based into `Server/database/data/rfid_tags.php` (physical `AA0004EF55555555…` EPCs). `r 1` is the first of those, not a dummy `E280…` tag.
 
 On SCC2 from `/data2/laravel/IR4-Project`, prefer `lerd artisan …`. First time PPE without photos may need `lerd artisan migrate --force`.

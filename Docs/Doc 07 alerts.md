@@ -44,7 +44,7 @@ Schema::create('alerts', function (Blueprint $table) {
     $table->string('dedupe_key')->nullable()->index();    // groups repeat occurrences (§6)
     $table->unsignedInteger('occurrences')->default(1);   // bumped on dedup hit
     $table->timestamps();
-    $table->softDeletes();                                // never hard-deleted except end-of-project wipe
+    $table->softDeletes();                                // never pruned; compliance table
     $table->index(['status', 'severity']);
     $table->index(['alert_type', 'status']);
 });
@@ -223,7 +223,7 @@ List filters: `alert_type`, `severity`, `status`, `date_from/to`, plus standard 
 - **State machine:** valid transitions only; acknowledge sets who/when + audit row + broadcasts; resolve (manual) requires `configure-alerts`; resolved is terminal.
 - **Dedup:** a second `raise` with the same open `dedupe_key` bumps `occurrences` and does **not** insert a row or re-issue the suggested action; `resolveByDedupeKey` resolves the single open one; no-dedupe alerts always insert.
 - **Suggested actions, not auto-creation:** raising `fall_detection`/`stationary_tag`/`worker_down`/`red_zone_intrusion`/etc. creates **no** incident or LSR row on its own; the alert carries a `suggested_action` + prefill payload; a domain record appears only when a user submits the prefilled form (DOC-14), and that record links `alert_id`/`ppe_violation_id`.
-- **Never pruned:** retention job (DOC-19) leaves alerts untouched; only end-of-project wipe removes them.
+- **Never pruned:** retention job (DOC-19) leaves alerts untouched.
 - **No create endpoint:** there is no user route to insert an alert (only acknowledge/resolve exist).
 - **Delivery:** `AlertRaised`/`AlertUpdated` broadcast on the alerts channel with identity always stripped; HTTP poll/list still strip per viewer; poll endpoint returns current open set.
 - **Audible loop (component):** chime runs while an unacknowledged audible critical exists; stops on last acknowledge.

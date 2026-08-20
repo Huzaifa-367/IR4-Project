@@ -528,37 +528,6 @@ final class SettingsRegistry
     }
 
     /**
-     * Legacy key → canonical key (and optional value transformer name).
-     *
-     * @return array<string, array{key: string, transform?: 'minutes_to_seconds'|'identity'}>
-     */
-    public static function legacyMap(): array
-    {
-        return [
-            'timezone' => ['key' => 'general.timezone'],
-            'session_timeout_minutes' => ['key' => 'auth.session_timeout_minutes'],
-            'dashboard.cache_ttl_seconds' => ['key' => 'dashboard.cache_seconds'],
-            'gate_debounce_seconds' => ['key' => 'tracking.gate_debounce_seconds'],
-            'stationary_tag_minutes' => ['key' => 'tracking.stationary_tag_minutes'],
-            'tag_offsite_after_hours' => ['key' => 'tracking.tag_offsite_after_hours'],
-            'worker_down_correlation_minutes' => ['key' => 'tracking.worker_down_window_minutes'],
-            'ingest.clock_skew_minutes' => ['key' => 'ingest.future_skew_seconds', 'transform' => 'minutes_to_seconds'],
-            'ingest.backfill_minutes' => ['key' => 'ingest.backfill_after_seconds', 'transform' => 'minutes_to_seconds'],
-            'realtime.throttle_seconds' => ['key' => 'realtime.headcount_throttle_seconds'],
-            'gas.stale_minutes' => ['key' => 'health.gas_stale_minutes'],
-            'environment.stale_minutes' => ['key' => 'health.sensor_stale_minutes'],
-            'equipment.public_rate_limit' => ['key' => 'equipment.public_rate_limit_per_min'],
-            'health.device_stale_minutes.rfid_reader' => ['key' => 'health.reader_stale_minutes'],
-            'health.device_stale_minutes.gas_detector' => ['key' => 'health.gas_stale_minutes'],
-            'health.device_stale_minutes.environmental_sensor' => ['key' => 'health.sensor_stale_minutes'],
-            'health.device_stale_minutes.wifi_gateway' => ['key' => 'health.sensor_stale_minutes'],
-            'health.device_stale_minutes.rs485_interface' => ['key' => 'health.sensor_stale_minutes'],
-            'health.device_stale_minutes.other' => ['key' => 'health.sensor_stale_minutes'],
-            'health.device_stale_minutes.edge_compute' => ['key' => 'health.edge_stale_minutes'],
-        ];
-    }
-
-    /**
      * Module-based editor sections. Labels align with {@see PermissionCatalogue::grouped()}
      * where the setting domain matches a RBAC module.
      *

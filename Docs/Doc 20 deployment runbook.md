@@ -1,8 +1,8 @@
 # DOC-20 — Deployment & Operations Runbook
 
-> **Depends on:** DOC-01 (stack, queues, scheduler, storage), DOC-02/08 (device + display auth on the LAN), DOC-05 (printer as a device), DOC-13 (public QR page + ZT411 printing), DOC-17 (append-only audit → DB grants), DOC-18 (config-vs-`.env`), DOC-19 (backups, restore, wipe). **Feeds:** the field-engineering team standing the system up; the acceptance sign-off.
+> **Depends on:** DOC-01 (stack, queues, scheduler, storage), DOC-02/08 (device + display auth on the LAN), DOC-05 (printer as a device), DOC-13 (public QR page + ZT411 printing), DOC-17 (append-only audit → DB grants), DOC-18 (config-vs-`.env`), DOC-19 (backups, restore). **Feeds:** the field-engineering team standing the system up; the acceptance sign-off.
 >
-> **Scope:** the **on-prem deployment and operations runbook** — server preparation (Dell R360), the app/queue/Reverb/scheduler process model, reverse-proxy + firewall LAN enforcement (public QR page and device ingest), ZT411 printer setup, database-permission hardening (append-only audit, wipe privileges), backup/restore/wipe drills, monitoring, and the **Phase-3 commissioning acceptance checklist**. **Out of scope:** application behavior (owned by the module DOCs) — this doc gets it running and keeps it running.
+> **Scope:** the **on-prem deployment and operations runbook** — server preparation (Dell R360), the app/queue/Reverb/scheduler process model, reverse-proxy + firewall LAN enforcement (public QR page and device ingest), ZT411 printer setup, database-permission hardening (append-only audit), backup/restore drills, monitoring, and the **Phase-3 commissioning acceptance checklist**. **Out of scope:** application behavior (owned by the module DOCs) — this doc gets it running and keeps it running.
 >
 > **Fresh box (ordered field steps):** [`SCC-SETUP.md`](../SCC-SETUP.md) (repo root) — OS → Lerd → `Server/scripts/01-setup.sh` → `.env` → migrate → **`ir4.target`** → MediaMTX → backups → reboot proof. This DOC-20 file holds the deeper rationale and acceptance checklist.
 
@@ -31,11 +31,10 @@
 The Laravel/Inertia app lives under **`Server/`** in the monorepo (Flutter under `Mobile/`, docs under `Docs/`).
 
 1. Clone the repo, then from `Server/`: `composer install --no-dev --optimize-autoloader`, `npm ci && npm run build` (Vite build; the built assets ship — no Node at runtime). **Inertia SSR is disabled** (`config/inertia.php` `ssr.enabled=false`) — operator pages are CSR after the Vite build; do not run an SSR Node process. Fonts are self-hosted `@fontsource` (Inter / Inter Tight / JetBrains Mono). Do not add Bunny Fonts or any other CDN font plugin (DOC-01 on-prem grep).
-2. `Server/.env` from the production template: `APP_KEY`, `APP_TIMEZONE`, the fixed MySQL connection credentials, the maintenance-only `ir4_wipe` credentials, Redis, Reverb keys, storage paths, `BACKUP_DISK_ROOT=/data/ir4-backups`, `BACKUP_ARCHIVE_PASSWORD`, `MYSQL_DUMP_BINARY_PATH`, and `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT`. **Secrets live here, never in the DB.** After seed, `general.timezone` overrides `APP_TIMEZONE` at runtime (DOC-18).
-3. From `Server/`: `php artisan migrate --force`; `php artisan db:seed` (permissions, Super Admin role, settings defaults, **no hardware/zone inventory** — those are registered in-app, DOC-05/06).
-4. `php artisan ir4:install` — create the first Super Admin user (DOC-03 §7.3).
+2. `Server/.env` from the production template: `APP_KEY`, `APP_TIMEZONE`, the fixed MySQL connection credentials, Redis, Reverb keys, storage paths, `BACKUP_DISK_ROOT=/data/ir4-backups`, `BACKUP_ARCHIVE_PASSWORD`, `MYSQL_DUMP_BINARY_PATH`, and `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT`. **Secrets live here, never in the DB.** After seed, `general.timezone` overrides `APP_TIMEZONE` at runtime (DOC-18).
+3. From `Server/`: `php artisan migrate --force`; `php artisan db:seed` (permissions, Super Admin role, settings defaults).
+4. `php artisan ir4:install` — create the first Super Admin and seed the **initial site registry** (poles, devices, cameras, starter workers/equipment via `DemoSeeder`) plus the PTW catalogue (DOC-03 §7.3).
 5. `php artisan config:cache route:cache view:cache`; `php artisan storage:link` (public disk only; snapshots stay private).
-6. `php artisan ir4:export-permissions` → commit-checked `Server/PERMISSIONS.md` (DOC-03).
 
 Nginx/php-fpm document root is `Server/public`.
 
@@ -78,7 +77,6 @@ Three surfaces (DOC-01 §3) with different exposure, enforced at Nginx + host fi
 ## 6. Database hardening
 
 - **App DB user (`ir4_app`):** normal DML on operational tables, but **INSERT/SELECT only on `audit_logs`** (no UPDATE/DELETE) — the append-only guarantee enforced at the DB, not just the model (DOC-17 §6). SQL: `deploy/database/mysql-grants.sql`. Needs `mysqldump` read privileges (`SELECT`, `SHOW VIEW`, `TRIGGER`, `EVENT`) for Spatie backups.
-- **Wipe/maintenance user (`ir4_wipe`):** privileged account used only by `ir4:secure-wipe` (DOC-19), including DELETE on `audit_logs`.
 - Archive password from `.env` (`BACKUP_ARCHIVE_PASSWORD`). Least-privilege throughout; credentials only in `.env`.
 
 ---
@@ -104,7 +102,7 @@ The Android APK under `Mobile/` is **surface A** over Sanctum bearer tokens (DOC
 
 ---
 
-## 8. Backups, restore & wipe (operational — DOC-19)
+## 8. Backups & restore (operational — DOC-19)
 
 Ordered field path: **[`SCC-SETUP.md`](../SCC-SETUP.md)** steps **02–04** (systemd boot → MediaMTX → backups). This section is the commissioning detail.
 
@@ -169,7 +167,7 @@ If `backup:run` succeeds but host `ls` fails, PHP wrote into a container-private
 - Operational commands: `php artisan backup:run`, `backup:list`, `backup:clean`, `backup:monitor`.
 - After deploy/`optimize`, if artisan fails on `CleanupStrategy`, delete `bootstrap/cache/config.php` then `php artisan optimize:clear`.
 - **Restore drill (staging only):** decrypt/extract with `7z` + `BACKUP_ARCHIVE_PASSWORD`, import SQL into a new staging schema, validate, destroy staging. Never import into live.
-- **End-of-project:** `ir4:export-all` → verify → hand over → `ir4:secure-wipe --confirm` (DOC-19 §6).
+- **End-of-project:** copy Spatie backup archives off-box (DOC-19 §6). Host-level decommissioning is outside the application.
 
 ---
 
@@ -188,11 +186,11 @@ Sign-off that the deployment is production-ready:
 
 **Infrastructure**
 - [ ] Server prepped (OS, packages, NTP, LUKS on data volume, disk sized per DOC-19).
-- [ ] App deployed, migrated, seeded (permissions + Super Admin + settings defaults; **no** seeded hardware/zones).
+- [ ] App deployed, migrated, seeded (permissions + Super Admin + settings defaults); `ir4:install` seeds the initial site registry.
 - [ ] Lerd PHP-FPM, Reverb, queues, and default scheduler worker are healthy.
 - [ ] Boot persistence: `systemctl enable --now ir4.target` (`scripts/02-install-systemd-units.sh`); recovers after cold reboot.
 - [ ] Nginx TLS up; LAN segmentation verified (device path device-only, public QR LAN-only, no internet egress in/out).
-- [ ] DB grants: app user INSERT/SELECT-only on `audit_logs`; separate wipe account.
+- [ ] DB grants: app user INSERT/SELECT-only on `audit_logs`.
 
 **Hardware registration (dynamic — DOC-05/06)**
 - [ ] All poles/gate/SCC assets registered; all cameras + readers + gas/CO₂/env devices registered with references + tokens.
@@ -217,7 +215,6 @@ Sign-off that the deployment is production-ready:
 **Data lifecycle**
 - [ ] Pruning dry-run confirms allow-list (no compliance table touched).
 - [ ] `backup:run`, `backup:list`, `backup:monitor`, and 30-day cleanup pass; encrypted ZIP exists on `/data`; staging restore drill passed.
-- [ ] `ir4:export-all` produces a verifiable archive (dry run).
 
 **Access & audit**
 - [ ] Roles configured; Super Admin present; a read-only client role writes `data_access` rows.
@@ -241,9 +238,8 @@ Deployment is validated operationally (the checklist) plus a few automated guard
 | # | Decision | Default | Confirm in |
 |---|---|---|---|
 | 1 | TLS cert (self-signed vs client CA) | client CA if provided, else self-signed | client IT |
-| 2 | Secure-wipe standard | per client policy (DOC-19) | client |
-| 3 | Device-network IP allow-list ranges | set at commissioning | client IT |
-| 4 | Remote admin (client VPN) | out of scope; client VPN if needed | client IT |
+| 2 | Device-network IP allow-list ranges | set at commissioning | client IT |
+| 3 | Remote admin (client VPN) | out of scope; client VPN if needed | client IT |
 
 ---
 

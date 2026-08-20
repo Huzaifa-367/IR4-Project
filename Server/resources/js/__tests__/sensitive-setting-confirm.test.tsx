@@ -17,7 +17,7 @@ const setting: SettingSchema = {
     options: null,
     requires_confirm: true,
     editable: true,
-    permission: 'manage-settings-auth',
+    permission: 'update-settings',
     updated_at: null,
     updated_by: null,
 };

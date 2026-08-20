@@ -2,6 +2,7 @@
 
 use App\Console\Commands\StandbyPolesCommand;
 use App\Support\EdgeDeviceCredentials;
+use App\Support\SiteRfidTags;
 use App\Support\StandbyPoleIngest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -26,7 +27,7 @@ it('posts a one-shot helmet violation without a snapshot field', function () {
     });
 });
 
-it('defaults rfid tag to W0001', function () {
+it('defaults rfid tag to the first site EPC', function () {
     Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
 
     $this->artisan('ir4:s', [
@@ -40,7 +41,25 @@ it('defaults rfid tag to W0001', function () {
 
         return str_contains($request->url(), '/api/ingest/tag-readings')
             && ($event['reader_ref'] ?? null) === 'DEV-RFID-02'
-            && ($event['tag_uid'] ?? null) === 'E280116060000203IR4W0001';
+            && ($event['tag_uid'] ?? null) === SiteRfidTags::at(1);
+    });
+});
+
+it('maps a numeric rfid argument to the matching site EPC', function () {
+    Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
+
+    $this->artisan('ir4:s', [
+        'action' => 'r',
+        'pole' => '2',
+        'tag' => '3',
+        '--url' => 'http://standby.test',
+    ])->assertSuccessful();
+
+    Http::assertSent(function ($request): bool {
+        $event = $request['events'][0] ?? [];
+
+        return str_contains($request->url(), '/api/ingest/tag-readings')
+            && ($event['tag_uid'] ?? null) === SiteRfidTags::at(3);
     });
 });
 
@@ -184,5 +203,7 @@ it('documents device letter commands on the signature', function () {
         ->and($command->getDefinition()->getArgument('action')->getDescription())
         ->toContain('t|g|r|h|v')
         ->and($command->getDefinition()->getArgument('pole')->getDescription())
-        ->toContain('all');
+        ->toContain('all')
+        ->and($command->getDefinition()->getArgument('tag')->getDescription())
+        ->toContain('EPC');
 });

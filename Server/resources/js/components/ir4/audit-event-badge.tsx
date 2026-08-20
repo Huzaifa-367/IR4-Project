@@ -12,7 +12,6 @@ const eventStyles: Record<AuditEvent, string> = {
     published: 'bg-violet-500/15 text-violet-300',
     acknowledged: 'bg-blue-500/15 text-blue-300',
     exported: 'bg-indigo-500/15 text-indigo-300',
-    wiped: 'bg-red-500/15 text-red-300',
 };
 
 type Props = {

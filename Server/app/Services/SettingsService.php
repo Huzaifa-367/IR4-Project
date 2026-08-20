@@ -18,12 +18,11 @@ final class SettingsService
 
     public function get(string $key, mixed $default = null): mixed
     {
-        $canonical = $this->canonicalize($key);
         $cached = Cache::remember(
-            $this->cacheKey($canonical),
+            $this->cacheKey($key),
             now()->addMinutes(5),
-            function () use ($canonical): mixed {
-                $setting = Setting::query()->where('key', $canonical)->first();
+            function () use ($key): mixed {
+                $setting = Setting::query()->where('key', $key)->first();
 
                 return $setting?->value;
             },
@@ -33,7 +32,7 @@ final class SettingsService
             return $cached;
         }
 
-        $definition = SettingsRegistry::get($canonical);
+        $definition = SettingsRegistry::get($key);
         if ($definition !== null) {
             return $definition['default'];
         }
@@ -41,7 +40,7 @@ final class SettingsService
         /** @var array<string, mixed> $configDefaults */
         $configDefaults = config('ir4.settings', []);
 
-        return $configDefaults[$canonical] ?? $default;
+        return $configDefaults[$key] ?? $default;
     }
 
     public function set(string $key, mixed $value, ?User $actor = null, bool $confirmed = false): Setting
@@ -362,13 +361,6 @@ final class SettingsService
         }
 
         return $value;
-    }
-
-    private function canonicalize(string $key): string
-    {
-        $legacy = SettingsRegistry::legacyMap()[$key] ?? null;
-
-        return $legacy['key'] ?? $key;
     }
 
     private function cacheKey(string $key): string

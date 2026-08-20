@@ -52,8 +52,8 @@ Schema::create('audit_logs', function (Blueprint $table) {
 - `old_values`/`new_values` hold **only the changed attributes** (a diff), already masked.
 
 ### 3.2 Enum — `AuditEvent`
-`login`, `logout`, `login_failed`, `data_access`, `created`, `updated`, `deleted`, `config_changed`, `published`, `acknowledged`, `exported`, `wiped`.
-(`config_changed` is used for settings/threshold/role/whitelist edits; `published` for reports; `acknowledged` for alerts/alarms; `exported` for data exports; `wiped` for the end-of-project wipe.)
+`login`, `logout`, `login_failed`, `data_access`, `created`, `updated`, `deleted`, `config_changed`, `published`, `acknowledged`, `exported`.
+(`config_changed` is used for settings/threshold/role/whitelist edits; `published` for reports; `acknowledged` for alerts/alarms; `exported` for data exports.)
 
 ---
 
@@ -94,7 +94,7 @@ For any user whose role is `is_read_only` (DOC-03 — e.g. the Client Representa
 
 - The `AuditLog` model overrides `updating`/`deleting` to throw (no code path mutates a row).
 - No controller/route exposes update/delete for audit logs — only `index`/`show`.
-- **DB-level (DOC-20):** the application DB user is granted only INSERT/SELECT on `audit_logs` (no UPDATE/DELETE), so even a bug can't rewrite history. The wipe command (DOC-19) runs as a separate privileged step.
+- **DB-level (DOC-20):** the application DB user is granted only INSERT/SELECT on `audit_logs` (no UPDATE/DELETE), so even a bug can't rewrite history.
 - Retention: DOC-19 never prunes this table; it is included verbatim in the end-of-project export.
 
 ---

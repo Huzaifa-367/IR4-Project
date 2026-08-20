@@ -212,3 +212,23 @@ it('rejects an unknown qr token with not found', function () {
         $auth['headers'],
     )->assertNotFound();
 });
+
+it('rejects mobile login until the temporary password is changed', function () {
+    User::factory()->withRole('SCC Operator')->mustChangePassword()->create([
+        'email' => 'temp@example.com',
+        'password' => Hash::make('password'),
+    ]);
+
+    $this->postJson(route('api.mobile.login'), [
+        'email' => 'temp@example.com',
+        'password' => 'password',
+    ])->assertStatus(422);
+});
+
+it('revokes mobile access when the account is deactivated', function () {
+    $auth = mobileAuthAs('SCC Operator');
+    $auth['user']->forceFill(['is_active' => false])->save();
+
+    $this->getJson(route('api.mobile.me'), $auth['headers'])
+        ->assertUnauthorized();
+});

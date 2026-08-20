@@ -15,7 +15,6 @@ enum AuditEvent: string
     case Published = 'published';
     case Acknowledged = 'acknowledged';
     case Exported = 'exported';
-    case Wiped = 'wiped';
 
     public function label(): string
     {
@@ -31,7 +30,6 @@ enum AuditEvent: string
             self::Published => 'Published',
             self::Acknowledged => 'Acknowledged',
             self::Exported => 'Exported',
-            self::Wiped => 'Wiped',
         };
     }
 }

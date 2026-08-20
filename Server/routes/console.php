@@ -13,6 +13,7 @@ use App\Services\TrackingService;
 use App\Services\WeeklyReportService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -89,18 +90,27 @@ Schedule::call(function (DiskSpaceMonitor $monitor): void {
 Schedule::call(function (SettingsService $settings, WeeklyReportService $reports): void {
     $day = strtolower((string) $settings->get('report.generation_day', 'sunday'));
     $time = (string) $settings->get('report.generation_time', '06:00');
-    if (now()->format('l') !== ucfirst($day)) {
+    if (strtolower(now()->format('l')) !== $day) {
         return;
     }
-    if (now()->format('H:i') !== $time) {
+
+    $scheduled = now()->setTimeFromTimeString($time);
+    if (now()->lt($scheduled) || now()->gte($scheduled->copy()->addMinutes(15))) {
         return;
     }
 
     [$start, $end] = $reports->previousReportingWeek();
+    $lockKey = 'ir4:weekly-report:'.$start->toDateString();
+    if (! Cache::add($lockKey, true, now()->addHours(26))) {
+        return;
+    }
+
     GenerateWeeklyReport::dispatch(
         periodStart: $start->toDateString(),
         periodEnd: $end->toDateString(),
         userId: null,
         auto: true,
     );
-})->everyMinute()->name('ir4:generate-weekly-report');
+})->everyMinute()
+    ->name('ir4:generate-weekly-report')
+    ->withoutOverlapping(55);

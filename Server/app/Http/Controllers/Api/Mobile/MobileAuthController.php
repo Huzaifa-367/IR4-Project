@@ -51,6 +51,12 @@ final class MobileAuthController extends Controller
             ]);
         }
 
+        if ($user->must_change_password) {
+            throw ValidationException::withMessages([
+                'email' => [__('Change this password on the operator web console before using the mobile app.')],
+            ]);
+        }
+
         if (
             (bool) $settings->get('auth.require_2fa_for_admins', false)
             && $user->can('view-users')

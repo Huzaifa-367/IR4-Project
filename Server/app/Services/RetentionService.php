@@ -107,7 +107,6 @@ final class RetentionService
                     continue;
                 }
                 if (str_starts_with($path, 'exports/final/')) {
-                    // Keep handover-style export trees under exports/final/ if present.
                     continue;
                 }
 

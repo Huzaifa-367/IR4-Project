@@ -2,7 +2,7 @@
 
 > **Depends on:** DOC-01 (conventions, enum pattern, settings, hybrid surfaces), DOC-02 (authenticated identity — this doc decides what that identity may do). **Feeds:** every module DOC (each declares the permissions its actions require) and DOC-17 (audit of role/permission changes).
 >
-> **Scope:** the authorization model — the spatie setup, the complete permission catalogue, the fully dynamic role system (admin-created/edited roles) with the single fixed `Super Admin` role, the seeded starter roles and their default capability matrix, the read-only-role pattern (configurable client window), how enforcement is applied at four layers (route → policy → API resource → frontend), role/user provisioning, and the generated `PERMISSIONS.md`. **Out of scope:** authentication (DOC-02); the *content* each permission unlocks (defined in the owning module DOC).
+> **Scope:** the authorization model — the spatie setup, the complete permission catalogue (`PermissionCatalogue`), the fully dynamic role system (admin-created/edited roles) with the single fixed `Super Admin` role, the seeded starter roles and their default capability matrix, the read-only-role pattern (configurable client window), how enforcement is applied at four layers (route → policy → API resource → frontend), and role/user provisioning. **Out of scope:** authentication (DOC-02); the *content* each permission unlocks (defined in the owning module DOC).
 
 ---
 
@@ -28,9 +28,9 @@ Guiding invariants (enforced, re-checked in DOC-21):
 - `User` model uses the `HasRoles` trait.
 - **Guard:** all roles/permissions are registered under the `web` guard (the only guard that carries a spatie identity — device and display are not spatie subjects; DOC-02 §10).
 - **Cache:** spatie caches the permission map; the cache is flushed automatically on any role/permission mutation (including the role editor's permission syncs, §4.3/§6.2).
-- **Super Admin handling:** we do **not** use a global `Gate::before` bypass. Instead, the fixed `Super Admin` role is **granted the full permission set explicitly** and kept in sync whenever new permissions are introduced (§7.3). Every capability is therefore visible in `PERMISSIONS.md` and auditable — there is no hidden all-access code path, yet Super Admin still effectively has everything because it literally holds every permission.
+- **Super Admin handling:** we do **not** use a global `Gate::before` bypass. Instead, the fixed `Super Admin` role is **granted the full permission set explicitly** and kept in sync whenever new permissions are introduced (§7.3). Every capability is therefore visible in `PermissionCatalogue` and auditable — there is no hidden all-access code path, yet Super Admin still effectively has everything because it literally holds every permission.
 
-Tables in play (spatie defaults): `roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions`. Users get capabilities **through a role**; IR4 does not grant permissions directly to individual users (§4.4) — all authority flows through role membership so `PERMISSIONS.md` fully describes the system.
+Tables in play (spatie defaults): `roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions`. Users get capabilities **through a role**; IR4 does not grant permissions directly to individual users (§4.4) — all authority flows through role membership so `PermissionCatalogue` fully describes the system.
 
 ---
 
@@ -167,7 +167,7 @@ The role editor at **`/access/roles`** is gated per action (DOC-03 four-layer en
 
 ### 4.4 Assignment model
 - Users hold **exactly one role** (single-role model — §7.3). Assignment happens in the user editor (`view-users` / `create-users` / `update-users`).
-- **No direct per-user permissions.** All authority flows through the role, so a role's permission set fully describes what its users can do, and `PERMISSIONS.md` is complete.
+- **No direct per-user permissions.** All authority flows through the role, so a role's permission set fully describes what its users can do, and `PermissionCatalogue` is complete.
 - `[CONFIRM AT DESIGN]` multi-role per user — deferred; single-role keeps audit and reasoning simple.
 
 ---
@@ -268,7 +268,7 @@ Any role can be flagged `is_read_only` (§4.1). The seeded **Client Representati
 ### 6.2 Enforcement that a write can never be granted
 `RoleService::syncPermissions(Role $role, array $permissionNames): void`:
 - If `role->is_read_only`, intersect the requested list with the **view-only whitelist** (all permissions whose name starts with `view-`, computed from the catalogue — not a hardcoded per-role list, so it covers future `view-*` permissions automatically).
-- Reject (422 `VALIDATION_FAILED`) if any requested permission falls outside that whitelist — so even a buggy or tampered admin screen cannot attach `manage-*`, `close-*`, `trigger-*`, etc. to a read-only role.
+- Reject (422 `VALIDATION_FAILED`) if any requested permission falls outside that whitelist — so even a buggy or tampered admin screen cannot attach create/update/delete (or other non-`view-*`) permissions to a read-only role.
 - If `role->is_system` (Super Admin), reject any permission change (403 `FORBIDDEN`) — it always holds everything.
 - Writes a `config_changed` audit row (before/after permission sets).
 Defence in depth: the UI shows only view permissions for read-only roles, **and** the service refuses anything else even if called directly.
@@ -346,16 +346,16 @@ Some permissions gate **fields, not endpoints**. The clearest case is `view-work
 Beyond spatie's default tables, no new domain tables. We add:
 - Add two columns to spatie's `roles` table via a migration: `is_system` (bool, default false) and `is_read_only` (bool, default false) — §4.1. Optional `description` (string, nullable).
 - The read-only view-only whitelist is **computed** (permissions whose name starts with `view-`), not a hardcoded constant — so it self-updates as new `view-*` permissions are added (§6.2).
-- Role intent lives in `PERMISSIONS.md` (generated) and the `description` field.
+- Role intent lives in `PermissionCatalogue` (and the TS `Permission` mirror) and the role `description` field.
 - `audit_logs` (DOC-17) receives `config_changed` (role create/edit/delete, permission syncs, user CRUD) and `data_access` (read-only-role per-request) rows — schema owned by DOC-17.
 
 ---
 
-## 10. `PERMISSIONS.md` generation (build artifact)
+## 10. Catalogue source of truth
 
-- `php artisan ir4:export-permissions` writes `PERMISSIONS.md` at the repo root from the **live role definitions in the database** (not from hardcoded code): the full permission catalogue (grouped), and a role×permission matrix reflecting current roles including any admin-created ones, with Super Admin shown as all-access and read-only roles flagged.
-- Because roles are runtime-editable, `PERMISSIONS.md` is regenerated on demand / in deploy and reflects the current install rather than a compile-time constant. (It is not a CI drift gate for the editable roles — those legitimately change; the CI check instead asserts that Super Admin holds every permission and every permission is exported.)
-- This is the single artifact reviewers (including the client) read to understand who can currently do what.
+- `App\Support\PermissionCatalogue` is the complete permission list; `RolePermissionSeeder` seeds it and keeps Super Admin in sync.
+- The TypeScript `Permission` object in `resources/js/types/enums.ts` is generated with `php artisan ir4:export-enums` (CI `--check`).
+- Runtime role matrices live in the database (editable except Super Admin). There is no generated `PERMISSIONS.md` artifact.
 
 ---
 
@@ -383,7 +383,6 @@ Beyond spatie's default tables, no new domain tables. We add:
 - **Read-only role guard:** enabling a `view-*` permission grants read access immediately (cache flush works); attempting a non-view permission via `syncPermissions` on a read-only role → 422; every request by a read-only-role user writes a `data_access` row; a write attempt by such a user → 403.
 - User provisioning vs role-editor permissions separation: a user-manager can assign roles but cannot edit role definitions (403 on the role editor).
 - No `Gate::before` super-admin bypass exists (Super Admin's access comes only from explicitly holding every permission).
-- `ir4:export-permissions` produces a `PERMISSIONS.md` reflecting current DB roles; Super Admin shows all-access.
 - Frontend: `usePermissions().can()` matches server truth for a sampled user; nav hides denied items; `RequirePermission` blocks a section the user lacks.
 
 ---

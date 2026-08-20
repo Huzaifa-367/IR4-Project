@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Models\Worker;
 use App\Models\Zone;
 use App\Support\EdgeDeviceCredentials;
+use App\Support\SiteRfidTags;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
@@ -31,13 +32,26 @@ use Illuminate\Support\Str;
  * Device UUID + tokens come from database/data/device_credentials.php.
  *
  * Poles 1–4: RFID, gas, fixed + PTZ stream cameras, and two edge_compute
- * camera-AI devices each. Also: main gate, starter workers + tags, spare
- * tags, and equipment. More can be added via the operator UI after install.
+ * camera-AI devices each. Also: main gate, starter workers assigned to
+ * physical EPCs (database/data/rfid_tags.php), leftover tags in stock,
+ * and equipment. More can be added via the operator UI after install.
  * Idempotent: skips when AST-POLE-01 already exists.
  */
 final class DemoSeeder extends Seeder
 {
     private const POLE_COUNT = 4;
+
+    /**
+     * SCC2 pole VLAN third octets (site-network.md). Password is Unity@320@.
+     *
+     * @var array<int, int>
+     */
+    private const POLE_SUBNETS = [
+        1 => 3,
+        2 => 2,
+        3 => 1,
+        4 => 4,
+    ];
 
     private User $admin;
 
@@ -64,7 +78,6 @@ final class DemoSeeder extends Seeder
         $this->seedPolesAndDevices();
         $this->seedGate();
         $this->seedWorkers();
-        $this->seedSpareTags();
         $this->seedEquipment();
         $this->printEdgeCredentials();
 
@@ -208,13 +221,13 @@ final class DemoSeeder extends Seeder
                 ],
             ]);
 
-            // Stream registry (Camera rows).
+            // Stream registry — real Hikvision RTSP (SCC-SETUP §13). .11 bullet, .10 PTZ.
             Camera::query()->create([
                 'asset_id' => $asset->id,
                 'name' => "{$label} Fixed Camera",
                 'reference' => $fixedCamRef,
                 'camera_type' => CameraType::Fixed,
-                'stream_url' => sprintf('rtsp://10.20.%d.10/Streaming/Channels/101', 20 + $n),
+                'stream_url' => $this->poleStreamUrl($n, 11),
                 'ai_enabled' => true,
                 'status' => HardwareStatus::Offline,
                 'meta' => ['role' => 'ppe'],
@@ -224,7 +237,7 @@ final class DemoSeeder extends Seeder
                 'name' => "{$label} PTZ Camera",
                 'reference' => $ptzCamRef,
                 'camera_type' => CameraType::Ptz,
-                'stream_url' => sprintf('rtsp://10.20.%d.11/Streaming/Channels/101', 20 + $n),
+                'stream_url' => $this->poleStreamUrl($n, 10),
                 'ai_enabled' => false,
                 'status' => HardwareStatus::Offline,
                 'meta' => ['role' => 'overview'],
@@ -274,6 +287,7 @@ final class DemoSeeder extends Seeder
 
     private function seedWorkers(): void
     {
+        $epcs = SiteRfidTags::all();
         $workers = [
             [
                 'name' => 'Ahmed Al-Rashid',
@@ -281,7 +295,6 @@ final class DemoSeeder extends Seeder
                 'badge_number' => 'BDG-0001',
                 'role_title' => 'Foreman',
                 'contractor' => 'Owner / EPC',
-                'tag_uid' => 'E280116060000203IR4W0001',
             ],
             [
                 'name' => 'Sara Nguyen',
@@ -289,7 +302,6 @@ final class DemoSeeder extends Seeder
                 'badge_number' => 'BDG-0002',
                 'role_title' => 'Safety Officer',
                 'contractor' => 'Owner / EPC',
-                'tag_uid' => 'E280116060000203IR4W0002',
             ],
             [
                 'name' => 'Omar Hassan',
@@ -297,11 +309,10 @@ final class DemoSeeder extends Seeder
                 'badge_number' => 'BDG-0003',
                 'role_title' => 'Technician',
                 'contractor' => 'Owner / EPC',
-                'tag_uid' => 'E280116060000203IR4W0003',
             ],
         ];
 
-        foreach ($workers as $row) {
+        foreach ($workers as $i => $row) {
             $worker = Worker::query()->create([
                 'name' => $row['name'],
                 'employee_code' => $row['employee_code'],
@@ -316,21 +327,23 @@ final class DemoSeeder extends Seeder
                 'created_by' => $this->operator->id,
             ]);
 
+            $epc = $epcs[$i] ?? null;
+            if ($epc === null) {
+                continue;
+            }
+
             RfidTag::query()->create([
-                'tag_uid' => $row['tag_uid'],
+                'tag_uid' => $epc,
                 'worker_id' => $worker->id,
                 'status' => TagStatus::Assigned,
                 'assigned_at' => now(),
                 'assigned_by' => $this->operator->id,
             ]);
         }
-    }
 
-    private function seedSpareTags(): void
-    {
-        for ($i = 1; $i <= 4; $i++) {
+        foreach (array_slice($epcs, count($workers)) as $epc) {
             RfidTag::query()->create([
-                'tag_uid' => sprintf('E280116060000203IR4S%04d', $i),
+                'tag_uid' => $epc,
                 'worker_id' => null,
                 'status' => TagStatus::InStock,
             ]);
@@ -391,6 +404,17 @@ final class DemoSeeder extends Seeder
                 'created_by' => $this->operator->id,
             ]);
         }
+    }
+
+    private function poleStreamUrl(int $pole, int $host): string
+    {
+        $subnet = self::POLE_SUBNETS[$pole];
+
+        return sprintf(
+            'rtsp://admin:Unity@320@@172.16.%d.%d:554/Streaming/Channels/101',
+            $subnet,
+            $host,
+        );
     }
 
     /**

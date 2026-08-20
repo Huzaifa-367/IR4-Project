@@ -27,6 +27,10 @@ final class HlsProxyController extends BaseController
         }
 
         $suffix = trim((string) $path, '/');
+        if ($suffix !== '' && preg_match('#^[A-Za-z0-9._/-]+$#', $suffix) !== 1) {
+            abort(400, 'Invalid HLS path.');
+        }
+
         $target = rtrim($upstream, '/').'/';
         if ($suffix !== '') {
             $target .= $suffix;

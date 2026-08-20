@@ -69,10 +69,15 @@ final class InstallCommand extends Command
             return true;
         }
 
-        // Options win; otherwise prompt (password hidden). Dev fallback password if empty.
+        // Options win; otherwise prompt (password hidden).
         $name = $this->option('name') ?: $this->ask('Super Admin name', 'Super Admin');
         $email = $this->option('email') ?: $this->ask('Super Admin email', 'admin@gmail.com');
-        $password = $this->option('password') ?: $this->secret('Super Admin password') ?: '12345677';
+        $password = $this->option('password') ?: $this->secret('Super Admin password');
+        if (! is_string($password) || $password === '') {
+            $this->error('A Super Admin password is required.');
+
+            return false;
+        }
 
         $validator = Validator::make(
             ['name' => $name, 'email' => $email, 'password' => $password],

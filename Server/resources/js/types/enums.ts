@@ -127,7 +127,6 @@ export const AuditEvent = {
     Published: 'published',
     Acknowledged: 'acknowledged',
     Exported: 'exported',
-    Wiped: 'wiped',
 } as const;
 
 export type AuditEvent = (typeof AuditEvent)[keyof typeof AuditEvent];
@@ -144,7 +143,6 @@ export const AuditEventLabels: Record<AuditEvent, string> = {
     published: 'Published',
     acknowledged: 'Acknowledged',
     exported: 'Exported',
-    wiped: 'Wiped',
 };
 
 export const CameraType = {

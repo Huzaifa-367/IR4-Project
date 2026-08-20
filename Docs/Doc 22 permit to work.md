@@ -500,7 +500,7 @@ Permits are **compliance records**. The DOC-19 pruner allow-list must **never** 
 
 `permits`, `permit_gas_tests`, `permit_personnel`, `permit_approvals`, `permit_events`, `work_orders`, `permit_types` (+ checklist/roles/gas/conflicts/doc-requirement children), `worker_document_types`, `worker_documents`.
 
-Private document files on the `local`/`private` disk follow the same end-of-project export + wipe rules as other compliance attachments. Catalogue rows (`permit_types`, document types) are configuration — retained for the life of the deployment.
+Private document files on the `local`/`private` disk follow the same end-of-project export rules as other compliance attachments. Catalogue rows (`permit_types`, document types) are configuration — retained for the life of the deployment.
 
 ---
 

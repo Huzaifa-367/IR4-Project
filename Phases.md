@@ -48,7 +48,6 @@
 - [x] Policies + `permission:` middleware pattern
 - [x] Frontend `usePermissions` / `<RequirePermission>`
 - [x] Read-only role server whitelist (`view-*` only)
-- [x] `ir4:export-permissions` → `PERMISSIONS.md`
 
 **Done when:** Install works; a restricted user is blocked by policy; Field Staff has no login perms. ✅
 
@@ -198,14 +197,14 @@
 ### 9e Retention & decommissioning (DOC-19)
 - [x] Gas/env on-read aggregates (no `BuildSensorRollups`; no tag rollup — manpower from entry/exit)
 - [x] Daily allow-listed `PruneRawSensorData` + export-file sweep (report PDFs exempt)
-- [x] Disk-space alerts; `ir4:export-all`, guarded `ir4:secure-wipe` (crypto_erase default)
+- [x] Disk-space alerts
 
-**Done when:** Pruning jobs are scheduled; wipe refuses without verified export + confirm phrase. ✅
+**Done when:** Pruning jobs are scheduled; daily encrypted backups run. ✅
 
 ### 10 Deploy & operations runbook (DOC-20)
 - [ ] Documented/deployable Supervisor set: web, reverb, queues (`default`, `ingest`, `reports`), scheduler
 - [ ] Nginx TLS + LAN segmentation notes/templates for surfaces A/B/C (device ingest + public QR fences)
-- [ ] App DB user INSERT/SELECT-only on `audit_logs`; separate wipe privileged account
+- [ ] App DB user INSERT/SELECT-only on `audit_logs`
 - [ ] ZT411 `.env` printer path + commissioning test-label steps
 - [ ] Commissioning acceptance checklist usable as Phase-3 sign-off (infra + hardware + smoke + lifecycle)
 
@@ -214,7 +213,7 @@
 ### 11 Testing strategy & CI gates (DOC-21)
 - [ ] Named invariant-guard Pest suite covering DOC-21 §3 hard rules
 - [ ] Cross-module scenario catalogue (§4) driven via real ingest where applicable
-- [ ] CI gates: Pint, PHPStan, `tsc`, enum-sync, PERMISSIONS.md, on-prem/standalone greps
+- [ ] CI gates: Pint, PHPStan, `tsc`, enum-sync, on-prem/standalone greps
 - [ ] Frontend Vitest coverage for permissions, identity stripping, live+fallback, forms, custody
 
 **Done when:** Invariant guards and CI greps block design regressions; scenario suite covers the DOC-21 catalogue.

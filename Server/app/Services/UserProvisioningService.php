@@ -87,6 +87,11 @@ final class UserProvisioningService
         $user->forceFill(['is_active' => false])->save();
     }
 
+    public function assertCanDestroyAccount(User $user): void
+    {
+        $this->guardLastSuperAdmin($user, leavingSuperAdmin: $this->holdsSuperAdmin($user));
+    }
+
     public function resetPassword(User $user): string
     {
         return $this->lockout->resetPassword($user);

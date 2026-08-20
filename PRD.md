@@ -64,11 +64,11 @@
 - [ ] Append-only, never-pruned audit trail with masked diffs for authentication, configuration/security changes, publish/acknowledge/export actions, and read-only-role meaningful data access
 - [ ] Permission-gated, read-only audit viewer with filters, expandable diffs, and audited CSV export
 - [ ] Whitelisted runtime settings registry with per-key permissions, validation, confirm for sensitive keys, and `config_changed` audit
-- [ ] Allow-listed raw pruning and guarded `ir4:export-all` / `ir4:secure-wipe`
+- [ ] Allow-listed raw pruning and encrypted daily backups
 
 ### Deploy & quality (Docs 20–21)
 - [ ] On-prem deploy runbook artifacts: Supervisor process set, Nginx LAN segmentation, audit DB grants, ZT411 setup notes, commissioning acceptance checklist
-- [ ] DOC-21 test strategy: invariant-guard suite, cross-module scenario catalogue, CI gates (enum-sync, PERMISSIONS.md, on-prem/standalone greps)
+- [ ] DOC-21 test strategy: invariant-guard suite, cross-module scenario catalogue, CI gates (enum-sync, on-prem/standalone greps)
 
 ---
 

@@ -61,7 +61,7 @@
 
 - Prune only the explicit raw allow-list (`tag_readings`, `gas_readings`, `environmental_readings`); never compliance tables.
 - Gas, environmental, and tag raw rows prune after the retention window (no sensor rollup tables; no rollup gate); tags likewise have no rollup in v1.
-- Daily backups are encrypted on the separate `backups` disk; Spatie events raise/resolve `system` alerts (no mail); `ir4:secure-wipe` requires a verified export marker and confirmation phrase.
+- Daily backups are encrypted on the separate `backups` disk; Spatie events raise/resolve `system` alerts (no mail).
 
 ## Deploy & test boundaries (DOC-20 / DOC-21)
 

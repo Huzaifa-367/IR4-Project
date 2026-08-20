@@ -250,4 +250,4 @@ Feature tests to ship with DOC-02:
 ---
 
 ### Next document
-**DOC-03 — Dynamic Roles & Permissions (RBAC):** the spatie model, the canonical permission list, the five seeded roles + matrix, the runtime-configurable Aramco-representative view-only whitelist, enforcement across route/policy/resource/frontend layers, and `PERMISSIONS.md` generation — all keyed to the authenticated identity established here.
+**DOC-03 — Dynamic Roles & Permissions (RBAC):** the spatie model, the canonical permission list, the five seeded roles + matrix, the runtime-configurable Aramco-representative view-only whitelist, and enforcement across route/policy/resource/frontend layers — all keyed to the authenticated identity established here.

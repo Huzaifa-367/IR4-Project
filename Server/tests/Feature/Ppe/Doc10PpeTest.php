@@ -310,6 +310,14 @@ it('renders the live wall kiosk without the dashboard display route', function (
     $this->get('/display')->assertNotFound();
 });
 
+it('rejects mutating methods on the hls proxy', function () {
+    $operator = User::factory()->withRole('SCC Operator')->create();
+
+    $this->actingAs($operator)
+        ->post('/hls/cam-ppe-01/')
+        ->assertMethodNotAllowed();
+});
+
 it('proxies mediamtx hls through same-origin /hls', function () {
     config()->set('camera_stream.mediamtx.api_url', 'http://192.168.3.149:9997');
     config()->set('camera_stream.mediamtx.hls_url', 'http://mediamtx.test:8888');

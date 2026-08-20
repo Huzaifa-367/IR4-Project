@@ -91,6 +91,8 @@ final class AlertController extends BaseController
 
     public function open(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Alert::class);
+
         $alerts = Alert::query()
             ->whereIn('status', [AlertStatus::Open->value, AlertStatus::Acknowledged->value])
             ->orderByDesc('raised_at')

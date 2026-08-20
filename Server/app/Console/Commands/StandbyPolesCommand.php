@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Support\EdgeDeviceCredentials;
+use App\Support\SiteRfidTags;
 use App\Support\StandbyPoleIngest;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -27,7 +28,7 @@ final class StandbyPolesCommand extends Command
     protected $signature = 'ir4:s
                             {action? : t|g|r|h|v (tick/heartbeat, gas, rfid, helmet, vest)}
                             {pole? : pole 1-4, or all for g}
-                            {tag? : rfid tag number or EPC (default 1)}
+                            {tag? : RFID 1-based site-tag index or full EPC (default 1)}
                             {--alarm : With g: post above warn thresholds}
                             {--loop : Repeat t (heartbeats) or g (gas) every 30s}
                             {--url= : Device API base (default IR4_BASE_URL → APP_URL)}';
@@ -80,11 +81,12 @@ final class StandbyPolesCommand extends Command
                 ['ir4:s g all --alarm --loop', 'gas', 'Alarm gas for all poles every 30s'],
                 ['ir4:s g {pole} --alarm --loop', 'gas', 'Alarm gas for one pole every 30s'],
                 ['ir4:s g {pole|all}', 'gas', 'One-shot ambient (add --alarm to spike)'],
-                ['ir4:s r {pole} [tag]', 'rfid', 'POST /api/ingest/tag-readings (default tag 1)'],
+                ['ir4:s r {pole} [tag]', 'rfid', 'POST /api/ingest/tag-readings (default first site EPC)'],
                 ['ir4:s h {pole}', 'helmet', 'POST /api/ingest/ppe-violations missing_helmet'],
                 ['ir4:s v {pole}', 'vest', 'POST /api/ingest/ppe-violations missing_vest'],
             ],
         );
+        $this->line('RFID [tag]: 1-based index into database/data/rfid_tags.php, or a full EPC. Omit → first site tag.');
         $this->line('t never posts gas. Run t --loop and g all --loop (or g 1 --loop) together.');
         $this->line('Expect ingest http=202. Do not point at a Flutter :9100 process.');
     }
@@ -202,13 +204,13 @@ final class StandbyPolesCommand extends Command
     {
         $rawPole = strtolower(trim((string) $this->argument('pole')));
         if ($rawPole === '' || $rawPole === 'g' || $rawPole === 'gate' || $rawPole === 'all') {
-            $this->error('Usage: ir4:s r {1-4} [tag]  (poles only; no gate)');
+            $this->error('Usage: ir4:s r {1-4} [index|EPC]  (poles only; no gate)');
 
             return self::FAILURE;
         }
 
         $pole = $this->pole($rawPole);
-        $tag = $this->expandTag((string) ($this->argument('tag') ?: '1'));
+        $tag = $this->expandTag((string) ($this->argument('tag') ?: ''));
         $ref = 'DEV-RFID-0'.$pole;
         $cred = $this->cred($ref);
         $rssi = round(-52 - (mt_rand(0, 160) / 10), 1);
@@ -279,8 +281,14 @@ final class StandbyPolesCommand extends Command
     private function heartbeatPole(StandbyPoleIngest $client, int $pole): void
     {
         foreach (['DEV-GAS-0', 'DEV-RFID-0', 'DEV-CAM-FIXED-0', 'DEV-CAM-PTZ-0'] as $prefix) {
-            $cred = $this->cred($prefix.$pole);
-            $client->postHeartbeat($cred['uuid'], $cred['token']);
+            $ref = $prefix.$pole;
+            try {
+                $cred = $this->cred($ref);
+                $client->postHeartbeat($cred['uuid'], $cred['token']);
+            } catch (Throwable $e) {
+                // Skip removed/retired refs (e.g. DEV-CAM-PTZ-02) so the loop keeps poles alive.
+                $this->warn("heartbeat skip {$ref}: ".$e->getMessage());
+            }
         }
     }
 
@@ -334,17 +342,18 @@ final class StandbyPolesCommand extends Command
         return $pole;
     }
 
+    /**
+     * Empty / 1-based index (optional W or IR4W prefix) → site EPC list.
+     * Out-of-range indexes fall back to the first site tag. Other values are used as-is.
+     */
     private function expandTag(string $raw): string
     {
         $raw = strtoupper(trim($raw));
         if ($raw === '') {
-            return '';
-        }
-        if (str_starts_with($raw, 'E280')) {
-            return $raw;
+            return SiteRfidTags::at(1);
         }
         if (preg_match('/^(IR4)?W?(\d{1,4})$/', $raw, $m) === 1) {
-            return sprintf('E280116060000203IR4W%04d', (int) $m[2]);
+            return SiteRfidTags::at((int) $m[2]);
         }
 
         return $raw;

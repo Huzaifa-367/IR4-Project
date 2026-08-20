@@ -9,8 +9,7 @@ export type AuditEvent =
     | 'config_changed'
     | 'published'
     | 'acknowledged'
-    | 'exported'
-    | 'wiped';
+    | 'exported';
 
 export type AuditDiff = Record<string, unknown>;
 

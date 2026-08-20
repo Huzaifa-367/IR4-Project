@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Ingest\PpeViolationIngestController;
 use App\Http\Controllers\Api\Ingest\TagReadingIngestController;
 use App\Http\Controllers\Api\Mobile\MobileAuthController;
 use App\Http\Controllers\Api\Mobile\MobileEquipmentController;
+use App\Http\Middleware\EnsureMobileAccountIsUsable;
 use App\Support\ApiResponse;
 use Illuminate\Support\Facades\Route;
 
@@ -49,14 +50,16 @@ Route::prefix('mobile')->name('api.mobile.')->group(function (): void {
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/logout', [MobileAuthController::class, 'logout'])->name('logout');
-        Route::get('/me', [MobileAuthController::class, 'me'])->name('me');
 
-        Route::get('/equipment/by-token/{qrToken}', [MobileEquipmentController::class, 'scan'])
-            ->whereUuid('qrToken')
-            ->name('equipment.by-token');
-        Route::post('/equipment/{equipment}/checkout', [MobileEquipmentController::class, 'checkout'])
-            ->name('equipment.checkout');
-        Route::post('/equipment/{equipment}/return', [MobileEquipmentController::class, 'returnItem'])
-            ->name('equipment.return');
+        Route::middleware(EnsureMobileAccountIsUsable::class)->group(function (): void {
+            Route::get('/me', [MobileAuthController::class, 'me'])->name('me');
+            Route::get('/equipment/by-token/{qrToken}', [MobileEquipmentController::class, 'scan'])
+                ->whereUuid('qrToken')
+                ->name('equipment.by-token');
+            Route::post('/equipment/{equipment}/checkout', [MobileEquipmentController::class, 'checkout'])
+                ->name('equipment.checkout');
+            Route::post('/equipment/{equipment}/return', [MobileEquipmentController::class, 'returnItem'])
+                ->name('equipment.return');
+        });
     });
 });
