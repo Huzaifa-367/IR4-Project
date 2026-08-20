@@ -92,7 +92,7 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
 | **Open Incidents** | incidents | count by status, deep-link | view-incidents |
 | **Open LSR** | lsr | count by category | view-lsr |
 | **Overdue Equipment** | equipment | overdue + due-soon + checked-out | view-equipment |
-| **System Health** | system_health | per-asset green/amber/red tiles | view-dashboard |
+| **System Health** | system_health | `online`/`total` = individual devices (status `online`); per-asset green/amber/red tiles still list poles | view-dashboard |
 | **Last Report** | last_report | status chip + download | view-reports |
 
 - **Role-aware rendering:** each widget renders only if the user holds its `view-*` permission (frontend guard + the summary endpoint omits data they can't see — DOC-03). A user sees a grid of exactly what they're entitled to; empty gaps reflow.

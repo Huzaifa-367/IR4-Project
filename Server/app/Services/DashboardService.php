@@ -259,8 +259,9 @@ final class DashboardService
     private function systemHealthBlock(): array
     {
         $assets = $this->health->systemHealthSnapshot();
-        $total = count($assets);
-        $online = collect($assets)->where('status', 'green')->count();
+        $counts = $this->health->devicePresenceCounts();
+        $total = $counts['total'];
+        $online = $counts['online'];
         $uptime = $total > 0 ? round(($online / $total) * 100, 1) : 100.0;
 
         return [

@@ -3,7 +3,6 @@ import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import { patchSystemHealth } from '@/lib/dashboard-live';
 import { summary as dashboardSummary } from '@/routes/dashboard';
 import type { DashboardSummary } from '@/types/dashboard';
-import { systemHealthAssets } from '@/types/dashboard';
 
 export type SystemHealthSummary = {
     online: number;
@@ -37,7 +36,8 @@ function unwrapSummary(payload: unknown): DashboardSummary | null {
 
 /**
  * Sidebar hardware health (DOC-05 §6.6). Snapshot/poll uses the dashboard
- * summary; DeviceStatusChanged patches tiles without refetching the aggregate.
+ * summary; online/total are individual devices (not poles). DeviceStatusChanged
+ * patches asset tiles + device counters without refetching the aggregate.
  */
 export function useSystemHealth(enabled: boolean): SystemHealthSummary | null {
     const [health, setHealth] = useState<DashboardSummary['system_health']>();
@@ -67,11 +67,10 @@ export function useSystemHealth(enabled: boolean): SystemHealthSummary | null {
         return null;
     }
 
-    const assets = systemHealthAssets(health);
     const meta = !Array.isArray(health) ? health : undefined;
-    const total = meta?.total ?? assets.length;
-    const online =
-        meta?.online ?? assets.filter((a) => a.status === 'green').length;
+    // Prefer server device counts; never fall back to pole/asset greens.
+    const total = meta?.total ?? 0;
+    const online = meta?.online ?? 0;
     const offline = Math.max(0, total - online);
 
     if (total === 0) {
@@ -81,7 +80,7 @@ export function useSystemHealth(enabled: boolean): SystemHealthSummary | null {
             uptimePct: meta?.uptime_pct ?? null,
             tone: 'muted',
             label: 'No hardware yet',
-            meta: 'Register assets in Settings',
+            meta: 'Register devices in Settings',
         };
     }
 

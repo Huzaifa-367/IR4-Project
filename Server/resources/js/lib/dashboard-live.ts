@@ -300,19 +300,28 @@ export function patchSystemHealth(
         return nextAssets;
     }
 
-    const online = nextAssets.filter(
-        (asset) => asset.status === 'green',
-    ).length;
+    // online/total are device counts (not poles). Skip camera events;
+    // DeviceStatusChanged for devices adjusts the running totals until poll.
+    let online = health.online;
+    const total = health.total;
+
+    if (payload.device_type !== 'camera') {
+        const becameOffline =
+            payload.status === 'offline' || payload.status === 'fault';
+
+        if (becameOffline) {
+            online = Math.max(0, online - 1);
+        } else if (payload.status === 'online') {
+            online = Math.min(total, online + 1);
+        }
+    }
 
     return {
         ...health,
         assets: nextAssets,
         online,
-        total: nextAssets.length,
-        uptime_pct:
-            nextAssets.length > 0
-                ? Math.round((online / nextAssets.length) * 1000) / 10
-                : 100,
+        total,
+        uptime_pct: total > 0 ? Math.round((online / total) * 1000) / 10 : 100,
     };
 }
 

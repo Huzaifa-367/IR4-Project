@@ -159,6 +159,47 @@ final class AssetHealthService
             ->all();
     }
 
+    /**
+     * Sidebar / dashboard online ratio — count individual devices, not poles.
+     *
+     * @return array{online: int, total: int}
+     */
+    public function devicePresenceCounts(): array
+    {
+        $criticalTypes = array_map(
+            static fn (DeviceType $type): string => $type->value,
+            array_values(array_filter(
+                DeviceType::cases(),
+                static fn (DeviceType $type): bool => $type->isHealthCritical(),
+            )),
+        );
+
+        $devices = Device::query()
+            ->whereIn('device_type', $criticalTypes)
+            ->whereNotIn('status', [
+                HardwareStatus::Retired->value,
+                HardwareStatus::Maintenance->value,
+            ])
+            ->where(function ($query): void {
+                $query->whereNull('asset_id')
+                    ->orWhereHas(
+                        'asset',
+                        fn ($asset) => $asset->where('status', '!=', AssetStatus::Offline->value),
+                    );
+            })
+            ->get(['id', 'status']);
+
+        $total = $devices->count();
+        $online = $devices
+            ->filter(static fn (Device $device): bool => $device->status === HardwareStatus::Online)
+            ->count();
+
+        return [
+            'online' => $online,
+            'total' => $total,
+        ];
+    }
+
     private function deviceThresholdMinutes(DeviceType $type): int
     {
         $key = match ($type) {

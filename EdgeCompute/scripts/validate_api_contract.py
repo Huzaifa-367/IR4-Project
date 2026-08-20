@@ -107,11 +107,14 @@ def run_static() -> int:
         },
         "DEV-GAS-01",
     )
+    # Use a non-1 antenna in the sample so contract validation
+    # doesn't hardcode a single antenna port.
+    sample_antenna = 4
     zebra = {
         "data": {
             "CRC": "0b18",
             "PC": "3400",
-            "antenna": 1,
+            "antenna": sample_antenna,
             "channel": 866.3,
             "eventNum": 22,
             "format": "epc",
