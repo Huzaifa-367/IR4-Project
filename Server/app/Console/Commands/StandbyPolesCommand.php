@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Device;
+use App\Models\GasReading;
 use App\Support\EdgeDeviceCredentials;
 use App\Support\SiteRfidTags;
 use App\Support\StandbyPoleIngest;
@@ -14,7 +16,7 @@ use Throwable;
 /**
  * Walkthrough stand-in for poles 1–4: same IR4_BASE_URL + /api/ingest/* + heartbeats as EdgeCompute.
  *
- * t = heartbeats only · g = gas (one pole or all) · r = rfid · h = helmet · v = vest
+ * t = heartbeats only · g = gas · m = mimic gas from one pole · r = rfid · h = helmet · v = vest
  */
 final class StandbyPolesCommand extends Command
 {
@@ -26,11 +28,12 @@ final class StandbyPolesCommand extends Command
     private const POLES = [1, 2, 3, 4];
 
     protected $signature = 'ir4:s
-                            {action? : t|g|r|h|v (tick/heartbeat, gas, rfid, helmet, vest)}
-                            {pole? : pole 1-4, or all for g}
+                            {action? : t|g|m|r|h|v (tick, gas, mimic, rfid, helmet, vest)}
+                            {pole? : pole 1-4, or all for g; for m = source pole}
                             {tag? : RFID 1-based site-tag index or full EPC (default 1)}
                             {--alarm : With g: post above warn thresholds}
-                            {--loop : Repeat t (heartbeats) or g (gas) every 30s}
+                            {--to= : With m: comma-separated target poles (default: all except source)}
+                            {--loop : Repeat t / g / m every 30s}
                             {--url= : Device API base (default IR4_BASE_URL → APP_URL)}';
 
     /** @var list<string> */
@@ -55,6 +58,7 @@ final class StandbyPolesCommand extends Command
             return match ($action) {
                 't', 'tick', 'online', 'heartbeat' => $this->runHeartbeats($client),
                 'g', 'gas' => $this->runGas($client),
+                'm', 'mimic', 'mirror', 'copy' => $this->runMimicGas($client),
                 'r', 'rfid', 'a', 'at', 'arrive' => $this->runRfid($client),
                 'h', 'helmet' => $this->runPpe($client, 'missing_helmet'),
                 'v', 'vest' => $this->runPpe($client, 'missing_vest'),
@@ -81,13 +85,17 @@ final class StandbyPolesCommand extends Command
                 ['ir4:s g all --alarm --loop', 'gas', 'Alarm gas for all poles every 30s'],
                 ['ir4:s g {pole} --alarm --loop', 'gas', 'Alarm gas for one pole every 30s'],
                 ['ir4:s g {pole|all}', 'gas', 'One-shot ambient (add --alarm to spike)'],
+                ['ir4:s m {source}', 'mimic', 'Copy latest DB gas from source pole → other poles'],
+                ['ir4:s m {source} --to=1,4', 'mimic', 'Copy source gas to listed poles only'],
+                ['ir4:s m {source} --loop', 'mimic', 'Re-read source + copy every 30s'],
                 ['ir4:s r {pole} [tag]', 'rfid', 'POST /api/ingest/tag-readings (default first site EPC)'],
                 ['ir4:s h {pole}', 'helmet', 'POST /api/ingest/ppe-violations missing_helmet'],
                 ['ir4:s v {pole}', 'vest', 'POST /api/ingest/ppe-violations missing_vest'],
             ],
         );
         $this->line('RFID [tag]: 1-based index into database/data/rfid_tags.php, or a full EPC. Omit → first site tag.');
-        $this->line('t never posts gas. Run t --loop and g all --loop (or g 1 --loop) together.');
+        $this->line('m reads the latest gas_readings row for DEV-GAS-0{source} and posts those values to targets.');
+        $this->line('t never posts gas. Run t --loop with g or m --loop as needed.');
         $this->line('Expect ingest http=202. Do not point at a Flutter :9100 process.');
     }
 
@@ -198,6 +206,132 @@ final class StandbyPolesCommand extends Command
         }
 
         return [$this->pole($raw)];
+    }
+
+    private function runMimicGas(StandbyPoleIngest $client): int
+    {
+        $raw = strtolower(trim((string) $this->argument('pole')));
+        if ($raw === '' || $raw === 'all' || $raw === '*') {
+            throw new RuntimeException('Usage: ir4:s m {1-4} [--to=1,3,4] [--loop]');
+        }
+
+        $sourcePole = $this->pole($raw);
+        $targets = $this->resolveMimicTargets($sourcePole);
+        if ($targets === []) {
+            throw new RuntimeException('No mimic targets (source pole only, or --to empty).');
+        }
+
+        $once = function () use ($client, $sourcePole, $targets): void {
+            $fields = $this->latestGasFields($sourcePole);
+            $summary = $this->formatGasSummary($fields);
+            foreach ($targets as $pole) {
+                $result = $this->postGasFields($client, $pole, $fields);
+                $this->holdAmbientLoop($pole);
+                $this->info("mimic DEV-GAS-0{$sourcePole} → DEV-GAS-0{$pole} {$summary} http={$result['status']}");
+            }
+        };
+
+        $once();
+        if (! $this->option('loop')) {
+            return self::SUCCESS;
+        }
+
+        $toList = implode(',', $targets);
+        $this->warn("mimic gas loop ".self::LOOP_SECONDS."s from pole-0{$sourcePole} → {$toList}. Ctrl-C to stop.");
+        while (true) {
+            sleep(self::LOOP_SECONDS);
+            $once();
+        }
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function resolveMimicTargets(int $sourcePole): array
+    {
+        $raw = trim((string) $this->option('to'));
+        if ($raw === '') {
+            return array_values(array_filter(
+                self::POLES,
+                static fn (int $pole): bool => $pole !== $sourcePole,
+            ));
+        }
+
+        $targets = [];
+        foreach (preg_split('/[,\s]+/', strtolower($raw)) ?: [] as $part) {
+            $part = trim($part);
+            if ($part === '' || $part === 'all' || $part === '*') {
+                continue;
+            }
+            $pole = $this->pole($part);
+            if ($pole === $sourcePole) {
+                continue;
+            }
+            $targets[$pole] = $pole;
+        }
+
+        return array_values($targets);
+    }
+
+    /**
+     * @return array{lel_pct: float|null, h2s_ppm: float|null, o2_pct: float|null, co_ppm: float|null, co2_ppm: float|null}
+     */
+    private function latestGasFields(int $sourcePole): array
+    {
+        $ref = 'DEV-GAS-0'.$sourcePole;
+        $device = Device::query()->where('reference', $ref)->first();
+        if ($device === null) {
+            throw new RuntimeException("No device [{$ref}] in the database.");
+        }
+
+        $reading = GasReading::query()
+            ->where('device_id', $device->id)
+            ->orderByDesc('recorded_at')
+            ->orderByDesc('id')
+            ->first();
+        if ($reading === null) {
+            throw new RuntimeException("No gas_readings yet for [{$ref}] — wait for a real ingest or run ir4:s g {$sourcePole} once.");
+        }
+
+        return [
+            'lel_pct' => $reading->lel_pct !== null ? (float) $reading->lel_pct : null,
+            'h2s_ppm' => $reading->h2s_ppm !== null ? (float) $reading->h2s_ppm : null,
+            'o2_pct' => $reading->o2_pct !== null ? (float) $reading->o2_pct : null,
+            'co_ppm' => $reading->co_ppm !== null ? (float) $reading->co_ppm : null,
+            'co2_ppm' => $reading->co2_ppm !== null ? (float) $reading->co2_ppm : null,
+        ];
+    }
+
+    /**
+     * @param  array{lel_pct: float|null, h2s_ppm: float|null, o2_pct: float|null, co_ppm: float|null, co2_ppm: float|null}  $fields
+     * @return array{status: int, json: array<string, mixed>}
+     */
+    private function postGasFields(StandbyPoleIngest $client, int $pole, array $fields): array
+    {
+        $ref = 'DEV-GAS-0'.$pole;
+        $cred = $this->cred($ref);
+
+        return $client->postGasReadings($cred['token'], [array_merge([
+            'event_uid' => (string) Str::uuid(),
+            'device_ref' => $ref,
+            'recorded_at' => now()->toIso8601String(),
+        ], $fields)]);
+    }
+
+    /**
+     * @param  array{lel_pct: float|null, h2s_ppm: float|null, o2_pct: float|null, co_ppm: float|null, co2_ppm: float|null}  $fields
+     */
+    private function formatGasSummary(array $fields): string
+    {
+        $parts = [];
+        foreach (['lel_pct', 'h2s_ppm', 'o2_pct', 'co_ppm', 'co2_ppm'] as $key) {
+            if ($fields[$key] === null) {
+                continue;
+            }
+            $parts[] = "{$key}={$fields[$key]}";
+        }
+
+        return $parts === [] ? '(empty)' : implode(' ', $parts);
     }
 
     private function runRfid(StandbyPoleIngest $client): int

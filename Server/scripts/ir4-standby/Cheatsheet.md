@@ -10,8 +10,8 @@ Fake poles **1–4** when Jetsons are offline. Same device APIs as EdgeCompute:
 **Base URL** (first match): `--url` → `IR4_STANDBY_URL` → `IR4_BASE_URL` → `APP_URL`  
 On a laptop use Laravel (`http://127.0.0.1:8000`), not Flutter `:9100`. Expect ingest **`http=202`**.
 
-Device letters: **t** heartbeat · **g** gas · **r** rfid · **h** helmet · **v** vest.  
-`t` never posts gas. Run heartbeat and gas loops in separate terminals. Do not loop `r` / `h` / `v`.
+Device letters: **t** heartbeat · **g** gas · **m** mimic gas · **r** rfid · **h** helmet · **v** vest.  
+`t` never posts gas. Run heartbeat and gas/mimic loops in separate terminals. Do not loop `r` / `h` / `v`.
 
 | Command | What it does |
 |---|---|
@@ -22,6 +22,8 @@ Device letters: **t** heartbeat · **g** gas · **r** rfid · **h** helmet · **
 | `php artisan ir4:s g all --alarm --loop` | Alarm gas for all poles every 30s |
 | `php artisan ir4:s g 1 --alarm --loop` | Alarm gas for pole 1 every 30s |
 | `php artisan ir4:s g 1` / `g all` | One-shot ambient (add `--alarm` to spike) |
+| `php artisan ir4:s m 2 --loop` | Copy latest pole-2 gas from DB → poles 1,3,4 every 30s |
+| `php artisan ir4:s m 2 --to=1,4` | Copy pole-2 gas to poles 1 and 4 only |
 | `php artisan ir4:s r 2 3` | RFID at pole 2, 3rd site EPC (omit → first; or pass a full EPC) |
 | `php artisan ir4:s h 1` | Missing helmet, no photo |
 | `php artisan ir4:s v 3` | Missing vest, no photo |

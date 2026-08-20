@@ -1,6 +1,8 @@
 <?php
 
 use App\Console\Commands\StandbyPolesCommand;
+use App\Models\Device;
+use App\Models\GasReading;
 use App\Support\EdgeDeviceCredentials;
 use App\Support\SiteRfidTags;
 use App\Support\StandbyPoleIngest;
@@ -200,10 +202,95 @@ it('documents device letter commands on the signature', function () {
 
     expect($command->getDefinition()->hasOption('alarm'))->toBeTrue()
         ->and($command->getDefinition()->hasOption('loop'))->toBeTrue()
+        ->and($command->getDefinition()->hasOption('to'))->toBeTrue()
         ->and($command->getDefinition()->getArgument('action')->getDescription())
-        ->toContain('t|g|r|h|v')
+        ->toContain('t|g|m|r|h|v')
         ->and($command->getDefinition()->getArgument('pole')->getDescription())
         ->toContain('all')
         ->and($command->getDefinition()->getArgument('tag')->getDescription())
         ->toContain('EPC');
+});
+
+it('mimics the latest source-pole gas reading onto other poles', function () {
+    Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
+
+    $source = Device::factory()->gasDetector()->create([
+        'reference' => 'DEV-GAS-02',
+    ]);
+    GasReading::factory()->create([
+        'device_id' => $source->id,
+        'lel_pct' => 1.25,
+        'h2s_ppm' => 0.5,
+        'o2_pct' => 20.8,
+        'co_ppm' => 3.0,
+        'co2_ppm' => 455.0,
+        'recorded_at' => now(),
+    ]);
+
+    $this->artisan('ir4:s', [
+        'action' => 'm',
+        'pole' => '2',
+        '--url' => 'http://standby.test',
+    ])->assertSuccessful();
+
+    $byRef = [];
+    Http::assertSent(function ($request) use (&$byRef): bool {
+        if (! str_contains($request->url(), '/api/ingest/gas-readings')) {
+            return false;
+        }
+        $event = $request['events'][0] ?? [];
+        $ref = (string) ($event['device_ref'] ?? '');
+        $byRef[$ref] = $event;
+
+        return true;
+    });
+
+    expect($byRef)->not->toHaveKey('DEV-GAS-02')
+        ->and($byRef)->toHaveKeys(['DEV-GAS-01', 'DEV-GAS-03', 'DEV-GAS-04'])
+        ->and((float) $byRef['DEV-GAS-01']['co2_ppm'])->toBe(455.0)
+        ->and((float) $byRef['DEV-GAS-03']['lel_pct'])->toBe(1.25)
+        ->and((float) $byRef['DEV-GAS-04']['o2_pct'])->toBe(20.8);
+});
+
+it('limits mimic targets with --to', function () {
+    Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
+
+    $source = Device::factory()->gasDetector()->create([
+        'reference' => 'DEV-GAS-02',
+    ]);
+    GasReading::factory()->create([
+        'device_id' => $source->id,
+        'co2_ppm' => 420.0,
+        'recorded_at' => now(),
+    ]);
+
+    $this->artisan('ir4:s', [
+        'action' => 'm',
+        'pole' => '2',
+        '--to' => '1,4',
+        '--url' => 'http://standby.test',
+    ])->assertSuccessful();
+
+    $refs = [];
+    Http::assertSent(function ($request) use (&$refs): bool {
+        if (! str_contains($request->url(), '/api/ingest/gas-readings')) {
+            return false;
+        }
+        $refs[] = $request['events'][0]['device_ref'] ?? '';
+
+        return true;
+    });
+
+    expect($refs)->toBe(['DEV-GAS-01', 'DEV-GAS-04']);
+});
+
+it('requires a source pole for mimic', function () {
+    Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
+
+    $this->artisan('ir4:s', [
+        'action' => 'm',
+        '--url' => 'http://standby.test',
+    ])->assertFailed();
+
+    Http::assertNothingSent();
 });
