@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Http\Controllers\Web\Reports;
+namespace App\Http\Controllers\Web\Hse;
 
 use App\Http\Controllers\Web\BaseController;
-use App\Http\Requests\Web\Reports\StoreVehicleViolationRequest;
+use App\Http\Requests\Web\Hse\StoreVehicleViolationRequest;
 use App\Models\Camera;
 use App\Models\VehicleViolation;
 use App\Services\VehicleViolationService;
@@ -31,7 +31,7 @@ final class VehicleViolationController extends BaseController
 
         $paginator = $query->paginate(20)->withQueryString();
 
-        return Inertia::render('reports/vehicle-violations/index', [
+        return Inertia::render('hse/vehicle-violations/index', [
             'violations' => [
                 'data' => collect($paginator->items())->map(fn (VehicleViolation $v) => $service->toArray($v))->values(),
                 'meta' => [

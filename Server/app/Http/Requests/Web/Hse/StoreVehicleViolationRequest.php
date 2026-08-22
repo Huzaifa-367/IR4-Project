@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\Web\Reports;
+namespace App\Http\Requests\Web\Hse;
 
 use App\Services\VehicleViolationService;
 use Illuminate\Foundation\Http\FormRequest;

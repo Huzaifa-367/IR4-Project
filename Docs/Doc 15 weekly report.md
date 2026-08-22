@@ -142,7 +142,7 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 
 ## 5. Vehicle violations (item vii, ③, `log-vehicle-violations`)
 
-- **CRUD `/reports/vehicle-violations`** — LogVehicleViolationModal: `observed_at`, `vehicle_description`, `violation_type` (free or seeded list — `[CONFIRM AT DESIGN]` seed: speeding, seatbelt, unauthorized parking, reckless driving), `description`, **`action_taken` (required, min 10 — mandatory action like LSR)**, optional camera link.
+- **CRUD `/vehicle-violations`** — LogVehicleViolationModal: `observed_at`, `vehicle_description`, `violation_type` (free or seeded list — `[CONFIRM AT DESIGN]` seed: speeding, seatbelt, unauthorized parking, reckless driving), `description`, **`action_taken` (required, min 10 — mandatory action like LSR)**, optional camera link.
 - These entries in the period are pulled into item vii at generation.
 
 ---
@@ -190,7 +190,7 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 | Generate now | POST `/weekly-reports/generate` | generate-reports |
 | Publish | POST `/weekly-reports/{report}/publish` | publish-reports |
 | Download | GET `/weekly-reports/{report}/download?format=` | view-reports |
-| Vehicle violations CRUD | `/reports/vehicle-violations…` | log-vehicle-violations |
+| Vehicle violations CRUD | `/vehicle-violations…` | log-vehicle-violations |
 | Report settings | GET/PUT `/settings/reports` | manage-settings |
 
 **Read-only-role & PM note:** Project Manager and read-only Client Representative roles (DOC-03) get **published reports only** — the list/detail controllers filter to `status=published` for those roles, and drafts/generated reports are invisible to them.
@@ -201,10 +201,10 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 
 - **`pages/reports/index.tsx`** — WeeklyReportListPage: history (period, status chips, supersede badges), **Generate Now** (period picker), download buttons.
 - **`pages/reports/show.tsx`** — WeeklyReportDetailPage: rendered sections i–ix with automation badges, completeness notes, publish button (when generated), supersede banner, downloads.
-- **`pages/reports/vehicle-violations/index.tsx`** — list + LogVehicleViolationModal (with required action-taken).
+- **`pages/hse/vehicle-violations/index.tsx`** — list + LogVehicleViolationModal (with required action-taken).
 - **`pages/settings/reports.tsx`** — schedule config (day/time/auto-publish).
 - **Components:** `AutomationBadge`, `ReportSectionRenderer` (one per item type), `CompletenessNote`, `SupersedeBanner`.
-- **Types (`types/report.ts`):** `WeeklyReport`, `ReportStatus`, `WeeklyReportData` (fully typed to the §4.3 contract), `VehicleViolation`, `ReportSettings`.
+- **Types (`types/hse.ts`):** `VehicleViolation`; **`types/report.ts`:** `WeeklyReport`, `ReportStatus`, `WeeklyReportData` (fully typed to the §4.3 contract), `ReportSettings`.
 
 ---
 

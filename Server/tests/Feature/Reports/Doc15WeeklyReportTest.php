@@ -154,7 +154,7 @@ it('requires action_taken for vehicle violations and gates PM to published repor
     $pm = User::factory()->withRole('Project Manager')->create();
 
     $this->actingAs($operator)
-        ->post(route('reports.vehicle-violations.store'), [
+        ->post(route('hse.vehicle-violations.store'), [
             'observed_at' => now()->toDateTimeString(),
             'vehicle_description' => 'Plate 1234',
             'violation_type' => 'speeding',
@@ -162,7 +162,7 @@ it('requires action_taken for vehicle violations and gates PM to published repor
         ])
         ->assertSessionHasErrors('action_taken');
 
-    $this->post(route('reports.vehicle-violations.store'), [
+    $this->post(route('hse.vehicle-violations.store'), [
         'observed_at' => now()->toDateTimeString(),
         'vehicle_description' => 'Plate 1234',
         'violation_type' => 'speeding',

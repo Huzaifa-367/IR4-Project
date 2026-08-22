@@ -124,6 +124,19 @@ export default function PpeViolationsIndex({
     }
 
     const columns: SettingsColumn<PpeViolation>[] = [
+        {
+            key: 'number',
+            header: 'Number',
+            className: 'w-28',
+            cell: (row) => (
+                <Link
+                    href={ppe.violations.show(row.uuid)}
+                    className="font-mono text-xs hover:underline"
+                >
+                    PPE #{row.id}
+                </Link>
+            ),
+        },
         ...(canReview
             ? [
                   {
@@ -168,10 +181,16 @@ export default function PpeViolationsIndex({
         {
             key: 'type',
             header: 'Type',
-            cell: (row) =>
-                ViolationTypeLabels[
-                    row.violation_type as keyof typeof ViolationTypeLabels
-                ] ?? row.violation_type,
+            cell: (row) => (
+                <Link
+                    href={ppe.violations.show(row.uuid)}
+                    className="font-medium text-text hover:underline"
+                >
+                    {ViolationTypeLabels[
+                        row.violation_type as keyof typeof ViolationTypeLabels
+                    ] ?? row.violation_type}
+                </Link>
+            ),
         },
         { key: 'camera', header: 'Camera', cell: (row) => row.camera_ref },
         {
@@ -370,3 +389,7 @@ export default function PpeViolationsIndex({
         </>
     );
 }
+
+PpeViolationsIndex.layout = {
+    breadcrumbs: [{ title: 'PPE Violations', href: ppe.violations.index() }],
+};

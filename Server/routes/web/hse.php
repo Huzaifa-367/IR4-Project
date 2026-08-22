@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Web\Hse\IncidentController;
 use App\Http\Controllers\Web\Hse\LsrController;
+use App\Http\Controllers\Web\Hse\VehicleViolationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('incidents')->name('hse.incidents.')->group(function (): void {
@@ -56,4 +57,16 @@ Route::prefix('lsr-violations')->name('hse.lsr.')->group(function (): void {
     Route::post('{lsr}/close', [LsrController::class, 'close'])
         ->middleware('permission:update-lsr')
         ->name('close');
+});
+
+Route::prefix('vehicle-violations')->name('hse.vehicle-violations.')->group(function (): void {
+    Route::get('/', [VehicleViolationController::class, 'index'])
+        ->middleware('permission:view-vehicle-violations')
+        ->name('index');
+    Route::post('/', [VehicleViolationController::class, 'store'])
+        ->middleware('permission:create-vehicle-violations')
+        ->name('store');
+    Route::delete('{vehicleViolation}', [VehicleViolationController::class, 'destroy'])
+        ->middleware('permission:delete-vehicle-violations')
+        ->name('destroy');
 });

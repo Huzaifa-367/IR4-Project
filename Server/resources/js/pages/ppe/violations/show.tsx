@@ -275,8 +275,5 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
 }
 
 PpeViolationShow.layout = {
-    breadcrumbs: [
-        { title: 'Safety', href: ppe.violations.index() },
-        { title: 'PPE violations', href: ppe.violations.index() },
-    ],
+    breadcrumbs: [{ title: 'PPE Violations', href: ppe.violations.index() }],
 };

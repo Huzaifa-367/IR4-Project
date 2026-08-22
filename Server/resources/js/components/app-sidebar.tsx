@@ -224,7 +224,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Vehicle Violations',
-                      href: reports.vehicleViolations.index(),
+                      href: hse.vehicleViolations.index(),
                       icon: Car,
                   } satisfies NavItem,
               ]

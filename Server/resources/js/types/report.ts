@@ -55,20 +55,6 @@ export type WeeklyReport = {
     created_at: string | null;
 };
 
-export type VehicleViolation = {
-    id: number;
-    uuid: string;
-    observed_at: string | null;
-    vehicle_description: string;
-    violation_type: string;
-    description: string | null;
-    action_taken: string;
-    camera_id: number | null;
-    camera_name: string | null;
-    logged_by_name: string | null;
-    created_at: string | null;
-};
-
 export type ReportSettings = {
     generation_day: string;
     generation_time: string;

@@ -58,7 +58,6 @@ export default function ReportsIndex({
     statuses,
     canGenerate,
     canManageSettings,
-    canLogVehicles,
 }: Props) {
     const [search, setSearch] = useState(filters.search);
     const [status, setStatus] = useState(filters.status || ALL);
@@ -139,15 +138,6 @@ export default function ReportsIndex({
                 description="Frozen Section 6.5 compliance packages"
                 actions={
                     <>
-                        {canLogVehicles && (
-                            <Button variant="outline" asChild>
-                                <Link
-                                    href={reportRoutes.vehicleViolations.index()}
-                                >
-                                    Vehicle violations
-                                </Link>
-                            </Button>
-                        )}
                         {canManageSettings && (
                             <Button variant="outline" asChild>
                                 <Link href={settings.reports.edit()}>

@@ -133,6 +133,19 @@ export default function LsrIndex({
 
     const columns: SettingsColumn<LsrViolation>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-24',
+            cell: (row) => (
+                <Link
+                    href={hse.lsr.show(row.uuid)}
+                    className="font-mono text-xs hover:underline"
+                >
+                    LSR #{row.id}
+                </Link>
+            ),
+        },
+        {
             key: 'category',
             header: 'Category',
             cell: (row) => (

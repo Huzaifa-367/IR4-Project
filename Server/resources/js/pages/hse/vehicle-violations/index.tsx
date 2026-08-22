@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
@@ -18,9 +18,9 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
-import reports from '@/routes/reports';
+import hse from '@/routes/hse';
 import type { PaginatedMeta } from '@/types/hardware';
-import type { VehicleViolation } from '@/types/report';
+import type { VehicleViolation } from '@/types/hse';
 
 type Props = {
     violations: { data: VehicleViolation[]; meta: PaginatedMeta };
@@ -56,7 +56,7 @@ export default function VehicleViolationsIndex({
     function applyFilters(patch: Partial<{ search: string }> = {}): void {
         const nextSearch = patch.search ?? search;
 
-        visitFilters(reports.vehicleViolations.index.url(), {
+        visitFilters(hse.vehicleViolations.index.url(), {
             search: nextSearch || undefined,
         });
     }
@@ -67,6 +67,14 @@ export default function VehicleViolationsIndex({
     );
 
     const columns: SettingsColumn<VehicleViolation>[] = [
+        {
+            key: 'number',
+            header: 'Number',
+            className: 'w-28',
+            cell: (row) => (
+                <span className="font-mono text-xs">Vehicle #{row.id}</span>
+            ),
+        },
         {
             key: 'observed',
             header: 'Observed',
@@ -108,22 +116,14 @@ export default function VehicleViolationsIndex({
             <Head title="Vehicle violations" />
             <SettingsPageShell
                 title="Vehicle Violations"
-                description="Manual item vii for the weekly report"
+                description="Manual weekly-report item vii — logged during the week, included at generation."
                 actions={
-                    <>
-                        <Button variant="outline" asChild>
-                            <Link href={reports.index()}>Back to reports</Link>
+                    canCreate ? (
+                        <Button type="button" onClick={() => setLogOpen(true)}>
+                            <Plus data-icon="inline-start" />
+                            Log violation
                         </Button>
-                        {canCreate && (
-                            <Button
-                                type="button"
-                                onClick={() => setLogOpen(true)}
-                            >
-                                <Plus data-icon="inline-start" />
-                                Log violation
-                            </Button>
-                        )}
-                    </>
+                    ) : undefined
                 }
                 filters={
                     <>
@@ -146,7 +146,7 @@ export default function VehicleViolationsIndex({
                     rows={violations.data}
                     rowKey={(row) => row.id}
                     meta={violations.meta}
-                    pageUrl={reports.vehicleViolations.index.url()}
+                    pageUrl={hse.vehicleViolations.index.url()}
                     queryParams={queryParams}
                     emptyTitle="No vehicle violations"
                     emptyDescription="No vehicle violations match these filters."
@@ -162,7 +162,7 @@ export default function VehicleViolationsIndex({
                         className="grid gap-4 sm:grid-cols-2"
                         onSubmit={(event) => {
                             event.preventDefault();
-                            form.post(reports.vehicleViolations.store.url(), {
+                            form.post(hse.vehicleViolations.store.url(), {
                                 preserveScroll: true,
                                 onSuccess: () => {
                                     form.reset();
@@ -330,9 +330,7 @@ export default function VehicleViolationsIndex({
                 }
                 action={
                     deleteTarget
-                        ? reports.vehicleViolations.destroy.url(
-                              deleteTarget.uuid,
-                          )
+                        ? hse.vehicleViolations.destroy.url(deleteTarget.uuid)
                         : undefined
                 }
                 method="delete"
@@ -345,10 +343,9 @@ export default function VehicleViolationsIndex({
 
 VehicleViolationsIndex.layout = {
     breadcrumbs: [
-        { title: 'Reports', href: reports.index() },
         {
-            title: 'Vehicle violations',
-            href: reports.vehicleViolations.index(),
+            title: 'Vehicle Violations',
+            href: hse.vehicleViolations.index(),
         },
     ],
 };
