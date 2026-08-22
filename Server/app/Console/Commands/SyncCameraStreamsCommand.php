@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\CameraStreamGatewayService;
+use App\Services\Camera\CameraStreamGatewayService;
 use Illuminate\Console\Command;
 
 final class SyncCameraStreamsCommand extends Command

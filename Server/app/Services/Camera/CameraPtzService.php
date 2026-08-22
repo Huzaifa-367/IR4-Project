@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Camera;
 
 use App\Enums\AuditEvent;
 use App\Models\Camera;
 use App\Models\User;
+use App\Services\AuditService;
 use App\Support\RtspStreamEndpoint;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;

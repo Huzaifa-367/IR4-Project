@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\Camera;
 use App\Models\Device;
 use App\Models\User;
+use App\Services\Camera\CameraStreamGatewayService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;

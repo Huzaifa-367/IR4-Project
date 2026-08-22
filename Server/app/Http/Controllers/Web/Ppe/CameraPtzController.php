@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Web\Ppe;
 use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\Live\ControlCameraPtzRequest;
 use App\Models\Camera;
-use App\Services\CameraPtzService;
+use App\Services\Camera\CameraPtzService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 

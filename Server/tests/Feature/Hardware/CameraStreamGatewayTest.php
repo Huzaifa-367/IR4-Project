@@ -3,7 +3,7 @@
 use App\Models\Asset;
 use App\Models\Camera;
 use App\Models\User;
-use App\Services\CameraStreamGatewayService;
+use App\Services\Camera\CameraStreamGatewayService;
 use App\Services\HardwareRegistryService;
 use Illuminate\Support\Facades\Http;
 

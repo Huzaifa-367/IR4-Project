@@ -50,5 +50,5 @@ pathDefaults:
   # TCP is more reliable across VLANs/firewalls than UDP RTP.
   rtspTransport: tcp
 
-# Paths are created dynamically by IR4 (CameraStreamGatewayService).
+# Paths are created dynamically by IR4 (ir4:sync-camera-streams).
 paths: {}

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Web\Ppe;
 
 use App\Http\Controllers\Web\BaseController;
-use App\Services\HlsProxyException;
-use App\Services\HlsProxyService;
+use App\Services\Camera\HlsProxyException;
+use App\Services\Camera\HlsProxyService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;

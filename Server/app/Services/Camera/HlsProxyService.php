@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Camera;
 
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Cookie\SetCookie;
