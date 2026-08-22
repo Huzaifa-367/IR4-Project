@@ -90,8 +90,16 @@ class TagBatcher:
 class RfidAgentState:
     def __init__(self) -> None:
         self.mqtt_connected = False
-        self.messages = 0
-        self.ingested = 0
+        self.mqtt_messages = 0
+        self.tags_mapped = 0
+        self.tags_debounced = 0
+        self.tags_ingested = 0
+        self.unmapped_messages = 0
+
+    @property
+    def messages(self) -> int:
+        """Backward-compatible alias — tag reads mapped, not raw MQTT count."""
+        return self.tags_mapped
 
 
 def run_agent(config_path: Path, dry_run: bool = False) -> int:
@@ -146,22 +154,42 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     )
     state = RfidAgentState()
     stop = {"flag": False}
+    last_buffer_flush = 0.0
+    buffer_flush_interval = float(agent_cfg.get("buffer_flush_interval_seconds", 15.0))
 
     def send_batch(events: List[Dict[str, Any]]) -> None:
         if not events:
             return
         result = buffer.submit(client, events, Ir4Client.post_tag_readings)
-        state.ingested += result.accepted
+        state.tags_ingested += result.accepted
         if result.rejected:
             log.warning("Rejected: %s", result.rejected[:5])
+
+    def flush_pending_buffer() -> None:
+        nonlocal last_buffer_flush
+        if buffer.pending_count() <= 0:
+            return
+        now = time.monotonic()
+        if now - last_buffer_flush < buffer_flush_interval:
+            return
+        removed = buffer.flush(client, Ir4Client.post_tag_readings)
+        if removed:
+            log.info("Buffer flush removed %d pending events", removed)
+        last_buffer_flush = now
 
     def meta_provider() -> Dict[str, Any]:
         return {
             "agent": "ir4-rfid-agent",
             "mqtt_connected": state.mqtt_connected,
             "mqtt_topic": topic,
-            "messages": state.messages,
+            "mqtt_messages": state.mqtt_messages,
+            "tags_mapped": state.tags_mapped,
+            "tags_debounced": state.tags_debounced,
+            "tags_ingested": state.tags_ingested,
+            "messages": state.tags_mapped,
+            "ingested": state.tags_ingested,
             "pending_events": buffer.pending_count(),
+            "unmapped_mqtt": state.unmapped_messages,
             "reader_ref": reader_ref,
         }
 
@@ -202,7 +230,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
         _userdata: object,
         msg: mqtt.MQTTMessage,
     ) -> None:
-        state.messages += 1
+        state.mqtt_messages += 1
         raw = msg.payload.decode("utf-8", errors="replace")
         if log_raw:
             log.info("RAW [%s] %s", msg.topic, raw)
@@ -210,8 +238,20 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
             payload = json.loads(raw)
         except json.JSONDecodeError:
             log.warning("Non-JSON MQTT payload on %s", msg.topic)
+            state.unmapped_messages += 1
             return
-        for event in events_from_payload(payload, reader_ref):
+        events = events_from_payload(payload, reader_ref)
+        if not events:
+            state.unmapped_messages += 1
+            if state.unmapped_messages <= 5 or state.unmapped_messages % 100 == 0:
+                log.info(
+                    "MQTT message without tag read (total unmapped=%d) sample=%s",
+                    state.unmapped_messages,
+                    raw[:200],
+                )
+            return
+        for event in events:
+            state.tags_mapped += 1
             log.debug(
                 "TAG epc=%s rssi=%s",
                 event["tag_uid"],
@@ -248,6 +288,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     try:
         while not stop["flag"]:
             send_batch(batcher.flush_due())
+            flush_pending_buffer()
             time.sleep(0.2)
     finally:
         send_batch(batcher.flush_all())

@@ -60,6 +60,28 @@ class OutageBufferTest(unittest.TestCase):
         self.assertEqual(buf.pending_count(), 1)
         buf.close()
 
+    def test_rejected_events_stay_in_buffer(self) -> None:
+        buf = OutageBuffer(self.path, "tag_readings", max_rows=10)
+        buf.enqueue([_event(1), _event(2)])
+
+        def sender(_client: Ir4Client, events: Sequence[Mapping[str, Any]]) -> IngestResult:
+            uids = [str(event.get("event_uid") or "") for event in events]
+            if "uid-0002" in uids:
+                reject_at = uids.index("uid-0002")
+                return IngestResult(
+                    accepted=max(0, len(events) - 1),
+                    status_code=202,
+                    rejected=[{"index": reject_at, "code": "FORBIDDEN_REFERENCE"}],
+                )
+            return IngestResult(accepted=len(events), status_code=202)
+
+        removed = buf.flush(_FakeClient(), sender)  # type: ignore[arg-type]
+        self.assertEqual(removed, 1)
+        self.assertEqual(buf.pending_count(), 1)
+        pending = buf._peek(10)
+        self.assertEqual(pending[0]["event_uid"], "uid-0002")
+        buf.close()
+
 
 if __name__ == "__main__":
     unittest.main()

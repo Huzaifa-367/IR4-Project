@@ -188,8 +188,25 @@ class OutageBuffer:
                     len(result.rejected),
                     result.rejected[:5],
                 )
-            self._delete_ids(ids)
-            removed += len(ids)
+            rejected_indices = {
+                int(item.get("index", -1))
+                for item in result.rejected
+                if isinstance(item, dict)
+            }
+            rejected_indices = {
+                index for index in rejected_indices if 0 <= index < len(batch)
+            }
+            keep_ids: List[int] = []
+            requeue: List[Dict[str, Any]] = []
+            for index, row_id in enumerate(ids):
+                if index in rejected_indices:
+                    requeue.append(dict(batch[index]))
+                else:
+                    keep_ids.append(row_id)
+            self._delete_ids(keep_ids)
+            if requeue:
+                self.enqueue(requeue)
+            removed += len(keep_ids)
             log.info(
                 "Flushed batch size=%d accepted=%d duplicates=%d rejected=%d",
                 len(ids),
@@ -210,6 +227,26 @@ class OutageBuffer:
             return IngestResult(status_code=0)
         result = sender(client, events)
         if result.status_code in (200, 202) and not result.retriable:
+            if result.rejected:
+                rejected_indices = {
+                    int(item.get("index", -1))
+                    for item in result.rejected
+                    if isinstance(item, dict)
+                }
+                rejected_indices = {
+                    index for index in rejected_indices if 0 <= index < len(events)
+                }
+                requeue = [
+                    dict(events[index])
+                    for index in range(len(events))
+                    if index in rejected_indices
+                ]
+                if requeue:
+                    self.enqueue(requeue)
+                    log.warning(
+                        "Re-buffered %d server-rejected live events",
+                        len(requeue),
+                    )
             self.flush(client, sender)
             return result
         if result.retriable or result.status_code >= 500 or result.status_code == 0:

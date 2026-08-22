@@ -1,42 +1,67 @@
-"""Map FXR90 CUSTOM MQTT JSON to IR4 /api/ingest/tag-readings events.
+"""Map FXR90 MQTT JSON to IR4 /api/ingest/tag-readings events.
 
-Topic zebra/fxr90-NN/tags publishes only this shape:
+Primary shape (ZIOTC Tag Data Interface):
 
-  {"data":{"CRC","PC","antenna","channel","eventNum","format",
-           "idHex","peakRssi","phase","reads"},
-   "timestamp":"...","type":"CUSTOM"}
+  {"data":{"idHex","peakRssi","antenna",...},"timestamp":"...","type":"CUSTOM"}
 
-Ingest keeps idHex, timestamp, peakRssi, antenna.
-Missing live fields are omitted — nothing is invented.
+Also accepts tag reads without ``type=CUSTOM`` when ``idHex`` is present, and
+skips management/health envelopes (``system`` / ``radio_control``) that share
+the MQTT topic but are not tag reads.
 """
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from ir4_edge.common.timeutil import new_event_uid, to_iso
 
+log = logging.getLogger("ir4_edge.rfid.mapper")
+
+_NON_TAG_TYPES = frozenset(
+    {
+        "heartbeat",
+        "status",
+        "management",
+        "health",
+        "radio_control",
+        "system",
+    }
+)
+
+
+def _is_health_envelope(payload: Mapping[str, Any]) -> bool:
+    if payload.get("system") or payload.get("radio_control"):
+        return True
+    msg_type = str(payload.get("type") or "").lower()
+    return msg_type in _NON_TAG_TYPES
+
 
 def extract_tag_fields(payload: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
-    if payload.get("type") != "CUSTOM":
+    if _is_health_envelope(payload):
         return None
     data = payload.get("data")
     if not isinstance(data, Mapping):
-        return None
-    epc = data.get("idHex")
-    timestamp = payload.get("timestamp")
+        data = payload
+    epc = data.get("idHex") or data.get("epc")
     if not isinstance(epc, str) or not epc.strip():
         return None
+    timestamp = payload.get("timestamp")
+    if not isinstance(timestamp, str):
+        timestamp = data.get("firstSeenTimestamp") or data.get("timestamp")
     if not isinstance(timestamp, str):
         return None
     recorded_at = to_iso(timestamp)
     if recorded_at is None:
+        log.warning("Tag read skipped — unparseable timestamp: %r", timestamp[:80])
         return None
     fields: Dict[str, Any] = {
         "tag_uid": epc.strip().upper(),
         "recorded_at": recorded_at,
     }
     rssi = data.get("peakRssi")
+    if rssi is None:
+        rssi = data.get("rssi")
     if rssi is not None:
         fields["rssi"] = int(round(float(rssi)))
     antenna = data.get("antenna")
