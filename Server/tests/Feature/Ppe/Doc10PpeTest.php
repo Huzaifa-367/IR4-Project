@@ -4,6 +4,7 @@ use App\Enums\AlertStatus;
 use App\Enums\AlertType;
 use App\Enums\HardwareStatus;
 use App\Enums\ReviewStatus;
+use App\Enums\ViolationType;
 use App\Events\PpeViolationDetected;
 use App\Models\Alert;
 use App\Models\Camera;
@@ -85,7 +86,9 @@ it('accepts helmet and vest ingest without a camera still', function () {
         ->and($violation?->violation_type->value)->toBe('missing_vest');
 });
 
-it('routes fall events to fall_detection without a ppe row', function () {
+it('stores fall events as ppe rows and raises fall_detection', function () {
+    Event::fake([PpeViolationDetected::class]);
+
     $plain = 'ppe-fall';
     Device::factory()->withPlainToken($plain)->create();
     $zone = Zone::factory()->create(['name' => 'Deck A']);
@@ -100,12 +103,55 @@ it('routes fall events to fall_detection without a ppe row', function () {
         ->assertAccepted()
         ->assertJsonPath('accepted', 1);
 
-    expect(PpeViolation::query()->count())->toBe(0)
+    $violation = PpeViolation::query()->first();
+    expect($violation)->not->toBeNull()
+        ->and($violation?->violation_type)->toBe(ViolationType::Fall)
+        ->and($violation?->alert_id)->not->toBeNull()
         ->and(Alert::query()->where('alert_type', AlertType::FallDetection)->count())->toBe(1);
 
     $alert = Alert::query()->where('alert_type', AlertType::FallDetection)->first();
     expect($alert?->payload['zone_id'] ?? null)->toBe($zone->id)
-        ->and($alert?->payload['camera_ref'] ?? null)->toBe('cam-fall');
+        ->and($alert?->payload['camera_id'] ?? null)->toBe($camera->id)
+        ->and($alert?->payload['camera_ref'] ?? null)->toBe('cam-fall')
+        ->and($alert?->payload['ppe_violation_id'] ?? null)->toBe($violation?->id);
+
+    Event::assertDispatched(PpeViolationDetected::class);
+});
+
+it('stores working-at-heights as missing_harness and raises height_without_harness', function () {
+    $plain = 'ppe-heights';
+    Device::factory()->withPlainToken($plain)->create();
+    $camera = Camera::factory()->create(['reference' => 'cam-heights']);
+
+    $this->postJson(route('api.ingest.ppe-violations'), [
+        'events' => [ppeEvent($camera->reference, 'missing_harness')],
+    ], ppeIngestHeaders($plain))
+        ->assertAccepted()
+        ->assertJsonPath('accepted', 1);
+
+    $violation = PpeViolation::query()->first();
+    expect($violation?->violation_type)->toBe(ViolationType::MissingHarness)
+        ->and($violation?->violation_type->label())->toBe('Working at heights')
+        ->and(Alert::query()->where('alert_type', AlertType::HeightWithoutHarness)->count())->toBe(1);
+});
+
+it('lists every ppe type including fall and working at heights', function () {
+    $operator = User::factory()->withRole('SCC Operator')->create();
+
+    $this->actingAs($operator)
+        ->get(route('ppe.violations.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('ppe/violations/index')
+            ->where('violationTypes', fn ($types) => collect($types)->pluck('value')->all() === [
+                'missing_helmet',
+                'missing_vest',
+                'missing_harness',
+                'missing_mask',
+                'fall',
+            ])
+            ->where('violationTypes.2.label', 'Working at heights')
+            ->where('violationTypes.4.label', 'Fall detection'));
 });
 
 it('rejects unknown camera references', function () {

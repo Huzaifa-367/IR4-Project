@@ -1,6 +1,7 @@
 import { Form, Head, Link, useForm } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import { AlertPrefillCard } from '@/components/ir4/alert-prefill-card';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
@@ -289,20 +290,38 @@ export default function LsrIndex({
                     setLogOpen(open);
                 }}
             >
-                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+                <DialogContent
+                    className={
+                        prefill
+                            ? 'max-h-[90vh] overflow-y-auto sm:max-w-2xl'
+                            : 'max-h-[90vh] overflow-y-auto sm:max-w-xl'
+                    }
+                >
                     <DialogHeader>
-                        <DialogTitle>Log LSR</DialogTitle>
+                        <DialogTitle>
+                            {prefill ? 'Log LSR from alert' : 'Log LSR'}
+                        </DialogTitle>
                         <DialogDescription>
                             {prefill
-                                ? `Prefill from alert #${prefill.alert_id} — review and submit.`
+                                ? 'Review the detection, then submit. Nothing is saved until you confirm.'
                                 : 'Manual Life Saving Rule entry.'}
                         </DialogDescription>
                     </DialogHeader>
 
+                    {prefill ? (
+                        <AlertPrefillCard
+                            typeLabel={prefill.alert.alert_type_label}
+                            cameraName={prefill.camera_name}
+                            cameraRef={prefill.camera_ref}
+                            violationLabel={prefill.violation_type_label}
+                            snapshotUrl={prefill.snapshot_url}
+                        />
+                    ) : null}
+
                     {isPpeLinked && (
-                        <p className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                            PPE-linked LSR keeps worker identity null (camera
-                            never identified anyone).
+                        <p className="text-xs text-muted-foreground">
+                            Camera detections stay anonymous — worker is not
+                            attached.
                         </p>
                     )}
 

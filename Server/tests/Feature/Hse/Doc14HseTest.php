@@ -8,6 +8,8 @@ use App\Enums\IncidentType;
 use App\Enums\Involvement;
 use App\Enums\LsrCategory;
 use App\Enums\LsrStatus;
+use App\Enums\ViolationType;
+use App\Models\Camera;
 use App\Models\Device;
 use App\Models\HseIncident;
 use App\Models\IncidentEvidence;
@@ -260,6 +262,7 @@ it('opens create via index dialog props and redirects legacy create urls', funct
         ->assertInertia(fn ($page) => $page
             ->component('hse/incidents/index')
             ->where('prefill.alert_id', $alert->id)
+            ->missing('prefill.snapshot_path')
             ->has('zones'));
 
     $this->actingAs($operator)
@@ -270,6 +273,44 @@ it('opens create via index dialog props and redirects legacy create urls', funct
             ->where('prefill.alert_id', $alert->id)
             ->has('zones')
             ->has('workers'));
+});
+
+it('prefills incident create with the camera still and resolved camera', function () {
+    $operator = User::factory()->withRole('SCC Operator')->create();
+    $camera = Camera::factory()->create(['name' => 'Pole 4']);
+    $ppe = PpeViolation::factory()->create([
+        'camera_id' => $camera->id,
+        'violation_type' => ViolationType::Fall,
+        'snapshot_path' => 'snapshots/2026/08/22/fall.jpg',
+        'confidence' => 0.91,
+    ]);
+    $alert = app(AlertService::class)->raise(
+        type: AlertType::FallDetection,
+        title: 'Fall detection',
+        payload: [
+            'ppe_violation_id' => $ppe->id,
+            'camera_ref' => $camera->reference,
+            'detected_at' => now()->subMinute()->toIso8601String(),
+            'snapshot_path' => $ppe->snapshot_path,
+        ],
+    );
+
+    $prefill = app(IncidentService::class)->prefillFromAlert($alert);
+    expect($prefill['camera_id'])->toBe($camera->id)
+        ->and($prefill['camera_name'])->toBe('Pole 4')
+        ->and($prefill['snapshot_url'])->toBeString()
+        ->and($prefill)->not->toHaveKey('snapshot_path')
+        ->and($prefill['violation_type'])->toBe(ViolationType::Fall->value);
+
+    $this->actingAs($operator)
+        ->get(route('hse.incidents.index', ['alert_id' => $alert->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('hse/incidents/index')
+            ->where('prefill.camera_id', $camera->id)
+            ->where('prefill.violation_type', 'fall')
+            ->has('prefill.snapshot_url')
+            ->missing('prefill.snapshot_path'));
 });
 
 it('logs permit categories manually and returns summary counts', function () {

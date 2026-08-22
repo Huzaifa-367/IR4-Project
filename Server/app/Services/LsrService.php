@@ -7,14 +7,20 @@ use App\Enums\LsrCategory;
 use App\Enums\LsrStatus;
 use App\Models\Alert;
 use App\Models\AuditLog;
+use App\Models\Camera;
 use App\Models\LsrViolation;
 use App\Models\PpeViolation;
 use App\Models\User;
+use App\Models\Zone;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 final class LsrService
 {
+    public function __construct(
+        private readonly SignedStorageUrlService $signedUrls,
+    ) {}
+
     /**
      * Prefill only — never inserts a row.
      *
@@ -23,7 +29,29 @@ final class LsrService
     public function prefillFromAlert(Alert $alert): array
     {
         $payload = $alert->payload ?? [];
-        $ppeId = $payload['ppe_violation_id'] ?? null;
+        $ppe = null;
+        if (! empty($payload['ppe_violation_id'])) {
+            $ppe = PpeViolation::query()->with('camera')->find((int) $payload['ppe_violation_id']);
+        }
+
+        $camera = $ppe?->camera;
+        if ($camera === null && ! empty($payload['camera_id']) && is_numeric($payload['camera_id'])) {
+            $camera = Camera::query()->find((int) $payload['camera_id']);
+        }
+        if ($camera === null && is_string($payload['camera_ref'] ?? null) && $payload['camera_ref'] !== '') {
+            $camera = Camera::query()->where('reference', $payload['camera_ref'])->first();
+        }
+
+        $zone = null;
+        if (! empty($payload['zone_id']) && is_numeric($payload['zone_id'])) {
+            $zone = Zone::query()->find((int) $payload['zone_id']);
+        }
+
+        $snapshotPath = (isset($payload['snapshot_path']) && is_string($payload['snapshot_path']) && $payload['snapshot_path'] !== '')
+            ? $payload['snapshot_path']
+            : $ppe?->snapshot_path;
+
+        $ppeId = $ppe?->id;
         $category = $this->categoryFromAlert($alert);
 
         // PPE-linked LSR never carries worker identity (DOC-10 / DOC-14).
@@ -37,15 +65,23 @@ final class LsrService
                 ?? $payload['occurred_at']
                 ?? optional($alert->raised_at)?->toIso8601String(),
             'worker_id' => $workerId,
-            'zone_id' => $payload['zone_id'] ?? null,
-            'camera_id' => $payload['camera_id'] ?? null,
+            'zone_id' => $zone?->id ?? (isset($payload['zone_id']) ? (int) $payload['zone_id'] : null),
+            'zone_name' => $zone?->name,
+            'camera_id' => $camera?->id,
+            'camera_name' => $camera?->name,
+            'camera_ref' => $camera?->reference ?? (is_string($payload['camera_ref'] ?? null) ? $payload['camera_ref'] : null),
             'alert_id' => $alert->id,
             'ppe_violation_id' => $ppeId,
             'description' => $alert->title,
+            'snapshot_url' => $snapshotPath !== null && $snapshotPath !== ''
+                ? $this->signedUrls->temporaryUrl($snapshotPath)
+                : null,
+            'violation_type_label' => $ppe?->violation_type->label(),
             'alert' => [
                 'id' => $alert->id,
                 'uuid' => $alert->uuid,
                 'alert_type' => $alert->alert_type->value,
+                'alert_type_label' => $alert->alert_type->label(),
                 'title' => $alert->title,
             ],
         ];

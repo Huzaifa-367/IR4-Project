@@ -99,19 +99,35 @@ export default function PpeViolationShow({ violation, canReview }: Props) {
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {violation.alert_id ? (
-                                <Button asChild variant="secondary">
-                                    <Link
-                                        href={hse.lsr.index.url({
-                                            query: {
-                                                alert_id: String(
-                                                    violation.alert_id,
-                                                ),
-                                            },
-                                        })}
-                                    >
-                                        Log LSR
-                                    </Link>
-                                </Button>
+                                violation.violation_type === 'fall' ? (
+                                    <Button asChild>
+                                        <Link
+                                            href={hse.incidents.index.url({
+                                                query: {
+                                                    alert_id: String(
+                                                        violation.alert_id,
+                                                    ),
+                                                },
+                                            })}
+                                        >
+                                            Create incident
+                                        </Link>
+                                    </Button>
+                                ) : (
+                                    <Button asChild variant="secondary">
+                                        <Link
+                                            href={hse.lsr.index.url({
+                                                query: {
+                                                    alert_id: String(
+                                                        violation.alert_id,
+                                                    ),
+                                                },
+                                            })}
+                                        >
+                                            Log LSR
+                                        </Link>
+                                    </Button>
+                                )
                             ) : null}
                             <Button asChild variant="outline">
                                 <Link href={ppe.violations.index()}>

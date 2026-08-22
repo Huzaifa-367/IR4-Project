@@ -9,6 +9,34 @@ use App\Support\StandbyPoleIngest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
+it('posts working-at-heights and fall as ppe ingest types', function () {
+    Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
+
+    $this->artisan('ir4:s', [
+        'action' => 'w',
+        'pole' => '4',
+        '--url' => 'http://standby.test',
+    ])->assertSuccessful();
+
+    $this->artisan('ir4:s', [
+        'action' => 'f',
+        'pole' => '4',
+        '--url' => 'http://standby.test',
+    ])->assertSuccessful();
+
+    $types = [];
+    Http::assertSent(function ($request) use (&$types): bool {
+        if (! str_contains($request->url(), '/api/ingest/ppe-violations')) {
+            return false;
+        }
+        $types[] = $request['events'][0]['event_type'] ?? '';
+
+        return true;
+    });
+
+    expect($types)->toBe(['missing_harness', 'fall']);
+});
+
 it('posts a one-shot helmet violation without a snapshot field', function () {
     Http::fake(['*' => Http::response(['accepted' => 1], 202)]);
 
@@ -204,7 +232,7 @@ it('documents device letter commands on the signature', function () {
         ->and($command->getDefinition()->hasOption('loop'))->toBeTrue()
         ->and($command->getDefinition()->hasOption('to'))->toBeTrue()
         ->and($command->getDefinition()->getArgument('action')->getDescription())
-        ->toContain('t|g|m|r|h|v')
+        ->toContain('t|g|m|r|h|v|w|f|k')
         ->and($command->getDefinition()->getArgument('pole')->getDescription())
         ->toContain('all')
         ->and($command->getDefinition()->getArgument('tag')->getDescription())

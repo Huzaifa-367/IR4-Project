@@ -16,7 +16,7 @@ use Throwable;
 /**
  * Walkthrough stand-in for poles 1–4: same IR4_BASE_URL + /api/ingest/* + heartbeats as EdgeCompute.
  *
- * t = heartbeats only · g = gas · m = mimic gas from one pole · r = rfid · h = helmet · v = vest
+ * t = heartbeats only · g = gas · m = mimic gas · r = rfid · h = helmet · v = vest · w = heights · f = fall · k = mask
  */
 final class StandbyPolesCommand extends Command
 {
@@ -28,7 +28,7 @@ final class StandbyPolesCommand extends Command
     private const POLES = [1, 2, 3, 4];
 
     protected $signature = 'ir4:s
-                            {action? : t|g|m|r|h|v (tick, gas, mimic, rfid, helmet, vest)}
+                            {action? : t|g|m|r|h|v|w|f|k (tick, gas, mimic, rfid, helmet, vest, heights, fall, mask)}
                             {pole? : pole 1-4, or all for g; for m = source pole}
                             {tag? : RFID 1-based site-tag index or full EPC (default 1)}
                             {--alarm : With g: post above warn thresholds}
@@ -62,6 +62,9 @@ final class StandbyPolesCommand extends Command
                 'r', 'rfid', 'a', 'at', 'arrive' => $this->runRfid($client),
                 'h', 'helmet' => $this->runPpe($client, 'missing_helmet'),
                 'v', 'vest' => $this->runPpe($client, 'missing_vest'),
+                'w', 'harness', 'height', 'heights' => $this->runPpe($client, 'missing_harness'),
+                'f', 'fall' => $this->runPpe($client, 'fall'),
+                'k', 'mask' => $this->runPpe($client, 'missing_mask'),
                 default => $this->failAction($action),
             };
         } catch (Throwable $e) {
@@ -91,6 +94,9 @@ final class StandbyPolesCommand extends Command
                 ['ir4:s r {pole} [tag]', 'rfid', 'POST /api/ingest/tag-readings (default first site EPC)'],
                 ['ir4:s h {pole}', 'helmet', 'POST /api/ingest/ppe-violations missing_helmet'],
                 ['ir4:s v {pole}', 'vest', 'POST /api/ingest/ppe-violations missing_vest'],
+                ['ir4:s w {pole}', 'heights', 'POST /api/ingest/ppe-violations missing_harness'],
+                ['ir4:s f {pole}', 'fall', 'POST /api/ingest/ppe-violations fall'],
+                ['ir4:s k {pole}', 'mask', 'POST /api/ingest/ppe-violations missing_mask'],
             ],
         );
         $this->line('RFID [tag]: 1-based index into database/data/rfid_tags.php, or a full EPC. Omit → first site tag.');
@@ -237,7 +243,7 @@ final class StandbyPolesCommand extends Command
         }
 
         $toList = implode(',', $targets);
-        $this->warn("mimic gas loop ".self::LOOP_SECONDS."s from pole-0{$sourcePole} → {$toList}. Ctrl-C to stop.");
+        $this->warn('mimic gas loop '.self::LOOP_SECONDS."s from pole-0{$sourcePole} → {$toList}. Ctrl-C to stop.");
         while (true) {
             sleep(self::LOOP_SECONDS);
             $once();

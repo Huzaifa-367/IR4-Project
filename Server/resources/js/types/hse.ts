@@ -25,7 +25,16 @@ export type IncidentEvidence = {
     evidence_type: EvidenceType | string;
     evidence_type_label: string;
     download_url: string | null;
-    payload: Record<string, unknown> | null;
+    is_image: boolean;
+    note_text: string | null;
+    violation_type_label: string | null;
+    rfid_worker_count: number | null;
+    rfid_workers: Array<{
+        worker_id: number;
+        tag_id: number | null;
+        last_seen_at: string | null;
+        worker_label: string | null;
+    }> | null;
     ppe_violation_id: number | null;
     ppe_violation_uuid: string | null;
     camera_id: number | null;
@@ -96,15 +105,24 @@ export type IncidentPrefill = {
     alert_id: number;
     occurred_at: string | null;
     zone_id: number | null;
+    zone_name: string | null;
     camera_id: number | null;
+    camera_name: string | null;
+    camera_ref: string | null;
     nature_of_incident: string | null;
     suggested_action: string | null;
-    snapshot_path: string | null;
+    snapshot_url: string | null;
     ppe_violation_id: number | null;
+    violation_type: string | null;
+    violation_type_label: string | null;
+    confidence: number | null;
+    location_label: string | null;
     alert: {
         id: number;
         uuid: string;
         alert_type: string;
+        alert_type_label: string;
+        severity: string;
         title: string;
         raised_at: string | null;
     };
@@ -115,14 +133,20 @@ export type LsrPrefill = {
     occurred_at: string | null;
     worker_id: number | null;
     zone_id: number | null;
+    zone_name: string | null;
     camera_id: number | null;
+    camera_name: string | null;
+    camera_ref: string | null;
     alert_id: number;
     ppe_violation_id: number | null;
     description: string | null;
+    snapshot_url: string | null;
+    violation_type_label: string | null;
     alert: {
         id: number;
         uuid: string;
         alert_type: string;
+        alert_type_label: string;
         title: string;
     };
 };

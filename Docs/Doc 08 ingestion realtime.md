@@ -81,7 +81,7 @@ All under `/api/ingest/*` (or `/api/devices/*` for heartbeats), `auth.device`, b
 | `POST /api/devices/{id}/heartbeat` | any device/edge agent | `{ status?, meta? }` (not batched; simple liveness ping) | DOC-05 |
 
 Notes:
-- **PPE + fall are one endpoint.** The camera AI reports both kinds of computer-vision event through `/api/ingest/ppe-violations`, discriminated by `event_type`. A `fall` event carries no `worker_count`/PPE type; a PPE event carries its violation type. DOC-10 routes each `event_type` to the right handling (PPE violation record vs the `fall_detection` alert that suggests an incident — DOC-14).
+- **PPE + fall are one endpoint.** The camera AI reports both kinds of computer-vision event through `/api/ingest/ppe-violations`, discriminated by `event_type`. DOC-10 stores every accepted type as a `ppe_violations` row (`fall` included) and raises the matching alert (`fall_detection` / `height_without_harness` / `ppe_violation`).
 - **Five gas channels, one endpoint.** `/api/ingest/gas-readings` accepts a reading with any subset of `lel_pct`, `h2s_ppm`, `o2_pct`, `co_ppm`, and `co2_ppm`. Devices register as `gas_detector` regardless of which channels they measure; DOC-11 stores and evaluates each present channel against its threshold.
 - `*_ref` fields resolve to the exact camera/device/reader by `reference` (DOC-05), **not** by the authenticating device's id — this is what lets a single edge unit post on behalf of multiple cameras/readers it processes (e.g. relayed pole cameras). Unknown reference → per-event `UNKNOWN_REFERENCE` rejection.
 - `snapshot` may be sent inline (base64 in JSON) for small images or as multipart for larger; stored to the private disk (DOC-01 §10) and referenced by path — the raw bytes are never echoed back.

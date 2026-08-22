@@ -72,7 +72,7 @@ Every alert type in the platform, its source module, default severity, default a
 | `red_zone_intrusion` | Tracking (09) | critical | **yes** | no | offer "log LSR from this" (prefills worker + zone) |
 | `unauthorized_zone_access` | Tracking (09) | warning | no | no | offer "log LSR from this" (prefills worker + zone) |
 | `zone_occupancy_exceeded` | Tracking (09) | warning | no | yes (count drops) | offer "log LSR from this" (prefills zone + count) |
-| `height_without_harness` | HSE cross-check (14) | critical | **yes** | no | offer "log LSR from this" |
+| `height_without_harness` | PPE (10) | critical | **yes** | no | offer "log LSR from this" |
 | `fall_detection` | PPE/camera (10/14) | critical | **yes** | no | offer "create incident from this" (prefills evidence) |
 | `stationary_tag` | Tracking (09) | warning | no | no | offer "create incident from this" |
 | `worker_down` | Correlator (09→14) | critical | **yes** | no | offer "create incident from this" (two-signal) |

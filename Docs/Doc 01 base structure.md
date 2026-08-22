@@ -194,14 +194,16 @@ enum ViolationType: string
     case MissingVest    = 'missing_vest';
     case MissingHarness = 'missing_harness';
     case MissingMask    = 'missing_mask';
+    case Fall           = 'fall';
 
     public function label(): string
     {
         return match ($this) {
-            self::MissingHelmet  => 'Missing Helmet',
-            self::MissingVest    => 'Missing Vest',
-            self::MissingHarness => 'Missing Harness',
-            self::MissingMask    => 'Missing Mask',
+            self::MissingHelmet  => 'Missing helmet',
+            self::MissingVest    => 'Missing vest',
+            self::MissingHarness => 'Working at heights',
+            self::MissingMask    => 'Missing mask',
+            self::Fall           => 'Fall detection',
         };
     }
 }
@@ -214,14 +216,16 @@ export const ViolationType = {
   MissingVest: 'missing_vest',
   MissingHarness: 'missing_harness',
   MissingMask: 'missing_mask',
+  Fall: 'fall',
 } as const;
 export type ViolationType = (typeof ViolationType)[keyof typeof ViolationType];
 
 export const ViolationTypeLabels: Record<ViolationType, string> = {
-  missing_helmet: 'Missing Helmet',
-  missing_vest: 'Missing Vest',
-  missing_harness: 'Missing Harness',
-  missing_mask: 'Missing Mask',
+  missing_helmet: 'Missing helmet',
+  missing_vest: 'Missing vest',
+  missing_harness: 'Working at heights',
+  missing_mask: 'Missing mask',
+  fall: 'Fall detection',
 };
 ```
 

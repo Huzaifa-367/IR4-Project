@@ -519,8 +519,9 @@ final class DashboardService
                 'label' => match ($type) {
                     ViolationType::MissingHelmet => 'Helmet',
                     ViolationType::MissingVest => 'Vest',
-                    ViolationType::MissingHarness => 'Harness',
+                    ViolationType::MissingHarness => 'Heights',
                     ViolationType::MissingMask => 'Mask',
+                    ViolationType::Fall => 'Fall',
                 },
             ];
         }

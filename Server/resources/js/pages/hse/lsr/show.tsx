@@ -24,6 +24,16 @@ function formatDate(value: string | null): string {
 export default function LsrShow({ violation, canClose }: Props) {
     const isOpen = violation.status === 'open';
     const heroTone = isOpen ? 'bg-[color:var(--warn)]' : 'bg-[color:var(--ok)]';
+    const workerValue = violation.worker_uuid ? (
+        <Link
+            href={tracking.workers.show.url(violation.worker_uuid)}
+            className="text-[color:var(--accent)] hover:underline"
+        >
+            {violation.worker_label ?? '—'}
+        </Link>
+    ) : (
+        (violation.worker_label ?? '—')
+    );
 
     return (
         <>
@@ -33,16 +43,21 @@ export default function LsrShow({ violation, canClose }: Props) {
                     <div className={cn('h-1.5 w-full', heroTone)} aria-hidden />
                     <div className="flex flex-wrap items-start justify-between gap-4 p-4 md:p-5">
                         <div className="min-w-0 space-y-2">
-                            <span className="inline-flex items-center rounded-pill bg-[color:var(--warn-bg)] px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--warn)] uppercase">
-                                {violation.category_label}
-                            </span>
                             <h1 className="font-display text-2xl font-semibold tracking-tight text-text md:text-3xl">
-                                LSR #{violation.id}
+                                {violation.category_label}
                             </h1>
-                            <StatusPill
-                                label={violation.status_label}
-                                tone={isOpen ? 'warn' : 'ok'}
-                            />
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <StatusPill
+                                    label={violation.status_label}
+                                    tone={isOpen ? 'warn' : 'ok'}
+                                />
+                                <span className="text-xs text-text-faint tabular-nums">
+                                    LSR #{violation.id}
+                                    {violation.occurred_at
+                                        ? ` · ${formatDate(violation.occurred_at)}`
+                                        : ''}
+                                </span>
+                            </div>
                         </div>
                         <Button asChild variant="outline">
                             <Link href={hse.lsr.index()}>All LSR</Link>
@@ -50,28 +65,10 @@ export default function LsrShow({ violation, canClose }: Props) {
                     </div>
                 </header>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <FactTile
-                        label="Occurred"
-                        value={formatDate(violation.occurred_at)}
-                        tone="accent"
-                    />
+                <div className="grid gap-3 sm:grid-cols-2">
                     <FactTile
                         label="Worker"
-                        value={
-                            violation.worker_uuid ? (
-                                <Link
-                                    href={tracking.workers.show.url(
-                                        violation.worker_uuid,
-                                    )}
-                                    className="text-[color:var(--accent)] hover:underline"
-                                >
-                                    {violation.worker_label ?? '—'}
-                                </Link>
-                            ) : (
-                                (violation.worker_label ?? '—')
-                            )
-                        }
+                        value={workerValue}
                         tone="neutral"
                     />
                     <FactTile
@@ -79,15 +76,26 @@ export default function LsrShow({ violation, canClose }: Props) {
                         value={violation.zone_name ?? '—'}
                         tone="neutral"
                     />
-                    <FactTile
-                        label="Status"
-                        value={violation.status_label}
-                        tone={isOpen ? 'warn' : 'ok'}
-                    />
                 </div>
 
-                <Panel title="Details" subtitle="Record and linkages">
+                <Panel title="Record">
                     <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                        {violation.description ? (
+                            <div className="sm:col-span-2">
+                                <DetailField
+                                    label="Description"
+                                    value={violation.description}
+                                />
+                            </div>
+                        ) : null}
+                        {violation.action_taken ? (
+                            <div className="sm:col-span-2">
+                                <DetailField
+                                    label="Action taken"
+                                    value={violation.action_taken}
+                                />
+                            </div>
+                        ) : null}
                         {violation.alert_id ? (
                             <DetailField
                                 label="Source alert"
@@ -116,21 +124,9 @@ export default function LsrShow({ violation, canClose }: Props) {
                                 }
                             />
                         ) : null}
-                        <div className="sm:col-span-2">
-                            <DetailField
-                                label="Description"
-                                value={violation.description}
-                            />
-                        </div>
-                        <div className="sm:col-span-2">
-                            <DetailField
-                                label="Action taken"
-                                value={violation.action_taken}
-                            />
-                        </div>
                         <DetailField
                             label="Logged by"
-                            value={violation.logged_by_name}
+                            value={`${violation.logged_by_name ?? '—'}${violation.created_at ? ` · ${formatDate(violation.created_at)}` : ''}`}
                         />
                         {violation.closed_at ? (
                             <DetailField

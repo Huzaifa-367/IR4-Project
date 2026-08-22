@@ -9,13 +9,16 @@ use App\Enums\IncidentSource;
 use App\Enums\IncidentStatus;
 use App\Enums\IncidentType;
 use App\Enums\Involvement;
+use App\Enums\ViolationType;
 use App\Models\Alert;
 use App\Models\AuditLog;
+use App\Models\Camera;
 use App\Models\HseIncident;
 use App\Models\IncidentEvidence;
 use App\Models\IncidentPersonnel;
 use App\Models\PpeViolation;
 use App\Models\User;
+use App\Models\Zone;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -38,23 +41,52 @@ final class IncidentService
     public function prefillFromAlert(Alert $alert): array
     {
         $payload = $alert->payload ?? [];
+        $ppe = null;
+        if (! empty($payload['ppe_violation_id'])) {
+            $ppe = PpeViolation::query()->with('camera')->find((int) $payload['ppe_violation_id']);
+        }
+
+        $camera = $this->resolveCamera($payload, $ppe);
+        $zone = $this->resolveZone($payload, $camera);
+        $snapshotPath = (isset($payload['snapshot_path']) && is_string($payload['snapshot_path']) && $payload['snapshot_path'] !== '')
+            ? $payload['snapshot_path']
+            : $ppe?->snapshot_path;
+
+        $occurredAt = $payload['detected_at']
+            ?? $payload['occurred_at']
+            ?? optional($alert->raised_at)?->toIso8601String();
+
+        $nature = $alert->title;
+        if ($ppe !== null) {
+            $where = $camera?->name ?? $ppe->location_label ?? $ppe->camera?->reference;
+            $nature = $ppe->violation_type->label().($where ? ' at '.$where : '');
+        }
 
         return [
             'source' => IncidentSource::FromAlert->value,
             'alert_id' => $alert->id,
-            'occurred_at' => $payload['detected_at']
-                ?? $payload['occurred_at']
-                ?? optional($alert->raised_at)?->toIso8601String(),
-            'zone_id' => $payload['zone_id'] ?? null,
-            'camera_id' => $payload['camera_id'] ?? null,
-            'nature_of_incident' => $alert->title,
+            'occurred_at' => $occurredAt,
+            'zone_id' => $zone?->id,
+            'zone_name' => $zone?->name,
+            'camera_id' => $camera?->id,
+            'camera_name' => $camera?->name,
+            'camera_ref' => $camera?->reference ?? (is_string($payload['camera_ref'] ?? null) ? $payload['camera_ref'] : null),
+            'nature_of_incident' => $nature,
             'suggested_action' => $payload['suggested_action'] ?? null,
-            'snapshot_path' => $payload['snapshot_path'] ?? null,
-            'ppe_violation_id' => $payload['ppe_violation_id'] ?? null,
+            'snapshot_url' => $snapshotPath !== null && $snapshotPath !== ''
+                ? $this->signedUrls->temporaryUrl($snapshotPath)
+                : null,
+            'ppe_violation_id' => $ppe?->id,
+            'violation_type' => $ppe?->violation_type->value,
+            'violation_type_label' => $ppe?->violation_type->label(),
+            'confidence' => $ppe?->confidence !== null ? (float) $ppe->confidence : null,
+            'location_label' => $ppe?->location_label,
             'alert' => [
                 'id' => $alert->id,
                 'uuid' => $alert->uuid,
                 'alert_type' => $alert->alert_type->value,
+                'alert_type_label' => $alert->alert_type->label(),
+                'severity' => $alert->severity->value,
                 'title' => $alert->title,
                 'raised_at' => optional($alert->raised_at)?->toIso8601String(),
             ],
@@ -73,6 +105,13 @@ final class IncidentService
             if (! empty($data['alert_id'])) {
                 $alert = Alert::query()->findOrFail((int) $data['alert_id']);
                 $source = IncidentSource::FromAlert;
+                $context = $this->prefillFromAlert($alert);
+                $data['camera_id'] = $data['camera_id'] ?? $context['camera_id'];
+                $data['zone_id'] = $data['zone_id'] ?? $context['zone_id'];
+                $data['ppe_violation_id'] = $data['ppe_violation_id'] ?? $context['ppe_violation_id'];
+                if (empty($data['nature_of_incident'])) {
+                    $data['nature_of_incident'] = $context['nature_of_incident'];
+                }
             }
 
             $status = $source === IncidentSource::FromAlert
@@ -301,7 +340,38 @@ final class IncidentService
                     'involvement_label' => $row->involvement->label(),
                 ];
             })->values()->all(),
-            'evidence' => $incident->evidence->map(function (IncidentEvidence $row): array {
+            'evidence' => $incident->evidence->map(function (IncidentEvidence $row) use ($incident, $canSeeIdentity): array {
+                $payload = $row->payload;
+                $isImage = in_array($row->evidence_type, [EvidenceType::Snapshot, EvidenceType::PpeViolation], true)
+                    && $row->file_path !== null
+                    && $row->file_path !== '';
+                $violationType = is_array($payload) && isset($payload['violation_type']) && is_string($payload['violation_type'])
+                    ? ViolationType::tryFrom($payload['violation_type'])
+                    : $row->ppeViolation?->violation_type;
+                $noteText = is_array($payload) && isset($payload['text']) && is_string($payload['text'])
+                    ? $payload['text']
+                    : null;
+                $rfidWorkers = [];
+                if ($row->evidence_type === EvidenceType::RfidZoneSnapshot && is_array($payload) && isset($payload['workers']) && is_array($payload['workers'])) {
+                    $personnel = $incident->personnel->keyBy('worker_id');
+                    foreach ($payload['workers'] as $entry) {
+                        if (! is_array($entry) || ! isset($entry['worker_id'])) {
+                            continue;
+                        }
+                        $worker = $personnel->get((int) $entry['worker_id'])?->worker;
+                        $rfidWorkers[] = [
+                            'worker_id' => (int) $entry['worker_id'],
+                            'tag_id' => isset($entry['tag_id']) ? (int) $entry['tag_id'] : null,
+                            'last_seen_at' => isset($entry['last_seen_at']) && is_string($entry['last_seen_at'])
+                                ? $entry['last_seen_at']
+                                : null,
+                            'worker_label' => $worker === null
+                                ? null
+                                : ($canSeeIdentity ? $worker->name : $worker->anonymizedLabel()),
+                        ];
+                    }
+                }
+
                 return [
                     'id' => $row->id,
                     'evidence_type' => $row->evidence_type->value,
@@ -309,7 +379,15 @@ final class IncidentService
                     'download_url' => $row->file_path !== null
                         ? $this->signedUrls->temporaryUrl($row->file_path)
                         : null,
-                    'payload' => $row->payload,
+                    'is_image' => $isImage,
+                    'note_text' => $noteText,
+                    'violation_type_label' => $violationType?->label(),
+                    'rfid_worker_count' => $row->evidence_type === EvidenceType::RfidZoneSnapshot
+                        ? count($rfidWorkers)
+                        : null,
+                    'rfid_workers' => $row->evidence_type === EvidenceType::RfidZoneSnapshot
+                        ? $rfidWorkers
+                        : null,
                     'ppe_violation_id' => $row->ppe_violation_id,
                     'ppe_violation_uuid' => $row->ppeViolation?->uuid,
                     'camera_id' => $row->camera_id,
@@ -343,11 +421,18 @@ final class IncidentService
     private function attachAlertEvidence(HseIncident $incident, Alert $alert): void
     {
         $payload = $alert->payload ?? [];
+        $snapshotPath = (isset($payload['snapshot_path']) && is_string($payload['snapshot_path']) && $payload['snapshot_path'] !== '')
+            ? $payload['snapshot_path']
+            : null;
+        if ($snapshotPath === null && ! empty($payload['ppe_violation_id'])) {
+            $snapshotPath = PpeViolation::query()->whereKey((int) $payload['ppe_violation_id'])->value('snapshot_path');
+            $snapshotPath = is_string($snapshotPath) && $snapshotPath !== '' ? $snapshotPath : null;
+        }
 
-        if (! empty($payload['snapshot_path']) && is_string($payload['snapshot_path'])) {
+        if ($snapshotPath !== null) {
             $incident->evidence()->create([
                 'evidence_type' => EvidenceType::Snapshot,
-                'file_path' => $payload['snapshot_path'],
+                'file_path' => $snapshotPath,
                 'camera_id' => $payload['camera_id'] ?? $incident->camera_id,
                 'captured_at' => $incident->occurred_at,
                 'added_by' => null,
@@ -361,6 +446,10 @@ final class IncidentService
 
     private function linkPpeEvidence(HseIncident $incident, int $ppeViolationId, ?int $addedBy): void
     {
+        if ($incident->evidence()->where('ppe_violation_id', $ppeViolationId)->exists()) {
+            return;
+        }
+
         $violation = PpeViolation::query()->find($ppeViolationId);
         if ($violation === null) {
             return;
@@ -457,6 +546,69 @@ final class IncidentService
         if (! in_array($to, $allowed, true) && $to !== $incident->status) {
             throw new HttpException(422, 'Invalid incident status transition.');
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function resolveCamera(array $payload, ?PpeViolation $ppe): ?Camera
+    {
+        if ($ppe !== null) {
+            $ppe->loadMissing('camera');
+            if ($ppe->camera !== null) {
+                return $ppe->camera;
+            }
+        }
+
+        if (! empty($payload['camera_id']) && is_numeric($payload['camera_id'])) {
+            return Camera::query()->find((int) $payload['camera_id']);
+        }
+
+        $ref = $payload['camera_ref'] ?? null;
+        if (is_string($ref) && $ref !== '') {
+            return Camera::query()->where('reference', $ref)->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function resolveZone(array $payload, ?Camera $camera): ?Zone
+    {
+        if (! empty($payload['zone_id']) && is_numeric($payload['zone_id'])) {
+            return Zone::query()->find((int) $payload['zone_id']);
+        }
+
+        $name = $payload['zone_name'] ?? null;
+        if (is_string($name) && $name !== '') {
+            $byName = Zone::query()->where('name', $name)->first();
+            if ($byName !== null) {
+                return $byName;
+            }
+        }
+
+        if ($camera === null) {
+            return null;
+        }
+
+        $camera->loadMissing('asset');
+        $meta = $camera->meta ?? [];
+        if (isset($meta['zone_id']) && is_numeric($meta['zone_id'])) {
+            return Zone::query()->find((int) $meta['zone_id']);
+        }
+        $assetMeta = $camera->asset?->meta ?? [];
+        if (isset($assetMeta['zone_id']) && is_numeric($assetMeta['zone_id'])) {
+            return Zone::query()->find((int) $assetMeta['zone_id']);
+        }
+
+        $label = $camera->asset?->current_location_label;
+        if ($label === null || $label === '') {
+            return null;
+        }
+
+        return Zone::query()->where('name', $label)->first();
     }
 
     /**

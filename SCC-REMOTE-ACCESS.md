@@ -342,6 +342,9 @@ lerd artisan ir4:s g 1 --alarm --loop   # hold gas alarm on pole 1
 lerd artisan ir4:s r 1                  # RFID at pole 1 (first site EPC)
 lerd artisan ir4:s h 1                  # missing helmet (no photo)
 lerd artisan ir4:s v 2                  # missing vest (no photo)
+lerd artisan ir4:s w 4                  # working at heights
+lerd artisan ir4:s f 4                  # fall detection
+lerd artisan ir4:s k 1                  # missing mask
 ```
 
 ## 8. Aftercare (optional)

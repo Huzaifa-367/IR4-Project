@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Enums\AlertType;
-use App\Enums\IngestStream;
 use App\Enums\ReviewStatus;
 use App\Enums\ViolationType;
 use App\Events\PpeViolationDetected;
@@ -11,7 +10,6 @@ use App\Models\Alert;
 use App\Models\AuditLog;
 use App\Models\Camera;
 use App\Models\Device;
-use App\Models\IngestEvent;
 use App\Models\PpeViolation;
 use App\Models\User;
 use App\Models\Zone;
@@ -398,10 +396,6 @@ final class PpeViolationService
 
         $camera->forceFill(['last_frame_at' => $normalized['received_at']])->save();
 
-        if ($eventType === 'fall') {
-            return $this->processFall($caller, $camera, $event, $eventUid, $normalized, $detectedAt);
-        }
-
         $violationType = ViolationType::tryFrom($eventType);
         if ($violationType === null) {
             throw new IngestEventRejected('VALIDATION_FAILED');
@@ -416,6 +410,8 @@ final class PpeViolationService
 
         $snapshotPath = $this->storeSnapshot(isset($event['snapshot']) ? (string) $event['snapshot'] : null);
         $camera->loadMissing('asset');
+        $zoneId = $this->resolveZoneId($camera);
+        $zone = $zoneId !== null ? Zone::query()->find($zoneId) : null;
 
         try {
             $violation = PpeViolation::query()->create([
@@ -438,17 +434,21 @@ final class PpeViolationService
         }
 
         if (! $normalized['is_backfill']) {
+            $alertType = $this->alertTypeFor($violationType);
             $alert = $this->alerts->raise(
-                type: AlertType::PpeViolation,
+                type: $alertType,
                 title: $violationType->label(),
                 payload: [
                     'ppe_violation_id' => $violation->id,
+                    'event_uid' => $eventUid,
+                    'camera_id' => $camera->id,
                     'camera_ref' => $camera->reference,
                     'violation_type' => $violationType->value,
                     'detected_at' => $detectedAt->toIso8601String(),
                     'snapshot_path' => $snapshotPath,
                     'snapshot_url' => $this->snapshotUrl($snapshotPath),
-                    'suggested_action' => 'log_lsr',
+                    'zone_id' => $zoneId,
+                    'zone_name' => $zone?->name,
                 ],
                 source: $violation,
             );
@@ -462,84 +462,22 @@ final class PpeViolationService
                 'snapshot_url' => $this->snapshotUrl($snapshotPath),
                 'detected_at' => $detectedAt->toIso8601String(),
             ]));
+
+            if ($violationType === ViolationType::Fall && $zoneId !== null) {
+                $this->tracking->correlateWorkerDown($zoneId, $detectedAt);
+            }
         }
 
         return $normalized['clock_skew'] ? 'skew' : 'accepted';
     }
 
-    /**
-     * @param  array<string, mixed>  $event
-     * @param  array{recorded_at: Carbon, received_at: Carbon, is_backfill: bool, clock_skew: bool}  $normalized
-     * @return 'accepted'|'duplicate'|'skew'
-     */
-    private function processFall(
-        Device $caller,
-        Camera $camera,
-        array $event,
-        string $eventUid,
-        array $normalized,
-        Carbon $detectedAt,
-    ): string {
-        if (Alert::query()
-            ->where('alert_type', AlertType::FallDetection)
-            ->where('payload->event_uid', $eventUid)
-            ->where('payload->camera_ref', $camera->reference)
-            ->exists()) {
-            return 'duplicate';
-        }
-
-        if (IngestEvent::query()
-            ->where('device_id', $caller->id)
-            ->where('event_uid', $eventUid)
-            ->where('stream', IngestStream::PpeViolations)
-            ->exists()) {
-            return 'duplicate';
-        }
-
-        $snapshotPath = $this->storeSnapshot(isset($event['snapshot']) ? (string) $event['snapshot'] : null);
-        $zoneId = $this->resolveZoneId($camera);
-        $zone = $zoneId !== null ? Zone::query()->find($zoneId) : null;
-
-        if ($normalized['is_backfill']) {
-            IngestEvent::query()->create([
-                'device_id' => $caller->id,
-                'stream' => IngestStream::PpeViolations,
-                'event_uid' => $eventUid,
-                'recorded_at' => $detectedAt,
-                'received_at' => $normalized['received_at'],
-                'is_backfill' => true,
-                'clock_skew' => $normalized['clock_skew'],
-                'payload' => [
-                    'event_type' => 'fall',
-                    'camera_ref' => $camera->reference,
-                    'snapshot_path' => $snapshotPath,
-                ],
-            ]);
-
-            return $normalized['clock_skew'] ? 'skew' : 'accepted';
-        }
-
-        $this->alerts->raise(
-            type: AlertType::FallDetection,
-            title: 'Fall detection',
-            payload: [
-                'event_uid' => $eventUid,
-                'camera_ref' => $camera->reference,
-                'detected_at' => $detectedAt->toIso8601String(),
-                'snapshot_path' => $snapshotPath,
-                'snapshot_url' => $this->snapshotUrl($snapshotPath),
-                'zone_id' => $zoneId,
-                'zone_name' => $zone?->name,
-                'suggested_action' => 'create_incident',
-            ],
-            source: $camera,
-        );
-
-        if ($zoneId !== null) {
-            $this->tracking->correlateWorkerDown($zoneId, $detectedAt);
-        }
-
-        return $normalized['clock_skew'] ? 'skew' : 'accepted';
+    private function alertTypeFor(ViolationType $type): AlertType
+    {
+        return match ($type) {
+            ViolationType::Fall => AlertType::FallDetection,
+            ViolationType::MissingHarness => AlertType::HeightWithoutHarness,
+            default => AlertType::PpeViolation,
+        };
     }
 
     private function snapshotUrl(?string $path): ?string

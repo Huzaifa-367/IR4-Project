@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import { AlertPrefillCard } from '@/components/ir4/alert-prefill-card';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
@@ -98,6 +99,7 @@ export default function IncidentsIndex({
     zones = [],
 }: Props) {
     const [logOpen, setLogOpen] = useState(() => prefill !== null);
+    const [fromAlert, setFromAlert] = useState(() => prefill !== null);
     const [search, setSearch] = useState(filters.search);
     const [status, setStatus] = useState(filters.status || ALL);
     const [source, setSource] = useState(filters.source || ALL);
@@ -112,10 +114,10 @@ export default function IncidentsIndex({
             return;
         }
 
-        logForm.setData(buildLogForm(prefill));
+        logForm.setData(buildLogForm(fromAlert ? prefill : null));
         logForm.clearErrors();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when dialog opens
-    }, [logOpen, prefill]);
+    }, [logOpen, prefill, fromAlert]);
 
     function applyFilters(
         patch: Partial<{
@@ -190,7 +192,10 @@ export default function IncidentsIndex({
         {
             key: 'occurred',
             header: 'Occurred',
-            cell: (row) => row.occurred_at ?? '—',
+            cell: (row) =>
+                row.occurred_at
+                    ? new Date(row.occurred_at).toLocaleString()
+                    : '—',
         },
         { key: 'zone', header: 'Zone', cell: (row) => row.zone_name ?? '—' },
         {
@@ -213,7 +218,13 @@ export default function IncidentsIndex({
                 description="User-authored safety records. Alerts may prefill — nothing is saved until submit."
                 actions={
                     canLog ? (
-                        <Button type="button" onClick={() => setLogOpen(true)}>
+                        <Button
+                            type="button"
+                            onClick={() => {
+                                setFromAlert(false);
+                                setLogOpen(true);
+                            }}
+                        >
                             Log incident
                         </Button>
                     ) : undefined
@@ -315,26 +326,36 @@ export default function IncidentsIndex({
             </SettingsPageShell>
 
             <Dialog open={logOpen} onOpenChange={setLogOpen}>
-                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+                <DialogContent
+                    className={
+                        fromAlert && prefill
+                            ? 'max-h-[90vh] overflow-y-auto sm:max-w-2xl'
+                            : 'max-h-[90vh] overflow-y-auto sm:max-w-xl'
+                    }
+                >
                     <DialogHeader>
-                        <DialogTitle>Log incident</DialogTitle>
+                        <DialogTitle>
+                            {fromAlert && prefill
+                                ? 'Create incident from alert'
+                                : 'Log incident'}
+                        </DialogTitle>
                         <DialogDescription>
-                            {prefill
-                                ? `Prefill from alert #${prefill.alert_id} — review and submit.`
-                                : 'Manual HSE incident. Nothing is auto-created from alerts.'}
+                            {fromAlert && prefill
+                                ? 'Review the camera still and details, then submit. Nothing is saved until you confirm.'
+                                : 'Manual HSE incident. Alerts never create a record on their own.'}
                         </DialogDescription>
                     </DialogHeader>
 
-                    {prefill ? (
-                        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-                            <p className="font-medium">
-                                From alert: {prefill.alert.title}
-                            </p>
-                            <p className="text-muted-foreground">
-                                Type {prefill.alert.alert_type}. Evidence
-                                attaches on submit.
-                            </p>
-                        </div>
+                    {fromAlert && prefill ? (
+                        <AlertPrefillCard
+                            typeLabel={prefill.alert.alert_type_label}
+                            cameraName={prefill.camera_name}
+                            cameraRef={prefill.camera_ref}
+                            locationLabel={prefill.location_label}
+                            violationLabel={prefill.violation_type_label}
+                            confidence={prefill.confidence}
+                            snapshotUrl={prefill.snapshot_url}
+                        />
                     ) : null}
 
                     <form
@@ -355,6 +376,7 @@ export default function IncidentsIndex({
                                 preserveScroll: true,
                                 onSuccess: () => {
                                     setLogOpen(false);
+                                    setFromAlert(false);
                                     logForm.reset();
                                     logForm.clearErrors();
                                 },
@@ -409,11 +431,13 @@ export default function IncidentsIndex({
 
                         <div className="grid gap-2">
                             <Label htmlFor="nature_of_incident">
-                                Initial notes
+                                {fromAlert && prefill
+                                    ? 'Notes'
+                                    : 'What happened'}
                             </Label>
                             <textarea
                                 id="nature_of_incident"
-                                rows={4}
+                                rows={fromAlert && prefill ? 3 : 4}
                                 maxLength={5000}
                                 value={logForm.data.nature_of_incident}
                                 onChange={(event) =>
@@ -434,16 +458,6 @@ export default function IncidentsIndex({
                         {logForm.errors.alert_id ? (
                             <p className="text-sm text-destructive">
                                 {logForm.errors.alert_id}
-                            </p>
-                        ) : null}
-                        {logForm.errors.ppe_violation_id ? (
-                            <p className="text-sm text-destructive">
-                                {logForm.errors.ppe_violation_id}
-                            </p>
-                        ) : null}
-                        {logForm.errors.camera_id ? (
-                            <p className="text-sm text-destructive">
-                                {logForm.errors.camera_id}
                             </p>
                         ) : null}
 

@@ -193,40 +193,7 @@ export default function AlertsIndex({
         {
             key: 'title',
             header: 'Title',
-            cell: (alert) => (
-                <div>
-                    <span className="text-text">{alert.title}</span>
-                    {alert.payload.suggested_action ? (
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-faint">
-                            <span>
-                                Suggested:{' '}
-                                {String(alert.payload.suggested_action)}
-                            </span>
-                            {alert.payload.suggested_action ===
-                            'create_incident' ? (
-                                <Link
-                                    href={hse.incidents.index.url({
-                                        query: { alert_id: String(alert.id) },
-                                    })}
-                                    className="text-[color:var(--accent)] hover:underline"
-                                >
-                                    Create incident
-                                </Link>
-                            ) : null}
-                            {alert.payload.suggested_action === 'log_lsr' ? (
-                                <Link
-                                    href={hse.lsr.index.url({
-                                        query: { alert_id: String(alert.id) },
-                                    })}
-                                    className="text-[color:var(--accent)] hover:underline"
-                                >
-                                    Log LSR
-                                </Link>
-                            ) : null}
-                        </div>
-                    ) : null}
-                </div>
-            ),
+            cell: (alert) => <span className="text-text">{alert.title}</span>,
         },
         {
             key: 'status',
@@ -241,9 +208,31 @@ export default function AlertsIndex({
         {
             key: 'actions',
             header: '',
-            className: 'w-32 text-right',
+            className: 'w-auto text-right',
             cell: (alert) => (
                 <div className="flex justify-end gap-1">
+                    {alert.payload.suggested_action === 'create_incident' ? (
+                        <Button asChild size="sm">
+                            <Link
+                                href={hse.incidents.index.url({
+                                    query: { alert_id: String(alert.id) },
+                                })}
+                            >
+                                Create incident
+                            </Link>
+                        </Button>
+                    ) : null}
+                    {alert.payload.suggested_action === 'log_lsr' ? (
+                        <Button asChild size="sm">
+                            <Link
+                                href={hse.lsr.index.url({
+                                    query: { alert_id: String(alert.id) },
+                                })}
+                            >
+                                Log LSR
+                            </Link>
+                        </Button>
+                    ) : null}
                     {canAcknowledge && alert.status === 'open' && (
                         <Form
                             action={alertsRoutes.acknowledge.url(alert.uuid)}

@@ -707,6 +707,7 @@ export const ViolationType = {
     MissingVest: 'missing_vest',
     MissingHarness: 'missing_harness',
     MissingMask: 'missing_mask',
+    Fall: 'fall',
 } as const;
 
 export type ViolationType = (typeof ViolationType)[keyof typeof ViolationType];
@@ -714,8 +715,9 @@ export type ViolationType = (typeof ViolationType)[keyof typeof ViolationType];
 export const ViolationTypeLabels: Record<ViolationType, string> = {
     missing_helmet: 'Missing helmet',
     missing_vest: 'Missing vest',
-    missing_harness: 'Missing harness',
+    missing_harness: 'Working at heights',
     missing_mask: 'Missing mask',
+    fall: 'Fall detection',
 };
 
 export const WorkerDocumentVerificationStatus = {

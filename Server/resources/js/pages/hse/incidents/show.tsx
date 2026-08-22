@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { DetailField, FactTile } from '@/components/ir4/fact-tile';
 import { Panel } from '@/components/ir4/panel';
+import { PpeSnapshotStill } from '@/components/ir4/ppe-snapshot-still';
 import { StatusPill } from '@/components/ir4/status-pill';
 import type { StatusPillTone } from '@/components/ir4/status-pill';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import alerts from '@/routes/alerts';
 import hse from '@/routes/hse';
 import ppe from '@/routes/ppe';
 import tracking from '@/routes/tracking';
-import type { HseIncident, HseOption } from '@/types/hse';
+import type { HseIncident, HseOption, IncidentEvidence } from '@/types/hse';
 
 type WorkerOption = { id: number; name: string };
 
@@ -62,6 +63,77 @@ function statusTone(status: string): StatusPillTone {
     return 'neutral';
 }
 
+function EvidenceItem({
+    row,
+    showImage,
+}: {
+    row: IncidentEvidence;
+    showImage: boolean;
+}) {
+    const source = row.auto_captured
+        ? 'auto-captured'
+        : (row.added_by_name ?? 'user');
+
+    return (
+        <div className="space-y-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                    <div className="text-text">
+                        {row.violation_type_label ?? row.evidence_type_label}
+                        <span className="ml-1.5 text-xs text-text-dim">
+                            · {source}
+                        </span>
+                    </div>
+                    {row.ppe_violation_uuid ? (
+                        <Link
+                            href={ppe.violations.show.url(
+                                row.ppe_violation_uuid,
+                            )}
+                            className="text-xs text-[color:var(--accent)] hover:underline"
+                        >
+                            Open PPE violation
+                        </Link>
+                    ) : null}
+                </div>
+                {row.download_url ? (
+                    <Button asChild size="sm" variant="outline">
+                        <a href={row.download_url}>Download</a>
+                    </Button>
+                ) : null}
+            </div>
+            {showImage && row.is_image && row.download_url ? (
+                <PpeSnapshotStill
+                    url={row.download_url}
+                    alt={row.evidence_type_label}
+                    className="aspect-video w-full object-contain"
+                />
+            ) : null}
+            {row.note_text ? (
+                <p className="text-text-dim">{row.note_text}</p>
+            ) : null}
+            {row.rfid_workers ? (
+                <div>
+                    <p className="text-xs text-text-dim">
+                        {row.rfid_worker_count === 0
+                            ? 'No RFID tags in the zone at that time.'
+                            : `${row.rfid_worker_count} ${row.rfid_worker_count === 1 ? 'person' : 'people'} in zone`}
+                    </p>
+                    {row.rfid_workers.length > 0 ? (
+                        <ul className="mt-1 space-y-1">
+                            {row.rfid_workers.map((worker) => (
+                                <li key={worker.worker_id}>
+                                    {worker.worker_label ??
+                                        `Worker #${worker.worker_id}`}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : null}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 export default function IncidentShow({
     incident,
     workers,
@@ -84,6 +156,9 @@ export default function IncidentShow({
     );
     const [severity, setSeverity] = useState(severityOptions[0]?.value ?? '');
     const [involvedWorkerId, setInvolvedWorkerId] = useState('');
+    const snapshotImageAttached = incident.evidence.some(
+        (item) => item.evidence_type === 'snapshot' && item.is_image,
+    );
 
     const heroToneClass =
         incident.severity === 'critical' || incident.severity === 'high'
@@ -368,46 +443,20 @@ export default function IncidentShow({
                     </Panel>
 
                     <Panel title="Evidence" className="xl:col-span-6">
-                        <ul className="flex flex-col gap-2 text-sm">
+                        <ul className="flex flex-col gap-3 text-sm">
                             {incident.evidence.map((row) => (
                                 <li
                                     key={row.id}
-                                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface-2/30 px-3 py-2"
+                                    className="rounded-md border border-border bg-surface-2/30 p-3"
                                 >
-                                    <div>
-                                        <div className="text-text">
-                                            {row.evidence_type_label}
-                                            {row.auto_captured
-                                                ? ' (auto-captured)'
-                                                : ` · ${row.added_by_name ?? 'user'}`}
-                                        </div>
-                                        {row.ppe_violation_uuid ? (
-                                            <Link
-                                                href={ppe.violations.show.url(
-                                                    row.ppe_violation_uuid,
-                                                )}
-                                                className="text-xs text-[color:var(--accent)] hover:underline"
-                                            >
-                                                PPE #{row.ppe_violation_id}
-                                            </Link>
-                                        ) : null}
-                                        {row.payload && (
-                                            <pre className="mt-1 max-h-24 overflow-auto text-xs text-text-faint">
-                                                {JSON.stringify(row.payload)}
-                                            </pre>
-                                        )}
-                                    </div>
-                                    {row.download_url && (
-                                        <Button
-                                            asChild
-                                            size="sm"
-                                            variant="outline"
-                                        >
-                                            <a href={row.download_url}>
-                                                Download
-                                            </a>
-                                        </Button>
-                                    )}
+                                    <EvidenceItem
+                                        row={row}
+                                        showImage={
+                                            row.evidence_type !==
+                                                'ppe_violation' ||
+                                            !snapshotImageAttached
+                                        }
+                                    />
                                 </li>
                             ))}
                             {incident.evidence.length === 0 && (

@@ -208,7 +208,7 @@ FormRequests enforce the min-length decision fields (DOC-01 §8): classification
 
 ## 8. Frontend (React / Inertia)
 
-- **`pages/hse/incidents/index.tsx`** — IncidentListPage: filters (type, severity, source, status); **Log incident** opens a create dialog (manual or prefilled via `?alert_id=`).
+- **`pages/hse/incidents/index.tsx`** — IncidentListPage: filters (type, severity, source, status); **Log incident** opens a manual create dialog; `?alert_id=` opens the same dialog **from the alert** with the camera still, type, camera, zone, and time already shown.
 - **`pages/hse/incidents/show.tsx`** — IncidentDetailPage: status stepper; **evidence gallery** (snapshot lightbox, RFID-roster snapshot table, linked PPE violation, documents, notes — auto-captured vs user-added clearly marked); personnel sections (auto `present_in_zone` vs curated `involved`/`witness`); **ClassifyForm**; reopen/close.
 - **`pages/hse/lsr/index.tsx`** — LsrListPage: category filters, open/closed; **Log LSR** create dialog + close-with-action dialog; from-alert prefill via `?alert_id=`.
 - **`pages/hse/lsr/summary.tsx`** — LsrSummaryPage: category chart, range picker.

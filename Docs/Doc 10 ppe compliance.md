@@ -53,11 +53,11 @@ Schema::create('ppe_violations', function (Blueprint $table) {
 ```
 **NO `worker_id`.** Ever. (§1.)
 
-### 3.2 Falls are not stored here
-A `fall` event (same ingest endpoint, `event_type=fall`) is **not** a PPE violation row — it has no PPE type and no compliance meaning. It is routed to raise a `fall_detection` alert (DOC-07) carrying its snapshot, which **suggests** a user-created incident (DOC-14). The snapshot is stored on the private disk and referenced from the alert payload. (If a lightweight audit trail of fall events is wanted independent of whether an incident is created, a minimal `detection_events` table is a `[CONFIRM AT DESIGN]` option; default: the alert is the record.)
+### 3.2 Falls are stored here too
+A `fall` event (same ingest endpoint, `event_type=fall`) is stored as a `ppe_violations` row (`violation_type=fall`) so it appears in the PPE violations list, review workflow, trends, and exports. It still raises a `fall_detection` alert (DOC-07) that **suggests** a user-created incident (DOC-14) and feeds the worker-down correlator (DOC-09). Machine fields stay immutable; operators can mark a fall as confirmed or false-positive like any other row.
 
 ### 3.3 Enums (PHP backed + TS mirror)
-- **`ViolationType`:** `missing_helmet`, `missing_vest`, `missing_harness`, `missing_mask`. (No `fall` — falls aren't PPE violations.)
+- **`ViolationType`:** `missing_helmet`, `missing_vest`, `missing_harness` (label **Working at heights**), `missing_mask`, `fall` (label **Fall detection**).
 - **`ReviewStatus`:** `unreviewed`, `confirmed`, `false_positive`.
 
 ---
@@ -67,13 +67,16 @@ A `fall` event (same ingest endpoint, `event_type=fall`) is **not** a PPE violat
 Entry from DOC-08: the shared `ppe-violations` endpoint hands each event to this service after dedupe/backfill classification. Per event, branch on `event_type`:
 
 ### 4.1 `event_type = fall`
-- Store the snapshot (private disk). Raise `fall_detection` (critical, audible, DOC-07) with `{ camera_ref, snapshot_url, detected_at, zone? }` in the payload; the alert's `suggested_action` = "create incident from this" (DOC-14). Feed the worker-down correlator (DOC-09 §6.2). **No PPE row created.**
+- Resolve camera, store snapshot, **create the `ppe_violation`** (`violation_type=fall`).
+- Raise `fall_detection` (critical, audible, DOC-07) with `{ ppe_violation_id, camera_ref, snapshot_url, detected_at, zone? }`; `suggested_action` = "create incident from this" (DOC-14). Feed the worker-down correlator (DOC-09 §6.2). Broadcast `PpeViolationDetected` on the `ppe` channel (unless backfill).
 
 ### 4.2 `event_type` = a PPE violation type
 - **Resolve camera** by `camera_ref` (DOC-05); unknown → `UNKNOWN_REFERENCE` rejection.
 - **Store snapshot** → `snapshots/{Y/m/d}/{uuid}.jpg` (private).
 - **Create the `ppe_violation`** (`review_status=unreviewed`, `location_label` from the camera's asset). `confidence` is stored as reported by the edge (for display/analytics), not used as a server-side filter — the edge compute has already applied its detection threshold before sending, so every event that arrives is a real detection to record.
-- **Raise `ppe_violation` alert** (warning, not audible, DOC-07); link `alert_id`. The alert's `suggested_action` = "log LSR from this" (optional) carrying `ppe_violation_id` — so an operator can, if warranted, create an LSR in DOC-14 that **links** this violation. Nothing is auto-created.
+- **Raise the typed alert** (DOC-07) and link `alert_id`:
+  - `missing_harness` → `height_without_harness` (critical, audible) — working at heights.
+  - other PPE types → `ppe_violation` (warning) with `suggested_action` = "log LSR from this".
 - **Broadcast** `PpeViolationDetected` on the `ppe` channel (unless backfill — DOC-08 §5.3): `{ id, violation_type, camera_ref, snapshot_url, detected_at }` for the live wall.
 
 ### 4.3 Backfill
@@ -144,7 +147,7 @@ Per the confirmed model (DOC-07 §8): a PPE violation is **evidence a user can a
 - **Normal detection:** camera flags a missing helmet (confidence 0.82) → stored, `ppe_violation` alert + wall toast → operator confirms in the log → appears in the weekly report's safety-observations item.
 - **Calibration week:** many dust false positives → operator bulk-marks false-positive → excluded from trends/report → the **FP-rate** stat trends down as calibration improves, evidencing progress.
 - **Escalating to LSR:** a repeated no-harness-at-height violation → operator uses the alert's "log LSR from this" → the DOC-14 LSR form opens prefilled with the violation → operator adds the action taken and submits; the LSR links the violation.
-- **Fall (not a PPE row):** camera fall detection → `fall_detection` alert (no PPE row) → if RFID stationary corroborates within 10 min, `worker_down` (DOC-09) → operator creates an incident from the prefilled alert (DOC-14).
+- **Fall:** camera fall detection → `ppe_violations` row (`fall`) + `fall_detection` alert → if RFID stationary corroborates within 10 min, `worker_down` (DOC-09) → operator creates an incident from the prefilled alert (DOC-14).
 - **Pole camera:** a pole camera's feed is AI-processed on a different edge unit → the violation still appears under the pole camera (resolved by `camera_ref`).
 
 ---
@@ -152,7 +155,7 @@ Per the confirmed model (DOC-07 §8): a PPE violation is **evidence a user can a
 ## 11. Tests (this doc's slice of DOC-21)
 
 - **Privacy invariant:** `ppe_violations` has **no** `worker_id` (schema test that fails the build if present); no endpoint or resource exposes a worker on a PPE violation.
-- **Ingest routing:** a PPE `event_type` creates a violation + alert + broadcast; a `fall` `event_type` creates **no** PPE row but raises `fall_detection`; unknown `camera_ref` → `UNKNOWN_REFERENCE`. (No server-side confidence filtering — the edge already thresholds; `confidence` is stored for display only.)
+- **Ingest routing:** every accepted `event_type` creates a violation row + typed alert + broadcast; `fall` raises `fall_detection` (and worker-down correlator); `missing_harness` raises `height_without_harness`; unknown `camera_ref` → `UNKNOWN_REFERENCE`.
 - **Immutability:** no route updates `violation_type`/`detected_at`/`confidence`/`snapshot`; only the review columns are writable (403/422 on attempts).
 - **Review:** confirm/false-positive set the review fields + audit; bulk review works; false positives are excluded from summary/trend/report and counted in the footnote; the linked alert resolves on FP.
 - **Backfill:** backfilled violations are stored and counted but don't broadcast/toast.
@@ -167,7 +170,7 @@ Per the confirmed model (DOC-07 §8): a PPE violation is **evidence a user can a
 
 | # | Decision | Default | Confirm in |
 |---|---|---|---|
-| 1 | Store fall events in a `detection_events` table? | no — the alert is the record | this doc / DOC-14 |
+| 1 | Store fall events in `ppe_violations` | **yes** — same list/review as other types; still raises `fall_detection` | this doc / DOC-14 |
 | 2 | Detection thresholding | on the edge compute, not the server (`confidence` stored for display/analytics only) | this doc / DOC-08 |
 | 3 | Snapshot retention (vs raw-reading pruning) | violations + snapshots kept forever (soft delete) | DOC-19 |
 | 4 | Live-wall stream transport | signed stream descriptor (DOC-05 §1) | DOC-16 |

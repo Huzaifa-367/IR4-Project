@@ -10,8 +10,8 @@ Fake poles **1–4** when Jetsons are offline. Same device APIs as EdgeCompute:
 **Base URL** (first match): `--url` → `IR4_STANDBY_URL` → `IR4_BASE_URL` → `APP_URL`  
 On a laptop use Laravel (`http://127.0.0.1:8000`), not Flutter `:9100`. Expect ingest **`http=202`**.
 
-Device letters: **t** heartbeat · **g** gas · **m** mimic gas · **r** rfid · **h** helmet · **v** vest.  
-`t` never posts gas. Run heartbeat and gas/mimic loops in separate terminals. Do not loop `r` / `h` / `v`.
+Device letters: **t** heartbeat · **g** gas · **m** mimic gas · **r** rfid · **h** helmet · **v** vest · **w** heights · **f** fall · **k** mask.  
+`t` never posts gas. Run heartbeat and gas/mimic loops in separate terminals. Do not loop `r` / `h` / `v` / `w` / `f` / `k`.
 
 | Command | What it does |
 |---|---|
@@ -27,6 +27,9 @@ Device letters: **t** heartbeat · **g** gas · **m** mimic gas · **r** rfid ·
 | `php artisan ir4:s r 2 3` | RFID at pole 2, 3rd site EPC (omit → first; or pass a full EPC) |
 | `php artisan ir4:s h 1` | Missing helmet, no photo |
 | `php artisan ir4:s v 3` | Missing vest, no photo |
+| `php artisan ir4:s w 4` | Working at heights (`missing_harness`) |
+| `php artisan ir4:s f 4` | Fall detection |
+| `php artisan ir4:s k 1` | Missing mask |
 
 RFID indexes are 1-based into `Server/database/data/rfid_tags.php` (physical `AA0004EF55555555…` EPCs). `r 1` is the first of those, not a dummy `E280…` tag.
 
