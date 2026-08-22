@@ -37,7 +37,8 @@ hlsAddress: :8888
 # Pre-generate HLS so the first viewer is not stuck waiting for remux.
 hlsAlwaysRemux: yes
 hlsVariant: lowLatency
-hlsSegmentCount: 4
+# ponytail: MediaMTX v1.20 LL-HLS + hlsAlwaysRemux breaks below 7 (500 muxer unavailable).
+hlsSegmentCount: 7
 hlsSegmentDuration: 1s
 hlsPartDuration: 200ms
 

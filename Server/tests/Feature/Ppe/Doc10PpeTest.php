@@ -383,6 +383,31 @@ it('proxies mediamtx hls through same-origin /hls', function () {
     Http::assertSent(fn ($request) => $request->url() === 'http://mediamtx.test:8888/cam-ppe-01/');
 });
 
+it('follows mediamtx hls cookie redirect server-side for playlists', function () {
+    config()->set('camera_stream.mediamtx.hls_url', 'http://mediamtx.test:8888');
+    Http::fake([
+        'mediamtx.test:8888/CAM-FIXED-01/index.m3u8' => Http::response('', 302, [
+            'Location' => '/CAM-FIXED-01/index.m3u8?cookieCheck=1',
+            'Set-Cookie' => 'cookieCheck=1',
+        ]),
+        'mediamtx.test:8888/CAM-FIXED-01/index.m3u8?cookieCheck=1' => Http::response(
+            "#EXTM3U\n#EXT-X-VERSION:10\nvideo1_stream.m3u8\n",
+            200,
+            ['Content-Type' => 'application/vnd.apple.mpegurl'],
+        ),
+    ]);
+
+    $operator = User::factory()->withRole('SCC Operator')->create();
+
+    $this->actingAs($operator)
+        ->get('/hls/CAM-FIXED-01/index.m3u8')
+        ->assertOk()
+        ->assertHeader('Cache-Control', 'must-revalidate, no-cache, no-store, private')
+        ->assertSee('#EXTM3U');
+
+    Http::assertSentCount(2);
+});
+
 it('does not refresh idle timeout on hls media segments', function () {
     config()->set('camera_stream.mediamtx.hls_url', 'http://mediamtx.test:8888');
     Http::fake([

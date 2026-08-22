@@ -9,9 +9,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCameraPtz } from '@/hooks/use-camera-ptz';
+import { ptzMoveVectors } from '@/lib/camera-ptz-vectors';
+import type { PtzMoveKey } from '@/lib/camera-ptz-vectors';
 import { cn } from '@/lib/utils';
-
-const PTZ_SPEED = 45;
 
 type Props = {
     cameraUuid: string;
@@ -44,37 +44,41 @@ export function LiveCameraPtzControls({
         void stopMove();
     };
 
-    const bindMove = (key: string, pan: number, tilt: number, zoom = 0) => ({
-        disabled: !canOperate,
-        onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
-            if (!canOperate) {
-                return;
-            }
+    const bindMove = (key: PtzMoveKey) => {
+        const vector = ptzMoveVectors[key];
 
-            event.preventDefault();
-            event.stopPropagation();
-            event.currentTarget.setPointerCapture(event.pointerId);
-            onInteract?.();
-            startMove(key, pan, tilt, zoom);
-        },
-        onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
-            event.preventDefault();
-            event.stopPropagation();
+        return {
+            disabled: !canOperate,
+            onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+                if (!canOperate) {
+                    return;
+                }
 
-            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                event.currentTarget.releasePointerCapture(event.pointerId);
-            }
+                event.preventDefault();
+                event.stopPropagation();
+                event.currentTarget.setPointerCapture(event.pointerId);
+                onInteract?.();
+                startMove(key, vector.pan, vector.tilt, vector.zoom);
+            },
+            onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
+                event.preventDefault();
+                event.stopPropagation();
 
-            void stopMove({ keepalive: true, silent: true });
-        },
-        onPointerCancel: (event: React.PointerEvent<HTMLButtonElement>) => {
-            event.preventDefault();
-            void stopMove({ keepalive: true, silent: true });
-        },
-        onLostPointerCapture: () => {
-            void stopMove({ keepalive: true, silent: true });
-        },
-    });
+                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId);
+                }
+
+                void stopMove({ keepalive: true, silent: true });
+            },
+            onPointerCancel: (event: React.PointerEvent<HTMLButtonElement>) => {
+                event.preventDefault();
+                void stopMove({ keepalive: true, silent: true });
+            },
+            onLostPointerCapture: () => {
+                void stopMove({ keepalive: true, silent: true });
+            },
+        };
+    };
 
     return (
         <div
@@ -108,7 +112,7 @@ export function LiveCameraPtzControls({
                         className="size-10"
                         aria-label="Tilt up"
                         aria-pressed={activeKey === 'up'}
-                        {...bindMove('up', 0, PTZ_SPEED)}
+                        {...bindMove('up')}
                     >
                         <ArrowUp className="size-4" />
                     </Button>
@@ -120,7 +124,7 @@ export function LiveCameraPtzControls({
                         className="size-10"
                         aria-label="Pan left"
                         aria-pressed={activeKey === 'left'}
-                        {...bindMove('left', -PTZ_SPEED, 0)}
+                        {...bindMove('left')}
                     >
                         <ArrowLeft className="size-4" />
                     </Button>
@@ -148,7 +152,7 @@ export function LiveCameraPtzControls({
                         className="size-10"
                         aria-label="Pan right"
                         aria-pressed={activeKey === 'right'}
-                        {...bindMove('right', PTZ_SPEED, 0)}
+                        {...bindMove('right')}
                     >
                         <ArrowRight className="size-4" />
                     </Button>
@@ -160,7 +164,7 @@ export function LiveCameraPtzControls({
                         className="size-10"
                         aria-label="Tilt down"
                         aria-pressed={activeKey === 'down'}
-                        {...bindMove('down', 0, -PTZ_SPEED)}
+                        {...bindMove('down')}
                     >
                         <ArrowDown className="size-4" />
                     </Button>
@@ -176,7 +180,7 @@ export function LiveCameraPtzControls({
                         className="size-10"
                         aria-label="Zoom in"
                         aria-pressed={activeKey === 'zoom-in'}
-                        {...bindMove('zoom-in', 0, 0, PTZ_SPEED)}
+                        {...bindMove('zoom-in')}
                     >
                         <Plus className="size-4" />
                     </Button>
@@ -189,7 +193,7 @@ export function LiveCameraPtzControls({
                         className="size-10"
                         aria-label="Zoom out"
                         aria-pressed={activeKey === 'zoom-out'}
-                        {...bindMove('zoom-out', 0, 0, -PTZ_SPEED)}
+                        {...bindMove('zoom-out')}
                     >
                         <Minus className="size-4" />
                     </Button>

@@ -40,6 +40,54 @@ it('rejects ptz on fixed cameras', function () {
         ->assertForbidden();
 });
 
+it('proxies each ptz direction to hikvision isapi continuous', function (string $label, int $pan, int $tilt, int $zoom) {
+    Http::fake(function ($request) {
+        if (! str_contains($request->url(), '172.16.1.10')) {
+            return Http::response('not found', 404);
+        }
+
+        return Http::response(
+            '<?xml version="1.0" encoding="UTF-8"?><ResponseStatus version="2.0"><statusCode>1</statusCode><statusString>OK</statusString></ResponseStatus>',
+            200,
+            ['Content-Type' => 'application/xml'],
+        );
+    });
+
+    $camera = Camera::factory()->create([
+        'reference' => 'CAM-PTZ-VECTORS',
+        'camera_type' => CameraType::Ptz,
+        'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
+    ]);
+
+    $operator = User::factory()->create();
+    $operator->givePermissionTo(['view-live-cameras', 'control-ptz-cameras']);
+
+    $this->actingAs($operator)
+        ->postJson(route('live.cameras.ptz', $camera), [
+            'action' => 'move',
+            'pan' => $pan,
+            'tilt' => $tilt,
+            'zoom' => $zoom,
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.accepted', true);
+
+    Http::assertSent(function ($request) use ($pan, $tilt, $zoom) {
+        return $request->method() === 'PUT'
+            && str_contains($request->url(), '/ISAPI/PTZCtrl/channels/1/continuous')
+            && str_contains($request->body(), '<pan>'.$pan.'</pan>')
+            && str_contains($request->body(), '<tilt>'.$tilt.'</tilt>')
+            && str_contains($request->body(), '<zoom>'.$zoom.'</zoom>');
+    });
+})->with([
+    'pan left' => ['left', -45, 0, 0],
+    'pan right' => ['right', 45, 0, 0],
+    'tilt up' => ['up', 0, 45, 0],
+    'tilt down' => ['down', 0, -45, 0],
+    'zoom in' => ['zoom-in', 0, 0, 45],
+    'zoom out' => ['zoom-out', 0, 0, -45],
+]);
+
 it('proxies hikvision isapi move commands without auditing each keepalive', function () {
     Http::fake(function ($request) {
         if (! str_contains($request->url(), '172.16.1.10')) {
