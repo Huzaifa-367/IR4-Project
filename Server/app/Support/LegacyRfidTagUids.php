@@ -3,7 +3,7 @@
 namespace App\Support;
 
 /**
- * Legacy dummy EPCs from pre-registry standby (E280… / IR4W / IR4S). Never commission these.
+ * Legacy / non-commissioned EPCs (E280 standby, FXR90 test reads). Never keep these in production.
  */
 final class LegacyRfidTagUids
 {
@@ -35,6 +35,7 @@ final class LegacyRfidTagUids
             'E280116060000203IR4S0002',
             'E280116060000203IR4S0003',
             'E280116060000203IR4S0004',
+            '07D7FEF80080507FEFF5CB6DB0649CB6',
         ];
     }
 
