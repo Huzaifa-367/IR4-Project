@@ -23,7 +23,7 @@ final class CameraPtzService
 
     private const NUDGE_BURST_MAX_MICROS = 900_000;
 
-    /** ~30ms of burst per frontend step unit (PTZ_PAN_TILT_DEGREES). */
+    /** ~30ms of burst per frontend step unit (PTZ_PAN_TILT_DEGREES / PTZ_ZOOM_STEP). */
     private const NUDGE_BURST_MICROS_PER_STEP = 30_000;
 
     private string $lastError = '';

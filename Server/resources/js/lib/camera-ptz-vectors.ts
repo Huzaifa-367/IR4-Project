@@ -1,8 +1,8 @@
 /** Relative pan/tilt step per click (degrees). */
 export const PTZ_PAN_TILT_DEGREES = 30;
 
-/** Relative zoom step per click (Hikvision ISAPI zoom unit). */
-export const PTZ_ZOOM_STEP = 1;
+/** Relative zoom step per click (maps to burst duration on the backend). */
+export const PTZ_ZOOM_STEP = 15;
 
 export type PtzMoveKey =
     'up' | 'down' | 'left' | 'right' | 'zoom-in' | 'zoom-out';

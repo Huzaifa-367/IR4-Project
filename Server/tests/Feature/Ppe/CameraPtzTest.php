@@ -84,8 +84,8 @@ it('proxies each ptz click to a short continuous burst', function (string $label
     'pan right' => ['right', 30, 0, 0, 35, 0, 0],
     'tilt up' => ['up', 0, 30, 0, 0, 35, 0],
     'tilt down' => ['down', 0, -30, 0, 0, -35, 0],
-    'zoom in' => ['zoom-in', 0, 0, 1, 0, 0, 35],
-    'zoom out' => ['zoom-out', 0, 0, -1, 0, 0, -35],
+    'zoom in' => ['zoom-in', 0, 0, 15, 0, 0, 35],
+    'zoom out' => ['zoom-out', 0, 0, -15, 0, 0, -35],
 ]);
 
 it('audits each click nudge', function () {
