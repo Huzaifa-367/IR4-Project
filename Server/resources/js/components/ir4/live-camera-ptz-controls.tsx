@@ -19,6 +19,7 @@ type Props = {
     ptzUrl: string;
     enabled?: boolean;
     isOnline?: boolean;
+    onInteract?: () => void;
     className?: string;
 };
 
@@ -28,19 +29,18 @@ export function LiveCameraPtzControls({
     ptzUrl,
     enabled = true,
     isOnline = true,
+    onInteract,
     className,
 }: Props) {
     const canOperate = enabled && isOnline;
-    const { activeKey, startMove, stopMove } = useCameraPtz(
-        ptzUrl,
-        canOperate,
-    );
+    const { activeKey, startMove, stopMove } = useCameraPtz(ptzUrl, canOperate);
 
     const handleStop = (): void => {
         if (!canOperate) {
             return;
         }
 
+        onInteract?.();
         void stopMove();
     };
 
@@ -54,6 +54,7 @@ export function LiveCameraPtzControls({
             event.preventDefault();
             event.stopPropagation();
             event.currentTarget.setPointerCapture(event.pointerId);
+            onInteract?.();
             startMove(key, pan, tilt, zoom);
         },
         onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {

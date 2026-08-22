@@ -119,6 +119,11 @@ fi
 echo "Running migrations..."
 ir4_artisan migrate --force
 
+echo "Syncing camera streams to MediaMTX..."
+if ! ir4_artisan ir4:sync-camera-streams; then
+  echo "WARN: camera stream sync failed — run: ir4_artisan ir4:sync-camera-streams" >&2
+fi
+
 echo "Restarting Lerd..."
 lerd restart
 

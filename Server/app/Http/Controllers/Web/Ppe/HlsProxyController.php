@@ -67,6 +67,10 @@ final class HlsProxyController extends BaseController
             }
         }
 
+        if ($this->isPlaylistPath($suffix)) {
+            $headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+        }
+
         $location = $upstreamResponse->header('Location');
         if (is_string($location) && $location !== '') {
             $headers['Location'] = $this->rewriteLocationForProxy($location);
@@ -105,6 +109,15 @@ final class HlsProxyController extends BaseController
         }
 
         return $location;
+    }
+
+    private function isPlaylistPath(string $suffix): bool
+    {
+        if ($suffix === '') {
+            return true;
+        }
+
+        return str_ends_with(strtolower($suffix), '.m3u8');
     }
 
     /**

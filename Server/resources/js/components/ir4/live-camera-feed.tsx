@@ -3,6 +3,7 @@ import { Maximize2, Minimize2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LiveCameraPtzControls } from '@/components/ir4/live-camera-ptz-controls';
 import { Button } from '@/components/ui/button';
+import { liveWallHlsConfig, nudgeHlsToLiveEdge } from '@/lib/live-hls-config';
 
 type Props = {
     playbackUrl: string;
@@ -44,6 +45,7 @@ export function LiveCameraFeed({
 }: Props) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
+    const hlsRef = useRef<Hls | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const playlistUrl = resolvePlaylistUrl(playbackUrl);
@@ -80,6 +82,10 @@ export function LiveCameraFeed({
         }
     }, []);
 
+    const nudgeLiveEdge = useCallback((): void => {
+        nudgeHlsToLiveEdge(hlsRef.current, videoRef.current);
+    }, []);
+
     useEffect(() => {
         const video = videoRef.current;
 
@@ -98,19 +104,18 @@ export function LiveCameraFeed({
         };
 
         if (Hls.isSupported()) {
-            hls = new Hls({
-                enableWorker: true,
-                lowLatencyMode: true,
-                backBufferLength: 30,
-                maxBufferLength: 20,
-                maxMaxBufferLength: 40,
-                liveSyncDurationCount: 3,
-                liveMaxLatencyDurationCount: 10,
-            });
+            hls = new Hls(liveWallHlsConfig);
+            hlsRef.current = hls;
             hls.loadSource(playlistUrl);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 void video.play().catch(() => undefined);
+                nudgeHlsToLiveEdge(hls, video);
+            });
+            hls.on(Hls.Events.FRAG_BUFFERED, () => {
+                if (video.paused) {
+                    void video.play().catch(() => undefined);
+                }
             });
             hls.on(Hls.Events.ERROR, (_event, data) => {
                 if (!data.fatal || hls === null) {
@@ -145,6 +150,8 @@ export function LiveCameraFeed({
             if (hls !== null) {
                 hls.destroy();
             }
+
+            hlsRef.current = null;
 
             video.removeAttribute('src');
             video.load();
@@ -205,6 +212,7 @@ export function LiveCameraFeed({
                     ptzUrl={ptzUrl}
                     enabled={canControlPtz}
                     isOnline={isOnline}
+                    onInteract={nudgeLiveEdge}
                     className="absolute bottom-4 left-4 z-10"
                 />
             )}

@@ -37,7 +37,7 @@ hlsAddress: :8888
 # Pre-generate HLS so the first viewer is not stuck waiting for remux.
 hlsAlwaysRemux: yes
 hlsVariant: lowLatency
-hlsSegmentCount: 7
+hlsSegmentCount: 4
 hlsSegmentDuration: 1s
 hlsPartDuration: 200ms
 

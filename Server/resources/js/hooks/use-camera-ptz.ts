@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    startTransition,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 import { toast } from 'sonner';
 
 const PTZ_KEEPALIVE_MS = 500;
@@ -110,7 +116,10 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
 
                 return true;
             } catch (error) {
-                if (error instanceof DOMException && error.name === 'AbortError') {
+                if (
+                    error instanceof DOMException &&
+                    error.name === 'AbortError'
+                ) {
                     return false;
                 }
 
@@ -177,15 +186,31 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
         }
     }, []);
 
-    const stopMove = useCallback(
-        async (options: SendOptions = {}): Promise<boolean> => {
+    /** Refs + camera API only — safe inside effects (no React state). */
+    const haltSession = useCallback(
+        (options: SendOptions = {}): Promise<boolean> => {
             clearKeepalive();
             sessionRef.current = null;
-            setActiveKey(null);
+            moveAbortRef.current?.abort();
 
             return sendStop(options);
         },
         [clearKeepalive, sendStop],
+    );
+
+    const clearActiveKey = useCallback((): void => {
+        startTransition(() => {
+            setActiveKey(null);
+        });
+    }, []);
+
+    const stopMove = useCallback(
+        async (options: SendOptions = {}): Promise<boolean> => {
+            clearActiveKey();
+
+            return haltSession(options);
+        },
+        [clearActiveKey, haltSession],
     );
 
     const startMove = useCallback(
@@ -204,7 +229,7 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
             if (current !== null) {
                 clearKeepalive();
                 sessionRef.current = null;
-                setActiveKey(null);
+                clearActiveKey();
                 void sendStop({ silent: true, keepalive: true });
             }
 
@@ -223,7 +248,7 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
 
             void sendMove(vector, { silent: false });
         },
-        [clearKeepalive, enabled, sendMove, sendStop],
+        [clearActiveKey, clearKeepalive, enabled, sendMove, sendStop],
     );
 
     useEffect(() => {
@@ -231,18 +256,20 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
             return;
         }
 
-        void stopMove({ silent: true, keepalive: true });
-    }, [enabled, stopMove]);
+        void haltSession({ silent: true, keepalive: true });
+        clearActiveKey();
+    }, [clearActiveKey, enabled, haltSession]);
 
     useEffect(() => {
         const onVisibilityChange = (): void => {
             if (document.hidden) {
-                void stopMove({ keepalive: true, silent: true });
+                void haltSession({ keepalive: true, silent: true });
+                clearActiveKey();
             }
         };
 
         const onPageHide = (): void => {
-            void stopMove({ keepalive: true, silent: true });
+            void haltSession({ keepalive: true, silent: true });
         };
 
         document.addEventListener('visibilitychange', onVisibilityChange);
@@ -254,9 +281,9 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
                 onVisibilityChange,
             );
             window.removeEventListener('pagehide', onPageHide);
-            void stopMove({ keepalive: true, silent: true });
+            void haltSession({ keepalive: true, silent: true });
         };
-    }, [stopMove]);
+    }, [clearActiveKey, haltSession]);
 
     useEffect(() => {
         if (activeKey === null) {
