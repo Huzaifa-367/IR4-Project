@@ -79,65 +79,30 @@ export const gasInfo = {
 
 export const environmentInfo = {
     temperature: {
-        summary: 'Ambient temperature from environmental sensors.',
+        summary: 'Ambient temperature from environmental sensors or weather API.',
         items: [
-            'Current is the live average across sensors.',
-            'Min–max and sparkline use the selected range.',
+            'Live value from the primary environmental source.',
+            'Display-only in v1 — no environmental alarms.',
         ],
         source: 'environmental_readings · temperature_c',
     },
     humidity: {
-        summary: 'Relative humidity from environmental sensors.',
-        items: [
-            'Display-only in v1 — no environmental alarms.',
-            'Range average uses the selected 24h / 7d / custom window.',
-        ],
+        summary: 'Relative humidity from environmental sensors or weather API.',
+        items: ['Live value from the primary environmental source.'],
         source: 'environmental_readings · humidity_pct',
     },
     wind: {
-        summary: 'Wind speed from environmental sensors.',
-        items: [
-            'Current is the live average.',
-            'Range max comes from the selected window trend.',
-        ],
+        summary: 'Wind speed from environmental sensors or weather API.',
+        items: ['Live value from the primary environmental source.'],
         source: 'environmental_readings · wind_speed_ms',
     },
-    sensorHealth: {
-        summary: 'How many environmental sensors are reporting fresh data.',
-        items: [
-            'Stale uses health.sensor_stale_minutes.',
-            'Live fleet status — not range-filtered.',
-        ],
-        source: 'devices · latest environmental_readings',
-    },
     trend: {
-        summary: 'Temperature, humidity, wind, and extra metrics on one chart.',
+        summary: 'Temperature, humidity, and wind speed on one chart.',
         items: [
-            'Uses raw readings within 24 hours.',
-            'Uses hourly aggregates from raw readings for longer windows.',
+            'Only the three core ambient metrics are shown.',
+            'Raw readings within 24 hours; hourly aggregates beyond that.',
         ],
         source: 'environmental_readings',
-    },
-    rangeStats: {
-        summary: 'Min / average / max for each core environmental metric.',
-        items: ['Derived from the chart series for the selected window.'],
-        source: 'dashboardSnapshot metrics',
-    },
-    extra: {
-        summary: 'Dynamically reported extra parameters such as PM2.5.',
-        items: [
-            'Keys come from the open `extra` JSON on readings.',
-            'Shown only when at least one sensor reports the key.',
-        ],
-        source: 'environmental_readings.extra',
-    },
-    fleet: {
-        summary: 'Latest reading card per environmental sensor.',
-        items: [
-            'Updates live on the environment Reverb channel.',
-            'Shows temperature, humidity, and wind for each device.',
-        ],
-        source: 'EnvironmentalDataService::latest',
     },
 } as const satisfies Record<string, SectionInfoContent>;
 

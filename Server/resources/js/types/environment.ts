@@ -12,6 +12,7 @@ export type EnvironmentSensor = {
     humidity_pct: number | null;
     wind_speed_ms: number | null;
     extra: Record<string, number>;
+    weather_source?: string;
 };
 
 export type EnvironmentTrendPoint = {
@@ -23,45 +24,14 @@ export type EnvironmentTrendPoint = {
     device_id: number | null;
 };
 
-export type EnvironmentTrendSeries = {
-    points: EnvironmentTrendPoint[];
-    source: 'raw' | 'raw-hourly';
-};
-
 export type EnvironmentMetricTrend = {
     key: string;
     label: string;
     unit: string;
-    source: 'raw' | 'raw-hourly';
     points: EnvironmentTrendPoint[];
 };
 
-export type EnvironmentDashboardSnapshot = {
-    as_of: string;
-    sensors: EnvironmentSensor[];
-    sensor_health: {
-        total: number;
-        current: number;
-        stale: number;
-    };
-    metrics: Array<{
-        key: 'temperature_c' | 'humidity_pct' | 'wind_speed_ms';
-        label: string;
-        unit: string;
-        current: number | null;
-        min: number | null;
-        avg: number | null;
-        max: number | null;
-        sparkline: number[];
-    }>;
-    extra_metrics: Array<{
-        key: string;
-        label: string;
-        current: number;
-        sensor_count: number;
-    }>;
-    trend: {
-        source: 'raw' | 'raw-hourly';
-        series: EnvironmentMetricTrend[];
-    };
+export type EnvironmentCoreTrends = {
+    source: 'raw' | 'raw-hourly';
+    series: EnvironmentMetricTrend[];
 };

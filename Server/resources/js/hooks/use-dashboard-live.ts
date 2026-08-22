@@ -59,10 +59,18 @@ export function useDashboardLive({
         pollIntervalMs: 60_000,
     });
 
+    const environmentLive = useReverbChannel({
+        channel: 'environment',
+        events: ['.EnvironmentUpdated'],
+        onEvent: onLiveEvent,
+        pollIntervalMs: 60_000,
+    });
+
     return combineReverbStatus(
         alertsLive.status,
         trackingLive.status,
         gasLive.status,
         systemLive.status,
+        environmentLive.status,
     );
 }

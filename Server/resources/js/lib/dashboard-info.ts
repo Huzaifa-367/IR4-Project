@@ -42,6 +42,16 @@ export const dashboardInfo = {
         ],
         source: 'asset health snapshot · device heartbeats',
     },
+    weather: {
+        summary:
+            'Ambient site conditions from environmental sensors or the weather API.',
+        items: [
+            'Temperature, humidity, and wind speed only.',
+            'Stale badge when the last reading is older than the health window.',
+            'Live via the environment Reverb channel with a 60s poll fallback.',
+        ],
+        source: 'environmental_readings · EnvironmentalDataService::latest',
+    },
     occupancy: {
         summary: 'Live occupancy by zone from RFID reader bindings — no GPS.',
         items: [

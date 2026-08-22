@@ -33,6 +33,14 @@ type DeviceStatusPayload = {
     asset_id?: number | null;
 };
 
+type EnvironmentSensorPayload = {
+    temperature_c?: number | null;
+    humidity_pct?: number | null;
+    wind_speed_ms?: number | null;
+    recorded_at?: string | null;
+    is_stale?: boolean;
+};
+
 type GasPanelPayload = {
     device_id: number;
     device_name?: string;
@@ -325,6 +333,29 @@ export function patchSystemHealth(
     };
 }
 
+function applyEnvironment(
+    summary: DashboardSummary,
+    sensor: EnvironmentSensorPayload,
+): DashboardSummary {
+    if (!summary.weather) {
+        return summary;
+    }
+
+    const asOf = new Date().toISOString();
+
+    return {
+        ...summary,
+        weather: {
+            temperature_c: sensor.temperature_c ?? null,
+            humidity_pct: sensor.humidity_pct ?? null,
+            wind_speed_ms: sensor.wind_speed_ms ?? null,
+            updated_at: sensor.recorded_at ?? null,
+            stale: Boolean(sensor.is_stale),
+        },
+        meta: summary.meta ? { ...summary.meta, as_of: asOf } : summary.meta,
+    };
+}
+
 function applyDeviceStatus(
     summary: DashboardSummary,
     payload: DeviceStatusPayload,
@@ -368,6 +399,13 @@ export function applyDashboardEvent(
         return applyGasPanel(
             summary,
             payload.panel as unknown as GasPanelPayload,
+        );
+    }
+
+    if ('sensor' in payload && isRecord(payload.sensor)) {
+        return applyEnvironment(
+            summary,
+            payload.sensor as unknown as EnvironmentSensorPayload,
         );
     }
 

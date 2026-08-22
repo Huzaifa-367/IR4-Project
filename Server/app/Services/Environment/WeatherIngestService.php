@@ -3,8 +3,10 @@
 namespace App\Services\Environment;
 
 use App\Enums\HardwareStatus;
+use App\Events\EnvironmentUpdated;
 use App\Models\EnvironmentalReading;
 use App\Support\WeatherSettings;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -17,6 +19,7 @@ final class WeatherIngestService
     public function __construct(
         private readonly WeatherSettings $weather,
         private readonly OpenWeatherMapWeatherClient $client,
+        private readonly EnvironmentalDataService $environment,
     ) {}
 
     /**
@@ -73,6 +76,12 @@ final class WeatherIngestService
             'last_seen_at' => $receivedAt,
             'status' => HardwareStatus::Online,
         ])->save();
+
+        Cache::forget('environment:live');
+        $latest = $this->environment->latest()[0] ?? null;
+        if ($latest !== null) {
+            broadcast(new EnvironmentUpdated($latest));
+        }
 
         return ['status' => 'stored', 'detail' => $receivedAt->toIso8601String()];
     }

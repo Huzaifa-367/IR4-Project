@@ -13,6 +13,7 @@ import { PpeHeatmap } from '@/components/ir4/ppe-heatmap';
 import { RangeToggle } from '@/components/ir4/range-toggle';
 import { StatCard } from '@/components/ir4/stat-card';
 import { StatusPill } from '@/components/ir4/status-pill';
+import { WeatherTiles } from '@/components/ir4/weather-tiles';
 import { ZoneOccupancyTable } from '@/components/ir4/zone-tables';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -237,8 +238,8 @@ export default function DashboardIndex({
         <>
             <Head title="Dashboard" />
             <div className="flex flex-col gap-4 p-4 md:p-5">
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div>
+                <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+                    <div className="min-w-0">
                         <p className="eyebrow">Control room</p>
                         <h1 className="font-display text-xl font-semibold tracking-tight text-text md:text-2xl">
                             Site Safety Analytics
@@ -250,62 +251,67 @@ export default function DashboardIndex({
                             </span>
                         </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <RangeToggle
-                            options={RANGE_OPTIONS}
-                            value={range}
-                            onChange={applyRange}
-                            aria-label="Dashboard range"
-                        />
-                        {range === 'custom' ? (
-                            <>
-                                <Input
-                                    type="date"
-                                    value={from}
-                                    onChange={(event) =>
-                                        setFrom(event.target.value)
-                                    }
-                                    className="h-8 w-[9.5rem]"
-                                    aria-label="From date"
-                                />
-                                <Input
-                                    type="date"
-                                    value={to}
-                                    onChange={(event) =>
-                                        setTo(event.target.value)
-                                    }
-                                    className="h-8 w-[9.5rem]"
-                                    aria-label="To date"
-                                />
+                    <div className="flex flex-col items-end gap-2 sm:ml-auto">
+                        {summary.weather ? (
+                            <WeatherTiles weather={summary.weather} />
+                        ) : null}
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            <RangeToggle
+                                options={RANGE_OPTIONS}
+                                value={range}
+                                onChange={applyRange}
+                                aria-label="Dashboard range"
+                            />
+                            {range === 'custom' ? (
+                                <>
+                                    <Input
+                                        type="date"
+                                        value={from}
+                                        onChange={(event) =>
+                                            setFrom(event.target.value)
+                                        }
+                                        className="h-8 w-[9.5rem]"
+                                        aria-label="From date"
+                                    />
+                                    <Input
+                                        type="date"
+                                        value={to}
+                                        onChange={(event) =>
+                                            setTo(event.target.value)
+                                        }
+                                        className="h-8 w-[9.5rem]"
+                                        aria-label="To date"
+                                    />
+                                    <Button
+                                        size="sm"
+                                        className="h-8"
+                                        onClick={applyCustomRange}
+                                    >
+                                        Apply
+                                    </Button>
+                                </>
+                            ) : null}
+                            {canEvacuate ? (
                                 <Button
                                     size="sm"
-                                    className="h-8"
-                                    onClick={applyCustomRange}
+                                    className="bg-[color:var(--crit)] text-white hover:bg-[color:var(--crit)]/90"
+                                    onClick={() => {
+                                        if (
+                                            window.confirm(
+                                                'Trigger site evacuation? This opens a live muster report.',
+                                            )
+                                        ) {
+                                            router.post(
+                                                tracking.evacuation.store.url(),
+                                            );
+                                        }
+                                    }}
                                 >
-                                    Apply
+                                    <Siren className="size-3.5" />
+                                    Evacuate
                                 </Button>
-                            </>
-                        ) : null}
-                        {canEvacuate ? (
-                            <Button
-                                size="sm"
-                                className="bg-[color:var(--crit)] text-white hover:bg-[color:var(--crit)]/90"
-                                onClick={() => {
-                                    if (
-                                        window.confirm(
-                                            'Trigger site evacuation? This opens a live muster report.',
-                                        )
-                                    ) {
-                                        router.post(
-                                            tracking.evacuation.store.url(),
-                                        );
-                                    }
-                                }}
-                            >
-                                <Siren className="size-3.5" />
-                                Evacuate
-                            </Button>
-                        ) : null}
+                            ) : null}
+                        </div>
                     </div>
                 </div>
 

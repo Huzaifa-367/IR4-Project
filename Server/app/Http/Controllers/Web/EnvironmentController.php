@@ -7,60 +7,48 @@ use App\Support\ApiResponse;
 use App\Support\TrendRange;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
 final class EnvironmentController extends BaseController
 {
-    public function dashboard(Request $request, EnvironmentalDataService $environment): InertiaResponse
-    {
-        abort_unless($request->user()?->can('view-dashboard'), 403);
-
-        return Inertia::render('dashboard', [
-            'environmentSensors' => $environment->latest(),
-        ]);
-    }
-
     public function live(Request $request, EnvironmentalDataService $environment): JsonResponse
     {
         abort_unless($request->user()?->can('view-dashboard'), 403);
 
-        [$range, $from, $to] = TrendRange::resolve($request);
-
         return ApiResponse::ok([
-            'sensors' => $environment->latest(),
-            'snapshot' => $environment->dashboardSnapshot($from, $to),
-            'filters' => [
-                'range' => $range,
-                'from' => $from->toDateString(),
-                'to' => $to->toDateString(),
-            ],
+            'sensors' => Cache::remember(
+                'environment:live',
+                now()->addSeconds(5),
+                fn (): array => $environment->latest(),
+            ),
         ]);
     }
 
     public function trends(Request $request, EnvironmentalDataService $environment): InertiaResponse|JsonResponse
     {
         abort_unless($request->user()?->can('view-dashboard'), 403);
-        $range = $request->string('range', 'day')->toString();
-        $parameter = $request->string('parameter', 'temperature_c')->toString();
+
+        [$range, $from, $to] = TrendRange::resolve($request);
         $deviceId = $request->filled('device_id') ? $request->integer('device_id') : null;
-        $now = now();
-        [$from, $to] = match ($range) {
-            'week' => [$now->copy()->subDays(7), $now],
-            'custom' => [
-                Carbon::parse($request->string('from')->toString())->startOfDay(),
-                Carbon::parse($request->string('to')->toString())->endOfDay(),
-            ],
-            default => [$now->copy()->subDay(), $now],
-        };
-        $series = $environment->trends($parameter, $deviceId, $from, $to);
+
         if ($request->wantsJson() || $request->boolean('json')) {
-            return ApiResponse::ok($series);
+            $payload = $request->filled('parameter')
+                ? $environment->trends(
+                    $request->string('parameter')->toString(),
+                    $deviceId,
+                    $from,
+                    $to,
+                )
+                : $environment->coreTrends($deviceId, $from, $to);
+
+            return ApiResponse::ok($payload);
         }
 
         return Inertia::render('environment/index', [
-            'snapshot' => $environment->dashboardSnapshot($from, $to),
+            'sensors' => $environment->latest(),
+            'trends' => $environment->coreTrends($deviceId, $from, $to),
             'filters' => [
                 'range' => $range,
                 'from' => $from->toDateString(),
