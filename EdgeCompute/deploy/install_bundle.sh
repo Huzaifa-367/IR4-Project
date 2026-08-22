@@ -53,6 +53,7 @@ CONFIG_DIR="${EDGE_ROOT}/configs"
 source "${SRC_CODE}/deploy/lib.sh"
 load_edge_yaml
 INSTALL_ROOT="${IR4_EDGE_INSTALL_ROOT:-${EDGE_INSTALL_ROOT}}"
+EDGE_USER="${IR4_EDGE_USER:-${EDGE_SERVICE_USER}}"
 ensure_canonical_code_tree
 
 SRC_WHEELS="${SCRIPT_DIR}/wheels"

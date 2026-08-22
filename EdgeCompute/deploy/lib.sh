@@ -167,10 +167,11 @@ render_systemd_units() {
 }
 
 render_unit() {
+  local edge_user="${EDGE_USER:-${EDGE_SERVICE_USER}}"
   sed \
     -e "s|@EDGE_ROOT@|${EDGE_ROOT}|g" \
     -e "s|@INSTALL_ROOT@|${INSTALL_ROOT}|g" \
-    -e "s|@EDGE_USER@|${EDGE_USER}|g" \
+    -e "s|@EDGE_USER@|${edge_user}|g" \
     "$1" > "$2"
   chmod 0644 "$2"
 }
@@ -238,15 +239,16 @@ secrets_ready() {
 
 fix_config_permissions() {
   local operator="${SUDO_USER:-}"
+  local edge_user="${EDGE_USER:-${EDGE_SERVICE_USER}}"
   [[ -z "${operator}" || "${operator}" == "root" ]] && \
-    operator="$(stat -c '%U' "${EDGE_ROOT}" 2>/dev/null || echo "${EDGE_USER}")"
-  echo "==> Config permissions (owner=${operator} group=${EDGE_USER})"
-  chown -R "${operator}:${EDGE_USER}" "${CONFIG_DIR}"
+    operator="$(stat -c '%U' "${EDGE_ROOT}" 2>/dev/null || echo "${edge_user}")"
+  echo "==> Config permissions (owner=${operator} group=${edge_user})"
+  chown -R "${operator}:${edge_user}" "${CONFIG_DIR}"
   chmod 775 "${CONFIG_DIR}"
   chmod 664 "${CONFIG_DIR}"/*.yaml "${CONFIG_DIR}/secrets.example.env" 2>/dev/null || true
   [[ -f "${CONFIG_DIR}/secrets.env" ]] && chmod 640 "${CONFIG_DIR}/secrets.env"
-  usermod -aG "${EDGE_USER}" "${operator}" 2>/dev/null || true
-  chown -R "${EDGE_USER}:${EDGE_USER}" "${INSTALL_ROOT}/var"
+  usermod -aG "${edge_user}" "${operator}" 2>/dev/null || true
+  chown -R "${edge_user}:${edge_user}" "${INSTALL_ROOT}/var"
   chmod 775 "${INSTALL_ROOT}/var"
 }
 
