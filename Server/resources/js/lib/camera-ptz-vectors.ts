@@ -1,5 +1,5 @@
 /** Relative pan/tilt step per click (degrees). */
-export const PTZ_PAN_TILT_DEGREES = 15;
+export const PTZ_PAN_TILT_DEGREES = 30;
 
 /** Relative zoom step per click (Hikvision ISAPI zoom unit). */
 export const PTZ_ZOOM_STEP = 1;

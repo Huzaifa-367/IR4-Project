@@ -17,7 +17,14 @@ use Throwable;
 final class CameraPtzService
 {
     /** Continuous speed for a single click nudge (Hikvision -100..100). */
-    private const NUDGE_CONTINUOUS_SPEED = 25;
+    private const NUDGE_CONTINUOUS_SPEED = 35;
+
+    private const NUDGE_BURST_MIN_MICROS = 150_000;
+
+    private const NUDGE_BURST_MAX_MICROS = 900_000;
+
+    /** ~30ms of burst per frontend step unit (PTZ_PAN_TILT_DEGREES). */
+    private const NUDGE_BURST_MICROS_PER_STEP = 30_000;
 
     private string $lastError = '';
 
@@ -109,8 +116,10 @@ final class CameraPtzService
     {
         $step = max(abs($pan), abs($tilt), abs($zoom));
 
-        // ponytail: ~50ms per degree-step unit; tune on real heads if nudges feel too long/short.
-        return min(400_000, max(100_000, $step * 50_000));
+        return min(
+            self::NUDGE_BURST_MAX_MICROS,
+            max(self::NUDGE_BURST_MIN_MICROS, $step * self::NUDGE_BURST_MICROS_PER_STEP),
+        );
     }
 
     private function sendContinuous(Camera $camera, int $pan, int $tilt, int $zoom, bool $lenient = false): bool

@@ -80,12 +80,12 @@ it('proxies each ptz click to a short continuous burst', function (string $label
             && str_contains($request->body(), '<zoom>'.$speedZoom.'</zoom>');
     });
 })->with([
-    'pan left' => ['left', -3, 0, 0, -25, 0, 0],
-    'pan right' => ['right', 3, 0, 0, 25, 0, 0],
-    'tilt up' => ['up', 0, 3, 0, 0, 25, 0],
-    'tilt down' => ['down', 0, -3, 0, 0, -25, 0],
-    'zoom in' => ['zoom-in', 0, 0, 1, 0, 0, 25],
-    'zoom out' => ['zoom-out', 0, 0, -1, 0, 0, -25],
+    'pan left' => ['left', -30, 0, 0, -35, 0, 0],
+    'pan right' => ['right', 30, 0, 0, 35, 0, 0],
+    'tilt up' => ['up', 0, 30, 0, 0, 35, 0],
+    'tilt down' => ['down', 0, -30, 0, 0, -35, 0],
+    'zoom in' => ['zoom-in', 0, 0, 1, 0, 0, 35],
+    'zoom out' => ['zoom-out', 0, 0, -1, 0, 0, -35],
 ]);
 
 it('audits each click nudge', function () {
@@ -115,8 +115,8 @@ it('audits each click nudge', function () {
     $this->actingAs($operator)
         ->postJson(route('live.cameras.ptz', $camera), [
             'action' => 'move',
-            'pan' => 3,
-            'tilt' => -3,
+            'pan' => 30,
+            'tilt' => -30,
             'zoom' => 0,
         ])
         ->assertOk()
@@ -125,8 +125,8 @@ it('audits each click nudge', function () {
     Http::assertSent(function ($request) {
         return $request->method() === 'PUT'
             && str_contains($request->url(), '/ISAPI/PTZCtrl/channels/1/continuous')
-            && str_contains($request->body(), '<pan>25</pan>')
-            && str_contains($request->body(), '<tilt>-25</tilt>');
+            && str_contains($request->body(), '<pan>35</pan>')
+            && str_contains($request->body(), '<tilt>-35</tilt>');
     });
 
     expect(AuditLog::query()->count())->toBe($before + 1);
