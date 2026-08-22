@@ -21,17 +21,14 @@ def read_version(tree: Path) -> str:
 
 def versions_compatible(installed: str, target: str) -> bool:
     """Reject downgrades when both look like semver (major.minor.patch)."""
-    if not installed or installed == _DEFAULT:
-        return True
-    if installed == target:
+    if not installed or installed == _DEFAULT or installed == target:
         return True
     try:
         installed_parts = [int(x) for x in installed.split(".")[:3]]
         target_parts = [int(x) for x in target.split(".")[:3]]
     except ValueError:
         return True
-    while len(installed_parts) < 3:
-        installed_parts.append(0)
-    while len(target_parts) < 3:
-        target_parts.append(0)
+    # Pad to 3 components so "1.2" compares against "1.2.0".
+    installed_parts += [0] * (3 - len(installed_parts))
+    target_parts += [0] * (3 - len(target_parts))
     return target_parts >= installed_parts

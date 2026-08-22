@@ -58,10 +58,12 @@ def _enabled_units() -> List[str]:
 
 
 def _status_units() -> List[str]:
-    units = _enabled_units()
-    _, rfid_on = services_enabled()
+    gas_on, rfid_on = services_enabled()
+    units: List[str] = []
+    if gas_on:
+        units.append("ir4-gas-agent")
     if rfid_on:
-        units.append("mosquitto")
+        units.extend(["ir4-rfid-agent", "mosquitto"])
     return units
 
 

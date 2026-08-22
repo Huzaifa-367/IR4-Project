@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
 import sqlite3
@@ -241,8 +242,6 @@ class DeployStateStore:
                 handle = self.lock_path.open("w")
                 handle.write("{}\n".format(operation_id))
                 handle.flush()
-                import fcntl
-
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                 break
             except (OSError, BlockingIOError):
@@ -256,8 +255,6 @@ class DeployStateStore:
             yield
         finally:
             if handle:
-                import fcntl
-
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
                 handle.close()
             try:

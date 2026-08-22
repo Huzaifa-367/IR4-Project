@@ -25,6 +25,14 @@ print(json.dumps(rows))
 """
 
 
+def _failures_from_checks(checks: List) -> List[str]:
+    return [
+        "{}: {}".format(check.name, check.detail or "failed")
+        for check in checks
+        if not check.ok
+    ]
+
+
 def _verify_env() -> dict:
     env = dict(os.environ)
     env.pop("PYTHONPATH", None)
@@ -60,10 +68,5 @@ def verify_pole() -> VerificationResult:
 
     from ir4_edge.doctor import run_checks
 
-    checks = run_checks()
-    failures = [
-        "{}: {}".format(check.name, check.detail or "failed")
-        for check in checks
-        if not check.ok
-    ]
+    failures = _failures_from_checks(run_checks())
     return VerificationResult(ok=not failures, failures=failures)

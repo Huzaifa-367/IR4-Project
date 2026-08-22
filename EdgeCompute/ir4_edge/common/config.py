@@ -61,9 +61,9 @@ def _env(name: str, default: Optional[str] = None) -> Optional[str]:
 
 def load_env_file(path: Path, *, override: bool = False) -> None:
     """KEY=VALUE loader. Skips missing / unreadable files (systemd may inject env)."""
+    if not path.is_file():
+        return
     try:
-        if not path.is_file():
-            return
         handle = path.open("r", encoding="utf-8")
     except PermissionError:
         return
@@ -77,7 +77,7 @@ def load_env_file(path: Path, *, override: bool = False) -> None:
             value = value.strip().strip("'").strip('"')
             if not key:
                 continue
-            if not override and key in os.environ and os.environ.get(key) != "":
+            if not override and os.environ.get(key, "") != "":
                 continue
             os.environ[key] = value
 

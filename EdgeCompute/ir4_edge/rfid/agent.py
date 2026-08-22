@@ -53,41 +53,40 @@ class TagBatcher:
         now = time.monotonic()
         tag_uid = str(event.get("tag_uid") or "")
         with self._lock:
-            last = self._last_seen.get(tag_uid, 0.0)
-            if tag_uid and (now - last) < self.debounce_seconds:
+            last_seen = self._last_seen.get(tag_uid, 0.0)
+            if tag_uid and (now - last_seen) < self.debounce_seconds:
                 return []
             if tag_uid:
                 self._last_seen[tag_uid] = now
             self._queue.append(event)
-            return self._maybe_flush_locked(now, force=False)
+            return self._collect_batch_locked(now, force=False)
 
     def flush_due(self) -> List[Dict[str, Any]]:
         with self._lock:
-            return self._maybe_flush_locked(time.monotonic(), force=False)
+            return self._collect_batch_locked(time.monotonic(), force=False)
 
     def flush_all(self) -> List[Dict[str, Any]]:
         with self._lock:
-            return self._maybe_flush_locked(time.monotonic(), force=True)
+            return self._collect_batch_locked(time.monotonic(), force=True)
 
-    def _maybe_flush_locked(self, now: float, force: bool) -> List[Dict[str, Any]]:
-        due = force or len(self._queue) >= self.max_batch
-        due = due or (
-            self._queue and (now - self._last_flush) >= self.flush_interval_seconds
-        )
-        if not due:
+    def _collect_batch_locked(self, now: float, *, force: bool) -> List[Dict[str, Any]]:
+        size_due = len(self._queue) >= self.max_batch
+        time_due = bool(self._queue) and (now - self._last_flush) >= self.flush_interval_seconds
+        if not (force or size_due or time_due):
             return []
         batch = list(self._queue)
         self._queue.clear()
         self._last_flush = now
         # Cap at 1000 for DOC-08.
         if len(batch) > 1000:
-            rest = batch[1000:]
+            self._queue.extendleft(reversed(batch[1000:]))
             batch = batch[:1000]
-            self._queue.extendleft(reversed(rest))
         return batch
 
 
 class RfidAgentState:
+    """Granular MQTT → ingest counters surfaced on the heartbeat meta."""
+
     def __init__(self) -> None:
         self.mqtt_connected = False
         self.mqtt_messages = 0
@@ -95,11 +94,6 @@ class RfidAgentState:
         self.tags_debounced = 0
         self.tags_ingested = 0
         self.unmapped_messages = 0
-
-    @property
-    def messages(self) -> int:
-        """Backward-compatible alias — tag reads mapped, not raw MQTT count."""
-        return self.tags_mapped
 
 
 def run_agent(config_path: Path, dry_run: bool = False) -> int:
@@ -165,7 +159,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
         if result.rejected:
             log.warning("Rejected: %s", result.rejected[:5])
 
-    def flush_pending_buffer() -> None:
+    def drain_pending_buffer() -> None:
         nonlocal last_buffer_flush
         if buffer.pending_count() <= 0:
             return
@@ -177,7 +171,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
             log.info("Buffer flush removed %d pending events", removed)
         last_buffer_flush = now
 
-    def meta_provider() -> Dict[str, Any]:
+    def build_heartbeat_meta() -> Dict[str, Any]:
         return {
             "agent": "ir4-rfid-agent",
             "mqtt_connected": state.mqtt_connected,
@@ -196,7 +190,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     heartbeat = HeartbeatLoop(
         client,
         interval_seconds=heartbeat_interval,
-        meta_provider=meta_provider,
+        meta_provider=build_heartbeat_meta,
     )
 
     def on_connect(
@@ -273,12 +267,12 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     mqtt_client.on_disconnect = on_disconnect
     mqtt_client.on_message = on_message
 
-    def _handle_signal(signum: int, _frame: object) -> None:
+    def handle_signal(signum: int, _frame: object) -> None:
         log.info("Signal %s received; shutting down", signum)
         stop["flag"] = True
 
-    signal.signal(signal.SIGINT, _handle_signal)
-    signal.signal(signal.SIGTERM, _handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
 
     heartbeat.start()
     log.info("Connecting MQTT %s:%s topic=%s", broker, port, topic)
@@ -288,7 +282,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     try:
         while not stop["flag"]:
             send_batch(batcher.flush_due())
-            flush_pending_buffer()
+            drain_pending_buffer()
             time.sleep(0.2)
     finally:
         send_batch(batcher.flush_all())
@@ -296,7 +290,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
         mqtt_client.disconnect()
         heartbeat.stop()
         try:
-            client.heartbeat(status="offline", meta=meta_provider())
+            client.heartbeat(status="offline", meta=build_heartbeat_meta())
         except Exception:
             pass
         buffer.close()

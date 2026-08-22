@@ -39,21 +39,20 @@ class DeployPipeline:
         installed = self.store.get_deployed_version()
         first_install = not (live / "configs" / "secrets.env").is_file()
 
-        if ctx.kind == OperationKind.UPDATE and not first_install:
-            if not live.is_dir() and ctx.kind == OperationKind.UPDATE:
-                ctx = DeployContext(
-                    pole=ctx.pole,
-                    kind=OperationKind.INSTALL,
-                    transport=ctx.transport,
-                    install_root=ctx.install_root,
-                    branch=ctx.branch,
-                    repo_url=ctx.repo_url,
-                    payload_dir=ctx.payload_dir,
-                    from_path=ctx.from_path,
-                    operation_id=operation_id,
-                    force=ctx.force,
-                )
-                first_install = True
+        if ctx.kind == OperationKind.UPDATE and not first_install and not live.is_dir():
+            ctx = DeployContext(
+                pole=ctx.pole,
+                kind=OperationKind.INSTALL,
+                transport=ctx.transport,
+                install_root=ctx.install_root,
+                branch=ctx.branch,
+                repo_url=ctx.repo_url,
+                payload_dir=ctx.payload_dir,
+                from_path=ctx.from_path,
+                operation_id=operation_id,
+                force=ctx.force,
+            )
+            first_install = True
 
         self.store.record(
             operation_id,

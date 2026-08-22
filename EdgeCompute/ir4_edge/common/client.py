@@ -22,27 +22,27 @@ class IngestResult:
     error: Optional[str] = None
 
 
+_SUMMARY_KEYS = (
+    "device_ref",
+    "reader_ref",
+    "tag_uid",
+    "recorded_at",
+    "lel_pct",
+    "h2s_ppm",
+    "o2_pct",
+    "co_ppm",
+    "co2_ppm",
+    "rssi",
+    "antenna",
+    "event_uid",
+)
+
+
 def _summarize_events(events: Sequence[Mapping[str, Any]], *, limit: int = 5) -> List[Dict[str, Any]]:
     """Compact event view for journals (no tokens)."""
     sample: List[Dict[str, Any]] = []
     for event in list(events)[:limit]:
-        row: Dict[str, Any] = {}
-        for key in (
-            "device_ref",
-            "reader_ref",
-            "tag_uid",
-            "recorded_at",
-            "lel_pct",
-            "h2s_ppm",
-            "o2_pct",
-            "co_ppm",
-            "co2_ppm",
-            "rssi",
-            "antenna",
-            "event_uid",
-        ):
-            if key in event:
-                row[key] = event[key]
+        row = {key: event[key] for key in _SUMMARY_KEYS if key in event}
         sample.append(row or dict(event))
     return sample
 

@@ -84,37 +84,13 @@ class DeployService:
         kind: Optional[OperationKind] = None,
     ) -> DeployResult:
         self.recover_if_needed()
-        if kind is not None:
-            ctx = DeployContext(
-                pole=ctx.pole,
-                kind=kind,
-                transport=ctx.transport,
-                install_root=ctx.install_root,
-                branch=ctx.branch,
-                repo_url=ctx.repo_url,
-                payload_dir=ctx.payload_dir,
-                from_path=ctx.from_path,
-                operation_id=ctx.operation_id,
-                force=ctx.force,
-            )
-        elif ctx.kind == OperationKind.UPDATE and self._detect_kind() == OperationKind.INSTALL:
-            ctx = DeployContext(
-                pole=ctx.pole,
-                kind=OperationKind.INSTALL,
-                transport=ctx.transport,
-                install_root=ctx.install_root,
-                branch=ctx.branch,
-                repo_url=ctx.repo_url,
-                payload_dir=ctx.payload_dir,
-                from_path=ctx.from_path,
-                operation_id=ctx.operation_id,
-                force=ctx.force,
-            )
-
+        effective_kind = kind if kind is not None else ctx.kind
+        if effective_kind == OperationKind.UPDATE and self._detect_kind() == OperationKind.INSTALL:
+            effective_kind = OperationKind.INSTALL
         operation_id = ctx.operation_id or self.store.new_operation_id()
         ctx = DeployContext(
             pole=ctx.pole,
-            kind=ctx.kind,
+            kind=effective_kind,
             transport=ctx.transport,
             install_root=ctx.install_root,
             branch=ctx.branch,

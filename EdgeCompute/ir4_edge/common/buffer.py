@@ -34,6 +34,16 @@ MAX_BATCH = 1000
 DEFAULT_MAX_ROWS = 200_000
 
 
+def _rejected_indices(rejected: Sequence[Dict[str, Any]], batch_size: int) -> set:
+    """Indices of server-rejected events within a batch (validated against size)."""
+    indices = {
+        int(item.get("index", -1))
+        for item in rejected
+        if isinstance(item, dict)
+    }
+    return {index for index in indices if 0 <= index < batch_size}
+
+
 class OutageBuffer:
     """Persist events locally; flush in ≤1000 batches keeping event_uid."""
 
@@ -188,14 +198,7 @@ class OutageBuffer:
                     len(result.rejected),
                     result.rejected[:5],
                 )
-            rejected_indices = {
-                int(item.get("index", -1))
-                for item in result.rejected
-                if isinstance(item, dict)
-            }
-            rejected_indices = {
-                index for index in rejected_indices if 0 <= index < len(batch)
-            }
+            rejected_indices = _rejected_indices(result.rejected, len(batch))
             keep_ids: List[int] = []
             requeue: List[Dict[str, Any]] = []
             for index, row_id in enumerate(ids):
@@ -228,14 +231,7 @@ class OutageBuffer:
         result = sender(client, events)
         if result.status_code in (200, 202) and not result.retriable:
             if result.rejected:
-                rejected_indices = {
-                    int(item.get("index", -1))
-                    for item in result.rejected
-                    if isinstance(item, dict)
-                }
-                rejected_indices = {
-                    index for index in rejected_indices if 0 <= index < len(events)
-                }
+                rejected_indices = _rejected_indices(result.rejected, len(events))
                 requeue = [
                     dict(events[index])
                     for index in range(len(events))

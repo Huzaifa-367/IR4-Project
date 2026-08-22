@@ -101,14 +101,14 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     buffer = OutageBuffer(buffer_path, stream="gas_readings")
     stop = {"flag": False}
 
-    def _handle_signal(signum: int, _frame: object) -> None:
+    def handle_signal(signum: int, _frame: object) -> None:
         log.info("Signal %s received; shutting down", signum)
         stop["flag"] = True
 
-    signal.signal(signal.SIGINT, _handle_signal)
-    signal.signal(signal.SIGTERM, _handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
 
-    def meta_provider() -> Dict[str, Any]:
+    def build_heartbeat_meta() -> Dict[str, Any]:
         return {
             "agent": "ir4-gas-agent",
             "device_ref": device_ref,
@@ -120,7 +120,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     heartbeat = HeartbeatLoop(
         client,
         interval_seconds=heartbeat_interval,
-        meta_provider=meta_provider,
+        meta_provider=build_heartbeat_meta,
     )
     heartbeat.start()
 
@@ -143,7 +143,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
                 if consecutive_failures >= _DEGRADED_AFTER_EMPTY_POLLS:
                     client.heartbeat(
                         status="degraded",
-                        meta={**meta_provider(), "reason": "modbus_silence"},
+                        meta={**build_heartbeat_meta(), "reason": "modbus_silence"},
                     )
                 time.sleep(poll_interval)
                 continue
@@ -170,7 +170,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     finally:
         heartbeat.stop()
         try:
-            client.heartbeat(status="offline", meta=meta_provider())
+            client.heartbeat(status="offline", meta=build_heartbeat_meta())
         except Exception:
             pass
         buffer.close()
