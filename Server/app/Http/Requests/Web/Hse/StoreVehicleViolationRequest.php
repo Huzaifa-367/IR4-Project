@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Web\Hse;
 
-use App\Services\VehicleViolationService;
+use App\Services\Hse\VehicleViolationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 

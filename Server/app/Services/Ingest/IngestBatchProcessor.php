@@ -6,7 +6,7 @@ use App\Enums\AlertType;
 use App\Enums\IngestStream;
 use App\Models\Device;
 use App\Models\IngestEvent;
-use App\Services\AlertService;
+use App\Services\Alert\AlertService;
 use App\Support\Ingest\IngestEventRejected;
 use App\Support\Ingest\IngestTimestamps;
 use Illuminate\Database\QueryException;

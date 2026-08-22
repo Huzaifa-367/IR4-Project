@@ -17,10 +17,10 @@ use App\Models\User;
 use App\Models\Worker;
 use App\Models\WorkerPosition;
 use App\Models\Zone;
-use App\Services\LsrService;
-use App\Services\ReaderBindingService;
-use App\Services\TagService;
-use App\Services\TrackingService;
+use App\Services\Hse\LsrService;
+use App\Services\Tracking\ReaderBindingService;
+use App\Services\Tracking\TagService;
+use App\Services\Tracking\TrackingService;
 use Illuminate\Support\Carbon;
 use Tests\Support\IngestTestClient;
 

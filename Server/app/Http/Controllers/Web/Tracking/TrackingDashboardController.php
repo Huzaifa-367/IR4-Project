@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Web\Tracking;
 
 use App\Http\Controllers\Web\BaseController;
-use App\Services\TrackingService;
+use App\Services\Tracking\TrackingService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;

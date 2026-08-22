@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\RetentionService;
+use App\Services\Platform\RetentionService;
 use Illuminate\Console\Command;
 use Throwable;
 

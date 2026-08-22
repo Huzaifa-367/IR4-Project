@@ -4,9 +4,9 @@ namespace App\Providers;
 
 use App\Enums\AuditEvent;
 use App\Models\User;
-use App\Services\AuditService;
-use App\Services\AuthLockoutService;
-use App\Services\SettingsService;
+use App\Services\Audit\AuditService;
+use App\Services\Auth\AuthLockoutService;
+use App\Services\Settings\SettingsService;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;

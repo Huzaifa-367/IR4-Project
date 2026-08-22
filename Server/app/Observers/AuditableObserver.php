@@ -3,7 +3,7 @@
 namespace App\Observers;
 
 use App\Enums\AuditEvent;
-use App\Services\AuditService;
+use App\Services\Audit\AuditService;
 use Illuminate\Database\Eloquent\Model;
 
 final class AuditableObserver

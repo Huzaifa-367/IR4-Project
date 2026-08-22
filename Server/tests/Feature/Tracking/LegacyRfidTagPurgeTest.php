@@ -3,7 +3,7 @@
 use App\Enums\TagStatus;
 use App\Models\RfidTag;
 use App\Models\TagReading;
-use App\Services\LegacyRfidTagPurgeService;
+use App\Services\Tracking\LegacyRfidTagPurgeService;
 use App\Support\LegacyRfidTagUids;
 use App\Support\SiteRfidTags;
 use Illuminate\Foundation\Testing\RefreshDatabase;

@@ -6,7 +6,7 @@ use App\Enums\AuditEvent;
 use App\Http\Controllers\Web\BaseController;
 use App\Models\AuditLog;
 use App\Models\User;
-use App\Services\AuditService;
+use App\Services\Audit\AuditService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

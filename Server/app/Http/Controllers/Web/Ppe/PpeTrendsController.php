@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Web\Ppe;
 use App\Enums\ReviewStatus;
 use App\Http\Controllers\Web\BaseController;
 use App\Models\PpeViolation;
-use App\Services\PpeViolationService;
+use App\Services\Ppe\PpeViolationService;
 use App\Support\TrendRange;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

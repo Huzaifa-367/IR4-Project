@@ -4,7 +4,7 @@ use App\Enums\AuditEvent;
 use App\Models\AuditLog;
 use App\Models\Setting;
 use App\Models\User;
-use App\Services\SettingsService;
+use App\Services\Settings\SettingsService;
 use App\Support\SettingsRegistry;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SettingsSeeder;

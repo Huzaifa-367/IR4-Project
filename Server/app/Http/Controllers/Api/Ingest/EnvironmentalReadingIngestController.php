@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\Ingest;
 
 use App\Http\Requests\Api\Ingest\EnvironmentalReadingsIngestRequest;
 use App\Models\Device;
-use App\Services\EnvironmentalDataService;
-use App\Services\HardwareRegistryService;
+use App\Services\Environment\EnvironmentalDataService;
+use App\Services\Hardware\HardwareRegistryService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 

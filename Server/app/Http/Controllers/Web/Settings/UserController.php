@@ -7,7 +7,7 @@ use App\Http\Requests\Settings\StoreUserRequest;
 use App\Http\Requests\Settings\UpdateUserRequest;
 use App\Models\Role;
 use App\Models\User;
-use App\Services\UserProvisioningService;
+use App\Services\Auth\UserProvisioningService;
 use App\Support\PermissionCatalogue;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;

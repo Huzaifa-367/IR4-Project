@@ -22,9 +22,9 @@ use App\Models\User;
 use App\Models\Worker;
 use App\Models\WorkerPosition;
 use App\Models\Zone;
-use App\Services\AlertService;
-use App\Services\IncidentService;
-use App\Services\LsrService;
+use App\Services\Alert\AlertService;
+use App\Services\Hse\IncidentService;
+use App\Services\Hse\LsrService;
 
 it('does not auto-create incidents or lsr when alerts are raised', function () {
     app(AlertService::class)->raise(type: AlertType::FallDetection, title: 'Fall');

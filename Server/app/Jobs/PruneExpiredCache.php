@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Services\RetentionService;
+use App\Services\Platform\RetentionService;
 use Illuminate\Foundation\Queue\Queueable;
 
 /**

@@ -10,7 +10,7 @@ use App\Models\Device;
 use App\Models\GasAlarm;
 use App\Models\GasThreshold;
 use App\Models\User;
-use App\Services\GasMonitoringService;
+use App\Services\Gas\GasMonitoringService;
 use App\Support\ApiResponse;
 use App\Support\TrendRange;
 use Illuminate\Http\JsonResponse;

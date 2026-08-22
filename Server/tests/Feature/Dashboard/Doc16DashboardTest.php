@@ -9,7 +9,7 @@ use App\Models\Alert;
 use App\Models\HseIncident;
 use App\Models\User;
 use App\Models\WeeklyReport;
-use App\Services\DashboardService;
+use App\Services\Dashboard\DashboardService;
 
 it('returns permission-filtered dashboard summary for operators', function () {
     $operator = User::factory()->withRole('SCC Operator')->create();

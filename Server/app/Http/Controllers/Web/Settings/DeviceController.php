@@ -9,7 +9,7 @@ use App\Http\Requests\Settings\StoreDeviceRequest;
 use App\Http\Requests\Settings\UpdateDeviceRequest;
 use App\Models\Asset;
 use App\Models\Device;
-use App\Services\HardwareRegistryService;
+use App\Services\Hardware\HardwareRegistryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;

@@ -4,7 +4,7 @@ use App\Models\Asset;
 use App\Models\Camera;
 use App\Models\User;
 use App\Services\Camera\CameraStreamGatewayService;
-use App\Services\HardwareRegistryService;
+use App\Services\Hardware\HardwareRegistryService;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {

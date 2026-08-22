@@ -3,7 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Device;
-use App\Services\HardwareRegistryService;
+use App\Services\Hardware\HardwareRegistryService;
 use App\Support\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;

@@ -3,7 +3,7 @@
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\WorkerImport;
-use App\Services\WorkerService;
+use App\Services\Worker\WorkerService;
 use Database\Seeders\PermitCatalogueSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;

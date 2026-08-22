@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\SignedStorageUrlService;
+use App\Services\Storage\SignedStorageUrlService;
 use Illuminate\Support\Facades\Storage;
 
 it('issues signed urls under /files/private not /storage', function () {

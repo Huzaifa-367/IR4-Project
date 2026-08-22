@@ -3,7 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Equipment;
-use App\Services\EquipmentService;
+use App\Services\Equipment\EquipmentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 

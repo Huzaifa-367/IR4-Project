@@ -8,7 +8,7 @@ use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Settings\StoreAssetRequest;
 use App\Http\Requests\Settings\UpdateAssetRequest;
 use App\Models\Asset;
-use App\Services\HardwareRegistryService;
+use App\Services\Hardware\HardwareRegistryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

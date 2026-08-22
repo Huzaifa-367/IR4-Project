@@ -15,7 +15,7 @@ use App\Models\Alert;
 use App\Models\HseIncident;
 use App\Models\Worker;
 use App\Models\Zone;
-use App\Services\IncidentService;
+use App\Services\Hse\IncidentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

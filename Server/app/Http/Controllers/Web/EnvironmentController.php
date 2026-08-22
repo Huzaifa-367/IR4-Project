@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
-use App\Services\EnvironmentalDataService;
+use App\Services\Environment\EnvironmentalDataService;
 use App\Support\ApiResponse;
 use App\Support\TrendRange;
 use Illuminate\Http\JsonResponse;

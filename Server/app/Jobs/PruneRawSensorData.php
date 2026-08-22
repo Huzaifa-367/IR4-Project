@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Services\BackupStatusService;
-use App\Services\RetentionService;
+use App\Services\Platform\BackupStatusService;
+use App\Services\Platform\RetentionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 

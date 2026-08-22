@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Web\Tracking;
 use App\Http\Controllers\Web\BaseController;
 use App\Models\PortableDevice;
 use App\Models\Worker;
-use App\Services\PortableDeviceService;
+use App\Services\Tracking\PortableDeviceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

@@ -2,7 +2,7 @@
 
 namespace App\Support\Ingest;
 
-use App\Services\SettingsService;
+use App\Services\Settings\SettingsService;
 use Illuminate\Support\Carbon;
 
 /**

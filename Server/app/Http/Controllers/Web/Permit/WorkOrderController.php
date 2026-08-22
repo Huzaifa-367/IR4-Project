@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Web\Permit;
 use App\Http\Controllers\Web\BaseController;
 use App\Models\WorkOrder;
 use App\Models\Zone;
-use App\Services\PermitService;
+use App\Services\Permit\PermitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;

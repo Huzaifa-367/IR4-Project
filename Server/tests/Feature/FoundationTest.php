@@ -1,6 +1,6 @@
 <?php
 
-use App\Services\SettingsService;
+use App\Services\Settings\SettingsService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 

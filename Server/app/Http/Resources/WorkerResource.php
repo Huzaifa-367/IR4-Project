@@ -3,7 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Worker;
-use App\Services\SignedStorageUrlService;
+use App\Services\Storage\SignedStorageUrlService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 

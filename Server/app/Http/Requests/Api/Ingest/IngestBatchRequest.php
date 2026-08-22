@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Api\Ingest;
 
-use App\Services\SettingsService;
+use App\Services\Settings\SettingsService;
 use Illuminate\Foundation\Http\FormRequest;
 
 abstract class IngestBatchRequest extends FormRequest

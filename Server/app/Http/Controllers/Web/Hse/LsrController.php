@@ -12,7 +12,7 @@ use App\Models\Alert;
 use App\Models\LsrViolation;
 use App\Models\Worker;
 use App\Models\Zone;
-use App\Services\LsrService;
+use App\Services\Hse\LsrService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;

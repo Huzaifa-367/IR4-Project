@@ -6,7 +6,7 @@ use App\Enums\TagStatus;
 use App\Http\Controllers\Web\BaseController;
 use App\Models\RfidTag;
 use App\Models\Worker;
-use App\Services\TagService;
+use App\Services\Tracking\TagService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

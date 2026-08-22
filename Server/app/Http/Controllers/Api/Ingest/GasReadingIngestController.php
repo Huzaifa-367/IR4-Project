@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\Ingest;
 
 use App\Http\Requests\Api\Ingest\GasReadingsIngestRequest;
 use App\Models\Device;
-use App\Services\GasMonitoringService;
-use App\Services\HardwareRegistryService;
+use App\Services\Gas\GasMonitoringService;
+use App\Services\Hardware\HardwareRegistryService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 

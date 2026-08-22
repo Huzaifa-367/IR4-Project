@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\AuthLockoutService;
-use App\Services\SettingsService;
+use App\Services\Auth\AuthLockoutService;
+use App\Services\Settings\SettingsService;
 use App\Support\ApiResponse;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Http\JsonResponse;

@@ -12,10 +12,10 @@ use App\Models\Device;
 use App\Models\HseIncident;
 use App\Models\LsrViolation;
 use App\Models\User;
-use App\Services\AlertService;
-use App\Services\AssetHealthService;
-use App\Services\HardwareRegistryService;
-use App\Services\SettingsService;
+use App\Services\Alert\AlertService;
+use App\Services\Hardware\AssetHealthService;
+use App\Services\Hardware\HardwareRegistryService;
+use App\Services\Settings\SettingsService;
 use Illuminate\Support\Facades\Event;
 
 it('raises an alert with AlertPolicy defaults and broadcasts AlertRaised', function () {

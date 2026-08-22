@@ -10,7 +10,7 @@ use App\Http\Requests\Settings\UpdateZoneRequest;
 use App\Http\Resources\WorkerResource;
 use App\Models\Worker;
 use App\Models\Zone;
-use App\Services\ZoneService;
+use App\Services\Tracking\ZoneService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

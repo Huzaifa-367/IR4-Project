@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\RfidTag;
-use App\Services\LegacyRfidTagPurgeService;
+use App\Services\Tracking\LegacyRfidTagPurgeService;
 use App\Support\LegacyRfidTagUids;
 use Illuminate\Console\Command;
 

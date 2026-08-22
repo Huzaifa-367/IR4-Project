@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Web\Settings;
 
-use App\Services\SettingsService;
+use App\Services\Settings\SettingsService;
 use App\Support\SettingsRegistry;
 use App\Support\WeatherSettings;
 use Illuminate\Foundation\Http\FormRequest;

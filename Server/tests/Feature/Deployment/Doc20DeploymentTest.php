@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Equipment;
-use App\Services\EquipmentLabelService;
+use App\Services\Equipment\EquipmentLabelService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schedule;
 use Spatie\Backup\Commands\CleanupCommand;

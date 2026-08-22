@@ -7,7 +7,7 @@ use App\Http\Requests\Settings\RebindReaderRequest;
 use App\Models\Device;
 use App\Models\ReaderZoneBinding;
 use App\Models\Zone;
-use App\Services\ReaderBindingService;
+use App\Services\Tracking\ReaderBindingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;

@@ -6,7 +6,7 @@ use App\Models\EquipmentCheckout;
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\Zone;
-use App\Services\AuthLockoutService;
+use App\Services\Auth\AuthLockoutService;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SettingsSeeder;
 use Illuminate\Support\Facades\Hash;

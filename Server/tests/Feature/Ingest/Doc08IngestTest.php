@@ -10,7 +10,7 @@ use App\Models\GasReading;
 use App\Models\PpeViolation;
 use App\Models\RfidTag;
 use App\Models\TagReading;
-use App\Services\SettingsService;
+use App\Services\Settings\SettingsService;
 use App\Support\Ingest\LiveState;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\RateLimiter;

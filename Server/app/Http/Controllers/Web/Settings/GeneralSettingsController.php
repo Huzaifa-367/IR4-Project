@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Web\Settings;
 
 use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\Settings\UpdateGeneralSettingsRequest;
-use App\Services\SettingsService;
+use App\Services\Settings\SettingsService;
 use App\Support\SettingsRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;

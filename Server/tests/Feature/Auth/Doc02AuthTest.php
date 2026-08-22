@@ -3,8 +3,8 @@
 use App\Models\Device;
 use App\Models\RfidTag;
 use App\Models\User;
-use App\Services\AuthLockoutService;
-use App\Services\SettingsService;
+use App\Services\Auth\AuthLockoutService;
+use App\Services\Settings\SettingsService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 

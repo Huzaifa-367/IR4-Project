@@ -5,7 +5,7 @@ namespace App\Support;
 use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
 use App\Models\Device;
-use App\Services\SettingsService;
+use App\Services\Settings\SettingsService;
 use Illuminate\Validation\ValidationException;
 
 /**

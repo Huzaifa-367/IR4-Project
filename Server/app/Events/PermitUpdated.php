@@ -3,7 +3,7 @@
 namespace App\Events;
 
 use App\Models\Permit;
-use App\Services\PermitService;
+use App\Services\Permit\PermitService;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;

@@ -3,7 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\AuditEvent;
-use App\Services\AuditService;
+use App\Services\Audit\AuditService;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;

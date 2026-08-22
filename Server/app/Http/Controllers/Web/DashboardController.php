@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
-use App\Services\DashboardService;
+use App\Services\Dashboard\DashboardService;
 use App\Support\ApiResponse;
 use App\Support\TrendRange;
 use Illuminate\Http\JsonResponse;

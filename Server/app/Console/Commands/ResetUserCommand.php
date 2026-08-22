@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
-use App\Services\AuthLockoutService;
+use App\Services\Auth\AuthLockoutService;
 use Illuminate\Console\Command;
 
 /**

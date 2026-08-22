@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Equipment;
-use App\Services\EquipmentService;
-use App\Services\SignedStorageUrlService;
+use App\Services\Equipment\EquipmentService;
+use App\Services\Storage\SignedStorageUrlService;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 

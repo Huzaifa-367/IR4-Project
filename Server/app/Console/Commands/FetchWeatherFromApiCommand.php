@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\WeatherIngestService;
+use App\Services\Environment\WeatherIngestService;
 use Illuminate\Console\Command;
 
 final class FetchWeatherFromApiCommand extends Command

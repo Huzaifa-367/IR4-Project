@@ -6,8 +6,8 @@ use App\Models\ReaderZoneBinding;
 use App\Models\User;
 use App\Models\Worker;
 use App\Models\Zone;
-use App\Services\ReaderBindingService;
-use App\Services\ZoneService;
+use App\Services\Tracking\ReaderBindingService;
+use App\Services\Tracking\ZoneService;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 

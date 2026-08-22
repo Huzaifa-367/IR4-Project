@@ -17,7 +17,7 @@ use App\Models\PpeViolation;
 use App\Models\User;
 use App\Models\VehicleViolation;
 use App\Models\WeeklyReport;
-use App\Services\WeeklyReportService;
+use App\Services\Report\WeeklyReportService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 

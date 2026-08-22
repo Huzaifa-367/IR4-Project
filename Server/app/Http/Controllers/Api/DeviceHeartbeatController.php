@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Enums\HardwareStatus;
 use App\Http\Requests\Api\DeviceHeartbeatRequest;
 use App\Models\Device;
-use App\Services\HardwareRegistryService;
+use App\Services\Hardware\HardwareRegistryService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 

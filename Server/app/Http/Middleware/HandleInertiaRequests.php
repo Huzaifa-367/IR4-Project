@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Services\SettingsService;
+use App\Services\Settings\SettingsService;
 use Closure;
 use Illuminate\Http\Request;
 use Inertia\Middleware;

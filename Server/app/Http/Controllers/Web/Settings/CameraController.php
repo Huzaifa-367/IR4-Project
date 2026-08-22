@@ -9,7 +9,7 @@ use App\Http\Requests\Settings\StoreCameraRequest;
 use App\Http\Requests\Settings\UpdateCameraRequest;
 use App\Models\Asset;
 use App\Models\Camera;
-use App\Services\HardwareRegistryService;
+use App\Services\Hardware\HardwareRegistryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;

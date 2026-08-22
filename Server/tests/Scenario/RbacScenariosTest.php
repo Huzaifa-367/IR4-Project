@@ -5,7 +5,7 @@ use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\WeeklyReport;
-use App\Services\RoleService;
+use App\Services\Auth\RoleService;
 
 // DOC-21 scenario 11: Read-only client cannot write; data_access logged on meaningful reads.
 it('scenario 11: read-only client logs data_access and cannot reach write routes', function () {

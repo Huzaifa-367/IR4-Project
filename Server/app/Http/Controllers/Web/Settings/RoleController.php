@@ -6,7 +6,7 @@ use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Settings\StoreRoleRequest;
 use App\Http\Requests\Settings\UpdateRoleRequest;
 use App\Models\Role;
-use App\Services\RoleService;
+use App\Services\Auth\RoleService;
 use App\Support\PermissionCatalogue;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;

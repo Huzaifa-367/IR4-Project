@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
-use App\Services\BackupStatusService;
-use App\Services\SettingsService;
-use App\Services\SignedStorageUrlService;
+use App\Services\Platform\BackupStatusService;
+use App\Services\Settings\SettingsService;
+use App\Services\Storage\SignedStorageUrlService;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
