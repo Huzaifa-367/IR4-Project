@@ -408,6 +408,52 @@ it('follows mediamtx hls cookie redirect server-side for playlists', function ()
     Http::assertSentCount(2);
 });
 
+it('reuses mediamtx hls cookies for child playlists and segments', function () {
+    config()->set('camera_stream.mediamtx.hls_url', 'http://mediamtx.test:8888');
+    Http::fake([
+        'mediamtx.test:8888/CAM-FIXED-01/index.m3u8' => Http::sequence()
+            ->push('', 302, [
+                'Location' => '/CAM-FIXED-01/index.m3u8?cookieCheck=1',
+                'Set-Cookie' => 'cookieCheck=1',
+            ])
+            ->push(
+                "#EXTM3U\n#EXT-X-VERSION:10\nvideo1_stream.m3u8\n",
+                200,
+                ['Content-Type' => 'application/vnd.apple.mpegurl'],
+            )
+            ->push(
+                "#EXTM3U\n#EXT-X-VERSION:10\nvideo1_stream.m3u8\n",
+                200,
+                ['Content-Type' => 'application/vnd.apple.mpegurl'],
+            ),
+        'mediamtx.test:8888/CAM-FIXED-01/index.m3u8?cookieCheck=1' => Http::response(
+            "#EXTM3U\n#EXT-X-VERSION:10\nvideo1_stream.m3u8\n",
+            200,
+            ['Content-Type' => 'application/vnd.apple.mpegurl'],
+        ),
+        'mediamtx.test:8888/CAM-FIXED-01/video1_stream.m3u8' => Http::response(
+            "#EXTM3U\n#EXT-X-VERSION:10\n#EXT-X-MAP:URI=\"init.mp4\"\n",
+            200,
+            ['Content-Type' => 'application/vnd.apple.mpegurl'],
+        ),
+        'mediamtx.test:8888/CAM-FIXED-01/init.mp4' => Http::response('init-bytes', 200, [
+            'Content-Type' => 'video/mp4',
+        ]),
+    ]);
+
+    $operator = User::factory()->withRole('SCC Operator')->create();
+
+    $this->actingAs($operator)
+        ->get('/hls/CAM-FIXED-01/video1_stream.m3u8')
+        ->assertOk()
+        ->assertSee('#EXT-X-MAP');
+
+    $this->actingAs($operator)
+        ->get('/hls/CAM-FIXED-01/init.mp4')
+        ->assertOk()
+        ->assertStreamedContent('init-bytes');
+});
+
 it('does not refresh idle timeout on hls media segments', function () {
     config()->set('camera_stream.mediamtx.hls_url', 'http://mediamtx.test:8888');
     Http::fake([

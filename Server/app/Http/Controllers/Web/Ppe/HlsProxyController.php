@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Ppe;
 use App\Http\Controllers\Web\BaseController;
 use App\Services\CameraStreamGatewayService;
 use GuzzleHttp\Cookie\CookieJar;
+use GuzzleHttp\Cookie\SetCookie;
 use Illuminate\Http\Client\Response as HttpClientResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -16,8 +17,9 @@ use Throwable;
  * Same-origin reverse proxy for MediaMTX HLS so /live works on HTTPS
  * (browsers block http://host:8888 inside an https:// IR4 page).
  *
- * MediaMTX v1.20+ uses a cookie-check redirect on first HLS hit; follow that
- * server-side so hls.js never sees an empty 302 without Set-Cookie.
+ * MediaMTX v1.20+ gates LL-HLS child playlists and segments behind a
+ * cookieCheck handshake on index.m3u8. Reuse that cookie per camera in the
+ * operator session so parallel hls.js fetches stay authorized.
  */
 final class HlsProxyController extends BaseController
 {
@@ -33,10 +35,11 @@ final class HlsProxyController extends BaseController
             abort(400, 'Invalid HLS path.');
         }
 
+        $cameraReference = $this->cameraReferenceFromSuffix($suffix);
         $target = $this->buildUpstreamTarget($upstream, $suffix, $request->getQueryString());
 
         try {
-            $upstreamResponse = $this->fetchUpstream($request, $target, $suffix);
+            $upstreamResponse = $this->fetchUpstream($request, $upstream, $target, $suffix, $cameraReference);
         } catch (Throwable $e) {
             abort(502, 'MediaMTX HLS proxy failed: '.$e->getMessage());
         }
@@ -81,8 +84,48 @@ final class HlsProxyController extends BaseController
         return $target;
     }
 
-    private function fetchUpstream(Request $request, string $target, string $suffix): HttpClientResponse
-    {
+    private function fetchUpstream(
+        Request $request,
+        string $upstream,
+        string $target,
+        string $suffix,
+        ?string $cameraReference,
+    ): HttpClientResponse {
+        $sessionKey = $cameraReference === null ? null : 'hls_mtx_cookie.'.$cameraReference;
+        $jar = $this->loadCookieJar($request, $upstream, $sessionKey);
+
+        if (
+            $cameraReference !== null
+            && $sessionKey !== null
+            && count($jar) === 0
+            && ! $this->isMasterPlaylist($suffix)
+        ) {
+            $this->primeMediaMtxCookie($jar, $upstream, $cameraReference);
+            $this->storeCookieJar($request, $sessionKey, $jar);
+        }
+
+        $response = $this->sendUpstream($request, $target, $suffix, $jar);
+
+        if ($response->status() === 401 && $cameraReference !== null && $sessionKey !== null) {
+            $request->session()->forget($sessionKey);
+            $jar = new CookieJar;
+            $this->primeMediaMtxCookie($jar, $upstream, $cameraReference);
+            $response = $this->sendUpstream($request, $target, $suffix, $jar);
+        }
+
+        if ($sessionKey !== null && $response->successful()) {
+            $this->storeCookieJar($request, $sessionKey, $jar);
+        }
+
+        return $response;
+    }
+
+    private function sendUpstream(
+        Request $request,
+        string $target,
+        string $suffix,
+        CookieJar $jar,
+    ): HttpClientResponse {
         $isPlaylist = $this->isPlaylistPath($suffix);
 
         return Http::withOptions([
@@ -92,7 +135,7 @@ final class HlsProxyController extends BaseController
                 'referer' => true,
                 'track_redirects' => true,
             ],
-            'cookies' => new CookieJar,
+            'cookies' => $jar,
             'stream' => ! $isPlaylist,
         ])
             ->timeout(60)
@@ -101,6 +144,61 @@ final class HlsProxyController extends BaseController
             ->send($request->method(), $target, [
                 'body' => $request->getContent(),
             ]);
+    }
+
+    private function primeMediaMtxCookie(CookieJar $jar, string $upstream, string $cameraReference): void
+    {
+        Http::withOptions([
+            'allow_redirects' => true,
+            'cookies' => $jar,
+        ])
+            ->timeout(10)
+            ->connectTimeout(5)
+            ->get(rtrim($upstream, '/').'/'.$cameraReference.'/index.m3u8');
+    }
+
+    private function loadCookieJar(Request $request, string $upstream, ?string $sessionKey): CookieJar
+    {
+        if ($sessionKey === null) {
+            return new CookieJar;
+        }
+
+        $host = parse_url($upstream, PHP_URL_HOST);
+        if (! is_string($host) || $host === '') {
+            return new CookieJar;
+        }
+
+        /** @var list<array<string, mixed>> $stored */
+        $stored = $request->session()->get($sessionKey, []);
+        $jar = new CookieJar;
+
+        foreach ($stored as $cookieData) {
+            $jar->setCookie(new SetCookie($cookieData));
+        }
+
+        return $jar;
+    }
+
+    private function storeCookieJar(Request $request, string $sessionKey, CookieJar $jar): void
+    {
+        $stored = [];
+
+        foreach ($jar as $cookie) {
+            $stored[] = $cookie->toArray();
+        }
+
+        $request->session()->put($sessionKey, $stored);
+    }
+
+    private function cameraReferenceFromSuffix(string $suffix): ?string
+    {
+        if ($suffix === '') {
+            return null;
+        }
+
+        $reference = explode('/', $suffix, 2)[0];
+
+        return $reference !== '' ? $reference : null;
     }
 
     /**
@@ -121,6 +219,15 @@ final class HlsProxyController extends BaseController
         }
 
         return $headers;
+    }
+
+    private function isMasterPlaylist(string $suffix): bool
+    {
+        if ($suffix === '') {
+            return true;
+        }
+
+        return str_ends_with(strtolower($suffix), 'index.m3u8');
     }
 
     private function isPlaylistPath(string $suffix): bool
