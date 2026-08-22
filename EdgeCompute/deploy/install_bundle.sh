@@ -47,20 +47,20 @@ if [[ ! -d "${SCRIPT_DIR}/EdgeCompute" ]]; then
   exit 1
 fi
 SRC_CODE="${SCRIPT_DIR}/EdgeCompute"
+EDGE_ROOT="${SRC_CODE}"
+CONFIG_DIR="${EDGE_ROOT}/configs"
+# shellcheck source=/dev/null
+source "${SRC_CODE}/deploy/lib.sh"
+load_edge_yaml
+INSTALL_ROOT="${IR4_EDGE_INSTALL_ROOT:-${EDGE_INSTALL_ROOT}}"
+ensure_canonical_code_tree
+
 SRC_WHEELS="${SCRIPT_DIR}/wheels"
 SRC_VAR="${SCRIPT_DIR}/var"
 HAS_WHEELS=0
 if [[ -d "${SRC_WHEELS}" ]] && ls "${SRC_WHEELS}"/* >/dev/null 2>&1; then
   HAS_WHEELS=1
 fi
-
-# shellcheck source=/dev/null
-source "${SRC_CODE}/deploy/lib.sh"
-EDGE_ROOT="${SRC_CODE}"
-CONFIG_DIR="${EDGE_ROOT}/configs"
-load_edge_yaml
-INSTALL_ROOT="${IR4_EDGE_INSTALL_ROOT:-${EDGE_INSTALL_ROOT}}"
-ensure_canonical_code_tree
 
 LIVE="${INSTALL_ROOT}/EdgeCompute"
 PAD="$(printf '%02d' "${POLE}")"
