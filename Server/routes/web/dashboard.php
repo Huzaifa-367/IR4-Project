@@ -36,7 +36,7 @@ Route::get('api/live/violations', [LiveWallController::class, 'snapshot'])
     ->middleware('permission:view-live-cameras')
     ->name('live.violations');
 Route::post('api/live/cameras/{camera:uuid}/ptz', CameraPtzController::class)
-    ->middleware('permission:control-ptz-cameras')
+    ->middleware(['permission:control-ptz-cameras', 'throttle:camera-ptz'])
     ->name('live.cameras.ptz');
 Route::match(['get', 'head'], 'hls/{path?}', HlsProxyController::class)
     ->where('path', '.*')

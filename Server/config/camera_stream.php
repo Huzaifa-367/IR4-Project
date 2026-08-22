@@ -45,4 +45,20 @@ return [
         ),
         'rtsp_transport' => env('MEDIAMTX_RTSP_TRANSPORT', 'tcp'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | PTZ (Hikvision ISAPI)
+    |--------------------------------------------------------------------------
+    |
+    | Commands are proxied from the SCC to each camera on the pole VLAN.
+    | Keepalive on the live wall re-sends move vectors while a button is held.
+    |
+    */
+    'ptz' => [
+        'timeout' => (int) env('CAMERA_PTZ_TIMEOUT', 4),
+        'connect_timeout' => (int) env('CAMERA_PTZ_CONNECT_TIMEOUT', 2),
+        'retries' => (int) env('CAMERA_PTZ_RETRIES', 1),
+        'rate_per_minute' => (int) env('CAMERA_PTZ_RATE_PER_MINUTE', 180),
+    ],
 ];

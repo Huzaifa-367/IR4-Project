@@ -40,7 +40,7 @@ it('rejects ptz on fixed cameras', function () {
         ->assertForbidden();
 });
 
-it('proxies hikvision isapi ptz commands and audits them', function () {
+it('proxies hikvision isapi move commands without auditing each keepalive', function () {
     Http::fake(function ($request) {
         if (! str_contains($request->url(), '172.16.1.10')) {
             return Http::response('not found', 404);
@@ -62,6 +62,8 @@ it('proxies hikvision isapi ptz commands and audits them', function () {
     $operator = User::factory()->create();
     $operator->givePermissionTo(['view-live-cameras', 'control-ptz-cameras']);
 
+    $before = AuditLog::query()->count();
+
     $this->actingAs($operator)
         ->postJson(route('live.cameras.ptz', $camera), [
             'action' => 'move',
@@ -79,11 +81,79 @@ it('proxies hikvision isapi ptz commands and audits them', function () {
             && str_contains($request->body(), '<tilt>-10</tilt>');
     });
 
+    expect(AuditLog::query()->count())->toBe($before);
+});
+
+it('uses the isapi stop endpoint and audits stop commands', function () {
+    Http::fake(function ($request) {
+        if (! str_contains($request->url(), '172.16.1.10')) {
+            return Http::response('not found', 404);
+        }
+
+        return Http::response(
+            '<?xml version="1.0" encoding="UTF-8"?><ResponseStatus version="2.0"><statusCode>1</statusCode><statusString>OK</statusString></ResponseStatus>',
+            200,
+            ['Content-Type' => 'application/xml'],
+        );
+    });
+
+    $camera = Camera::factory()->create([
+        'reference' => 'CAM-PTZ-STOP',
+        'camera_type' => CameraType::Ptz,
+        'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
+    ]);
+
+    $operator = User::factory()->create();
+    $operator->givePermissionTo(['view-live-cameras', 'control-ptz-cameras']);
+
+    $this->actingAs($operator)
+        ->postJson(route('live.cameras.ptz', $camera), [
+            'action' => 'stop',
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.accepted', true);
+
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && str_contains($request->url(), '/ISAPI/PTZCtrl/channels/1/stop'));
+
     expect(AuditLog::query()
         ->where('event', AuditEvent::ConfigChanged)
         ->where('auditable_type', $camera->getMorphClass())
         ->where('auditable_id', $camera->id)
+        ->where('new_values->command', 'stop')
         ->exists())->toBeTrue();
+});
+
+it('rejects isapi responses whose statusCode is not ok', function () {
+    Http::fake(function ($request) {
+        if (! str_contains($request->url(), '172.16.1.10')) {
+            return Http::response('not found', 404);
+        }
+
+        return Http::response(
+            '<?xml version="1.0" encoding="UTF-8"?><ResponseStatus version="2.0"><statusCode>4</statusCode><statusString>Invalid Operation</statusString></ResponseStatus>',
+            200,
+            ['Content-Type' => 'application/xml'],
+        );
+    });
+
+    $camera = Camera::factory()->create([
+        'camera_type' => CameraType::Ptz,
+        'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
+    ]);
+
+    $operator = User::factory()->create();
+    $operator->givePermissionTo(['view-live-cameras', 'control-ptz-cameras']);
+
+    $this->actingAs($operator)
+        ->postJson(route('live.cameras.ptz', $camera), [
+            'action' => 'move',
+            'pan' => 10,
+            'tilt' => 0,
+            'zoom' => 0,
+        ])
+        ->assertStatus(502)
+        ->assertJsonPath('error.code', 'ptz_failed');
 });
 
 it('includes ptz flags on live wall camera rows', function () {

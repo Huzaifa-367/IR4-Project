@@ -6,7 +6,9 @@ use App\Enums\AuditEvent;
 use App\Models\Camera;
 use App\Models\User;
 use App\Support\RtspStreamEndpoint;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -27,16 +29,45 @@ final class CameraPtzService
             $this->clampAxis($pan),
             $this->clampAxis($tilt),
             $this->clampAxis($zoom),
-            $by,
         );
     }
 
     public function stop(Camera $camera, User $by): bool
     {
-        return $this->sendContinuous($camera, 0, 0, 0, $by);
+        $this->lastError = '';
+
+        $endpoint = RtspStreamEndpoint::fromCamera($camera);
+        if ($endpoint === null) {
+            $this->lastError = 'Camera stream URL is not configured.';
+
+            return false;
+        }
+
+        $stopUrl = sprintf(
+            '%s/ISAPI/PTZCtrl/channels/%d/stop',
+            $endpoint->isapiBaseUrl(),
+            $endpoint->channelId,
+        );
+
+        $stopBody = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<PTZData version=\"2.0\" xmlns=\"http://www.isapi.org/ver20/XMLSchema\">\n  <pan>0</pan>\n  <tilt>0</tilt>\n  <zoom>0</zoom>\n</PTZData>\n";
+
+        if ($this->putIsapi($endpoint, $stopUrl, $stopBody)) {
+            $this->auditCommand($camera, $by, 'stop', 0, 0, 0);
+
+            return true;
+        }
+
+        // Some firmware only honours continuous zeros — try that before failing.
+        if ($this->sendContinuous($camera, 0, 0, 0)) {
+            $this->auditCommand($camera, $by, 'stop', 0, 0, 0);
+
+            return true;
+        }
+
+        return false;
     }
 
-    private function sendContinuous(Camera $camera, int $pan, int $tilt, int $zoom, User $by): bool
+    private function sendContinuous(Camera $camera, int $pan, int $tilt, int $zoom): bool
     {
         $this->lastError = '';
 
@@ -60,58 +91,122 @@ final class CameraPtzService
             $zoom,
         );
 
-        try {
-            $response = $this->client($endpoint)->withBody($body, 'application/xml')->put($url);
+        if (! $this->putIsapi($endpoint, $url, $body)) {
+            return false;
+        }
 
-            if (! $response->successful()) {
+        return true;
+    }
+
+    private function putIsapi(RtspStreamEndpoint $endpoint, string $url, string $body): bool
+    {
+        $attempts = max(0, (int) config('camera_stream.ptz.retries', 1)) + 1;
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            try {
+                $response = $this->client($endpoint)->withBody($body, 'application/xml')->put($url);
+
+                if ($this->isSuccessResponse($response)) {
+                    return true;
+                }
+
                 $this->lastError = sprintf(
                     'Camera PTZ HTTP %d: %s',
                     $response->status(),
                     $this->shortBody($response->body()),
                 );
 
+                if ($attempt < $attempts && $this->shouldRetry($response)) {
+                    continue;
+                }
+
                 Log::warning('Camera PTZ command failed', [
-                    'camera_id' => $camera->id,
-                    'camera_ref' => $camera->reference,
+                    'url' => $url,
                     'status' => $response->status(),
                     'body' => $response->body(),
                 ]);
 
                 return false;
+            } catch (ConnectionException $e) {
+                $this->lastError = 'Cannot reach camera: '.$e->getMessage();
+
+                if ($attempt < $attempts) {
+                    continue;
+                }
+
+                Log::warning('Camera PTZ connection error', [
+                    'url' => $url,
+                    'message' => $e->getMessage(),
+                ]);
+
+                return false;
+            } catch (Throwable $e) {
+                $this->lastError = $e->getMessage();
+                Log::warning('Camera PTZ command error: '.$e->getMessage(), [
+                    'url' => $url,
+                ]);
+
+                return false;
             }
+        }
 
-            app(AuditService::class)->record(
-                event: AuditEvent::ConfigChanged,
-                auditable: $camera,
-                description: $pan === 0 && $tilt === 0 && $zoom === 0
-                    ? 'PTZ stop'
-                    : 'PTZ move',
-                newValues: [
-                    'target' => 'camera_ptz',
-                    'camera_id' => $camera->id,
-                    'camera_ref' => $camera->reference,
-                    'pan' => $pan,
-                    'tilt' => $tilt,
-                    'zoom' => $zoom,
-                ],
-                user: $by,
-            );
+        return false;
+    }
 
-            return true;
-        } catch (Throwable $e) {
-            $this->lastError = $e->getMessage();
-            Log::warning('Camera PTZ command error: '.$e->getMessage(), [
-                'camera_id' => $camera->id,
-                'camera_ref' => $camera->reference,
-            ]);
-
+    private function isSuccessResponse(Response $response): bool
+    {
+        if (! $response->successful()) {
             return false;
         }
+
+        $body = $response->body();
+
+        if (preg_match('/<statusCode>\s*(\d+)\s*<\/statusCode>/', $body, $match) === 1) {
+            return (int) $match[1] === 1;
+        }
+
+        // Some firmware returns an empty 200 on success.
+        return trim($body) === '' || str_contains($body, '<statusString>OK</statusString>');
+    }
+
+    private function shouldRetry(Response $response): bool
+    {
+        return in_array($response->status(), [401, 408, 429, 500, 502, 503, 504], true);
+    }
+
+    private function auditCommand(
+        Camera $camera,
+        ?User $by,
+        string $command,
+        int $pan,
+        int $tilt,
+        int $zoom,
+    ): void {
+        if ($by === null) {
+            return;
+        }
+
+        app(AuditService::class)->record(
+            event: AuditEvent::ConfigChanged,
+            auditable: $camera,
+            description: $command === 'stop' ? 'PTZ stop' : 'PTZ move',
+            newValues: [
+                'target' => 'camera_ptz',
+                'command' => $command,
+                'camera_id' => $camera->id,
+                'camera_ref' => $camera->reference,
+                'pan' => $pan,
+                'tilt' => $tilt,
+                'zoom' => $zoom,
+            ],
+            user: $by,
+        );
     }
 
     private function client(RtspStreamEndpoint $endpoint): PendingRequest
     {
-        $request = Http::timeout(3)->connectTimeout(2);
+        $request = Http::timeout((int) config('camera_stream.ptz.timeout', 4))
+            ->connectTimeout((int) config('camera_stream.ptz.connect_timeout', 2));
 
         if ($endpoint->username !== null && $endpoint->username !== '') {
             $request = $request->withDigestAuth(

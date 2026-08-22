@@ -3,133 +3,109 @@ import {
     ArrowLeft,
     ArrowRight,
     ArrowUp,
+    Loader2,
     Minus,
     Plus,
     Square,
 } from 'lucide-react';
-import { useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { useCameraPtz } from '@/hooks/use-camera-ptz';
 import { cn } from '@/lib/utils';
 
 const PTZ_SPEED = 45;
 
 type Props = {
     cameraUuid: string;
+    cameraName: string;
     ptzUrl: string;
+    enabled?: boolean;
+    isOnline?: boolean;
     className?: string;
 };
 
-function readCsrfToken(): string {
-    return (
-        document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute('content') ?? ''
-    );
-}
-
 export function LiveCameraPtzControls({
     cameraUuid,
+    cameraName,
     ptzUrl,
+    enabled = true,
+    isOnline = true,
     className,
 }: Props) {
-    const activeMoveRef = useRef<string | null>(null);
+    const canOperate = enabled && isOnline;
+    const { activeKey, isBusy, startMove, stopMove } = useCameraPtz(
+        ptzUrl,
+        canOperate,
+    );
 
-    const sendCommand = useCallback(
-        async (payload: {
-            action: 'move' | 'stop';
-            pan?: number;
-            tilt?: number;
-            zoom?: number;
-        }): Promise<void> => {
-            try {
-                const response = await fetch(ptzUrl, {
-                    method: 'POST',
-                    headers: {
-                        Accept: 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': readCsrfToken(),
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify(payload),
-                });
-
-                if (!response.ok) {
-                    return;
-                }
-            } catch {
-                // Network errors are surfaced only when the operator retries.
+    const bindMove = (key: string, pan: number, tilt: number, zoom = 0) => ({
+        disabled: !canOperate || isBusy,
+        onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+            if (!canOperate) {
+                return;
             }
+
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            startMove(key, pan, tilt, zoom);
         },
-        [ptzUrl],
-    );
+        onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+            event.stopPropagation();
 
-    const stopMove = useCallback(async (): Promise<void> => {
-        if (activeMoveRef.current === null) {
-            return;
-        }
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+            }
 
-        activeMoveRef.current = null;
-        await sendCommand({ action: 'stop' });
-    }, [sendCommand]);
-
-    const startMove = useCallback(
-        async (key: string, pan: number, tilt: number, zoom = 0): Promise<void> => {
-            activeMoveRef.current = key;
-            await sendCommand({
-                action: 'move',
-                pan,
-                tilt,
-                zoom,
-            });
+            void stopMove({ keepalive: true, silent: true });
         },
-        [sendCommand],
-    );
-
-    const bindMove = useCallback(
-        (key: string, pan: number, tilt: number, zoom = 0) => ({
-            onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
-                event.preventDefault();
-                event.currentTarget.setPointerCapture(event.pointerId);
-                void startMove(key, pan, tilt, zoom);
-            },
-            onPointerUp: () => {
-                void stopMove();
-            },
-            onPointerCancel: () => {
-                void stopMove();
-            },
-            onPointerLeave: (event: React.PointerEvent<HTMLButtonElement>) => {
-                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                    return;
-                }
-
-                void stopMove();
-            },
-        }),
-        [startMove, stopMove],
-    );
+        onPointerCancel: (event: React.PointerEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+            void stopMove({ keepalive: true, silent: true });
+        },
+        onLostPointerCapture: () => {
+            void stopMove({ keepalive: true, silent: true });
+        },
+    });
 
     return (
         <div
             className={cn(
-                'pointer-events-auto rounded-[var(--radius)] border border-border/60 bg-black/70 p-3 text-text shadow-lg backdrop-blur-sm',
+                'pointer-events-auto touch-none rounded-[var(--radius)] border border-border/60 bg-black/75 p-3 text-text shadow-lg backdrop-blur-sm select-none',
+                !canOperate && 'opacity-60',
                 className,
             )}
             data-camera-uuid={cameraUuid}
+            onDoubleClick={(event) => {
+                event.stopPropagation();
+            }}
         >
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
-                PTZ controls
+            <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="text-text-muted text-xs font-medium tracking-wide uppercase">
+                    PTZ · {cameraName}
+                </div>
+                {isBusy && (
+                    <Loader2
+                        className="text-text-muted size-3.5 animate-spin"
+                        aria-hidden
+                    />
+                )}
             </div>
+            {!isOnline && (
+                <p className="mb-2 text-xs text-[color:var(--warn)]">
+                    Camera offline — PTZ disabled until the stream recovers.
+                </p>
+            )}
             <div className="flex items-end gap-4">
                 <div className="grid grid-cols-3 gap-1">
                     <div />
                     <Button
                         type="button"
                         size="icon"
-                        variant="secondary"
+                        variant={activeKey === 'up' ? 'default' : 'secondary'}
                         className="size-10"
                         aria-label="Tilt up"
+                        aria-pressed={activeKey === 'up'}
                         {...bindMove('up', 0, PTZ_SPEED)}
                     >
                         <ArrowUp className="size-4" />
@@ -138,9 +114,10 @@ export function LiveCameraPtzControls({
                     <Button
                         type="button"
                         size="icon"
-                        variant="secondary"
+                        variant={activeKey === 'left' ? 'default' : 'secondary'}
                         className="size-10"
                         aria-label="Pan left"
+                        aria-pressed={activeKey === 'left'}
                         {...bindMove('left', -PTZ_SPEED, 0)}
                     >
                         <ArrowLeft className="size-4" />
@@ -151,8 +128,10 @@ export function LiveCameraPtzControls({
                         variant="secondary"
                         className="size-10"
                         aria-label="Stop PTZ"
+                        disabled={!canOperate}
                         onPointerDown={(event) => {
                             event.preventDefault();
+                            event.stopPropagation();
                             void stopMove();
                         }}
                     >
@@ -161,9 +140,12 @@ export function LiveCameraPtzControls({
                     <Button
                         type="button"
                         size="icon"
-                        variant="secondary"
+                        variant={
+                            activeKey === 'right' ? 'default' : 'secondary'
+                        }
                         className="size-10"
                         aria-label="Pan right"
+                        aria-pressed={activeKey === 'right'}
                         {...bindMove('right', PTZ_SPEED, 0)}
                     >
                         <ArrowRight className="size-4" />
@@ -172,9 +154,10 @@ export function LiveCameraPtzControls({
                     <Button
                         type="button"
                         size="icon"
-                        variant="secondary"
+                        variant={activeKey === 'down' ? 'default' : 'secondary'}
                         className="size-10"
                         aria-label="Tilt down"
+                        aria-pressed={activeKey === 'down'}
                         {...bindMove('down', 0, -PTZ_SPEED)}
                     >
                         <ArrowDown className="size-4" />
@@ -185,9 +168,12 @@ export function LiveCameraPtzControls({
                     <Button
                         type="button"
                         size="icon"
-                        variant="secondary"
+                        variant={
+                            activeKey === 'zoom-in' ? 'default' : 'secondary'
+                        }
                         className="size-10"
                         aria-label="Zoom in"
+                        aria-pressed={activeKey === 'zoom-in'}
                         {...bindMove('zoom-in', 0, 0, PTZ_SPEED)}
                     >
                         <Plus className="size-4" />
@@ -195,15 +181,21 @@ export function LiveCameraPtzControls({
                     <Button
                         type="button"
                         size="icon"
-                        variant="secondary"
+                        variant={
+                            activeKey === 'zoom-out' ? 'default' : 'secondary'
+                        }
                         className="size-10"
                         aria-label="Zoom out"
+                        aria-pressed={activeKey === 'zoom-out'}
                         {...bindMove('zoom-out', 0, 0, -PTZ_SPEED)}
                     >
                         <Minus className="size-4" />
                     </Button>
                 </div>
             </div>
+            <p className="mt-2 text-[10px] leading-snug text-text-faint">
+                Hold to move. Release, stop, or exit fullscreen to halt.
+            </p>
         </div>
     );
 }

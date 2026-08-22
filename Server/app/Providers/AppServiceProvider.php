@@ -133,6 +133,17 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(max(1, $max))->by($email.'|'.$request->ip());
         });
+
+        RateLimiter::for('camera-ptz', function (Request $request) {
+            $max = max(1, (int) config('camera_stream.ptz.rate_per_minute', 180));
+            $userId = $request->user()?->id ?? 'guest';
+            $camera = $request->route('camera');
+            $cameraKey = is_object($camera) && isset($camera->uuid)
+                ? (string) $camera->uuid
+                : (string) $request->route('camera');
+
+            return Limit::perMinute($max)->by('ptz:'.$userId.':'.$cameraKey);
+        });
     }
 
     /**

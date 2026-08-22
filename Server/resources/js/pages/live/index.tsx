@@ -199,6 +199,7 @@ export default function LiveWall({
                                         playbackUrl={camera.playback_url}
                                         title={`${camera.name} live feed`}
                                         cameraUuid={camera.uuid}
+                                        cameraName={camera.name}
                                         ptzUrl={
                                             camera.can_control_ptz
                                                 ? live.cameras.ptz.url(
@@ -210,6 +211,7 @@ export default function LiveWall({
                                             canControlPtz &&
                                             camera.can_control_ptz
                                         }
+                                        isOnline={camera.is_online}
                                     />
                                 ) : (
                                     <div className="flex size-full items-center justify-center text-xs text-text-faint">
