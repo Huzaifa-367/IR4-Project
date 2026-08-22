@@ -1,4 +1,15 @@
-"""YT-98H → IR4 /api/ingest/gas-readings agent."""
+"""IR4 gas ingest agent — YT-98H Modbus → ``POST /api/ingest/gas-readings``.
+
+Runs as systemd unit ``ir4-gas-agent``. Each cycle:
+
+    1. Poll all Modbus addresses in gas.yaml (default 1–5).
+    2. Map readings to ingest fields (h2s_ppm, co_ppm, …).
+    3. POST one combined event to the pole SCC (``IR4_BASE_URL``).
+    4. Buffer events locally when the SCC is unreachable.
+
+Heartbeats run on a separate timer so the SCC knows the agent is alive even
+between successful gas reads.
+"""
 
 from __future__ import annotations
 
@@ -25,11 +36,15 @@ from ir4_edge.gas import yt98h
 
 log = logging.getLogger("ir4_edge.gas")
 
+# After this many empty polls, report ``modbus_silence`` on the heartbeat.
+_DEGRADED_AFTER_EMPTY_POLLS = 6
+
 
 def build_gas_event(
     fields: Dict[str, float],
     device_ref: Optional[str],
 ) -> Dict[str, Any]:
+    """Build one ingest payload from the latest field values."""
     event: Dict[str, Any] = {
         "event_uid": new_event_uid(),
         "recorded_at": now_iso(),
@@ -112,11 +127,20 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     consecutive_failures = 0
     try:
         while not stop["flag"]:
-            channels = yt98h.read_all_channels(ser, addresses, baud)
-            if not channels:
+            poll = yt98h.poll_channels(ser, addresses, baud)
+
+            if not poll.has_data:
                 consecutive_failures += 1
-                log.warning("No Modbus response (failures=%d)", consecutive_failures)
-                if consecutive_failures >= 6:
+                summary = poll.failure_summary()
+                if summary:
+                    log.warning(
+                        "No Modbus response (failures=%d): %s",
+                        consecutive_failures,
+                        summary,
+                    )
+                else:
+                    log.warning("No Modbus response (failures=%d)", consecutive_failures)
+                if consecutive_failures >= _DEGRADED_AFTER_EMPTY_POLLS:
                     client.heartbeat(
                         status="degraded",
                         meta={**meta_provider(), "reason": "modbus_silence"},
@@ -125,7 +149,10 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
                 continue
 
             consecutive_failures = 0
-            fields = yt98h.channels_to_ingest_fields(channels, field_map)
+            partial = poll.failure_summary()
+            if partial:
+                log.warning("Partial Modbus poll (some channels missing): %s", partial)
+            fields = yt98h.channels_to_ingest_fields(poll.channels, field_map)
             if not fields:
                 log.warning("Channels answered but field_map produced no values")
                 time.sleep(poll_interval)

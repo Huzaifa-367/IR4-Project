@@ -136,7 +136,7 @@ def run_static() -> int:
     rows.extend(validate_tag_event(tag))
     rows.append(check("tag.tag_uid from idHex", tag.get("tag_uid") == "AA0004EF55555555AA21BF43"))
     rows.append(check("tag.rssi from peakRssi", tag.get("rssi") == -34))
-    rows.append(check("tag.antenna mapped", tag.get("antenna") == 1))
+    rows.append(check("tag.antenna mapped", tag.get("antenna") == sample_antenna))
     rows.append(check("tag.recorded_at in APP_TIMEZONE", tag.get("recorded_at") == "2026-08-13T12:14:28.651+03:00"))
     rows.append(check("sample gas event_uid", validate_uuid(new_event_uid())))
     rows.append(check("sample recorded_at", bool(now_iso())))

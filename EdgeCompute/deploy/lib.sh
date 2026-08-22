@@ -79,6 +79,31 @@ load_secret_env() {
   load_env_file_safe "${CONFIG_DIR}/secrets.env"
 }
 
+# Resolve install.root/EdgeCompute from edge.yaml (ignores stray checkout paths).
+# Call after sourcing lib.sh; optional arg is any tree that contains configs/edge.yaml.
+resolve_canonical_paths() {
+  local seed_root="${1:-${EDGE_ROOT}}"
+  EDGE_ROOT="${seed_root}"
+  CONFIG_DIR="${EDGE_ROOT}/configs"
+  load_edge_yaml
+  INSTALL_ROOT="${IR4_EDGE_INSTALL_ROOT:-${EDGE_INSTALL_ROOT}}"
+  EDGE_ROOT="${INSTALL_ROOT}/EdgeCompute"
+  CONFIG_DIR="${EDGE_ROOT}/configs"
+  EDGE_USER="${IR4_EDGE_USER:-${EDGE_SERVICE_USER}}"
+}
+
+# Write ir4-gas-agent.service and ir4-rfid-agent.service from templates.
+render_systemd_units() {
+  if [[ "${EDGE_ENABLE_GAS}" == "true" ]]; then
+    render_unit "${EDGE_ROOT}/deploy/systemd/ir4-gas-agent.service.in" \
+      /etc/systemd/system/ir4-gas-agent.service
+  fi
+  if [[ "${EDGE_ENABLE_RFID}" == "true" ]]; then
+    render_unit "${EDGE_ROOT}/deploy/systemd/ir4-rfid-agent.service.in" \
+      /etc/systemd/system/ir4-rfid-agent.service
+  fi
+}
+
 render_unit() {
   sed \
     -e "s|@EDGE_ROOT@|${EDGE_ROOT}|g" \

@@ -1,17 +1,29 @@
-"""ir4-edge — install, setup, and day-2 ops (gas / RFID stay independent)."""
+"""``ir4-edge`` CLI — install, configure, and operate pole agents.
+
+Commands map to day-2 ops on a Jetson:
+
+    install / apply   Bootstrap venv + systemd (sudo, from /opt/ir4-edge/EdgeCompute)
+    update            Overlay latest code; keeps configs/secrets.env
+    secrets --pole N  Copy pole N credentials into configs/secrets.env
+    setup             Interactive secrets wizard
+    up / down         Enable or disable systemd agents (respects edge.yaml)
+    restart           Restart enabled agents
+    status / logs     systemd status and journalctl
+    doctor            Config, secrets, serial, and systemd layout checks
+
+Gas and RFID are independent — toggled in ``configs/edge.yaml`` → ``services.*``.
+"""
 
 from __future__ import annotations
 
 import argparse
-import os
-import shutil
 import subprocess
 import sys
-from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence
 
-from ir4_edge.common.config import config_dir, edge_root, load_secrets, load_yaml, var_dir
+from ir4_edge.common.config import edge_root
 from ir4_edge.common.credentials import apply_pole_secrets
+from ir4_edge.doctor import print_report, run_checks, services_enabled
 
 
 def _run(cmd: Sequence[str], *, check: bool = False) -> int:
@@ -26,16 +38,8 @@ def _systemctl(*args: str, check: bool = False) -> int:
     return _run(["systemctl", *args], check=check)
 
 
-def _services() -> Tuple[bool, bool]:
-    path = config_dir() / "edge.yaml"
-    if not path.is_file():
-        return True, True
-    services = dict(load_yaml(path).get("services") or {})
-    return bool(services.get("gas", True)), bool(services.get("rfid", True))
-
-
-def _units() -> List[str]:
-    gas_on, rfid_on = _services()
+def _enabled_units() -> List[str]:
+    gas_on, rfid_on = services_enabled()
     units: List[str] = []
     if gas_on:
         units.append("ir4-gas-agent")
@@ -45,10 +49,10 @@ def _units() -> List[str]:
 
 
 def _status_units() -> List[str]:
-    units = _units()
-    _, rfid_on = _services()
+    units = _enabled_units()
+    _, rfid_on = services_enabled()
     if rfid_on:
-        units = units + ["mosquitto"]
+        units.append("mosquitto")
     return units
 
 
@@ -77,7 +81,7 @@ def cmd_up(_: argparse.Namespace) -> int:
 
 
 def cmd_down(_: argparse.Namespace) -> int:
-    units = _units()
+    units = _enabled_units()
     return _systemctl("disable", "--now", *units, check=True) if units else 0
 
 
@@ -87,12 +91,12 @@ def cmd_status(_: argparse.Namespace) -> int:
 
 
 def cmd_restart(_: argparse.Namespace) -> int:
-    units = _units()
+    units = _enabled_units()
     return _systemctl("restart", *units, check=True) if units else 1
 
 
 def cmd_logs(args: argparse.Namespace) -> int:
-    units = _units()
+    units = _enabled_units()
     if not units:
         print("No agents enabled in edge.yaml", file=sys.stderr)
         return 1
@@ -102,20 +106,6 @@ def cmd_logs(args: argparse.Namespace) -> int:
     if args.follow:
         cmd.append("-f")
     return _run(cmd)
-
-
-def _secret_status(key: str) -> Tuple[bool, str]:
-    value = os.environ.get(key) or ""
-    if value:
-        return True, "set"
-    secrets = config_dir() / "secrets.env"
-    try:
-        readable = secrets.is_file() and os.access(secrets, os.R_OK)
-    except OSError:
-        readable = False
-    if not readable:
-        return False, "secrets.env unreadable"
-    return False, "empty — ir4-edge setup"
 
 
 def cmd_secrets(args: argparse.Namespace) -> int:
@@ -130,58 +120,7 @@ def cmd_secrets(args: argparse.Namespace) -> int:
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
-    load_secrets()
-    gas_on, rfid_on = _services()
-    print("== ir4-edge doctor ==")
-    print("root   ", edge_root())
-    print("config ", config_dir())
-    print("var    ", var_dir())
-    print("gas={} rfid={}".format(gas_on, rfid_on))
-    print()
-    checks: List[Tuple[str, bool, str]] = [
-        ("edge.yaml", (config_dir() / "edge.yaml").is_file(), ""),
-        ("secrets.env", (config_dir() / "secrets.env").is_file(), ""),
-        ("IR4_BASE_URL", bool(os.environ.get("IR4_BASE_URL")), os.environ.get("IR4_BASE_URL", "")),
-        ("APP_TIMEZONE", bool(os.environ.get("APP_TIMEZONE")), os.environ.get("APP_TIMEZONE", "")),
-    ]
-    if gas_on:
-        checks.append(("gas.yaml", (config_dir() / "gas.yaml").is_file(), ""))
-        ok, detail = _secret_status("IR4_GAS_DEVICE_TOKEN")
-        checks.append(("GAS token", ok, detail))
-        ok, detail = _secret_status("IR4_GAS_DEVICE_UUID")
-        uuid = os.environ.get("IR4_GAS_DEVICE_UUID") or detail
-        checks.append(("GAS uuid", ok, uuid if ok else detail))
-        port = "/dev/yt98h-rs485"
-        try:
-            port = str((load_yaml(config_dir() / "gas.yaml").get("serial") or {}).get("port") or port)
-        except Exception:
-            pass
-        checks.append(("serial", Path(port).exists(), port))
-    if rfid_on:
-        checks.append(("rfid.yaml", (config_dir() / "rfid.yaml").is_file(), ""))
-        ok, detail = _secret_status("IR4_RFID_DEVICE_TOKEN")
-        checks.append(("RFID token", ok, detail))
-        ok, detail = _secret_status("IR4_RFID_DEVICE_UUID")
-        uuid = os.environ.get("IR4_RFID_DEVICE_UUID") or detail
-        checks.append(("RFID uuid", ok, uuid if ok else detail))
-        checks.append(("MQTT USE_AUTH", True, os.environ.get("IR4_MQTT_USE_AUTH", "0")))
-        checks.append(("mosquitto", shutil.which("mosquitto") is not None, ""))
-    failed = 0
-    for name, ok, detail in checks:
-        if not ok:
-            failed += 1
-        print("[{}] {}{}".format("PASS" if ok else "FAIL", name, (" — " + detail) if detail else ""))
-    if shutil.which("systemctl"):
-        print()
-        for unit in _status_units():
-            active = subprocess.run(["systemctl", "is-active", unit], capture_output=True, text=True, check=False)
-            enabled = subprocess.run(["systemctl", "is-enabled", unit], capture_output=True, text=True, check=False)
-            print("systemd {:<16} {} / {}".format(
-                unit,
-                (active.stdout or "").strip(),
-                (enabled.stdout or "").strip(),
-            ))
-    return 1 if failed else 0
+    return print_report(run_checks())
 
 
 def build_parser() -> argparse.ArgumentParser:

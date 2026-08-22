@@ -129,9 +129,9 @@ if [[ "${EDGE_ENABLE_GAS}" == "true" ]]; then
   install -m 0644 "${EDGE_ROOT}/deploy/udev/99-yt98h-rs485.rules" \
     /etc/udev/rules.d/99-yt98h-rs485.rules
   udevadm control --reload-rules; udevadm trigger || true
-  render_unit "${EDGE_ROOT}/deploy/systemd/ir4-gas-agent.service.in" \
-    /etc/systemd/system/ir4-gas-agent.service
 fi
+
+render_systemd_units
 
 if [[ "${EDGE_ENABLE_RFID}" == "true" ]]; then
   install -d -m 0755 /etc/mosquitto/conf.d
@@ -140,8 +140,6 @@ if [[ "${EDGE_ENABLE_RFID}" == "true" ]]; then
   ensure_mosquitto_users \
     "${EDGE_MQTT_FXR90_USER}" "${EDGE_MQTT_AGENT_USER}" \
     "${IR4_MQTT_FXR90_PASSWORD:-}" "${IR4_MQTT_PASSWORD:-}"
-  render_unit "${EDGE_ROOT}/deploy/systemd/ir4-rfid-agent.service.in" \
-    /etc/systemd/system/ir4-rfid-agent.service
   start_mosquitto
 fi
 
