@@ -100,12 +100,9 @@ chmod 640 "${LIVE}/configs/secrets.env"
 grep -E '^(IR4_BASE_URL|APP_TIMEZONE|IR4_GAS_DEVICE_REF|IR4_RFID_READER_REF|IR4_RFID_MQTT_TOPIC)=' \
   "${LIVE}/configs/secrets.env"
 
-echo "==> Restart agents"
-timeout 25 systemctl restart ir4-gas-agent ir4-rfid-agent \
-  || timeout 15 systemctl kill -s SIGTERM ir4-gas-agent ir4-rfid-agent \
-  || true
-sleep 2
-timeout 15 systemctl start ir4-gas-agent ir4-rfid-agent || true
-systemctl is-active ir4-gas-agent ir4-rfid-agent || true
+echo "==> Enable agents + render systemd units"
+"${IR4E}" up
+
+echo "==> Health check"
 "${IR4E}" doctor || true
 echo "==> Done. Layout: ${DEST}/{EdgeCompute,venv,var,wheels}"

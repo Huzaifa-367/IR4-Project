@@ -6,6 +6,7 @@
 # even when this script is invoked from another checkout path.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EDGE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/../deploy/lib.sh"
 resolve_canonical_paths "${SCRIPT_DIR}/.."
