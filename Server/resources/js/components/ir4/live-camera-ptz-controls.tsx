@@ -33,57 +33,31 @@ export function LiveCameraPtzControls({
     className,
 }: Props) {
     const canOperate = enabled && isOnline;
-    const { activeKey, startMove, stopMove } = useCameraPtz(ptzUrl, canOperate);
+    const { activeKey, isBusy, nudge, stop } = useCameraPtz(ptzUrl, canOperate);
+
+    const handleNudge = (key: PtzMoveKey): void => {
+        if (!canOperate || isBusy) {
+            return;
+        }
+
+        const vector = ptzMoveVectors[key];
+        onInteract?.();
+        void nudge(key, vector.pan, vector.tilt, vector.zoom);
+    };
 
     const handleStop = (): void => {
-        if (!canOperate) {
+        if (!canOperate || isBusy) {
             return;
         }
 
         onInteract?.();
-        void stopMove();
-    };
-
-    const bindMove = (key: PtzMoveKey) => {
-        const vector = ptzMoveVectors[key];
-
-        return {
-            disabled: !canOperate,
-            onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
-                if (!canOperate) {
-                    return;
-                }
-
-                event.preventDefault();
-                event.stopPropagation();
-                event.currentTarget.setPointerCapture(event.pointerId);
-                onInteract?.();
-                startMove(key, vector.pan, vector.tilt, vector.zoom);
-            },
-            onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
-                event.preventDefault();
-                event.stopPropagation();
-
-                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                    event.currentTarget.releasePointerCapture(event.pointerId);
-                }
-
-                void stopMove({ keepalive: true, silent: true });
-            },
-            onPointerCancel: (event: React.PointerEvent<HTMLButtonElement>) => {
-                event.preventDefault();
-                void stopMove({ keepalive: true, silent: true });
-            },
-            onLostPointerCapture: () => {
-                void stopMove({ keepalive: true, silent: true });
-            },
-        };
+        void stop();
     };
 
     return (
         <div
             className={cn(
-                'pointer-events-auto touch-none rounded-[var(--radius)] border border-border/60 bg-black/75 p-3 text-text shadow-lg backdrop-blur-sm select-none',
+                'pointer-events-auto rounded-[var(--radius)] border border-border/60 bg-black/75 p-3 text-text shadow-lg backdrop-blur-sm select-none',
                 !canOperate && 'opacity-60',
                 className,
             )}
@@ -111,8 +85,12 @@ export function LiveCameraPtzControls({
                         variant={activeKey === 'up' ? 'default' : 'secondary'}
                         className="size-10"
                         aria-label="Tilt up"
-                        aria-pressed={activeKey === 'up'}
-                        {...bindMove('up')}
+                        disabled={!canOperate || isBusy}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleNudge('up');
+                        }}
                     >
                         <ArrowUp className="size-4" />
                     </Button>
@@ -123,8 +101,12 @@ export function LiveCameraPtzControls({
                         variant={activeKey === 'left' ? 'default' : 'secondary'}
                         className="size-10"
                         aria-label="Pan left"
-                        aria-pressed={activeKey === 'left'}
-                        {...bindMove('left')}
+                        disabled={!canOperate || isBusy}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleNudge('left');
+                        }}
                     >
                         <ArrowLeft className="size-4" />
                     </Button>
@@ -134,7 +116,7 @@ export function LiveCameraPtzControls({
                         variant="secondary"
                         className="size-10"
                         aria-label="Stop PTZ"
-                        disabled={!canOperate}
+                        disabled={!canOperate || isBusy}
                         onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
@@ -151,8 +133,12 @@ export function LiveCameraPtzControls({
                         }
                         className="size-10"
                         aria-label="Pan right"
-                        aria-pressed={activeKey === 'right'}
-                        {...bindMove('right')}
+                        disabled={!canOperate || isBusy}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleNudge('right');
+                        }}
                     >
                         <ArrowRight className="size-4" />
                     </Button>
@@ -163,8 +149,12 @@ export function LiveCameraPtzControls({
                         variant={activeKey === 'down' ? 'default' : 'secondary'}
                         className="size-10"
                         aria-label="Tilt down"
-                        aria-pressed={activeKey === 'down'}
-                        {...bindMove('down')}
+                        disabled={!canOperate || isBusy}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleNudge('down');
+                        }}
                     >
                         <ArrowDown className="size-4" />
                     </Button>
@@ -179,8 +169,12 @@ export function LiveCameraPtzControls({
                         }
                         className="size-10"
                         aria-label="Zoom in"
-                        aria-pressed={activeKey === 'zoom-in'}
-                        {...bindMove('zoom-in')}
+                        disabled={!canOperate || isBusy}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleNudge('zoom-in');
+                        }}
                     >
                         <Plus className="size-4" />
                     </Button>
@@ -192,15 +186,19 @@ export function LiveCameraPtzControls({
                         }
                         className="size-10"
                         aria-label="Zoom out"
-                        aria-pressed={activeKey === 'zoom-out'}
-                        {...bindMove('zoom-out')}
+                        disabled={!canOperate || isBusy}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleNudge('zoom-out');
+                        }}
                     >
                         <Minus className="size-4" />
                     </Button>
                 </div>
             </div>
             <p className="mt-2 text-[10px] leading-snug text-text-faint">
-                Hold to move. Release, stop, or exit fullscreen to halt.
+                Click to nudge a few degrees. Stop halts any in-flight motion.
             </p>
         </div>
     );

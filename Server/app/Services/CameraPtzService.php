@@ -15,6 +15,9 @@ use Throwable;
 
 final class CameraPtzService
 {
+    /** Continuous speed for a single click nudge (Hikvision -100..100). */
+    private const NUDGE_CONTINUOUS_SPEED = 25;
+
     private string $lastError = '';
 
     public function lastError(): string
@@ -24,18 +27,45 @@ final class CameraPtzService
 
     public function move(Camera $camera, int $pan, int $tilt, int $zoom, User $by): bool
     {
-        return $this->sendContinuous(
-            $camera,
-            $this->clampAxis($pan),
-            $this->clampAxis($tilt),
-            $this->clampAxis($zoom),
-        );
+        $pan = $this->clampAxis($pan);
+        $tilt = $this->clampAxis($tilt);
+        $zoom = $this->clampAxis($zoom);
+
+        if ($pan === 0 && $tilt === 0 && $zoom === 0) {
+            return true;
+        }
+
+        [$speedPan, $speedTilt, $speedZoom] = $this->toContinuousSpeed($pan, $tilt, $zoom);
+
+        if (! $this->sendContinuous($camera, $speedPan, $speedTilt, $speedZoom)) {
+            return false;
+        }
+
+        usleep($this->nudgeDurationMicros($pan, $tilt, $zoom));
+        $this->haltContinuous($camera);
+
+        $this->auditCommand($camera, $by, 'move', $pan, $tilt, $zoom);
+
+        return true;
     }
 
-    public function stop(Camera $camera, User $by): bool
+    public function stop(Camera $camera, User $by, bool $audit = true): bool
     {
         $this->lastError = '';
 
+        $stopped = $this->haltContinuous($camera);
+
+        if ($stopped && $audit) {
+            $this->auditCommand($camera, $by, 'stop', 0, 0, 0);
+
+            return true;
+        }
+
+        return $stopped;
+    }
+
+    private function haltContinuous(Camera $camera): bool
+    {
         $endpoint = RtspStreamEndpoint::fromCamera($camera);
         if ($endpoint === null) {
             $this->lastError = 'Camera stream URL is not configured.';
@@ -43,7 +73,6 @@ final class CameraPtzService
             return false;
         }
 
-        // Continuous moves must be halted with continuous zeros — most reliable on Hikvision.
         $stopped = $this->sendContinuous($camera, 0, 0, 0, lenient: true);
 
         $stopUrl = sprintf(
@@ -57,17 +86,30 @@ final class CameraPtzService
         if (! $stopped) {
             $stopped = $this->putIsapi($endpoint, $stopUrl, $stopBody, lenient: true);
         } else {
-            // Best-effort firmware stop; ignore failure when zeros already worked.
             $this->putIsapi($endpoint, $stopUrl, $stopBody, lenient: true);
         }
 
-        if ($stopped) {
-            $this->auditCommand($camera, $by, 'stop', 0, 0, 0);
+        return $stopped;
+    }
 
-            return true;
-        }
+    /**
+     * @return array{0: int, 1: int, 2: int}
+     */
+    private function toContinuousSpeed(int $pan, int $tilt, int $zoom): array
+    {
+        return [
+            $pan === 0 ? 0 : (int) (self::NUDGE_CONTINUOUS_SPEED * ($pan > 0 ? 1 : -1)),
+            $tilt === 0 ? 0 : (int) (self::NUDGE_CONTINUOUS_SPEED * ($tilt > 0 ? 1 : -1)),
+            $zoom === 0 ? 0 : (int) (self::NUDGE_CONTINUOUS_SPEED * ($zoom > 0 ? 1 : -1)),
+        ];
+    }
 
-        return false;
+    private function nudgeDurationMicros(int $pan, int $tilt, int $zoom): int
+    {
+        $step = max(abs($pan), abs($tilt), abs($zoom));
+
+        // ponytail: ~50ms per degree-step unit; tune on real heads if nudges feel too long/short.
+        return min(400_000, max(100_000, $step * 50_000));
     }
 
     private function sendContinuous(Camera $camera, int $pan, int $tilt, int $zoom, bool $lenient = false): bool

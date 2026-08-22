@@ -40,7 +40,7 @@ it('rejects ptz on fixed cameras', function () {
         ->assertForbidden();
 });
 
-it('proxies each ptz direction to hikvision isapi continuous', function (string $label, int $pan, int $tilt, int $zoom) {
+it('proxies each ptz click to a short continuous burst', function (string $label, int $pan, int $tilt, int $zoom, int $speedPan, int $speedTilt, int $speedZoom) {
     Http::fake(function ($request) {
         if (! str_contains($request->url(), '172.16.1.10')) {
             return Http::response('not found', 404);
@@ -72,23 +72,23 @@ it('proxies each ptz direction to hikvision isapi continuous', function (string 
         ->assertOk()
         ->assertJsonPath('data.accepted', true);
 
-    Http::assertSent(function ($request) use ($pan, $tilt, $zoom) {
+    Http::assertSent(function ($request) use ($speedPan, $speedTilt, $speedZoom) {
         return $request->method() === 'PUT'
             && str_contains($request->url(), '/ISAPI/PTZCtrl/channels/1/continuous')
-            && str_contains($request->body(), '<pan>'.$pan.'</pan>')
-            && str_contains($request->body(), '<tilt>'.$tilt.'</tilt>')
-            && str_contains($request->body(), '<zoom>'.$zoom.'</zoom>');
+            && str_contains($request->body(), '<pan>'.$speedPan.'</pan>')
+            && str_contains($request->body(), '<tilt>'.$speedTilt.'</tilt>')
+            && str_contains($request->body(), '<zoom>'.$speedZoom.'</zoom>');
     });
 })->with([
-    'pan left' => ['left', -45, 0, 0],
-    'pan right' => ['right', 45, 0, 0],
-    'tilt up' => ['up', 0, 45, 0],
-    'tilt down' => ['down', 0, -45, 0],
-    'zoom in' => ['zoom-in', 0, 0, 45],
-    'zoom out' => ['zoom-out', 0, 0, -45],
+    'pan left' => ['left', -3, 0, 0, -25, 0, 0],
+    'pan right' => ['right', 3, 0, 0, 25, 0, 0],
+    'tilt up' => ['up', 0, 3, 0, 0, 25, 0],
+    'tilt down' => ['down', 0, -3, 0, 0, -25, 0],
+    'zoom in' => ['zoom-in', 0, 0, 1, 0, 0, 25],
+    'zoom out' => ['zoom-out', 0, 0, -1, 0, 0, -25],
 ]);
 
-it('proxies hikvision isapi move commands without auditing each keepalive', function () {
+it('audits each click nudge', function () {
     Http::fake(function ($request) {
         if (! str_contains($request->url(), '172.16.1.10')) {
             return Http::response('not found', 404);
@@ -115,8 +115,8 @@ it('proxies hikvision isapi move commands without auditing each keepalive', func
     $this->actingAs($operator)
         ->postJson(route('live.cameras.ptz', $camera), [
             'action' => 'move',
-            'pan' => 45,
-            'tilt' => -10,
+            'pan' => 3,
+            'tilt' => -3,
             'zoom' => 0,
         ])
         ->assertOk()
@@ -125,11 +125,11 @@ it('proxies hikvision isapi move commands without auditing each keepalive', func
     Http::assertSent(function ($request) {
         return $request->method() === 'PUT'
             && str_contains($request->url(), '/ISAPI/PTZCtrl/channels/1/continuous')
-            && str_contains($request->body(), '<pan>45</pan>')
-            && str_contains($request->body(), '<tilt>-10</tilt>');
+            && str_contains($request->body(), '<pan>25</pan>')
+            && str_contains($request->body(), '<tilt>-25</tilt>');
     });
 
-    expect(AuditLog::query()->count())->toBe($before);
+    expect(AuditLog::query()->count())->toBe($before + 1);
 });
 
 it('uses the isapi stop endpoint and audits stop commands', function () {

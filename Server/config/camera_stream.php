@@ -52,7 +52,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Commands are proxied from the SCC to each camera on the pole VLAN.
-    | Keepalive on the live wall re-sends move vectors while a button is held.
+    | Each live-wall click sends a short continuous nudge (~few degrees) then stops.
     |
     */
     'ptz' => [

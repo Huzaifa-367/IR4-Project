@@ -1,13 +1,5 @@
-import {
-    startTransition,
-    useCallback,
-    useEffect,
-    useRef,
-    useState,
-} from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
-
-const PTZ_KEEPALIVE_MS = 500;
 
 type MoveVector = {
     pan: number;
@@ -18,11 +10,6 @@ type MoveVector = {
 type CommandPayload =
     | { action: 'move'; pan: number; tilt: number; zoom: number }
     | { action: 'stop' };
-
-type SendOptions = {
-    keepalive?: boolean;
-    silent?: boolean;
-};
 
 function readCsrfToken(): string {
     return (
@@ -53,39 +40,23 @@ async function readErrorMessage(response: Response): Promise<string> {
 
 export function useCameraPtz(ptzUrl: string, enabled: boolean) {
     const [activeKey, setActiveKey] = useState<string | null>(null);
-    const sessionRef = useRef<{
-        key: string;
-        vector: MoveVector;
-        keepaliveId: number | null;
-    } | null>(null);
-    const moveAbortRef = useRef<AbortController | null>(null);
-    const stopAbortRef = useRef<AbortController | null>(null);
+    const [isBusy, setIsBusy] = useState(false);
     const lastErrorAtRef = useRef(0);
+    const activeTimeoutRef = useRef<number | null>(null);
 
-    const notifyError = useCallback(
-        (message: string, silent: boolean): void => {
-            if (silent) {
-                return;
-            }
+    const notifyError = useCallback((message: string): void => {
+        const now = Date.now();
 
-            const now = Date.now();
+        if (now - lastErrorAtRef.current < 2_000) {
+            return;
+        }
 
-            if (now - lastErrorAtRef.current < 2_000) {
-                return;
-            }
-
-            lastErrorAtRef.current = now;
-            toast.error(message);
-        },
-        [],
-    );
+        lastErrorAtRef.current = now;
+        toast.error(message);
+    }, []);
 
     const postCommand = useCallback(
-        async (
-            payload: CommandPayload,
-            options: SendOptions = {},
-            signal?: AbortSignal,
-        ): Promise<boolean> => {
+        async (payload: CommandPayload): Promise<boolean> => {
             try {
                 const response = await fetch(ptzUrl, {
                     method: 'POST',
@@ -96,36 +67,19 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
                         'X-Requested-With': 'XMLHttpRequest',
                     },
                     credentials: 'same-origin',
-                    keepalive: options.keepalive === true,
-                    signal,
                     body: JSON.stringify(payload),
                 });
 
-                if (signal?.aborted) {
-                    return false;
-                }
-
                 if (!response.ok) {
-                    notifyError(
-                        await readErrorMessage(response),
-                        options.silent === true,
-                    );
+                    notifyError(await readErrorMessage(response));
 
                     return false;
                 }
 
                 return true;
-            } catch (error) {
-                if (
-                    error instanceof DOMException &&
-                    error.name === 'AbortError'
-                ) {
-                    return false;
-                }
-
+            } catch {
                 notifyError(
                     'Cannot reach the camera — check pole network and try again.',
-                    options.silent === true,
                 );
 
                 return false;
@@ -134,178 +88,54 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
         [notifyError, ptzUrl],
     );
 
-    const sendMove = useCallback(
-        async (
-            vector: MoveVector,
-            options: SendOptions = {},
-        ): Promise<boolean> => {
-            moveAbortRef.current?.abort();
-            const controller = new AbortController();
-            moveAbortRef.current = controller;
-
-            return postCommand(
-                { action: 'move', ...vector },
-                options,
-                controller.signal,
-            );
-        },
-        [postCommand],
-    );
-
-    const sendStop = useCallback(
-        async (options: SendOptions = {}): Promise<boolean> => {
-            moveAbortRef.current?.abort();
-            moveAbortRef.current = null;
-            stopAbortRef.current?.abort();
-            const controller = new AbortController();
-            stopAbortRef.current = controller;
-
-            const ok = await postCommand(
-                { action: 'stop' },
-                options,
-                controller.signal,
-            );
-
-            if (stopAbortRef.current === controller) {
-                stopAbortRef.current = null;
-            }
-
-            return ok;
-        },
-        [postCommand],
-    );
-
-    const clearKeepalive = useCallback((): void => {
-        const session = sessionRef.current;
-
-        if (
-            session?.keepaliveId !== null &&
-            session?.keepaliveId !== undefined
-        ) {
-            window.clearInterval(session.keepaliveId);
+    const flashActiveKey = useCallback((key: string): void => {
+        if (activeTimeoutRef.current !== null) {
+            window.clearTimeout(activeTimeoutRef.current);
         }
-    }, []);
 
-    /** Refs + camera API only — safe inside effects (no React state). */
-    const haltSession = useCallback(
-        (options: SendOptions = {}): Promise<boolean> => {
-            clearKeepalive();
-            sessionRef.current = null;
-            moveAbortRef.current?.abort();
-
-            return sendStop(options);
-        },
-        [clearKeepalive, sendStop],
-    );
-
-    const clearActiveKey = useCallback((): void => {
-        startTransition(() => {
+        setActiveKey(key);
+        activeTimeoutRef.current = window.setTimeout(() => {
             setActiveKey(null);
-        });
+            activeTimeoutRef.current = null;
+        }, 180);
     }, []);
 
-    const stopMove = useCallback(
-        async (options: SendOptions = {}): Promise<boolean> => {
-            clearActiveKey();
-
-            return haltSession(options);
-        },
-        [clearActiveKey, haltSession],
-    );
-
-    const startMove = useCallback(
-        (key: string, pan: number, tilt: number, zoom = 0): void => {
-            if (!enabled) {
+    const nudge = useCallback(
+        async (key: string, pan: number, tilt: number, zoom = 0): Promise<void> => {
+            if (!enabled || isBusy) {
                 return;
             }
 
-            const vector: MoveVector = { pan, tilt, zoom };
-            const current = sessionRef.current;
+            setIsBusy(true);
+            flashActiveKey(key);
 
-            if (current?.key === key) {
-                return;
-            }
-
-            if (current !== null) {
-                clearKeepalive();
-                sessionRef.current = null;
-                clearActiveKey();
-                void sendStop({ silent: true, keepalive: true });
-            }
-
-            sessionRef.current = {
-                key,
-                vector,
-                keepaliveId: window.setInterval(() => {
-                    if (sessionRef.current?.key !== key) {
-                        return;
-                    }
-
-                    void sendMove(vector, { silent: true });
-                }, PTZ_KEEPALIVE_MS),
-            };
-            setActiveKey(key);
-
-            void sendMove(vector, { silent: false });
+            await postCommand({ action: 'move', pan, tilt, zoom });
+            setIsBusy(false);
         },
-        [clearActiveKey, clearKeepalive, enabled, sendMove, sendStop],
+        [enabled, flashActiveKey, isBusy, postCommand],
     );
 
-    useEffect(() => {
-        if (enabled) {
+    const stop = useCallback(async (): Promise<void> => {
+        if (!enabled || isBusy) {
             return;
         }
 
-        void haltSession({ silent: true, keepalive: true });
-        clearActiveKey();
-    }, [clearActiveKey, enabled, haltSession]);
+        setIsBusy(true);
+        setActiveKey(null);
 
-    useEffect(() => {
-        const onVisibilityChange = (): void => {
-            if (document.hidden) {
-                void haltSession({ keepalive: true, silent: true });
-                clearActiveKey();
-            }
-        };
-
-        const onPageHide = (): void => {
-            void haltSession({ keepalive: true, silent: true });
-        };
-
-        document.addEventListener('visibilitychange', onVisibilityChange);
-        window.addEventListener('pagehide', onPageHide);
-
-        return () => {
-            document.removeEventListener(
-                'visibilitychange',
-                onVisibilityChange,
-            );
-            window.removeEventListener('pagehide', onPageHide);
-            void haltSession({ keepalive: true, silent: true });
-        };
-    }, [clearActiveKey, haltSession]);
-
-    useEffect(() => {
-        if (activeKey === null) {
-            return;
+        if (activeTimeoutRef.current !== null) {
+            window.clearTimeout(activeTimeoutRef.current);
+            activeTimeoutRef.current = null;
         }
 
-        const onPointerRelease = (): void => {
-            void stopMove({ keepalive: true, silent: true });
-        };
-
-        window.addEventListener('pointerup', onPointerRelease);
-        window.addEventListener('pointercancel', onPointerRelease);
-
-        return () => {
-            window.removeEventListener('pointerup', onPointerRelease);
-            window.removeEventListener('pointercancel', onPointerRelease);
-        };
-    }, [activeKey, stopMove]);
+        await postCommand({ action: 'stop' });
+        setIsBusy(false);
+    }, [enabled, isBusy, postCommand]);
 
     return {
         activeKey,
-        startMove,
-        stopMove,
+        isBusy,
+        nudge,
+        stop,
     };
 }

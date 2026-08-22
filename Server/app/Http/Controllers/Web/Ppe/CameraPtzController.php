@@ -9,6 +9,9 @@ use App\Services\CameraPtzService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Live-wall PTZ API — validates input, delegates to {@see CameraPtzService}.
+ */
 final class CameraPtzController extends BaseController
 {
     public function __invoke(
@@ -21,24 +24,28 @@ final class CameraPtzController extends BaseController
 
         $validated = $request->validated();
 
-        $ok = $validated['action'] === 'stop'
-            ? $ptz->stop($camera, $user)
-            : $ptz->move(
+        $ok = match ($validated['action']) {
+            'stop' => $ptz->stop($camera, $user),
+            'move' => $ptz->move(
                 $camera,
                 (int) $validated['pan'],
                 (int) $validated['tilt'],
                 (int) $validated['zoom'],
                 $user,
-            );
+            ),
+        };
 
         if (! $ok) {
-            return ApiResponse::error(
-                'ptz_failed',
-                $ptz->lastError() !== '' ? $ptz->lastError() : 'PTZ command failed.',
-                status: 502,
-            );
+            return $this->failedResponse($ptz);
         }
 
         return ApiResponse::ok(['accepted' => true]);
+    }
+
+    private function failedResponse(CameraPtzService $ptz): JsonResponse
+    {
+        $message = $ptz->lastError() !== '' ? $ptz->lastError() : 'PTZ command failed.';
+
+        return ApiResponse::error('ptz_failed', $message, status: 502);
     }
 }
