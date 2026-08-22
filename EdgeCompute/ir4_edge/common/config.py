@@ -8,27 +8,29 @@ from typing import Any, Dict, Mapping, MutableMapping, Optional
 
 import yaml
 
-_EDGE_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_CONFIG_DIR = _EDGE_ROOT / "configs"
-_DEFAULT_VAR_DIR = _EDGE_ROOT / "var"
+from ir4_edge.common.install_paths import (
+    canonical_edge_root,
+    config_dir,
+    edge_root,
+    install_root,
+    var_dir,
+)
 
-
-def edge_root() -> Path:
-    return _EDGE_ROOT
-
-
-def config_dir() -> Path:
-    override = os.environ.get("IR4_EDGE_CONFIG_DIR")
-    if override:
-        return Path(override)
-    return _DEFAULT_CONFIG_DIR
-
-
-def var_dir() -> Path:
-    override = os.environ.get("IR4_EDGE_VAR_DIR")
-    if override:
-        return Path(override)
-    return _DEFAULT_VAR_DIR
+__all__ = [
+    "canonical_edge_root",
+    "config_dir",
+    "default_gas_config",
+    "default_rfid_config",
+    "edge_root",
+    "install_root",
+    "load_agent_config",
+    "load_env_file",
+    "load_secrets",
+    "load_yaml",
+    "require_ir4",
+    "resolve_buffer_path",
+    "var_dir",
+]
 
 
 def default_gas_config() -> Path:
@@ -114,7 +116,6 @@ def apply_env_overrides(
     config["ir4"] = ir4
 
     agent = dict(config.get("agent") or {})
-    # Per-pole refs from secrets.env (preferred over yaml defaults).
     gas_ref = _env("IR4_GAS_DEVICE_REF")
     if gas_ref and token_env == "IR4_GAS_DEVICE_TOKEN":
         agent["device_ref"] = gas_ref
@@ -124,7 +125,6 @@ def apply_env_overrides(
     if agent:
         config["agent"] = agent
 
-    # MQTT secrets only apply when the agent config has an mqtt section (RFID).
     if "mqtt" in config:
         mqtt = dict(config.get("mqtt") or {})
         topic = _env("IR4_RFID_MQTT_TOPIC")

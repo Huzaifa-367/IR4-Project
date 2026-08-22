@@ -54,15 +54,23 @@ if [[ -d "${SRC_WHEELS}" ]] && ls "${SRC_WHEELS}"/* >/dev/null 2>&1; then
   HAS_WHEELS=1
 fi
 
-LIVE="${DEST}/EdgeCompute"
+# shellcheck source=/dev/null
+source "${SRC_CODE}/deploy/lib.sh"
+EDGE_ROOT="${SRC_CODE}"
+CONFIG_DIR="${EDGE_ROOT}/configs"
+load_edge_yaml
+INSTALL_ROOT="${IR4_EDGE_INSTALL_ROOT:-${EDGE_INSTALL_ROOT}}"
+ensure_canonical_code_tree
+
+LIVE="${INSTALL_ROOT}/EdgeCompute"
 PAD="$(printf '%02d' "${POLE}")"
 KEEP_SECRETS=0
 [[ -f "${LIVE}/configs/secrets.env" ]] && KEEP_SECRETS=1
 
 echo "==> ir4-edge bundle install pole ${POLE}"
 echo "    from ${SCRIPT_DIR}"
-echo "    onto ${DEST}"
-mkdir -p "${DEST}/var" "${DEST}/wheels"
+echo "    onto ${INSTALL_ROOT}"
+mkdir -p "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/wheels"
 
 echo "==> Overlay code (keep secrets.env=${KEEP_SECRETS})"
 rsync -a --delete \
@@ -70,10 +78,10 @@ rsync -a --delete \
   --exclude '.git/' --exclude '__pycache__/' \
   "${SRC_CODE}/" "${LIVE}/"
 if [[ "${HAS_WHEELS}" -eq 1 ]]; then
-  rsync -a "${SRC_WHEELS}/" "${DEST}/wheels/"
+  rsync -a "${SRC_WHEELS}/" "${INSTALL_ROOT}/wheels/"
 fi
 if [[ -d "${SRC_VAR}" ]]; then
-  rsync -a --ignore-existing "${SRC_VAR}/" "${DEST}/var/"
+  rsync -a --ignore-existing "${SRC_VAR}/" "${INSTALL_ROOT}/var/"
 fi
 
 if [[ "${KEEP_SECRETS}" -eq 0 ]]; then
@@ -81,24 +89,33 @@ if [[ "${KEEP_SECRETS}" -eq 0 ]]; then
   cp "${LIVE}/configs/secrets.pole-${PAD}.env" "${LIVE}/configs/secrets.env"
 fi
 
-IR4E="${DEST}/venv/bin/ir4-edge"
-if [[ ! -x "${IR4E}" ]]; then
+EDGE_ROOT="${LIVE}"
+CONFIG_DIR="${LIVE}/configs"
+export IR4_EDGE_WHEELHOUSE="${INSTALL_ROOT}/wheels"
+
+if [[ ! -x "${INSTALL_ROOT}/venv/bin/ir4-edge" ]]; then
   if [[ "${HAS_WHEELS}" -eq 0 ]]; then
     echo "ERROR: first install needs wheels — run ./deploy/pack_bundle.sh then copy the tarball" >&2
     exit 1
   fi
-  export IR4_EDGE_WHEELHOUSE="${DEST}/wheels"
   cd "${LIVE}"
   ./deploy/orin_bootstrap.sh
-  IR4E="${DEST}/venv/bin/ir4-edge"
 else
-  echo "==> Refresh venv + systemd (keeps secrets.env)"
-  export IR4_EDGE_WHEELHOUSE="${DEST}/wheels"
-  cd "${LIVE}"
-  ./deploy/orin_bootstrap.sh
-  IR4E="${DEST}/venv/bin/ir4-edge"
+  echo "==> Refresh package + systemd (keeps secrets.env)"
+  if ! refresh_edge_package; then
+    cd "${LIVE}"
+    ./deploy/orin_bootstrap.sh
+  else
+    render_systemd_units
+    link_cli_tools
+    fix_config_permissions
+  fi
 fi
-"${IR4E}" secrets --pole "${POLE}"
+
+IR4E="${INSTALL_ROOT}/venv/bin/ir4-edge"
+if [[ "${KEEP_SECRETS}" -eq 0 ]]; then
+  "${IR4E}" secrets --pole "${POLE}"
+fi
 if id ir4edge >/dev/null 2>&1; then
   chown ir4edge:ir4edge "${LIVE}/configs/secrets.env" || true
 fi
@@ -110,5 +127,6 @@ echo "==> Enable agents + render systemd units"
 "${IR4E}" up
 
 echo "==> Health check"
+cd "${LIVE}"
 "${IR4E}" doctor || true
-echo "==> Done. Layout: ${DEST}/{EdgeCompute,venv,var,wheels}"
+echo "==> Done. Layout: ${INSTALL_ROOT}/{EdgeCompute,venv,var,wheels}"

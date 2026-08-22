@@ -16,6 +16,10 @@ INSTALL_ROOT="${IR4_EDGE_INSTALL_ROOT:-${EDGE_INSTALL_ROOT}}"
 EDGE_USER="${IR4_EDGE_USER:-${EDGE_SERVICE_USER}}"
 EXPECTED_ROOT="${INSTALL_ROOT}/EdgeCompute"
 
+ensure_canonical_code_tree
+EDGE_ROOT="${EXPECTED_ROOT}"
+CONFIG_DIR="${EDGE_ROOT}/configs"
+
 echo "==> ir4-edge install (in-place)"
 echo "    code=${EDGE_ROOT}"
 echo "    root=${INSTALL_ROOT}  user=${EDGE_USER}"
@@ -87,25 +91,27 @@ fi
 
 mkdir -p "${INSTALL_ROOT}/var"
 
-python3 -m venv "${INSTALL_ROOT}/venv"
-WHEELHOUSE="${IR4_EDGE_WHEELHOUSE:-}"
-[[ -z "${WHEELHOUSE}" && -d "${INSTALL_ROOT}/wheels" ]] && WHEELHOUSE="${INSTALL_ROOT}/wheels"
-[[ -z "${WHEELHOUSE}" && -d "${EDGE_ROOT}/.wheels" ]] && WHEELHOUSE="${EDGE_ROOT}/.wheels"
-if [[ -n "${WHEELHOUSE}" && -d "${WHEELHOUSE}" && -n "$(ls -A "${WHEELHOUSE}" 2>/dev/null)" ]]; then
+VENV="${INSTALL_ROOT}/venv"
+if [[ ! -x "${VENV}/bin/python" ]]; then
+  echo "==> Creating venv ${VENV}"
+  python3 -m venv "${VENV}"
+fi
+
+WHEELHOUSE="$(wheelhouse_for_install || true)"
+if [[ -n "${WHEELHOUSE}" ]]; then
   echo "==> Offline pip from ${WHEELHOUSE}"
-  "${INSTALL_ROOT}/venv/bin/pip" install -q --no-index --find-links "${WHEELHOUSE}" \
+  "${VENV}/bin/pip" install -q --no-index --find-links "${WHEELHOUSE}" \
     pip wheel setuptools || true
-  "${INSTALL_ROOT}/venv/bin/pip" install -q --no-index --no-build-isolation \
-    --find-links "${WHEELHOUSE}" -e "${EDGE_ROOT}"
-else
+  "${VENV}/bin/pip" install -q --no-index --find-links "${WHEELHOUSE}" -e "${EDGE_ROOT}"
+elif ! refresh_edge_package; then
   echo "==> Online pip (this Orin needs internet)"
-  if ! "${INSTALL_ROOT}/venv/bin/pip" install -q --upgrade pip; then
+  if ! "${VENV}/bin/pip" install -q --upgrade pip; then
     echo "ERROR: pip needs internet on this Orin." >&2
     echo "       No internet: from SCC run ~/EdgeCompute/deploy/scc_install.sh" >&2
     echo "       or USB: ./deploy/pack_bundle.sh then sudo ./install.sh --pole N" >&2
     exit 1
   fi
-  "${INSTALL_ROOT}/venv/bin/pip" install -q -e "${EDGE_ROOT}"
+  "${VENV}/bin/pip" install -q -e "${EDGE_ROOT}"
 fi
 
 if [[ ! -x "${INSTALL_ROOT}/venv/bin/ir4-edge" ]]; then
@@ -115,13 +121,7 @@ if [[ ! -x "${INSTALL_ROOT}/venv/bin/ir4-edge" ]]; then
 fi
 
 # Link CLI early so a later Mosquitto/udev failure still leaves ir4-edge on PATH.
-ln -sfn "${INSTALL_ROOT}/venv/bin/ir4-edge" /usr/local/bin/ir4-edge
-if [[ "${EDGE_PATH_LINKS}" == "true" ]]; then
-  [[ "${EDGE_ENABLE_GAS}" == "true" ]] && \
-    ln -sfn "${INSTALL_ROOT}/venv/bin/ir4-gas-agent" /usr/local/bin/ir4-gas-agent
-  [[ "${EDGE_ENABLE_RFID}" == "true" ]] && \
-    ln -sfn "${INSTALL_ROOT}/venv/bin/ir4-rfid-agent" /usr/local/bin/ir4-rfid-agent
-fi
+link_cli_tools
 
 install -d -m 0755 /etc/systemd/system
 

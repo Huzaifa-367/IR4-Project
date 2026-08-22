@@ -1,7 +1,7 @@
 """Pre-flight checks for a pole Jetson — run via ``ir4-edge doctor``.
 
-Validates config files, secrets, serial port presence, and that systemd unit
-files point at the canonical install tree (not an old checkout path).
+Validates config files, secrets, serial port presence, canonical code layout,
+and that systemd unit files point at the install tree declared in edge.yaml.
 """
 
 from __future__ import annotations
@@ -13,8 +13,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from ir4_edge.common.config import config_dir, edge_root, load_secrets, load_yaml, var_dir
-from ir4_edge.common.install_paths import canonical_edge_root
+from ir4_edge.common.config import (
+    canonical_edge_root,
+    config_dir,
+    edge_root,
+    install_root,
+    load_secrets,
+    load_yaml,
+    var_dir,
+)
 
 
 @dataclass(frozen=True)
@@ -37,7 +44,7 @@ def _secret_status(key: str) -> Tuple[bool, str]:
     except OSError:
         readable = False
     if not readable:
-        return False, "secrets.env unreadable"
+        return False, "secrets.env unreadable (agents use systemd EnvironmentFile; chmod 640)"
     return False, "empty — run: ir4-edge secrets --pole N"
 
 
@@ -64,9 +71,37 @@ def _systemd_working_directory(unit: str) -> Optional[str]:
     return value if value and result.returncode == 0 else None
 
 
+def _code_layout_check() -> DoctorCheck:
+    """Ensure code lives at the canonical real directory (not a stray checkout/symlink)."""
+    canonical = canonical_edge_root()
+    if canonical.is_symlink():
+        return DoctorCheck(
+            "code layout",
+            False,
+            "{} is a symlink — run: sudo ir4-edge apply".format(canonical),
+        )
+    if not canonical.is_dir():
+        return DoctorCheck("code layout", False, "missing {}".format(canonical))
+    try:
+        import ir4_edge.gas.modbus_rtu as modbus_module
+        package_root = Path(modbus_module.__file__).resolve().parents[2]
+    except Exception:
+        package_root = edge_root().resolve()
+    if package_root != canonical.resolve():
+        return DoctorCheck(
+            "code layout",
+            False,
+            "venv loads {} (expected {}) — run: sudo ir4-edge apply".format(
+                package_root,
+                canonical.resolve(),
+            ),
+        )
+    return DoctorCheck("code layout", True, str(canonical.resolve()))
+
+
 def _systemd_path_checks(gas_on: bool, rfid_on: bool) -> DoctorCheck:
     """Fail when agent units point at the wrong checkout directory."""
-    expected = str(canonical_edge_root())
+    expected = str(canonical_edge_root().resolve())
     issues: List[str] = []
     for unit, enabled in (("ir4-gas-agent", gas_on), ("ir4-rfid-agent", rfid_on)):
         if not enabled:
@@ -98,6 +133,7 @@ def run_checks() -> List[DoctorCheck]:
             bool(os.environ.get("APP_TIMEZONE")),
             os.environ.get("APP_TIMEZONE", ""),
         ),
+        _code_layout_check(),
     ]
     if gas_on:
         checks.append(DoctorCheck("gas.yaml", (config_dir() / "gas.yaml").is_file()))
@@ -131,7 +167,8 @@ def print_report(checks: List[DoctorCheck]) -> int:
     """Print doctor output; return exit code 0 on success, 1 when any check failed."""
     gas_on, rfid_on = services_enabled()
     print("== ir4-edge doctor ==")
-    print("root   ", edge_root())
+    print("install", install_root())
+    print("code   ", canonical_edge_root())
     print("config ", config_dir())
     print("var    ", var_dir())
     print("gas={} rfid={}".format(gas_on, rfid_on))

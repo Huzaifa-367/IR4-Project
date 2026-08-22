@@ -9,7 +9,7 @@
 | Permission denied on `/dev/ttyUSB*` | User not in `dialout`; re-login after bootstrap |
 | Modbus “silence” with good wiring | A/B swapped; warm-up; wrong port; stock pymodbus often fails on YT-98H quirks — use `ir4_edge.gas.yt98h` |
 | Modbus `noise` / truncated frames | USB-UART gap timeout too short for full FC03 reply — `modbus_rtu.inter_byte_timeout()` scales with register count. Check adapter: `lsusb` (CH341 `1a86:7523` vs FTDI `0403:6001`). `ir4-edge logs` shows `addr N: noise`. |
-| systemd `WorkingDirectory` not under `/opt/ir4-edge` | Stale unit files from an old checkout path. Run `sudo ir4-edge up` — `ir4-edge doctor` checks **systemd layout**. |
+| systemd / code layout drift | Stale unit paths or `~/Downloads` symlink at `/opt/ir4-edge/EdgeCompute`. Run `sudo ir4-edge up` or redeploy — `ir4-edge doctor` checks **code layout** and **systemd layout**. |
 | CO₂ looks frozen | NDIR averages 15–45 s — wait a minute |
 | MQTT connect refused / not authorized | Mosquitto down / `allow_anonymous false` with bad creds; or FXR90 pointing at wrong Orin IP |
 | FXR90 HTTPS OK but no MQTT tags | IoT Connector not mapped to MQTT endpoint; topic ≠ `rfid.yaml`; inventory not started; mode not SIMPLE |

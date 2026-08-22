@@ -79,6 +79,64 @@ load_secret_env() {
   load_env_file_safe "${CONFIG_DIR}/secrets.env"
 }
 
+# Materialize /opt/ir4-edge/EdgeCompute as a real directory (migrate symlink targets).
+ensure_canonical_code_tree() {
+  local expected="${INSTALL_ROOT}/EdgeCompute"
+  if [[ -L "${expected}" ]]; then
+    echo "==> Migrating symlink ${expected} to a real directory"
+    local link_target
+    link_target="$(readlink -f "${expected}")"
+    rm -f "${expected}"
+    mkdir -p "${expected}"
+    if [[ -d "${link_target}" ]]; then
+      rsync -a "${link_target}/" "${expected}/"
+    fi
+  elif [[ ! -d "${expected}" ]]; then
+    mkdir -p "${expected}"
+  fi
+  EDGE_ROOT="${expected}"
+  CONFIG_DIR="${EDGE_ROOT}/configs"
+}
+
+wheelhouse_for_install() {
+  local wheelhouse="${IR4_EDGE_WHEELHOUSE:-}"
+  [[ -z "${wheelhouse}" && -d "${INSTALL_ROOT}/wheels" ]] && wheelhouse="${INSTALL_ROOT}/wheels"
+  [[ -z "${wheelhouse}" && -d "${EDGE_ROOT}/.wheels" ]] && wheelhouse="${EDGE_ROOT}/.wheels"
+  if [[ -n "${wheelhouse}" && -d "${wheelhouse}" && -n "$(ls -A "${wheelhouse}" 2>/dev/null)" ]]; then
+    echo "${wheelhouse}"
+  fi
+}
+
+# Reinstall the editable package into an existing venv (updates, not first install).
+refresh_edge_package() {
+  local venv="${INSTALL_ROOT}/venv"
+  local wheelhouse
+  wheelhouse="$(wheelhouse_for_install || true)"
+  if [[ ! -x "${venv}/bin/pip" ]]; then
+    return 1
+  fi
+  if [[ -n "${wheelhouse}" ]]; then
+    echo "==> Refresh offline pip from ${wheelhouse}"
+    "${venv}/bin/pip" install -q --no-index --find-links "${wheelhouse}" \
+      pip wheel setuptools || true
+    "${venv}/bin/pip" install -q --no-index --find-links "${wheelhouse}" -e "${EDGE_ROOT}"
+  else
+    echo "==> Refresh online pip"
+    "${venv}/bin/pip" install -q -e "${EDGE_ROOT}"
+  fi
+  [[ -x "${venv}/bin/ir4-edge" ]]
+}
+
+link_cli_tools() {
+  ln -sfn "${INSTALL_ROOT}/venv/bin/ir4-edge" /usr/local/bin/ir4-edge
+  if [[ "${EDGE_PATH_LINKS}" == "true" ]]; then
+    [[ "${EDGE_ENABLE_GAS}" == "true" ]] && \
+      ln -sfn "${INSTALL_ROOT}/venv/bin/ir4-gas-agent" /usr/local/bin/ir4-gas-agent
+    [[ "${EDGE_ENABLE_RFID}" == "true" ]] && \
+      ln -sfn "${INSTALL_ROOT}/venv/bin/ir4-rfid-agent" /usr/local/bin/ir4-rfid-agent
+  fi
+}
+
 # Resolve install.root/EdgeCompute from edge.yaml (ignores stray checkout paths).
 # Call after sourcing lib.sh; optional arg is any tree that contains configs/edge.yaml.
 resolve_canonical_paths() {
@@ -87,8 +145,12 @@ resolve_canonical_paths() {
   CONFIG_DIR="${EDGE_ROOT}/configs"
   load_edge_yaml
   INSTALL_ROOT="${IR4_EDGE_INSTALL_ROOT:-${EDGE_INSTALL_ROOT}}"
-  EDGE_ROOT="${INSTALL_ROOT}/EdgeCompute"
-  CONFIG_DIR="${EDGE_ROOT}/configs"
+  if [[ "$(id -u)" -eq 0 ]]; then
+    ensure_canonical_code_tree
+  else
+    EDGE_ROOT="${INSTALL_ROOT}/EdgeCompute"
+    CONFIG_DIR="${EDGE_ROOT}/configs"
+  fi
   EDGE_USER="${IR4_EDGE_USER:-${EDGE_SERVICE_USER}}"
 }
 

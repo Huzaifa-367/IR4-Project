@@ -2,23 +2,11 @@
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 from typing import Dict, Mapping, MutableMapping, Optional
 
-_EDGE_ROOT = Path(__file__).resolve().parents[2]
-
-
-def edge_root() -> Path:
-    return _EDGE_ROOT
-
-
-def config_dir() -> Path:
-    override = os.environ.get("IR4_EDGE_CONFIG_DIR")
-    if override:
-        return Path(override)
-    return _EDGE_ROOT / "configs"
+from ir4_edge.common.config import config_dir, edge_root
 
 _ROW = re.compile(
     r"^\|\s*(rfid|gas|cam_ai)\s*\|\s*(DEV-[A-Z0-9-]+)\s*\|\s*"
