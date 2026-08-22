@@ -69,7 +69,7 @@ export default function WorkOrdersIndex({
     const columns: SettingsColumn<WorkOrderRow>[] = [
         {
             key: 'reference',
-            header: 'Reference',
+            header: 'Number',
             cell: (row) => (
                 <Link
                     href={workOrderRoutes.show(row.uuid)}

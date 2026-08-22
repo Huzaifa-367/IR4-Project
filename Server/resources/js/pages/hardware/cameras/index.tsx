@@ -91,6 +91,14 @@ export default function CamerasIndex({
 
     const columns: SettingsColumn<CameraRow>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-28',
+            cell: (camera) => (
+                <span className="font-mono text-xs">Camera #{camera.id}</span>
+            ),
+        },
+        {
             key: 'camera',
             header: 'Camera',
             cell: (camera) => (

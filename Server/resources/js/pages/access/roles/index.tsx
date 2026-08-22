@@ -80,6 +80,14 @@ export default function RolesIndex({ roles, catalogue }: Props) {
 
     const columns: SettingsColumn<RoleRow>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-24',
+            cell: (role) => (
+                <span className="font-mono text-xs">Role #{role.id}</span>
+            ),
+        },
+        {
             key: 'role',
             header: 'Role',
             cell: (role) => (

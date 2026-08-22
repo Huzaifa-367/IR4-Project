@@ -3,8 +3,9 @@ import { Download, Search } from 'lucide-react';
 import { useState } from 'react';
 import { AuditDiff } from '@/components/ir4/audit-diff';
 import { AuditEventBadge } from '@/components/ir4/audit-event-badge';
-import { Pagination } from '@/components/ir4/pagination';
 import { RequirePermission } from '@/components/ir4/require-permission';
+import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
+import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,6 +89,78 @@ export default function AuditLogIndex({
             Boolean(entry[1]),
         ),
     );
+
+    const columns: SettingsColumn<AuditLog>[] = [
+        {
+            key: 'number',
+            header: 'Number',
+            className: 'w-24',
+            cell: (log) => (
+                <span className="font-mono text-xs">Audit #{log.id}</span>
+            ),
+        },
+        {
+            key: 'time',
+            header: 'Time',
+            cell: (log) => (
+                <span className="text-xs whitespace-nowrap text-text-faint">
+                    {new Date(log.occurred_at).toLocaleString()}
+                </span>
+            ),
+        },
+        {
+            key: 'event',
+            header: 'Event',
+            cell: (log) => <AuditEventBadge event={log.event} />,
+        },
+        {
+            key: 'actor',
+            header: 'Actor',
+            cell: (log) => log.user?.name ?? 'System',
+        },
+        {
+            key: 'subject',
+            header: 'Subject',
+            cell: (log) => (
+                <span className="font-mono text-xs text-text-dim">
+                    {log.auditable_label
+                        ? `${log.auditable_label} #${log.auditable_id}`
+                        : '—'}
+                </span>
+            ),
+        },
+        {
+            key: 'description',
+            header: 'Description',
+            className: 'max-w-sm',
+            cell: (log) => log.description ?? '—',
+        },
+        {
+            key: 'details',
+            header: 'Details',
+            className: 'min-w-80',
+            cell: (log) => (
+                <details>
+                    <summary className="cursor-pointer text-xs text-[color:var(--accent)]">
+                        View diff and request
+                    </summary>
+                    <div className="mt-3 space-y-3">
+                        <AuditDiff
+                            oldValues={log.old_values}
+                            newValues={log.new_values}
+                        />
+                        <p className="text-xs text-text-faint">
+                            IP: {log.ip_address ?? '—'} · Route:{' '}
+                            {log.route ?? '—'}
+                        </p>
+                        <p className="max-w-xl text-xs break-all text-text-faint">
+                            {log.user_agent ?? '—'}
+                        </p>
+                    </div>
+                </details>
+            ),
+        },
+    ];
 
     return (
         <RequirePermission permission="view-audit-log">
@@ -196,100 +269,16 @@ export default function AuditLogIndex({
                     </>
                 }
             >
-                <div className="overflow-hidden rounded-[var(--radius-sm)] border border-border bg-surface shadow-[var(--shadow-card)]">
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[900px] text-sm">
-                            <thead className="bg-surface-2 text-left">
-                                <tr>
-                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
-                                        Time
-                                    </th>
-                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
-                                        Event
-                                    </th>
-                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
-                                        Actor
-                                    </th>
-                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
-                                        Subject
-                                    </th>
-                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
-                                        Description
-                                    </th>
-                                    <th className="px-4 py-3 text-[11px] font-semibold tracking-wide text-text-dim uppercase">
-                                        Details
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {auditLogs.data.map((log: AuditLog) => (
-                                    <tr
-                                        key={log.id}
-                                        className="border-t border-border align-top"
-                                    >
-                                        <td className="px-4 py-3 text-xs whitespace-nowrap text-text-faint">
-                                            {new Date(
-                                                log.occurred_at,
-                                            ).toLocaleString()}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <AuditEventBadge
-                                                event={log.event}
-                                            />
-                                        </td>
-                                        <td className="px-4 py-3 text-text-dim">
-                                            {log.user?.name ?? 'System'}
-                                        </td>
-                                        <td className="px-4 py-3 font-mono text-xs text-text-dim">
-                                            {log.auditable_label
-                                                ? `${log.auditable_label} #${log.auditable_id}`
-                                                : '—'}
-                                        </td>
-                                        <td className="max-w-sm px-4 py-3 text-text-dim">
-                                            {log.description ?? '—'}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <details className="min-w-80">
-                                                <summary className="cursor-pointer text-xs text-[color:var(--accent)]">
-                                                    View diff and request
-                                                </summary>
-                                                <div className="mt-3 space-y-3">
-                                                    <AuditDiff
-                                                        oldValues={
-                                                            log.old_values
-                                                        }
-                                                        newValues={
-                                                            log.new_values
-                                                        }
-                                                    />
-                                                    <p className="text-xs text-text-faint">
-                                                        IP:{' '}
-                                                        {log.ip_address ?? '—'}{' '}
-                                                        · Route:{' '}
-                                                        {log.route ?? '—'}
-                                                    </p>
-                                                    <p className="max-w-xl text-xs break-all text-text-faint">
-                                                        {log.user_agent ?? '—'}
-                                                    </p>
-                                                </div>
-                                            </details>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    {auditLogs.data.length === 0 && (
-                        <p className="p-8 text-center text-sm text-text-faint">
-                            No audit events match these filters.
-                        </p>
-                    )}
-                    <Pagination
-                        meta={auditLogs.meta}
-                        pageUrl={settings.auditLog.index.url()}
-                        params={queryParams}
-                    />
-                </div>
+                <SettingsDataTable
+                    columns={columns}
+                    rows={auditLogs.data}
+                    rowKey={(log) => log.id}
+                    meta={auditLogs.meta}
+                    pageUrl={settings.auditLog.index.url()}
+                    queryParams={queryParams}
+                    emptyTitle="No audit events"
+                    emptyDescription="No audit events match these filters."
+                />
             </SettingsPageShell>
         </RequirePermission>
     );

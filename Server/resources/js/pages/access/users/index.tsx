@@ -65,6 +65,14 @@ export default function UsersIndex({
 
     const columns: SettingsColumn<UserRow>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-24',
+            cell: (user) => (
+                <span className="font-mono text-xs">User #{user.id}</span>
+            ),
+        },
+        {
             key: 'name',
             header: 'Name',
             cell: (user) => (

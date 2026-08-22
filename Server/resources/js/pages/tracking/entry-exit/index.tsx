@@ -73,6 +73,14 @@ export default function EntryExitIndex({
 
     const columns: SettingsColumn<LogRow>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-24',
+            cell: (row) => (
+                <span className="font-mono text-xs">Log #{row.id}</span>
+            ),
+        },
+        {
             key: 'when',
             header: 'When',
             cell: (row) => new Date(row.occurred_at).toLocaleString(),

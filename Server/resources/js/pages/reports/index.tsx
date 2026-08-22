@@ -88,7 +88,7 @@ export default function ReportsIndex({
     const columns: SettingsColumn<WeeklyReport>[] = [
         {
             key: 'report',
-            header: 'Report',
+            header: 'Number',
             cell: (row) => (
                 <Link
                     href={reportRoutes.show(row.uuid)}

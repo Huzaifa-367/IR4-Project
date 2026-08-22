@@ -110,7 +110,12 @@ export default function PermitsIndex({
             key: 'number',
             header: 'Number',
             cell: (row) => (
-                <span className="font-mono text-xs">{row.permit_number}</span>
+                <Link
+                    href={permitRoutes.show(row.uuid)}
+                    className="font-mono text-xs hover:underline"
+                >
+                    {row.permit_number}
+                </Link>
             ),
         },
         {

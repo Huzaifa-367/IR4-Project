@@ -162,7 +162,12 @@ export default function IncidentsIndex({
             key: 'number',
             header: 'Number',
             cell: (row) => (
-                <span className="font-mono text-xs">{row.incident_number}</span>
+                <Link
+                    href={hse.incidents.show(row.uuid)}
+                    className="font-mono text-xs hover:underline"
+                >
+                    {row.incident_number}
+                </Link>
             ),
         },
         {

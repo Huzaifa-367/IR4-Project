@@ -69,6 +69,14 @@ export default function GasAlarmsIndex({
 
     const columns: SettingsColumn<GasAlarm>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-24',
+            cell: (row) => (
+                <span className="font-mono text-xs">Alarm #{row.id}</span>
+            ),
+        },
+        {
             key: 'when',
             header: 'When',
             cell: (row) => new Date(row.triggered_at).toLocaleString(),

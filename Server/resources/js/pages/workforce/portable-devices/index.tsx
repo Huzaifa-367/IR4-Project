@@ -38,6 +38,14 @@ export default function PortableDevicesIndex({ devices, workers }: Props) {
 
     const columns: SettingsColumn<DeviceRow>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-28',
+            cell: (device) => (
+                <span className="font-mono text-xs">Device #{device.id}</span>
+            ),
+        },
+        {
             key: 'worker',
             header: 'Worker',
             cell: (device) =>

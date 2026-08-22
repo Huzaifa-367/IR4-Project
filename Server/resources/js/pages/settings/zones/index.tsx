@@ -49,6 +49,19 @@ export default function ZonesIndex({ zones, zoneTypes }: Props) {
 
     const columns: SettingsColumn<ZoneRow>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-24',
+            cell: (zone) => (
+                <Link
+                    href={settings.zones.show(zone.uuid)}
+                    className="font-mono text-xs hover:underline"
+                >
+                    Zone #{zone.id}
+                </Link>
+            ),
+        },
+        {
             key: 'name',
             header: 'Name',
             cell: (zone) => (

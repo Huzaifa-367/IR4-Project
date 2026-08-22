@@ -94,6 +94,14 @@ export default function ReadingsIndex({
 
     const columns: SettingsColumn<TrackingReading>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-28',
+            cell: (row) => (
+                <span className="font-mono text-xs">Reading #{row.id}</span>
+            ),
+        },
+        {
             key: 'when',
             header: 'When',
             cell: (row) => (

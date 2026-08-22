@@ -78,6 +78,19 @@ export default function WorkersIndex({
 
     const columns: SettingsColumn<Worker>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-28',
+            cell: (worker) => (
+                <Link
+                    href={tracking.workers.show(worker.uuid)}
+                    className="font-mono text-xs hover:underline"
+                >
+                    Worker #{worker.id}
+                </Link>
+            ),
+        },
+        {
             key: 'name',
             header: 'Name',
             cell: (worker) => (

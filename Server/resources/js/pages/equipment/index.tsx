@@ -165,7 +165,7 @@ export default function EquipmentIndex({
             : []),
         {
             key: 'code',
-            header: 'Code',
+            header: 'Number',
             cell: (row) => (
                 <span className="font-mono text-xs">{row.equipment_code}</span>
             ),

@@ -86,6 +86,14 @@ export default function AssetsIndex({
 
     const columns: SettingsColumn<AssetRow>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-28',
+            cell: (asset) => (
+                <span className="font-mono text-xs">{asset.identifier}</span>
+            ),
+        },
+        {
             key: 'name',
             header: 'Asset',
             cell: (asset) => (

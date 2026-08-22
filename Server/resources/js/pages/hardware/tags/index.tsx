@@ -86,7 +86,7 @@ export default function TagsIndex({
     const columns: SettingsColumn<TagRow>[] = [
         {
             key: 'uid',
-            header: 'UID',
+            header: 'Number',
             cell: (tag) => (
                 <span className="font-mono text-xs">{tag.tag_uid}</span>
             ),

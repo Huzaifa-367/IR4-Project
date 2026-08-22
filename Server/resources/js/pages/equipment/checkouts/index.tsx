@@ -49,6 +49,14 @@ export default function EquipmentCheckoutsIndex({
 
     const columns: SettingsColumn<EquipmentCheckout>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-28',
+            cell: (row) => (
+                <span className="font-mono text-xs">Checkout #{row.id}</span>
+            ),
+        },
+        {
             key: 'equipment',
             header: 'Equipment',
             cell: (row) =>

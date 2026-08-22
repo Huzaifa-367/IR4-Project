@@ -52,7 +52,7 @@ export default function WorkerDocumentTypesIndex({
     const columns: SettingsColumn<DocumentTypeRow>[] = [
         {
             key: 'code',
-            header: 'Code',
+            header: 'Number',
             cell: (row) => (
                 <span className="font-mono text-xs">{row.code}</span>
             ),

@@ -30,7 +30,7 @@ export default function PermitTypesIndex({ permitTypes }: Props) {
     const columns: SettingsColumn<PermitTypeCatalogueRow>[] = [
         {
             key: 'code',
-            header: 'Code',
+            header: 'Number',
             cell: (row) => (
                 <span className="font-mono text-xs">{row.code}</span>
             ),

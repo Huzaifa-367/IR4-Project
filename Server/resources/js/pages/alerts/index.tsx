@@ -162,6 +162,14 @@ export default function AlertsIndex({
 
     const columns: SettingsColumn<Alert>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-24',
+            cell: (alert) => (
+                <span className="font-mono text-xs">Alert #{alert.id}</span>
+            ),
+        },
+        {
             key: 'raised',
             header: 'Raised',
             cell: (alert) => (

@@ -67,7 +67,7 @@ export default function CrewRolesIndex({ roles, permitTypes }: Props) {
         },
         {
             key: 'code',
-            header: 'Code',
+            header: 'Number',
             cell: (row) => (
                 <span className="font-mono text-xs">{row.role_code}</span>
             ),

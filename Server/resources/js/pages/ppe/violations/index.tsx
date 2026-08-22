@@ -124,19 +124,6 @@ export default function PpeViolationsIndex({
     }
 
     const columns: SettingsColumn<PpeViolation>[] = [
-        {
-            key: 'number',
-            header: 'Number',
-            className: 'w-28',
-            cell: (row) => (
-                <Link
-                    href={ppe.violations.show(row.uuid)}
-                    className="font-mono text-xs hover:underline"
-                >
-                    PPE #{row.id}
-                </Link>
-            ),
-        },
         ...(canReview
             ? [
                   {
@@ -168,6 +155,19 @@ export default function PpeViolationsIndex({
                   } satisfies SettingsColumn<PpeViolation>,
               ]
             : []),
+        {
+            key: 'number',
+            header: 'Number',
+            className: 'w-28',
+            cell: (row) => (
+                <Link
+                    href={ppe.violations.show(row.uuid)}
+                    className="font-mono text-xs hover:underline"
+                >
+                    PPE #{row.id}
+                </Link>
+            ),
+        },
         {
             key: 'snapshot',
             header: 'Snapshot',

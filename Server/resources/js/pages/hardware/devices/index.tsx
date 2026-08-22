@@ -108,6 +108,14 @@ export default function DevicesIndex({
 
     const columns: SettingsColumn<DeviceRow>[] = [
         {
+            key: 'number',
+            header: 'Number',
+            className: 'w-28',
+            cell: (device) => (
+                <span className="font-mono text-xs">Device #{device.id}</span>
+            ),
+        },
+        {
             key: 'device',
             header: 'Device',
             cell: (device) => (
