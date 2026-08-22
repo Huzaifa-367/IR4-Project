@@ -91,6 +91,9 @@ if [[ ! -x "${IR4E}" ]]; then
   cd "${LIVE}"
   ./deploy/orin_bootstrap.sh
   IR4E="${DEST}/venv/bin/ir4-edge"
+else
+  echo "==> Refresh editable install (point venv at ${LIVE})"
+  "${DEST}/venv/bin/pip" install -q -e "${LIVE}"
 fi
 "${IR4E}" secrets --pole "${POLE}"
 if id ir4edge >/dev/null 2>&1; then
