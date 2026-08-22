@@ -16,7 +16,7 @@ agent:
   enabled: true
   # Overridden by IR4_RFID_READER_REF in secrets.env when set (DEV-RFID-01 … DEV-RFID-04)
   reader_ref: "DEV-RFID-01"
-  debounce_seconds: 2
+  debounce_seconds: 300   # same EPC suppressed for 5 min (one row per tag per window)
   max_batch: 50
   flush_interval_seconds: 1
   heartbeat_interval_seconds: 60

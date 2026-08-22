@@ -3,7 +3,7 @@
 Capacity (approx. 400–600 bytes/row including SQLite overhead):
 
 - Gas: 1 reading / 30 s → ~2/min → 200_000 rows ≈ 69 days.
-- RFID: debounce 2 s; even at 50 unique tags/min, 200_000 rows ≈ 2.8 days
+- RFID: debounce 300 s (5 min per EPC); 200_000 rows ≈ long outage headroom
   (FXR90 also holds ~150k / 500 min on the reader).
 - 72 GB Orin disk: years at these rates. The row cap is a disk-safety bound,
   not a retention policy.
