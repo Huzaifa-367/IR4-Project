@@ -47,13 +47,13 @@ async function readErrorMessage(response: Response): Promise<string> {
 
 export function useCameraPtz(ptzUrl: string, enabled: boolean) {
     const [activeKey, setActiveKey] = useState<string | null>(null);
-    const [isBusy, setIsBusy] = useState(false);
     const sessionRef = useRef<{
         key: string;
         vector: MoveVector;
         keepaliveId: number | null;
     } | null>(null);
-    const requestGenerationRef = useRef(0);
+    const moveAbortRef = useRef<AbortController | null>(null);
+    const stopAbortRef = useRef<AbortController | null>(null);
     const lastErrorAtRef = useRef(0);
 
     const notifyError = useCallback(
@@ -74,17 +74,12 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
         [],
     );
 
-    const sendCommand = useCallback(
+    const postCommand = useCallback(
         async (
             payload: CommandPayload,
             options: SendOptions = {},
+            signal?: AbortSignal,
         ): Promise<boolean> => {
-            const generation = ++requestGenerationRef.current;
-
-            if (!options.keepalive) {
-                setIsBusy(true);
-            }
-
             try {
                 const response = await fetch(ptzUrl, {
                     method: 'POST',
@@ -96,10 +91,11 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
                     },
                     credentials: 'same-origin',
                     keepalive: options.keepalive === true,
+                    signal,
                     body: JSON.stringify(payload),
                 });
 
-                if (generation !== requestGenerationRef.current) {
+                if (signal?.aborted) {
                     return false;
                 }
 
@@ -113,23 +109,61 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
                 }
 
                 return true;
-            } catch {
+            } catch (error) {
+                if (error instanceof DOMException && error.name === 'AbortError') {
+                    return false;
+                }
+
                 notifyError(
                     'Cannot reach the camera — check pole network and try again.',
                     options.silent === true,
                 );
 
                 return false;
-            } finally {
-                if (
-                    !options.keepalive &&
-                    generation === requestGenerationRef.current
-                ) {
-                    setIsBusy(false);
-                }
             }
         },
         [notifyError, ptzUrl],
+    );
+
+    const sendMove = useCallback(
+        async (
+            vector: MoveVector,
+            options: SendOptions = {},
+        ): Promise<boolean> => {
+            moveAbortRef.current?.abort();
+            const controller = new AbortController();
+            moveAbortRef.current = controller;
+
+            return postCommand(
+                { action: 'move', ...vector },
+                options,
+                controller.signal,
+            );
+        },
+        [postCommand],
+    );
+
+    const sendStop = useCallback(
+        async (options: SendOptions = {}): Promise<boolean> => {
+            moveAbortRef.current?.abort();
+            moveAbortRef.current = null;
+            stopAbortRef.current?.abort();
+            const controller = new AbortController();
+            stopAbortRef.current = controller;
+
+            const ok = await postCommand(
+                { action: 'stop' },
+                options,
+                controller.signal,
+            );
+
+            if (stopAbortRef.current === controller) {
+                stopAbortRef.current = null;
+            }
+
+            return ok;
+        },
+        [postCommand],
     );
 
     const clearKeepalive = useCallback((): void => {
@@ -144,17 +178,14 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
     }, []);
 
     const stopMove = useCallback(
-        async (options: SendOptions = {}): Promise<void> => {
-            if (sessionRef.current === null) {
-                return;
-            }
-
+        async (options: SendOptions = {}): Promise<boolean> => {
             clearKeepalive();
             sessionRef.current = null;
             setActiveKey(null);
-            await sendCommand({ action: 'stop' }, options);
+
+            return sendStop(options);
         },
-        [clearKeepalive, sendCommand],
+        [clearKeepalive, sendStop],
     );
 
     const startMove = useCallback(
@@ -170,40 +201,29 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
                 return;
             }
 
-            void (async (): Promise<void> => {
-                if (current !== null) {
-                    await stopMove({ silent: true, keepalive: true });
-                }
+            if (current !== null) {
+                clearKeepalive();
+                sessionRef.current = null;
+                setActiveKey(null);
+                void sendStop({ silent: true, keepalive: true });
+            }
 
-                sessionRef.current = {
-                    key,
-                    vector,
-                    keepaliveId: window.setInterval(() => {
-                        if (sessionRef.current?.key !== key) {
-                            return;
-                        }
+            sessionRef.current = {
+                key,
+                vector,
+                keepaliveId: window.setInterval(() => {
+                    if (sessionRef.current?.key !== key) {
+                        return;
+                    }
 
-                        void sendCommand(
-                            { action: 'move', ...vector },
-                            { silent: true, keepalive: false },
-                        );
-                    }, PTZ_KEEPALIVE_MS),
-                };
-                setActiveKey(key);
+                    void sendMove(vector, { silent: true });
+                }, PTZ_KEEPALIVE_MS),
+            };
+            setActiveKey(key);
 
-                const ok = await sendCommand({
-                    action: 'move',
-                    ...vector,
-                });
-
-                if (!ok && sessionRef.current?.key === key) {
-                    clearKeepalive();
-                    sessionRef.current = null;
-                    setActiveKey(null);
-                }
-            })();
+            void sendMove(vector, { silent: false });
         },
-        [clearKeepalive, enabled, sendCommand, stopMove],
+        [clearKeepalive, enabled, sendMove, sendStop],
     );
 
     useEffect(() => {
@@ -258,7 +278,6 @@ export function useCameraPtz(ptzUrl: string, enabled: boolean) {
 
     return {
         activeKey,
-        isBusy,
         startMove,
         stopMove,
     };

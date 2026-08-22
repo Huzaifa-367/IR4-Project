@@ -3,7 +3,6 @@ import {
     ArrowLeft,
     ArrowRight,
     ArrowUp,
-    Loader2,
     Minus,
     Plus,
     Square,
@@ -32,13 +31,21 @@ export function LiveCameraPtzControls({
     className,
 }: Props) {
     const canOperate = enabled && isOnline;
-    const { activeKey, isBusy, startMove, stopMove } = useCameraPtz(
+    const { activeKey, startMove, stopMove } = useCameraPtz(
         ptzUrl,
         canOperate,
     );
 
+    const handleStop = (): void => {
+        if (!canOperate) {
+            return;
+        }
+
+        void stopMove();
+    };
+
     const bindMove = (key: string, pan: number, tilt: number, zoom = 0) => ({
-        disabled: !canOperate || isBusy,
+        disabled: !canOperate,
         onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
             if (!canOperate) {
                 return;
@@ -84,12 +91,6 @@ export function LiveCameraPtzControls({
                 <div className="text-text-muted text-xs font-medium tracking-wide uppercase">
                     PTZ · {cameraName}
                 </div>
-                {isBusy && (
-                    <Loader2
-                        className="text-text-muted size-3.5 animate-spin"
-                        aria-hidden
-                    />
-                )}
             </div>
             {!isOnline && (
                 <p className="mb-2 text-xs text-[color:var(--warn)]">
@@ -129,10 +130,10 @@ export function LiveCameraPtzControls({
                         className="size-10"
                         aria-label="Stop PTZ"
                         disabled={!canOperate}
-                        onPointerDown={(event) => {
+                        onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
-                            void stopMove();
+                            handleStop();
                         }}
                     >
                         <Square className="size-3.5" />

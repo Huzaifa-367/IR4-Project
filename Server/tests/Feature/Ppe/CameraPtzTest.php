@@ -114,7 +114,8 @@ it('uses the isapi stop endpoint and audits stop commands', function () {
         ->assertJsonPath('data.accepted', true);
 
     Http::assertSent(fn ($request) => $request->method() === 'PUT'
-        && str_contains($request->url(), '/ISAPI/PTZCtrl/channels/1/stop'));
+        && str_contains($request->url(), '/ISAPI/PTZCtrl/channels/1/continuous')
+        && str_contains($request->body(), '<pan>0</pan>'));
 
     expect(AuditLog::query()
         ->where('event', AuditEvent::ConfigChanged)
@@ -122,6 +123,35 @@ it('uses the isapi stop endpoint and audits stop commands', function () {
         ->where('auditable_id', $camera->id)
         ->where('new_values->command', 'stop')
         ->exists())->toBeTrue();
+});
+
+it('treats an idle stop response as success', function () {
+    Http::fake(function ($request) {
+        if (! str_contains($request->url(), '172.16.1.10')) {
+            return Http::response('not found', 404);
+        }
+
+        return Http::response(
+            '<?xml version="1.0" encoding="UTF-8"?><ResponseStatus version="2.0"><statusCode>4</statusCode><statusString>Invalid Operation</statusString></ResponseStatus>',
+            200,
+            ['Content-Type' => 'application/xml'],
+        );
+    });
+
+    $camera = Camera::factory()->create([
+        'camera_type' => CameraType::Ptz,
+        'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
+    ]);
+
+    $operator = User::factory()->create();
+    $operator->givePermissionTo(['view-live-cameras', 'control-ptz-cameras']);
+
+    $this->actingAs($operator)
+        ->postJson(route('live.cameras.ptz', $camera), [
+            'action' => 'stop',
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.accepted', true);
 });
 
 it('rejects isapi responses whose statusCode is not ok', function () {

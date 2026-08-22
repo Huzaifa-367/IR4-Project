@@ -43,6 +43,9 @@ final class CameraPtzService
             return false;
         }
 
+        // Continuous moves must be halted with continuous zeros — most reliable on Hikvision.
+        $stopped = $this->sendContinuous($camera, 0, 0, 0, lenient: true);
+
         $stopUrl = sprintf(
             '%s/ISAPI/PTZCtrl/channels/%d/stop',
             $endpoint->isapiBaseUrl(),
@@ -51,14 +54,14 @@ final class CameraPtzService
 
         $stopBody = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<PTZData version=\"2.0\" xmlns=\"http://www.isapi.org/ver20/XMLSchema\">\n  <pan>0</pan>\n  <tilt>0</tilt>\n  <zoom>0</zoom>\n</PTZData>\n";
 
-        if ($this->putIsapi($endpoint, $stopUrl, $stopBody)) {
-            $this->auditCommand($camera, $by, 'stop', 0, 0, 0);
-
-            return true;
+        if (! $stopped) {
+            $stopped = $this->putIsapi($endpoint, $stopUrl, $stopBody, lenient: true);
+        } else {
+            // Best-effort firmware stop; ignore failure when zeros already worked.
+            $this->putIsapi($endpoint, $stopUrl, $stopBody, lenient: true);
         }
 
-        // Some firmware only honours continuous zeros — try that before failing.
-        if ($this->sendContinuous($camera, 0, 0, 0)) {
+        if ($stopped) {
             $this->auditCommand($camera, $by, 'stop', 0, 0, 0);
 
             return true;
@@ -67,7 +70,7 @@ final class CameraPtzService
         return false;
     }
 
-    private function sendContinuous(Camera $camera, int $pan, int $tilt, int $zoom): bool
+    private function sendContinuous(Camera $camera, int $pan, int $tilt, int $zoom, bool $lenient = false): bool
     {
         $this->lastError = '';
 
@@ -91,22 +94,26 @@ final class CameraPtzService
             $zoom,
         );
 
-        if (! $this->putIsapi($endpoint, $url, $body)) {
+        if (! $this->putIsapi($endpoint, $url, $body, $lenient)) {
             return false;
         }
 
         return true;
     }
 
-    private function putIsapi(RtspStreamEndpoint $endpoint, string $url, string $body): bool
-    {
+    private function putIsapi(
+        RtspStreamEndpoint $endpoint,
+        string $url,
+        string $body,
+        bool $lenient = false,
+    ): bool {
         $attempts = max(0, (int) config('camera_stream.ptz.retries', 1)) + 1;
 
         for ($attempt = 1; $attempt <= $attempts; $attempt++) {
             try {
                 $response = $this->client($endpoint)->withBody($body, 'application/xml')->put($url);
 
-                if ($this->isSuccessResponse($response)) {
+                if ($this->isSuccessResponse($response, $lenient)) {
                     return true;
                 }
 
@@ -153,7 +160,7 @@ final class CameraPtzService
         return false;
     }
 
-    private function isSuccessResponse(Response $response): bool
+    private function isSuccessResponse(Response $response, bool $lenient = false): bool
     {
         if (! $response->successful()) {
             return false;
@@ -162,7 +169,18 @@ final class CameraPtzService
         $body = $response->body();
 
         if (preg_match('/<statusCode>\s*(\d+)\s*<\/statusCode>/', $body, $match) === 1) {
-            return (int) $match[1] === 1;
+            $code = (int) $match[1];
+
+            if ($code === 1) {
+                return true;
+            }
+
+            // Stop on an already-idle head is still success for operators.
+            if ($lenient && in_array($code, [2, 4], true)) {
+                return true;
+            }
+
+            return false;
         }
 
         // Some firmware returns an empty 200 on success.
