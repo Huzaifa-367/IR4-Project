@@ -119,7 +119,7 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     reader_ref = str(agent_cfg.get("reader_ref") or "").strip()
     if not reader_ref:
         raise ValueError("agent.reader_ref is required")
-    debounce = float(agent_cfg.get("debounce_seconds", 2.0))
+    debounce = float(agent_cfg.get("debounce_seconds", 300.0))
     max_batch = int(agent_cfg.get("max_batch", 50))
     flush_interval = float(agent_cfg.get("flush_interval_seconds", 1.0))
     heartbeat_interval = float(agent_cfg.get("heartbeat_interval_seconds", 60))
