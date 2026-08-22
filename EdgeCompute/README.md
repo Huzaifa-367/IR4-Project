@@ -129,7 +129,7 @@ ir4-edge logs -f
 | `Permission denied` on serial | User not in `dialout` — re-login |
 | `No Modbus response` | Meter power / RS485 mode / cable; USB on port 3 |
 | `FORBIDDEN_REFERENCE` | Wrong pole secrets file (`secrets.pole-NN.env`) |
-| `ir4-edge: command not found` | Bootstrap incomplete — re-run `sudo ./deploy/orin_bootstrap.sh` |
+| `ir4-edge: command not found` | Bootstrap incomplete — re-run `sudo ir4-edge install --pole N` |
 
 ---
 

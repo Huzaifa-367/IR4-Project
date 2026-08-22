@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Shared helpers for install / enable / setup (sourced, not executed).
+# Shared host helpers for deploy/host.sh (sourced, not executed).
 # shellcheck shell=bash
 
-EDGE_ROOT="${EDGE_ROOT:?EDGE_ROOT must be set before sourcing lib.sh}"
+EDGE_ROOT="${EDGE_ROOT:?EDGE_ROOT must be set before sourcing host_lib.sh}"
 CONFIG_DIR="${CONFIG_DIR:-${EDGE_ROOT}/configs}"
 
 EDGE_INSTALL_ROOT="/opt/ir4-edge"
@@ -138,7 +138,7 @@ link_cli_tools() {
 }
 
 # Resolve install.root/EdgeCompute from edge.yaml (ignores stray checkout paths).
-# Call after sourcing lib.sh; optional arg is any tree that contains configs/edge.yaml.
+# Call after sourcing host_lib.sh; optional arg is any tree that contains configs/edge.yaml.
 resolve_canonical_paths() {
   local seed_root="${1:-${EDGE_ROOT}}"
   EDGE_ROOT="${seed_root}"
@@ -284,4 +284,45 @@ enable_selected_services() {
   else
     echo "==> Enabled for boot; start with: ir4-edge up"
   fi
+}
+
+pkg_ok() { dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q 'install ok installed'; }
+
+ensure_host_packages() {
+  local missing=()
+  local pkg
+  for pkg in "$@"; do
+    pkg_ok "${pkg}" || missing+=("${pkg}")
+  done
+  if [[ ${#missing[@]} -eq 0 ]]; then
+    echo "==> Host packages already installed — skipping apt"
+    return 0
+  fi
+  echo "==> Need packages: ${missing[*]}"
+  export DEBIAN_FRONTEND=noninteractive
+  if ! apt-get install -y -qq --no-upgrade "${missing[@]}"; then
+    echo "WARNING: apt-get install failed (common on Jetson L4T)." >&2
+    if ! command -v python3 >/dev/null || ! python3 -c 'import venv' 2>/dev/null; then
+      echo "ERROR: python3/venv missing and apt cannot install them." >&2
+      exit 1
+    fi
+    if [[ "${EDGE_ENABLE_RFID}" == "true" ]] && ! command -v mosquitto >/dev/null; then
+      echo "ERROR: mosquitto not installed and apt failed." >&2
+      exit 1
+    fi
+  fi
+}
+
+ensure_service_user() {
+  local edge_user="${EDGE_USER:-${EDGE_SERVICE_USER}}"
+  if ! id -u "${edge_user}" >/dev/null 2>&1; then
+    local user_args=(--system --create-home --home-dir "/home/${edge_user}" --shell /usr/sbin/nologin)
+    if getent group "${edge_user}" >/dev/null 2>&1; then
+      user_args+=(-g "${edge_user}")
+    fi
+    useradd "${user_args[@]}" --groups dialout "${edge_user}"
+  else
+    usermod -aG dialout "${edge_user}"
+  fi
+  [[ -n "${SUDO_USER:-}" ]] && usermod -aG dialout "${SUDO_USER}" || true
 }

@@ -1,111 +1,103 @@
 # Install and update EdgeCompute
 
-This is the **only** place with install/update commands.
+Two transport methods share one Python deploy pipeline (`ir4_edge.deploy`):
 
-Software on each pole: `/opt/ir4-edge/` (`EdgeCompute` + `venv` + `var`).
+| Method | Path | Where you run commands |
+|---|---|---|
+| **Direct** | Pole → Internet → Server (git) | On the pole: `sudo ir4-edge install\|update\|apply` |
+| **SCC** | SCC → Pole (offline rsync payload) | On SCC: `deploy/scc_push.sh` or `ir4-edge scc push` |
 
-Pick **one** of the three methods below. Use that same method for first install and for later updates. Updates keep existing tokens (`secrets.env`).
+Both support fresh install, update, version check, status, verification, retries, and recovery.
+Success is recorded only after **doctor verification** passes on the pole.
 
-| Pole | `--pole` | On the Jetson use secrets file | Jetson SSH | SCC URL the pole talks to |
-|---|---|---|---|---|
-| 1 | `1` | `secrets.pole-01.env` | `pole1@172.16.3.2` | `http://172.16.3.40:9100` |
-| 2 | `2` | `secrets.pole-02.env` | `pole2@172.16.2.2` | `http://172.16.2.40:9100` |
-| 3 | `3` | `secrets.pole-03.env` | `pole3@172.16.1.50` | `http://172.16.1.40:9100` |
-| 4 | `4` | `secrets.pole-04.env` | `pole4@172.16.4.2` | `http://172.16.4.40:9100` |
+Software on each pole: `/opt/ir4-edge/` (`EdgeCompute` + `venv` + `var` + `wheels`).
 
-After any method: `ir4-edge doctor` on the pole.
+| Pole | `--pole` | Jetson SSH | SCC URL |
+|---|---|---|---|
+| 1 | `1` | `pole1@172.16.3.2` | `http://172.16.3.40:9100` |
+| 2 | `2` | `pole2@172.16.2.2` | `http://172.16.2.40:9100` |
+| 3 | `3` | `pole3@172.16.1.50` | `http://172.16.1.40:9100` |
+| 4 | `4` | `pole4@172.16.4.2` | `http://172.16.4.40:9100` |
+
+After any method: `ir4-edge doctor` and `ir4-edge deploy-status`.
 
 ---
 
-## Method 1 — Online SCC → pole (poles are offline)
+## Method 1 — SCC → pole (poles offline)
 
-**When:** SCC2 is online. Poles have **no** internet. You push from SCC2 over LAN SSH.
+**Where:** SCC2 (or any machine with SSH to poles).
 
-**Where you type:** SCC2 (after copying `EdgeCompute/` there once).
-
-### Put EdgeCompute on SCC2 (laptop, once)
+### Sync EdgeCompute to SCC (once per release)
 
 ```bash
 rsync -az --exclude configs/secrets.env --exclude .venv --exclude .git \
   EdgeCompute/ scc2@scc2-poweredge-r360:~/EdgeCompute/
 ```
 
-### Install
+### Install or update all reachable poles
 
 ```bash
 ssh scc2@scc2-poweredge-r360
-~/EdgeCompute/deploy/scc_install.sh
+~/EdgeCompute/deploy/scc_push.sh
+# or: cd ~/EdgeCompute && ir4-edge scc push
 ```
 
-Installs every reachable pole (1–4). Skips poles that are down.
-
-One pole only:
+One pole:
 
 ```bash
-~/EdgeCompute/deploy/scc_install.sh --poles 2
+~/EdgeCompute/deploy/scc_push.sh --poles 2
 ```
 
-### Update
-
-Same as install:
+With wheel pack (slow, needs internet on SCC):
 
 ```bash
-~/EdgeCompute/deploy/scc_install.sh
+~/EdgeCompute/deploy/scc_push.sh --pack
 ```
 
 ---
 
-## Method 2 — Pole with internet
+## Method 2 — Direct (pole has internet)
 
-**When:** the Jetson can reach GitHub and pip. You work **on the pole**.
+**Where:** On the Jetson.
 
-Examples use pole **2**. For pole 1/3/4 change `02` and `--pole 2`.
-
-### Install
+### Fresh install (example pole 2)
 
 ```bash
-sudo mkdir -p /opt/ir4-edge
-git clone --depth 1 https://github.com/Huzaifa-367/IR4-Project /tmp/IR4-Project
-sudo cp -a /tmp/IR4-Project/EdgeCompute /opt/ir4-edge/EdgeCompute
-cd /opt/ir4-edge/EdgeCompute
-cp configs/secrets.pole-02.env configs/secrets.env
-sudo ./deploy/orin_bootstrap.sh
-sudo ir4-edge secrets --pole 2
+sudo ir4-edge install --pole 2
 ir4-edge doctor
+```
+
+From a local checkout instead of git:
+
+```bash
+sudo ir4-edge install --pole 2 --from /path/to/IR4-Project
 ```
 
 ### Update
 
 ```bash
-sudo ir4-edge update
+sudo ir4-edge update --pole 2
 ir4-edge doctor
 ```
 
-If `ir4-edge update` is missing (very old install):
+Auto-detect install vs update:
 
 ```bash
-git clone --depth 1 https://github.com/Huzaifa-367/IR4-Project /tmp/IR4-Project
-sudo /tmp/IR4-Project/EdgeCompute/deploy/orin_update.sh
+sudo ir4-edge apply --pole 2
 ```
 
 ---
 
-## Method 3 — Pole with USB
+## Method 3 — USB offline payload
 
-**When:** no useful SCC hop, and the pole has no internet. You carry a USB stick.
-
-Install and update are the **same two steps**.
-
-### Step A — build the stick (laptop or SCC, needs internet)
+Same SCC payload layout; build on a laptop with internet:
 
 ```bash
 cd EdgeCompute
 ./deploy/pack_bundle.sh
 ```
 
-Copy `dist/ir4-edge-offline.tar.gz` onto the USB.
-
-### Step B — on the pole (example: pole 2)
+On the pole:
 
 ```bash
 tar -xzf ir4-edge-offline.tar.gz
@@ -113,4 +105,30 @@ cd ir4-edge-offline
 sudo ./install.sh --pole 2
 ```
 
-First run installs. Later runs update (tokens kept).
+---
+
+## Status and verification
+
+```bash
+ir4-edge deploy-status    # SQLite audit + deployed version
+ir4-edge verify           # Doctor gate (exit 1 on failure)
+ir4-edge doctor           # Full diagnostic report
+sudo ir4-edge status      # systemd agent status
+```
+
+Deploy state lives in `/opt/ir4-edge/var/deploy_state.sqlite`.
+
+---
+
+## Architecture
+
+```
+Controller (ctl.py / install.sh / scc_push.sh)
+    → DeployService (lock, retry, recovery)
+        → DeployPipeline (shared steps)
+            → Transport (Direct git | SCC payload)
+            → host.sh (venv, systemd, mosquitto)
+            → verify_pole (doctor — required for success)
+```
+
+Never marks success until verification passes. Interrupted runs are reconciled via stale-state recovery and file locking.

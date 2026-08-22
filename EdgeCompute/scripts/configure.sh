@@ -19,7 +19,7 @@ for arg in "$@"; do
 done
 
 # shellcheck source=/dev/null
-source "${EDGE_ROOT}/deploy/lib.sh"
+source "${EDGE_ROOT}/deploy/host_lib.sh"
 load_edge_yaml
 [[ -f "${SECRETS}" ]] || cp "${EXAMPLE}" "${SECRETS}"
 load_secret_env

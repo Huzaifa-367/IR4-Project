@@ -64,7 +64,7 @@ rsync -a \
   --exclude 'var/' \
   "${EDGE_ROOT}/" "${BUNDLE}/EdgeCompute/"
 touch "${BUNDLE}/var/.keep"
-install -m 0755 "${SCRIPT_DIR}/install_bundle.sh" "${BUNDLE}/install.sh"
+install -m 0755 "${SCRIPT_DIR}/install.sh" "${BUNDLE}/install.sh"
 
 echo "==> Fetching Jetson aarch64 wheels (not this machine’s arch)"
 PIP=(python3 -m pip)
@@ -112,4 +112,4 @@ rsync -a "${BUNDLE}/wheels/" "${EDGE_ROOT}/.wheels/"
 echo "==> Writing ${OUT}"
 tar -C "${STAGE}" -czf "${OUT}" ir4-edge-offline
 ls -lh "${OUT}"
-echo "==> Done. USB: copy the tarball. Online: ./deploy/scc_install.sh"
+echo "==> Done. USB: copy the tarball. Online: ./deploy/scc_push.sh"
