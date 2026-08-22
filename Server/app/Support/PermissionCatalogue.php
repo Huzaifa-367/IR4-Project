@@ -23,6 +23,7 @@ final class PermissionCatalogue
             ],
             'Live view & cameras' => [
                 'view-live-cameras',
+                'control-ptz-cameras',
             ],
             'Alerts' => [
                 'acknowledge-alerts',

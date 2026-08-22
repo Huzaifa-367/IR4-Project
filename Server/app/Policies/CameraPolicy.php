@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\CameraType;
 use App\Models\Camera;
 use App\Models\User;
 
@@ -25,5 +26,12 @@ final class CameraPolicy
     public function update(User $user, Camera $camera): bool
     {
         return $user->can('update-devices');
+    }
+
+    public function controlPtz(User $user, Camera $camera): bool
+    {
+        return $user->can('control-ptz-cameras')
+            && $camera->camera_type === CameraType::Ptz
+            && $camera->status->isOperational();
     }
 }

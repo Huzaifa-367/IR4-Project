@@ -1,11 +1,15 @@
 import Hls from 'hls.js';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { LiveCameraPtzControls } from '@/components/ir4/live-camera-ptz-controls';
 import { Button } from '@/components/ui/button';
 
 type Props = {
     playbackUrl: string;
     title: string;
+    cameraUuid?: string;
+    ptzUrl?: string | null;
+    canControlPtz?: boolean;
 };
 
 /**
@@ -27,7 +31,13 @@ function resolvePlaylistUrl(playbackUrl: string): string {
     return base.endsWith('/') ? `${base}index.m3u8` : `${base}/index.m3u8`;
 }
 
-export function LiveCameraFeed({ playbackUrl, title }: Props) {
+export function LiveCameraFeed({
+    playbackUrl,
+    title,
+    cameraUuid,
+    ptzUrl = null,
+    canControlPtz = false,
+}: Props) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -137,6 +147,13 @@ export function LiveCameraFeed({ playbackUrl, title }: Props) {
         };
     }, [playlistUrl]);
 
+    const showPtzControls =
+        isFullscreen &&
+        canControlPtz &&
+        cameraUuid !== undefined &&
+        ptzUrl !== null &&
+        ptzUrl !== '';
+
     return (
         <div
             ref={containerRef}
@@ -177,6 +194,13 @@ export function LiveCameraFeed({ playbackUrl, title }: Props) {
                     )}
                 </Button>
             </div>
+            {showPtzControls && (
+                <LiveCameraPtzControls
+                    cameraUuid={cameraUuid}
+                    ptzUrl={ptzUrl}
+                    className="absolute bottom-4 left-4 z-10"
+                />
+            )}
             {error !== null && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/80 px-3 text-center text-xs text-text-faint">
                     {error}

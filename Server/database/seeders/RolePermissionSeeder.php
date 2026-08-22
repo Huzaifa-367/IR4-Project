@@ -128,6 +128,7 @@ final class RolePermissionSeeder extends Seeder
         return [
             'view-dashboard',
             'view-live-cameras',
+            'control-ptz-cameras',
             'view-ppe',
             'update-ppe-violations',
             'view-tracking',

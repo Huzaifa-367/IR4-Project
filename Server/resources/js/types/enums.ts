@@ -780,6 +780,7 @@ export const ZoneTypeLabels: Record<ZoneType, string> = {
 export const Permission = {
     ViewDashboard: 'view-dashboard',
     ViewLiveCameras: 'view-live-cameras',
+    ControlPtzCameras: 'control-ptz-cameras',
     AcknowledgeAlerts: 'acknowledge-alerts',
     ResolveAlerts: 'resolve-alerts',
     ViewPpe: 'view-ppe',

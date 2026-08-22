@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Web\Ppe;
 
+use App\Enums\CameraType;
 use App\Enums\ReviewStatus;
 use App\Http\Controllers\Web\BaseController;
 use App\Models\Camera;
 use App\Models\PpeViolation;
+use App\Models\User;
 use App\Services\PpeViolationService;
 use App\Services\SettingsService;
 use App\Support\ApiResponse;
@@ -23,10 +25,13 @@ final class LiveWallController extends BaseController
 
         $display = $request->boolean('display');
 
+        $user = $request->user();
+
         return Inertia::render($display ? 'display/live' : 'live/index', [
-            'cameras' => $this->cameraRows(),
+            'cameras' => $this->cameraRows($user),
             'displayMode' => $display,
-            'canViewPpe' => $request->user()?->can('view-ppe') ?? false,
+            'canViewPpe' => $user?->can('view-ppe') ?? false,
+            'canControlPtz' => $user?->can('control-ptz-cameras') ?? false,
         ]);
     }
 
@@ -45,7 +50,7 @@ final class LiveWallController extends BaseController
             ->values();
 
         return ApiResponse::ok([
-            'cameras' => $this->cameraRows(),
+            'cameras' => $this->cameraRows($request->user()),
             'violations' => $recent,
         ]);
     }
@@ -53,7 +58,7 @@ final class LiveWallController extends BaseController
     /**
      * @return list<array<string, mixed>>
      */
-    private function cameraRows(): array
+    private function cameraRows(?User $user = null): array
     {
         $playbackUrlTemplate = config('camera_stream.browser_url_template');
         $cameraStaleMinutes = (int) app(SettingsService::class)->get('health.camera_stale_minutes', 3);
@@ -63,18 +68,25 @@ final class LiveWallController extends BaseController
             ->with('asset')
             ->orderBy('name')
             ->get()
-            ->map(fn (Camera $camera): array => [
-                'id' => $camera->id,
-                'uuid' => $camera->uuid,
-                'name' => $camera->name,
-                'reference' => $camera->reference,
-                'playback_url' => $this->playbackUrl($playbackUrlTemplate, $camera->reference),
-                'ai_enabled' => $camera->ai_enabled,
-                'status' => $camera->status->value,
-                'is_online' => HardwarePresence::isCameraOnline($camera, $cameraStaleMinutes),
-                'last_frame_at' => $camera->last_frame_at?->toIso8601String(),
-                'location_label' => $camera->asset?->current_location_label,
-            ])
+            ->map(function (Camera $camera) use ($playbackUrlTemplate, $cameraStaleMinutes, $user): array {
+                $isPtz = $camera->camera_type === CameraType::Ptz;
+
+                return [
+                    'id' => $camera->id,
+                    'uuid' => $camera->uuid,
+                    'name' => $camera->name,
+                    'reference' => $camera->reference,
+                    'camera_type' => $camera->camera_type->value,
+                    'is_ptz' => $isPtz,
+                    'can_control_ptz' => $isPtz && ($user?->can('controlPtz', $camera) ?? false),
+                    'playback_url' => $this->playbackUrl($playbackUrlTemplate, $camera->reference),
+                    'ai_enabled' => $camera->ai_enabled,
+                    'status' => $camera->status->value,
+                    'is_online' => HardwarePresence::isCameraOnline($camera, $cameraStaleMinutes),
+                    'last_frame_at' => $camera->last_frame_at?->toIso8601String(),
+                    'location_label' => $camera->asset?->current_location_label,
+                ];
+            })
             ->values()
             ->all();
     }

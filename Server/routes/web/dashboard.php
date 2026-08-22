@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\EnvironmentController;
+use App\Http\Controllers\Web\Ppe\CameraPtzController;
 use App\Http\Controllers\Web\Ppe\HlsProxyController;
 use App\Http\Controllers\Web\Ppe\LiveWallController;
 use App\Http\Middleware\AuditDataAccess;
@@ -34,6 +35,9 @@ Route::get('live', LiveWallController::class)
 Route::get('api/live/violations', [LiveWallController::class, 'snapshot'])
     ->middleware('permission:view-live-cameras')
     ->name('live.violations');
+Route::post('api/live/cameras/{camera:uuid}/ptz', CameraPtzController::class)
+    ->middleware('permission:control-ptz-cameras')
+    ->name('live.cameras.ptz');
 Route::match(['get', 'head'], 'hls/{path?}', HlsProxyController::class)
     ->where('path', '.*')
     ->middleware('permission:view-live-cameras')

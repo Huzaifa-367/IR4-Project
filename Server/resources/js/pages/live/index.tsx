@@ -19,6 +19,7 @@ type Props = {
     cameras: LiveCamera[];
     displayMode?: boolean;
     canViewPpe: boolean;
+    canControlPtz: boolean;
 };
 
 type ToastPayload = {
@@ -82,6 +83,7 @@ export default function LiveWall({
     cameras: initialCameras,
     displayMode = false,
     canViewPpe,
+    canControlPtz,
 }: Props) {
     const [cameras, setCameras] = usePropSyncedState(initialCameras);
 
@@ -196,6 +198,18 @@ export default function LiveWall({
                                     <LiveCameraFeed
                                         playbackUrl={camera.playback_url}
                                         title={`${camera.name} live feed`}
+                                        cameraUuid={camera.uuid}
+                                        ptzUrl={
+                                            camera.can_control_ptz
+                                                ? live.cameras.ptz.url(
+                                                      camera.uuid,
+                                                  )
+                                                : null
+                                        }
+                                        canControlPtz={
+                                            canControlPtz &&
+                                            camera.can_control_ptz
+                                        }
                                     />
                                 ) : (
                                     <div className="flex size-full items-center justify-center text-xs text-text-faint">

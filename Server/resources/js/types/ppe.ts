@@ -24,6 +24,9 @@ export type LiveCamera = {
     uuid: string;
     name: string;
     reference: string;
+    camera_type: string;
+    is_ptz: boolean;
+    can_control_ptz: boolean;
     playback_url: string | null;
     ai_enabled: boolean;
     status: string;
