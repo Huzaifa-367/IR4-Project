@@ -205,19 +205,7 @@ it('stores a new reading on every successful command call', function () {
     expect(EnvironmentalReading::query()->count())->toBe(2);
 });
 
-it('gates scheduler due-ness on weather.refresh_minutes and last_seen_at', function () {
-    $weather = app(WeatherSettings::class);
-    $now = now();
-
-    expect($weather->isApiFetchDue($now))->toBeTrue();
-
-    $device = $weather->systemDevice();
-    $device->forceFill(['last_seen_at' => $now->copy()->subMinutes(10)])->save();
-    app(SettingsService::class)->set('weather.refresh_minutes', 60);
-
-    expect($weather->isApiFetchDue($now))->toBeFalse();
-
-    $device->forceFill(['last_seen_at' => $now->copy()->subMinutes(61)])->save();
-
-    expect($weather->isApiFetchDue($now))->toBeTrue();
+it('treats weather refresh as fixed hourly', function () {
+    expect(app(WeatherSettings::class)->refreshMinutes())->toBe(60)
+        ->and(app(WeatherSettings::class)->staleMinutes())->toBe(120);
 });

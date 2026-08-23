@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 
 /**
  * Path ② weather ingest: OpenWeatherMap Current Weather → environmental_readings.
- * Interval is enforced by the scheduler when() on weather.refresh_minutes.
+ * Scheduler runs hourly (one DB row per successful poll).
  */
 final class WeatherIngestService
 {

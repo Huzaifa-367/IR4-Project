@@ -11,7 +11,6 @@ use App\Services\Platform\DiskSpaceMonitor;
 use App\Services\Report\WeeklyReportService;
 use App\Services\Settings\SettingsService;
 use App\Services\Tracking\TrackingService;
-use App\Support\WeatherSettings;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -74,13 +73,11 @@ Schedule::job(new PruneExportFiles)
     ->name('ir4:prune-export-files')
     ->withoutOverlapping(60);
 
-// Weather poll — everyFiveMinutes tick; refresh_minutes gates via when() at
-// schedule:run (never at console.php load — that breaks composer discover / CI).
+// Weather API — one snapshot per hour (no DB read at console.php load).
 Schedule::command('ir4:fetch-weather-api')
-    ->everyFiveMinutes()
-    ->when(fn (): bool => app(WeatherSettings::class)->isApiFetchDue())
+    ->hourly()
     ->name('ir4:fetch-weather-api')
-    ->withoutOverlapping(4);
+    ->withoutOverlapping(55);
 
 Schedule::command('ir4:prune-expired-cache')
     ->hourly()

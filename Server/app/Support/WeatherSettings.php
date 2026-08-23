@@ -20,9 +20,8 @@ final class WeatherSettings
 
     public const string DEVICE_REFERENCE = 'SYS-WEATHER-API';
 
-    public const int REFRESH_MINUTES_MIN = 5;
-
-    public const int REFRESH_MINUTES_MAX = 1440;
+    /** Scheduler records once per hour; setting is informational / stale-window only. */
+    public const int REFRESH_MINUTES = 60;
 
     public function __construct(
         private readonly SettingsService $settings,
@@ -75,38 +74,12 @@ final class WeatherSettings
 
     public function refreshMinutes(): int
     {
-        $minutes = (int) $this->settings->get('weather.refresh_minutes', 60);
-
-        return max(self::REFRESH_MINUTES_MIN, min(self::REFRESH_MINUTES_MAX, $minutes));
-    }
-
-    /**
-     * Whether the scheduler should run ir4:fetch-weather-api now.
-     * Evaluated at schedule:run time only — never at console.php load.
-     */
-    public function isApiFetchDue(?\DateTimeInterface $now = null): bool
-    {
-        if (! $this->usesApi()) {
-            return false;
-        }
-
-        $now = $now ?? now();
-        $device = Device::query()
-            ->where('reference', self::DEVICE_REFERENCE)
-            ->first(['last_seen_at']);
-
-        if ($device?->last_seen_at === null) {
-            return true;
-        }
-
-        return $device->last_seen_at->lte(
-            \Illuminate\Support\Carbon::instance($now)->subMinutes($this->refreshMinutes()),
-        );
+        return self::REFRESH_MINUTES;
     }
 
     public function staleMinutes(): int
     {
-        return $this->refreshMinutes() * 2;
+        return self::REFRESH_MINUTES * 2;
     }
 
     /**

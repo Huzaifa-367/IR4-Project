@@ -436,9 +436,9 @@ final class SettingsRegistry
                 'requires_confirm' => false,
                 'label' => 'Weather API refresh interval',
                 'unit' => 'minutes',
-                'min' => 5,
-                'max' => 1440,
-                'description' => 'How often the scheduler polls OpenWeatherMap (manual artisan always fetches).',
+                'min' => 60,
+                'max' => 60,
+                'description' => 'Fixed at 60 — scheduler records one OpenWeatherMap snapshot per hour.',
             ],
 
             'equipment.public_rate_limit_per_min' => [
