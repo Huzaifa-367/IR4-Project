@@ -17,6 +17,7 @@ import { gasInfo } from '@/lib/analytics-info';
 import { buildTrendChartData, trendChartSeries } from '@/lib/trend-chart';
 import { visitFilters } from '@/lib/visit-filters';
 import gas from '@/routes/gas';
+import settings from '@/routes/settings';
 import { GasTypeLabels } from '@/types/enums';
 import type {
     GasDashboardSnapshot,
@@ -335,7 +336,11 @@ export default function GasDashboard({
                         </Button>
                         {canManageThresholds ? (
                             <Button asChild size="sm" variant="outline">
-                                <Link href={gas.thresholds.index()}>
+                                <Link
+                                    href={settings.general.edit({
+                                        query: { tab: 'gas' },
+                                    })}
+                                >
                                     Thresholds
                                 </Link>
                             </Button>

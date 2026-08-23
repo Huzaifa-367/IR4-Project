@@ -140,7 +140,11 @@ export default function ReportsIndex({
                     <>
                         {canManageSettings && (
                             <Button variant="outline" asChild>
-                                <Link href={settings.reports.edit()}>
+                                <Link
+                                    href={settings.general.edit({
+                                        query: { tab: 'reports' },
+                                    })}
+                                >
                                     Settings
                                 </Link>
                             </Button>

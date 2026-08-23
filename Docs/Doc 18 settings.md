@@ -176,7 +176,7 @@ There is no `/display` kiosk and no `display.*` settings. The 55″ wall is a wo
 
 - **`GET /settings/general`** (Inertia) — SettingsPage: keys grouped by the §4 sections, each rendered by type (toggle, number, time, enum select). A key shows as editable only if the user holds its edit permission; safety-critical and security keys (gas thresholds, session timeout, retention) require a **confirm dialog** with the old→new shown.
 - Every save calls `SettingsService::set` → validates → audits (`config_changed`, DOC-17). The UI shows "last changed by/at" per key.
-- Gas thresholds have their own editor (DOC-11 `/gas/thresholds`) since they're safety-critical rows, not simple key/values; the general editor links to it.
+- Gas thresholds live on the general settings Gas tab (`/settings/general?tab=gas`) since they're safety-critical rows, not simple key/values; `view-gas-thresholds` / `update-gas-thresholds` gate the table.
 - Invalid values (out of range/type) are rejected with a clear inline error (DOC-01 error contract).
 
 ---

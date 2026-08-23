@@ -606,18 +606,18 @@ final class SettingsRegistry
     public static function groupLabels(): array
     {
         return [
-            'general' => 'Administration — General',
-            'auth' => 'Administration — Auth & session',
+            'general' => 'General',
+            'auth' => 'Auth & session',
             'alerts' => 'Alerts',
-            'ingest' => 'Administration — Ingestion & real-time',
-            'health' => 'Administration — Hardware health',
+            'ingest' => 'Ingestion',
+            'health' => 'Hardware health',
             'tracking' => 'Tracking / RFID',
             'gas' => 'Gas',
-            'environment' => 'Dashboard — Environment',
-            'weather' => 'Dashboard — Weather',
-            'equipment' => 'Equipment / QR',
+            'environment' => 'Environment',
+            'weather' => 'Weather',
+            'equipment' => 'Equipment',
             'reports' => 'Reports',
-            'retention' => 'Administration — Retention & backup',
+            'retention' => 'Retention',
         ];
     }
 

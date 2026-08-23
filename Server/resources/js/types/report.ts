@@ -54,10 +54,3 @@ export type WeeklyReport = {
     data: WeeklyReportData;
     created_at: string | null;
 };
-
-export type ReportSettings = {
-    generation_day: string;
-    generation_time: string;
-    auto_publish: boolean;
-    completeness_threshold_pct: number;
-};

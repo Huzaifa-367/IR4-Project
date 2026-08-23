@@ -8,6 +8,8 @@ type Props = {
     errors: Record<string, string>;
     onChange: (key: string, value: string | number | boolean) => void;
     footer?: ReactNode;
+    /** Hide title when a parent tab already names the module. */
+    showHeader?: boolean;
 };
 
 export function SettingGroup({
@@ -16,15 +18,18 @@ export function SettingGroup({
     errors,
     onChange,
     footer,
+    showHeader = true,
 }: Props) {
     return (
         <section className="flex flex-col gap-4 rounded-[var(--radius-sm)] border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
-            <div>
-                <p className="eyebrow">{group.key}</p>
-                <h2 className="font-display text-base font-semibold tracking-tight text-text">
-                    {group.label}
-                </h2>
-            </div>
+            {showHeader ? (
+                <div>
+                    <p className="eyebrow">{group.key}</p>
+                    <h2 className="font-display text-base font-semibold tracking-tight text-text">
+                        {group.label}
+                    </h2>
+                </div>
+            ) : null}
             <div className="grid gap-5">
                 {group.settings.map((setting) => (
                     <SettingField

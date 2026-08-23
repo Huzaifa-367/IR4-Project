@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Settings;
 
 use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\Settings\UpdateGeneralSettingsRequest;
+use App\Models\GasThreshold;
 use App\Services\Settings\SettingsService;
 use App\Support\SettingsRegistry;
 use Illuminate\Http\RedirectResponse;
@@ -27,9 +28,15 @@ final class GeneralSettingsController extends BaseController
             403,
         );
 
+        $canViewGasThresholds = $user->can('view-gas-thresholds')
+            || $user->can('update-gas-thresholds');
+
         return Inertia::render('settings/general/index', [
             'groups' => $settings->editorGroups($user),
-            'gasThresholdsUrl' => route('gas.thresholds.index'),
+            'gasThresholds' => $canViewGasThresholds
+                ? $this->gasThresholdRows()
+                : null,
+            'canUpdateGasThresholds' => $user->can('update-gas-thresholds'),
         ]);
     }
 
@@ -70,5 +77,30 @@ final class GeneralSettingsController extends BaseController
         ]);
 
         return back();
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function gasThresholdRows(): array
+    {
+        return GasThreshold::query()
+            ->with('updater')
+            ->orderBy('gas_type')
+            ->get()
+            ->map(fn (GasThreshold $threshold): array => [
+                'id' => $threshold->id,
+                'gas_type' => $threshold->gas_type->value,
+                'label' => $threshold->gas_type->label(),
+                'warning_level' => (float) $threshold->warning_level,
+                'alarm_level' => (float) $threshold->alarm_level,
+                'unit' => $threshold->unit,
+                'direction' => $threshold->direction->value,
+                'is_active' => $threshold->is_active,
+                'updated_by_name' => $threshold->updater?->name,
+                'updated_at' => $threshold->updated_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
     }
 }

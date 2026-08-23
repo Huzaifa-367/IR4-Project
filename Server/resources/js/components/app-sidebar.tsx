@@ -24,7 +24,6 @@ import {
     Shield,
     ShieldAlert,
     Siren,
-    SlidersHorizontal,
     Smartphone,
     Tag,
     TrendingUp,
@@ -431,15 +430,6 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('view-settings') || can('update-settings')
-            ? [
-                  {
-                      title: 'Report settings',
-                      href: settings.reports.edit(),
-                      icon: FileBarChart,
-                  } satisfies NavItem,
-              ]
-            : []),
         ...(can('view-zones') ||
         can('create-zones') ||
         can('update-zones') ||
@@ -454,15 +444,6 @@ export function AppSidebar() {
                       title: 'Repositioning',
                       href: settings.repositioning(),
                       icon: Move,
-                  } satisfies NavItem,
-              ]
-            : []),
-        ...(can('view-gas-thresholds') || can('update-gas-thresholds')
-            ? [
-                  {
-                      title: 'Gas thresholds',
-                      href: gas.thresholds.index(),
-                      icon: SlidersHorizontal,
                   } satisfies NavItem,
               ]
             : []),

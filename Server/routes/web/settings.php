@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
-use App\Http\Controllers\Web\Reports\WeeklyReportController;
 use App\Http\Controllers\Web\Settings\AuditLogController;
 use App\Http\Controllers\Web\Settings\GeneralSettingsController;
 use App\Http\Controllers\Web\Settings\ReaderBindingController;
@@ -34,12 +33,7 @@ Route::put('settings/general', [GeneralSettingsController::class, 'update'])
     ->middleware('permission:update-settings|update-alert-settings|update-gas-thresholds')
     ->name('settings.general.update');
 
-Route::get('settings/reports', [WeeklyReportController::class, 'settings'])
-    ->middleware('permission:view-settings|update-settings')
-    ->name('settings.reports.edit');
-Route::put('settings/reports', [WeeklyReportController::class, 'updateSettings'])
-    ->middleware('permission:update-settings')
-    ->name('settings.reports.update');
+Route::redirect('settings/reports', '/settings/general?tab=reports');
 
 Route::get('settings/audit-log', [AuditLogController::class, 'index'])
     ->middleware('permission:view-audit-log')

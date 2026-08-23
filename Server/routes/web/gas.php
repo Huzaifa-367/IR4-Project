@@ -21,9 +21,10 @@ Route::prefix('gas')->name('gas.')->group(function (): void {
         ->name('alarms.acknowledge');
 });
 
-Route::get('settings/gas-thresholds', [GasDashboardController::class, 'thresholds'])
-    ->middleware('permission:view-gas-thresholds')
-    ->name('gas.thresholds.index');
+Route::get('settings/gas-thresholds', function () {
+    return redirect('/settings/general?tab=gas');
+})->middleware('permission:view-gas-thresholds|update-gas-thresholds');
+
 Route::put('settings/gas-thresholds', [GasDashboardController::class, 'updateThresholds'])
     ->middleware('permission:update-gas-thresholds')
     ->name('gas.thresholds.update');

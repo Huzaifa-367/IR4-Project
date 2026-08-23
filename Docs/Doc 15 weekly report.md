@@ -191,7 +191,7 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 | Publish | POST `/weekly-reports/{report}/publish` | publish-reports |
 | Download | GET `/weekly-reports/{report}/download?format=` | view-reports |
 | Vehicle violations CRUD | `/vehicle-violations…` | log-vehicle-violations |
-| Report settings | GET/PUT `/settings/reports` | manage-settings |
+| Report settings | GET `/settings/general?tab=reports` (saved via PUT `/settings/general`) | update-settings |
 
 **Read-only-role & PM note:** Project Manager and read-only Client Representative roles (DOC-03) get **published reports only** — the list/detail controllers filter to `status=published` for those roles, and drafts/generated reports are invisible to them.
 
@@ -202,9 +202,9 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 - **`pages/reports/index.tsx`** — WeeklyReportListPage: history (period, status chips, supersede badges), **Generate Now** (period picker), download buttons.
 - **`pages/reports/show.tsx`** — WeeklyReportDetailPage: rendered sections i–ix with automation badges, completeness notes, publish button (when generated), supersede banner, downloads.
 - **`pages/hse/vehicle-violations/index.tsx`** — list + LogVehicleViolationModal (with required action-taken).
-- **`pages/settings/reports.tsx`** — schedule config (day/time/auto-publish).
+- **`pages/settings/general/index.tsx`** — Reports tab (`?tab=reports`): schedule config (day/time/auto-publish/week start/completeness).
 - **Components:** `AutomationBadge`, `ReportSectionRenderer` (one per item type), `CompletenessNote`, `SupersedeBanner`.
-- **Types (`types/hse.ts`):** `VehicleViolation`; **`types/report.ts`:** `WeeklyReport`, `ReportStatus`, `WeeklyReportData` (fully typed to the §4.3 contract), `ReportSettings`.
+- **Types (`types/hse.ts`):** `VehicleViolation`; **`types/report.ts`:** `WeeklyReport`, `ReportStatus`, `WeeklyReportData` (fully typed to the §4.3 contract).
 
 ---
 

@@ -135,7 +135,7 @@ Backfilled readings (>10 min old, DOC-08) are **stored and rolled up** but **do 
 
 ## 6. Thresholds management (③, `manage-gas-thresholds`)
 
-- **`GET /gas/thresholds`** (`view-gas`) / **`PUT /gas/thresholds`** (`manage-gas-thresholds`) — edit warning/alarm levels per gas. Every change writes a `config_changed` audit row with before/after (DOC-17) and shows "last changed by/at" in the UI. Only Safety-Manager-level roles hold this by default (DOC-03).
+- **`GET /settings/general?tab=gas`** (`view-gas-thresholds` / general settings access) / **`PUT /settings/gas-thresholds`** (`update-gas-thresholds`) — warning/alarm levels per gas on the Gas settings tab. Every change writes a `config_changed` audit row with before/after (DOC-17) and shows "last changed by/at" in the UI. Only Safety-Manager-level roles hold update by default (DOC-03).
 - Changing a threshold does **not** retroactively re-evaluate historical readings; it applies to subsequent live evaluations.
 
 ---
@@ -153,7 +153,7 @@ Backfilled readings (>10 min old, DOC-08) are **stored and rolled up** but **do 
 - **`pages/gas/index.tsx`** — GasDashboardPage: one **panel per device** — LEL/H₂S/O₂/CO gauges + a CO₂ tile — colored green/amber/red vs thresholds, a stale badge if telemetry is old, and an alarm banner strip. Live via the `gas` channel + poll fallback (DOC-08 §5.4).
 - **`pages/gas/trends/index.tsx`** — line charts (recharts), gas + device + range selectors.
 - **`pages/gas/alarms/index.tsx`** — alarm history with acknowledge action, resolved/`during_outage` badges.
-- **`pages/gas/thresholds/index.tsx`** — editable threshold table (role-gated), "last changed by/at".
+- **`components/ir4/settings/gas-thresholds-editor.tsx`** — editable threshold table on the Gas settings tab (role-gated), "last changed by/at".
 - **Components:** `GasGauge`, `GasDevicePanel`, `Co2Tile`, `ThresholdEditor`, `GasTrendChart`.
 - **Types (`types/gas.ts`):** `GasReading`, `GasType`, `GasThreshold`, `GasAlarm`, `GasAlarmLevel`, `GasLivePanel`, `GasTrendSeries`.
 - Panels update from `GasLiveUpdated`; alarm strip from `GasAlarmRaised`/`GasAlarmResolved`.
@@ -176,7 +176,7 @@ Backfilled readings (>10 min old, DOC-08) are **stored and rolled up** but **do 
 - **Hysteresis:** an alarm does **not** resolve on a single dip; resolves after two consecutive reads under the margin; no flapping at the threshold.
 - **Backfill-no-alarm:** backfilled exceedances create **no** alarm/alert but appear in trends/weekly stats flagged `during_outage`.
 - **Acknowledge:** sets fields + acknowledges the alert; ack ≠ resolve.
-- **Thresholds:** update requires `manage-gas-thresholds`, audited before/after; does not retro-evaluate history; O₂ has two rows.
+- **Thresholds:** Settings → General → Gas tab (`/settings/general?tab=gas`). `view-gas-thresholds` to see; `update-gas-thresholds` to edit. PUT `/settings/gas-thresholds` stays for saves. Audited before/after; does not retro-evaluate history; O₂ has two rows.
 - **Trends:** ≤24 h reads raw points; beyond reads SQL hourly aggregates over raw; series min/avg/max correct.
 - **Immutability:** no route updates reading values.
 - **Live/stale:** `/api/gas/live` returns latest per device with a stale badge past ~5 min.

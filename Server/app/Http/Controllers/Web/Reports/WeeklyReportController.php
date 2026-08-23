@@ -6,11 +6,9 @@ use App\Enums\AuditEvent;
 use App\Enums\ReportStatus;
 use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\Reports\GenerateWeeklyReportRequest;
-use App\Http\Requests\Web\Reports\UpdateReportSettingsRequest;
 use App\Models\WeeklyReport;
 use App\Services\Audit\AuditService;
 use App\Services\Report\WeeklyReportService;
-use App\Services\Settings\SettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -139,39 +137,5 @@ final class WeeklyReportController extends BaseController
         }
 
         return redirect()->away($result['url']);
-    }
-
-    public function settings(SettingsService $settings): InertiaResponse
-    {
-        abort_unless(request()->user()?->can('update-settings'), 403);
-
-        return Inertia::render('settings/reports', [
-            'settings' => [
-                'generation_day' => (string) $settings->get('report.generation_day', 'sunday'),
-                'generation_time' => (string) $settings->get('report.generation_time', '06:00'),
-                'auto_publish' => (bool) $settings->get('report.auto_publish', false),
-                'week_start' => (string) $settings->get('report.week_start', 'sunday'),
-                'completeness_threshold_pct' => (int) $settings->get('report.completeness_threshold_pct', 20),
-            ],
-        ]);
-    }
-
-    public function updateSettings(UpdateReportSettingsRequest $request, SettingsService $settings): RedirectResponse
-    {
-        $data = $request->validated();
-        $settings->set('report.generation_day', $data['generation_day']);
-        $settings->set('report.generation_time', $data['generation_time']);
-        $settings->set('report.auto_publish', (bool) $data['auto_publish']);
-        if (array_key_exists('week_start', $data)) {
-            $settings->set('report.week_start', $data['week_start']);
-        }
-        $settings->set('report.completeness_threshold_pct', (int) $data['completeness_threshold_pct']);
-
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => 'Report settings saved.',
-        ]);
-
-        return redirect()->route('settings.reports.edit');
     }
 }

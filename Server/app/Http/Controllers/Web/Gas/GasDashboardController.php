@@ -56,7 +56,8 @@ final class GasDashboardController extends BaseController
                 ->orderBy('name')
                 ->get(['id', 'uuid', 'name', 'reference']),
             'thresholds' => $thresholds,
-            'canManageThresholds' => $request->user()?->can('update-gas-thresholds') ?? false,
+            'canManageThresholds' => ($request->user()?->can('update-gas-thresholds') ?? false)
+                || ($request->user()?->can('view-gas-thresholds') ?? false),
             'canAcknowledge' => $request->user()?->can('acknowledge-alerts') ?? false,
         ]);
     }
@@ -169,29 +170,6 @@ final class GasDashboardController extends BaseController
         return redirect()->back();
     }
 
-    public function thresholds(Request $request): InertiaResponse
-    {
-        abort_unless($request->user()?->can('view-gas'), 403);
-
-        $rows = GasThreshold::query()->with('updater')->orderBy('gas_type')->get();
-
-        return Inertia::render('gas/thresholds/index', [
-            'thresholds' => $rows->map(fn (GasThreshold $t): array => [
-                'id' => $t->id,
-                'gas_type' => $t->gas_type->value,
-                'label' => $t->gas_type->label(),
-                'warning_level' => (float) $t->warning_level,
-                'alarm_level' => (float) $t->alarm_level,
-                'unit' => $t->unit,
-                'direction' => $t->direction->value,
-                'is_active' => $t->is_active,
-                'updated_by_name' => $t->updater?->name,
-                'updated_at' => $t->updated_at?->toIso8601String(),
-            ]),
-            'canManage' => $request->user()?->can('update-gas-thresholds') ?? false,
-        ]);
-    }
-
     public function updateThresholds(
         UpdateGasThresholdsRequest $request,
         GasMonitoringService $gas,
@@ -199,6 +177,11 @@ final class GasDashboardController extends BaseController
         /** @var User $user */
         $user = $request->user();
         $gas->updateThresholds($request->validated('thresholds'), $user);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Gas thresholds saved.',
+        ]);
 
         return redirect()->back();
     }

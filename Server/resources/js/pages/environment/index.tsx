@@ -190,7 +190,7 @@ export default function EnvironmentTrends({
                             No environmental readings yet. Configure a sensor or
                             weather API in{' '}
                             <Link
-                                href={settings.general.edit.url()}
+                                href={`${settings.general.edit.url()}?tab=weather`}
                                 className="text-[color:var(--accent)] underline-offset-2 hover:underline"
                             >
                                 settings
