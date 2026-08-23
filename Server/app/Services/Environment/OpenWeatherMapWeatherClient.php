@@ -9,8 +9,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * OpenWeatherMap Free Current Weather API (data/2.5/weather).
  *
- * Useful fields (units=metric): main.temp (°C), main.humidity (%), wind.speed (m/s),
- * plus main.feels_like, main.pressure, wind.deg, clouds.all, visibility, weather[].
+ * Maps main.temp / main.humidity; optional metadata goes in extra.
  */
 final class OpenWeatherMapWeatherClient
 {
@@ -20,7 +19,6 @@ final class OpenWeatherMapWeatherClient
      *     recorded_at_unix: int,
      *     temperature_c: float|null,
      *     humidity_pct: float|null,
-     *     wind_speed_ms: float|null,
      *     extra: array<string, float|int>
      * }|array{ok: false, error: string}
      */
@@ -62,7 +60,6 @@ final class OpenWeatherMapWeatherClient
         /** @var array<string, mixed> $payload */
         $payload = $response->json() ?? [];
         $main = is_array($payload['main'] ?? null) ? $payload['main'] : [];
-        $wind = is_array($payload['wind'] ?? null) ? $payload['wind'] : [];
         $clouds = is_array($payload['clouds'] ?? null) ? $payload['clouds'] : [];
         $weather = is_array($payload['weather'][0] ?? null) ? $payload['weather'][0] : [];
 
@@ -72,12 +69,6 @@ final class OpenWeatherMapWeatherClient
         }
         if (isset($main['pressure']) && is_numeric($main['pressure'])) {
             $extra['pressure_hpa'] = (float) $main['pressure'];
-        }
-        if (isset($wind['deg']) && is_numeric($wind['deg'])) {
-            $extra['wind_deg'] = (float) $wind['deg'];
-        }
-        if (isset($wind['gust']) && is_numeric($wind['gust'])) {
-            $extra['wind_gust_ms'] = (float) $wind['gust'];
         }
         if (isset($clouds['all']) && is_numeric($clouds['all'])) {
             $extra['clouds_pct'] = (float) $clouds['all'];
@@ -98,7 +89,6 @@ final class OpenWeatherMapWeatherClient
             'recorded_at_unix' => $dt,
             'temperature_c' => isset($main['temp']) && is_numeric($main['temp']) ? (float) $main['temp'] : null,
             'humidity_pct' => isset($main['humidity']) && is_numeric($main['humidity']) ? (float) $main['humidity'] : null,
-            'wind_speed_ms' => isset($wind['speed']) && is_numeric($wind['speed']) ? (float) $wind['speed'] : null,
             'extra' => $extra,
         ];
     }

@@ -31,7 +31,6 @@ final class EnvironmentalReadingFactory extends Factory
             'received_at' => $recordedAt,
             'temperature_c' => 28.5,
             'humidity_pct' => 55,
-            'wind_speed_ms' => 3.2,
             'extra' => null,
             'is_backfill' => false,
             'clock_skew' => false,

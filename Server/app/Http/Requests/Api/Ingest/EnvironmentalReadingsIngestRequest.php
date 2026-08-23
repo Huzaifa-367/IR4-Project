@@ -15,7 +15,6 @@ final class EnvironmentalReadingsIngestRequest extends IngestBatchRequest
             'events.*.recorded_at' => ['required', 'date'],
             'events.*.temperature_c' => ['nullable', 'numeric'],
             'events.*.humidity_pct' => ['nullable', 'numeric'],
-            'events.*.wind_speed_ms' => ['nullable', 'numeric'],
             'events.*.extra' => ['nullable', 'array'],
         ];
     }

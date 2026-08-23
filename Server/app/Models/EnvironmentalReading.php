@@ -16,7 +16,6 @@ use Illuminate\Support\Carbon;
  * @property Carbon $received_at
  * @property string|null $temperature_c
  * @property string|null $humidity_pct
- * @property string|null $wind_speed_ms
  * @property array<string, float|int>|null $extra
  * @property bool $is_backfill
  * @property bool $clock_skew
@@ -39,7 +38,6 @@ final class EnvironmentalReading extends Model
             'received_at' => 'datetime',
             'temperature_c' => 'decimal:2',
             'humidity_pct' => 'decimal:2',
-            'wind_speed_ms' => 'decimal:2',
             'extra' => 'array',
             'is_backfill' => 'boolean',
             'clock_skew' => 'boolean',

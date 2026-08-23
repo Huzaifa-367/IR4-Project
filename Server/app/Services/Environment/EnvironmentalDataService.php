@@ -22,11 +22,11 @@ use Illuminate\Support\Facades\Cache;
 
 final class EnvironmentalDataService
 {
+    /** Displayed ambient metrics — wind is stored on readings but not charted. */
     /** @var list<array{key: string, label: string, unit: string}> */
     private const CORE_METRICS = [
         ['key' => 'temperature_c', 'label' => 'Temperature', 'unit' => '°C'],
         ['key' => 'humidity_pct', 'label' => 'Humidity', 'unit' => '%'],
-        ['key' => 'wind_speed_ms', 'label' => 'Wind speed', 'unit' => 'm/s'],
     ];
 
     /** @var array<int, true> */
@@ -272,7 +272,6 @@ final class EnvironmentalDataService
         $column = match ($parameter) {
             'temperature_c' => $reading->temperature_c,
             'humidity_pct' => $reading->humidity_pct,
-            'wind_speed_ms' => $reading->wind_speed_ms,
             default => $reading->extra[$parameter] ?? null,
         };
 
@@ -296,7 +295,6 @@ final class EnvironmentalDataService
         $metrics = $this->metrics($event);
         if ($metrics['temperature_c'] === null
             && $metrics['humidity_pct'] === null
-            && $metrics['wind_speed_ms'] === null
             && $metrics['extra'] === null) {
             throw new IngestEventRejected('VALIDATION_FAILED');
         }
@@ -349,7 +347,7 @@ final class EnvironmentalDataService
 
     /**
      * @param  array<string, mixed>  $event
-     * @return array{temperature_c: ?float, humidity_pct: ?float, wind_speed_ms: ?float, extra: ?array<string, float>}
+     * @return array{temperature_c: ?float, humidity_pct: ?float, extra: ?array<string, float>}
      */
     private function metrics(array $event): array
     {
@@ -363,7 +361,6 @@ final class EnvironmentalDataService
         return [
             'temperature_c' => isset($event['temperature_c']) ? (float) $event['temperature_c'] : null,
             'humidity_pct' => isset($event['humidity_pct']) ? (float) $event['humidity_pct'] : null,
-            'wind_speed_ms' => isset($event['wind_speed_ms']) ? (float) $event['wind_speed_ms'] : null,
             'extra' => $extra !== [] ? $extra : null,
         ];
     }
@@ -406,7 +403,6 @@ final class EnvironmentalDataService
             'is_stale' => HardwarePresence::isTelemetryStale($recordedAt, $staleMinutes),
             'temperature_c' => $reading?->temperature_c !== null ? (float) $reading->temperature_c : null,
             'humidity_pct' => $reading?->humidity_pct !== null ? (float) $reading->humidity_pct : null,
-            'wind_speed_ms' => $reading?->wind_speed_ms !== null ? (float) $reading->wind_speed_ms : null,
             'extra' => $reading !== null ? ($reading->extra ?? []) : [],
         ];
     }

@@ -312,7 +312,6 @@
 
     $tempAvgs = collect($weatherDays)->map(fn ($d) => $d['temp']['avg'] ?? null)->filter(fn ($v) => $v !== null);
     $humidityAvgs = collect($weatherDays)->map(fn ($d) => $d['humidity']['avg'] ?? null)->filter(fn ($v) => $v !== null);
-    $windAvgs = collect($weatherDays)->map(fn ($d) => $d['wind']['avg'] ?? null)->filter(fn ($v) => $v !== null);
     $peakManpower = collect($manpowerDays)->max('peak');
     $avgManpower = collect($manpowerDays)->avg('average');
 
@@ -456,7 +455,7 @@
         [
             'item' => 'iv. Weather',
             'figure' => $fmt($tempAvgs->avg()).' °C',
-            'detail' => 'RH '.$fmt($humidityAvgs->avg(), 0).'% · Wind '.$fmt($windAvgs->avg()).' m/s',
+            'detail' => 'RH '.$fmt($humidityAvgs->avg(), 0).'%',
             'tone' => 'neutral',
         ],
         [
@@ -709,7 +708,6 @@
                 <tr>
                     <td><span class="num">{{ $fmt($tempAvgs->avg()) }}°</span><span class="lbl">Avg temp</span></td>
                     <td><span class="num">{{ $fmt($humidityAvgs->avg(), 0) }}%</span><span class="lbl">Avg RH</span></td>
-                    <td><span class="num">{{ $fmt($windAvgs->avg()) }}</span><span class="lbl">Avg wind m/s</span></td>
                     <td><span class="num">{{ count($weatherDays) }}</span><span class="lbl">Days</span></td>
                 </tr>
             </table>
@@ -722,7 +720,6 @@
                             <th>Day</th>
                             <th>Temp °C (min / avg / max)</th>
                             <th>Humidity % (min / avg / max)</th>
-                            <th>Wind m/s (min / avg / max)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -731,7 +728,6 @@
                             <td class="day">{{ $compactDate($row['date'] ?? null) }}</td>
                             <td class="num">{{ $mam(isset($row['temp']) && is_array($row['temp']) ? $row['temp'] : null) }}</td>
                             <td class="num">{{ $mam(isset($row['humidity']) && is_array($row['humidity']) ? $row['humidity'] : null) }}</td>
-                            <td class="num">{{ $mam(isset($row['wind']) && is_array($row['wind']) ? $row['wind'] : null) }}</td>
                         </tr>
                     @endforeach
                     </tbody>

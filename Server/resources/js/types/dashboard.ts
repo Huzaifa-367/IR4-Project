@@ -89,7 +89,6 @@ export type DashboardSummary = {
     weather?: {
         temperature_c: number | null;
         humidity_pct: number | null;
-        wind_speed_ms: number | null;
         updated_at: string | null;
         stale: boolean;
     };

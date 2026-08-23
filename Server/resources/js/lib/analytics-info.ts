@@ -91,15 +91,9 @@ export const environmentInfo = {
         items: ['Live value from the primary environmental source.'],
         source: 'environmental_readings · humidity_pct',
     },
-    wind: {
-        summary: 'Wind speed from environmental sensors or weather API.',
-        items: ['Live value from the primary environmental source.'],
-        source: 'environmental_readings · wind_speed_ms',
-    },
     trend: {
-        summary: 'Temperature, humidity, and wind speed on one chart.',
+        summary: 'Temperature and humidity on one chart.',
         items: [
-            'Only the three core ambient metrics are shown.',
             'Raw readings within 24 hours; hourly aggregates beyond that.',
         ],
         source: 'environmental_readings',

@@ -36,7 +36,6 @@ type DeviceStatusPayload = {
 type EnvironmentSensorPayload = {
     temperature_c?: number | null;
     humidity_pct?: number | null;
-    wind_speed_ms?: number | null;
     recorded_at?: string | null;
     is_stale?: boolean;
 };
@@ -348,7 +347,6 @@ function applyEnvironment(
         weather: {
             temperature_c: sensor.temperature_c ?? null,
             humidity_pct: sensor.humidity_pct ?? null,
-            wind_speed_ms: sensor.wind_speed_ms ?? null,
             updated_at: sensor.recorded_at ?? null,
             stale: Boolean(sensor.is_stale),
         },

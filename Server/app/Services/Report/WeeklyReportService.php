@@ -431,9 +431,6 @@ final class WeeklyReportService
                 'MIN(humidity_pct) as humidity_min',
                 'AVG(humidity_pct) as humidity_avg',
                 'MAX(humidity_pct) as humidity_max',
-                'MIN(wind_speed_ms) as wind_min',
-                'AVG(wind_speed_ms) as wind_avg',
-                'MAX(wind_speed_ms) as wind_max',
             ]))
             ->groupByRaw($dayExpr)
             ->orderBy('day')
@@ -454,11 +451,6 @@ final class WeeklyReportService
                     'min' => $row?->humidity_min !== null ? (float) $row->humidity_min : null,
                     'avg' => $row?->humidity_avg !== null ? round((float) $row->humidity_avg, 2) : null,
                     'max' => $row?->humidity_max !== null ? (float) $row->humidity_max : null,
-                ],
-                'wind' => [
-                    'min' => $row?->wind_min !== null ? (float) $row->wind_min : null,
-                    'avg' => $row?->wind_avg !== null ? round((float) $row->wind_avg, 2) : null,
-                    'max' => $row?->wind_max !== null ? (float) $row->wind_max : null,
                 ],
             ];
         }

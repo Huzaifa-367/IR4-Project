@@ -1,7 +1,7 @@
-import { CloudSun, Droplets, Wind  } from 'lucide-react';
-import type {LucideIcon} from 'lucide-react';
+import { CloudSun, Droplets, type LucideIcon } from 'lucide-react';
 import type { EnvironmentSensor } from '@/types/environment';
 
+/** Displayed ambient metrics (temperature + humidity). Wind is stored but not shown. */
 export const ENVIRONMENT_METRICS = [
     {
         key: 'temperature_c',
@@ -15,17 +15,8 @@ export const ENVIRONMENT_METRICS = [
         unit: '%',
         icon: Droplets,
     },
-    {
-        key: 'wind_speed_ms',
-        label: 'Wind speed',
-        unit: ' m/s',
-        icon: Wind,
-    },
 ] as const satisfies ReadonlyArray<{
-    key: keyof Pick<
-        EnvironmentSensor,
-        'temperature_c' | 'humidity_pct' | 'wind_speed_ms'
-    >;
+    key: keyof Pick<EnvironmentSensor, 'temperature_c' | 'humidity_pct'>;
     label: string;
     unit: string;
     icon: LucideIcon;

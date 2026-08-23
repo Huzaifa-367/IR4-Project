@@ -46,7 +46,7 @@ export const dashboardInfo = {
         summary:
             'Ambient site conditions from environmental sensors or the weather API.',
         items: [
-            'Temperature, humidity, and wind speed only.',
+            'Temperature and humidity only.',
             'Stale badge when the last reading is older than the health window.',
             'Live via the environment Reverb channel with a 60s poll fallback.',
         ],

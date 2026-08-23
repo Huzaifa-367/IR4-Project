@@ -222,9 +222,6 @@ function buildSummary(data: WeeklyReportData) {
     const weatherHumidity = weatherDays.map((day) =>
         num(asRecord(asRecord(day).humidity).avg),
     );
-    const weatherWind = weatherDays.map((day) =>
-        num(asRecord(asRecord(day).wind).avg),
-    );
 
     const manpowerDays = data.v_manpower?.per_day ?? [];
     const peakManpower = maxOf(
@@ -306,7 +303,7 @@ function buildSummary(data: WeeklyReportData) {
             key: 'iv_weather',
             label: 'iv. Weather',
             value: `${formatNumber(avgOf(weatherTemps))} °C`,
-            detail: `RH ${formatNumber(avgOf(weatherHumidity), 0)}% · Wind ${formatNumber(avgOf(weatherWind))} m/s`,
+            detail: `RH ${formatNumber(avgOf(weatherHumidity), 0)}%`,
             tone: 'neutral' as const,
         },
         {
@@ -493,7 +490,6 @@ function SectionBody({
             const row = asRecord(raw);
             const temp = asRecord(row.temp);
             const humidity = asRecord(row.humidity);
-            const wind = asRecord(row.wind);
 
             return {
                 date: formatDate(str(row.date)),
@@ -509,12 +505,6 @@ function SectionBody({
                     num(humidity.max),
                     '%',
                 ),
-                wind: rangeLabel(
-                    num(wind.min),
-                    num(wind.avg),
-                    num(wind.max),
-                    'm/s',
-                ),
             };
         });
 
@@ -524,7 +514,6 @@ function SectionBody({
                     { key: 'date', label: 'Date' },
                     { key: 'temp', label: 'Temp (min / avg / max)' },
                     { key: 'humidity', label: 'Humidity (min / avg / max)' },
-                    { key: 'wind', label: 'Wind (min / avg / max)' },
                 ]}
                 rows={rows}
             />

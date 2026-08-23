@@ -10,7 +10,6 @@ export type EnvironmentSensor = {
     is_stale: boolean;
     temperature_c: number | null;
     humidity_pct: number | null;
-    wind_speed_ms: number | null;
     extra: Record<string, number>;
     weather_source?: string;
 };

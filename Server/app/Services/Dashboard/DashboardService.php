@@ -241,7 +241,6 @@ final class DashboardService
             return [
                 'temperature_c' => null,
                 'humidity_pct' => null,
-                'wind_speed_ms' => null,
                 'updated_at' => null,
                 'stale' => false,
             ];
@@ -250,7 +249,6 @@ final class DashboardService
         return [
             'temperature_c' => $first['temperature_c'] ?? null,
             'humidity_pct' => $first['humidity_pct'] ?? null,
-            'wind_speed_ms' => $first['wind_speed_ms'] ?? null,
             'updated_at' => $first['recorded_at'] ?? null,
             'stale' => (bool) ($first['is_stale'] ?? true),
         ];

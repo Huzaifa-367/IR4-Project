@@ -65,7 +65,6 @@ final class WeatherIngestService
             'received_at' => $receivedAt,
             'temperature_c' => $result['temperature_c'],
             'humidity_pct' => $result['humidity_pct'],
-            'wind_speed_ms' => $result['wind_speed_ms'],
             'extra' => $extra !== [] ? $extra : null,
             'is_backfill' => false,
             'clock_skew' => false,

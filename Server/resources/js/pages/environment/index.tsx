@@ -161,7 +161,7 @@ export default function EnvironmentTrends({
                 </div>
 
                 {live ? (
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
                         {ENVIRONMENT_METRICS.map((metric) => {
                             const Icon = metric.icon;
 
@@ -207,7 +207,7 @@ export default function EnvironmentTrends({
                             info={environmentInfo.trend}
                             description={
                                 <>
-                                    Temperature · humidity · wind ·{' '}
+                                    Temperature · humidity ·{' '}
                                     {trends.source === 'raw-hourly'
                                         ? 'hourly aggregates'
                                         : 'raw readings'}{' '}

@@ -101,12 +101,11 @@ it('stores backfill without broadcasting', function () {
     ]);
     $recordedAt = now()->subHours(2)->startOfHour()->addMinutes(10);
 
-    foreach ([[20, 40, 2, 10], [30, 60, 4, 30]] as [$temperature, $humidity, $wind, $pm25]) {
+    foreach ([[20, 40, 10], [30, 60, 30]] as [$temperature, $humidity, $pm25]) {
         $this->postJson(route('api.ingest.environmental-readings'), [
             'events' => [environmentEvent([
                 'temperature_c' => $temperature,
                 'humidity_pct' => $humidity,
-                'wind_speed_ms' => $wind,
                 'extra' => ['pm25' => $pm25],
             ], recordedAt: $recordedAt->toIso8601String(), deviceReference: $device->reference)],
         ], environmentHeaders($token))->assertAccepted();
@@ -199,7 +198,6 @@ it('aggregates hourly from raw readings for windows longer than 24 hours', funct
         'received_at' => $recordedAt,
         'temperature_c' => 22,
         'humidity_pct' => 50,
-        'wind_speed_ms' => 3,
     ]);
     EnvironmentalReading::factory()->create([
         'device_id' => $device->id,
@@ -208,7 +206,6 @@ it('aggregates hourly from raw readings for windows longer than 24 hours', funct
         'received_at' => $recordedAt->copy()->addMinutes(30),
         'temperature_c' => 26,
         'humidity_pct' => 55,
-        'wind_speed_ms' => 4,
     ]);
 
     $this->actingAs($admin)

@@ -50,9 +50,9 @@ it('maps openweathermap current weather into an environmental reading', function
     expect($reading)->not->toBeNull()
         ->and((float) $reading->temperature_c)->toBe(36.5)
         ->and((float) $reading->humidity_pct)->toBe(12.0)
-        ->and((float) $reading->wind_speed_ms)->toBe(3.2)
         ->and($reading->extra)->toHaveKey('pressure_hpa')
-        ->and($reading->extra)->toHaveKey('weather_code');
+        ->and($reading->extra)->toHaveKey('weather_code')
+        ->and($reading->extra)->not->toHaveKey('wind_deg');
 
     $live = app(EnvironmentalDataService::class)->latest();
     expect($live)->toHaveCount(1)
@@ -79,7 +79,6 @@ it('keeps last api reading when openweathermap is unreachable', function () {
         'received_at' => now()->subHour(),
         'temperature_c' => 33.0,
         'humidity_pct' => 20.0,
-        'wind_speed_ms' => 1.5,
         'extra' => null,
         'is_backfill' => false,
         'clock_skew' => false,
@@ -109,7 +108,6 @@ it('keeps last api reading when openweathermap is unreachable', function () {
         'received_at' => now(),
         'temperature_c' => 99.0,
         'humidity_pct' => 50.0,
-        'wind_speed_ms' => 9.0,
         'extra' => null,
         'is_backfill' => false,
         'clock_skew' => false,
@@ -137,7 +135,6 @@ it('does not call openweathermap when live is read in sensor mode', function () 
         'received_at' => now(),
         'temperature_c' => 28.0,
         'humidity_pct' => 40.0,
-        'wind_speed_ms' => 2.0,
         'extra' => null,
         'is_backfill' => false,
         'clock_skew' => false,
