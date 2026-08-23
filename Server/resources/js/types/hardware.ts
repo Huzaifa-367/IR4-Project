@@ -47,6 +47,7 @@ export type DeviceRow = {
     device_type: DeviceType | string;
     device_type_label: string;
     status: HardwareStatus | string;
+    is_online: boolean;
     has_token: boolean;
     last_seen_at: string | null;
     asset: { id: number; uuid: string; name: string } | null;
@@ -60,6 +61,7 @@ export type CameraRow = {
     camera_type: CameraType | string;
     camera_type_label?: string;
     status: HardwareStatus | string;
+    is_online: boolean;
     ai_enabled: boolean;
     last_frame_at: string | null;
     stream_url?: string | null;

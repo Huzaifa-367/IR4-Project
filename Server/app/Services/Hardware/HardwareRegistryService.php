@@ -287,6 +287,45 @@ final class HardwareRegistryService
         return $device->fresh() ?? $device;
     }
 
+    /**
+     * Refresh camera liveness from a live MediaMTX path (or PPE frame).
+     * Restores Online unless operator-held Maintenance / Retired.
+     */
+    public function touchCameraPresence(Camera $camera, ?\DateTimeInterface $seenAt = null): Camera
+    {
+        if ($camera->status === HardwareStatus::Retired) {
+            return $camera;
+        }
+
+        $previousStatus = $camera->status;
+        $at = $seenAt ?? now();
+
+        if ($previousStatus === HardwareStatus::Maintenance) {
+            $camera->forceFill(['last_frame_at' => $at])->save();
+
+            return $camera->fresh() ?? $camera;
+        }
+
+        $camera->forceFill([
+            'last_frame_at' => $at,
+            'status' => HardwareStatus::Online,
+        ])->save();
+
+        $this->alerts->resolveByDedupeKey("camera_offline:{$camera->id}");
+
+        if ($previousStatus !== HardwareStatus::Online) {
+            broadcast(new DeviceStatusChanged(
+                $camera->id,
+                HardwareStatus::Online->value,
+                'camera',
+                $camera->name,
+                $camera->asset_id,
+            ));
+        }
+
+        return $camera->fresh() ?? $camera;
+    }
+
     private function deviceHasZoneBinding(Device $device): bool
     {
         if (! Schema::hasTable('reader_zone_bindings')) {

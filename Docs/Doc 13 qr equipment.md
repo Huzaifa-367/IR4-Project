@@ -182,7 +182,7 @@ Permissions: checkout/return require a role holding `update-equipment` (policy `
 
 Printing must be effortless — a single click on a record, or one action for a whole batch, sends the label straight to the ZT411 with no format-juggling.
 
-- **One-click print (single item):** a **Print** button on the equipment row/detail sends the label to the configured printer in one action — no format picker, no download step in the common case. The button calls `POST /equipment/{equipment}/print-label` which generates the ZPL (50×50 mm QR encoding `https://{host}/e/{qr_token}` + the `equipment_code` text line) and dispatches it to the printer via the configured method (§5.1).
+- **One-click print (single item):** a **Print** button on the equipment row/detail sends the label to the configured printer in one action — no format picker, no download step in the common case. The button calls `POST /equipment/{equipment}/print-label` which generates the ZPL (**3.15″ × 1.85″** / ~80×47 mm @ 203 dpi — **QR centered**, `equipment_code` along the bottom, encoding `https://{host}/e/{qr_token}`) and dispatches it to the printer via the configured method (§5.1).
 - **One-click bulk print:** on the list (and immediately after a CSV import) a **Print all / Print selected** action → `POST /equipment/print-labels {ids[]}` streams the concatenated ZPL for the whole batch to the printer in one run — the commissioning workflow (register 120 items → one click → all labels print).
 - **Reprint** is the same one click; the token is permanent so a reprinted label is identical (§1).
 

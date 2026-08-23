@@ -9,7 +9,9 @@ use App\Http\Requests\Settings\StoreDeviceRequest;
 use App\Http\Requests\Settings\UpdateDeviceRequest;
 use App\Models\Asset;
 use App\Models\Device;
+use App\Services\Hardware\AssetHealthService;
 use App\Services\Hardware\HardwareRegistryService;
+use App\Support\HardwarePresence;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -18,7 +20,7 @@ use Inertia\Response;
 
 final class DeviceController extends BaseController
 {
-    public function index(Request $request): Response
+    public function index(Request $request, AssetHealthService $health): Response
     {
         $this->authorize('viewAny', Device::class);
 
@@ -38,23 +40,31 @@ final class DeviceController extends BaseController
 
         return Inertia::render('hardware/devices/index', [
             'devices' => [
-                'data' => $paginator->getCollection()->map(fn (Device $device): array => [
-                    'id' => $device->id,
-                    'uuid' => $device->uuid,
-                    'name' => $device->name,
-                    'reference' => $device->reference,
-                    'serial_number' => $device->serial_number,
-                    'device_type' => $device->device_type->value,
-                    'device_type_label' => $device->device_type->label(),
-                    'status' => $device->status->value,
-                    'has_token' => $device->api_token_hash !== null,
-                    'last_seen_at' => $device->last_seen_at?->toIso8601String(),
-                    'asset' => $device->asset === null ? null : [
-                        'id' => $device->asset->id,
-                        'uuid' => $device->asset->uuid,
-                        'name' => $device->asset->name,
-                    ],
-                ]),
+                'data' => $paginator->getCollection()->map(function (Device $device) use ($health): array {
+                    $isOnline = HardwarePresence::isDeviceOnline(
+                        $device,
+                        $health->staleMinutesForDevice($device->device_type),
+                    );
+
+                    return [
+                        'id' => $device->id,
+                        'uuid' => $device->uuid,
+                        'name' => $device->name,
+                        'reference' => $device->reference,
+                        'serial_number' => $device->serial_number,
+                        'device_type' => $device->device_type->value,
+                        'device_type_label' => $device->device_type->label(),
+                        'status' => $device->status->value,
+                        'is_online' => $isOnline,
+                        'has_token' => $device->api_token_hash !== null,
+                        'last_seen_at' => $device->last_seen_at?->toIso8601String(),
+                        'asset' => $device->asset === null ? null : [
+                            'id' => $device->asset->id,
+                            'uuid' => $device->asset->uuid,
+                            'name' => $device->asset->name,
+                        ],
+                    ];
+                }),
                 'meta' => [
                     'current_page' => $paginator->currentPage(),
                     'last_page' => $paginator->lastPage(),

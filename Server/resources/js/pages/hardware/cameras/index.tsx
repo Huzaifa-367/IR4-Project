@@ -19,6 +19,10 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Switch } from '@/components/ui/switch';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
+import {
+    hardwarePresenceLabel,
+    hardwareStatusTone,
+} from '@/lib/hardware-presence';
 import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
 import settings from '@/routes/settings';
 import type { CameraRow, HardwareOption, Paginated } from '@/types/hardware';
@@ -32,22 +36,6 @@ type Props = {
 };
 
 type FormState = { mode: 'create' } | { mode: 'edit'; camera: CameraRow };
-
-function hardwareTone(status: string): 'ok' | 'warn' | 'crit' | 'neutral' {
-    if (status === 'online') {
-        return 'ok';
-    }
-
-    if (status === 'maintenance' || status === 'degraded') {
-        return 'warn';
-    }
-
-    if (status === 'retired' || status === 'fault' || status === 'offline') {
-        return 'crit';
-    }
-
-    return 'neutral';
-}
 
 export default function CamerasIndex({
     cameras,
@@ -123,12 +111,19 @@ export default function CamerasIndex({
         {
             key: 'status',
             header: 'Status',
-            cell: (camera) => (
-                <StatusPill
-                    label={camera.status}
-                    tone={hardwareTone(camera.status)}
-                />
-            ),
+            cell: (camera) => {
+                const label = hardwarePresenceLabel(
+                    camera.status,
+                    camera.is_online,
+                );
+
+                return (
+                    <StatusPill
+                        label={label}
+                        tone={hardwareStatusTone(label)}
+                    />
+                );
+            },
         },
         {
             key: 'ai',

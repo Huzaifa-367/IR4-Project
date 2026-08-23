@@ -211,7 +211,6 @@ export default function LiveWall({
                                             canControlPtz &&
                                             camera.can_control_ptz
                                         }
-                                        isOnline={camera.is_online}
                                     />
                                 ) : (
                                     <div className="flex size-full items-center justify-center text-xs text-text-faint">

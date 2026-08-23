@@ -203,14 +203,58 @@ final class CameraStreamGatewayService
         ];
     }
 
-    private function pathName(string $reference): string
+    /**
+     * Path names currently ready/online on MediaMTX (GET /v3/paths/list).
+     *
+     * @return list<string>
+     */
+    public function readyPathNames(): array
+    {
+        if (! $this->isConfigured()) {
+            return [];
+        }
+
+        try {
+            $response = $this->client()->get($this->url('/v3/paths/list'));
+            if (! $response->successful()) {
+                return [];
+            }
+
+            $items = $response->json('items');
+            if (! is_array($items)) {
+                return [];
+            }
+
+            $ready = [];
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $name = trim((string) ($item['name'] ?? ''));
+                if ($name === '') {
+                    continue;
+                }
+
+                if (($item['ready'] ?? false) === true || ($item['online'] ?? false) === true) {
+                    $ready[] = $name;
+                }
+            }
+
+            return $ready;
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /** MediaMTX path segment: keep readable refs, strip path separators. */
+    public function pathName(string $reference): string
     {
         $name = trim($reference);
         if ($name === '') {
             return 'unnamed';
         }
 
-        // MediaMTX path segment: keep readable refs, strip path separators.
         return str_replace(['/', '\\'], '-', $name);
     }
 

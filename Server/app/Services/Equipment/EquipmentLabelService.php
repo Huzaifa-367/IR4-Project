@@ -12,7 +12,12 @@ use Illuminate\Support\Facades\Log;
 
 final class EquipmentLabelService
 {
-    private const LABEL_DOTS = 400;
+    /** ZT411-203dpi media: 3.15″ × 1.85″ landscape (across head × feed). */
+    private const DPI = 203;
+
+    private const LABEL_WIDTH_DOTS = 639; // 3.15 × 203
+
+    private const LABEL_HEIGHT_DOTS = 376; // 1.85 × 203
 
     public function __construct(
         private readonly SettingsService $settings,
@@ -23,9 +28,9 @@ final class EquipmentLabelService
         return rtrim((string) config('app.url'), '/').'/e/'.$equipment->qr_token;
     }
 
-    public function png(Equipment $equipment, int $sizeMm = 50): string
+    public function png(Equipment $equipment, int $sizeMm = 47): string
     {
-        $size = max(100, (int) round($sizeMm / 25.4 * 203));
+        $size = max(100, (int) round($sizeMm / 25.4 * self::DPI));
 
         $result = (new Builder(
             writer: new PngWriter,
@@ -37,9 +42,9 @@ final class EquipmentLabelService
         return $result->getString();
     }
 
-    public function svg(Equipment $equipment, int $sizeMm = 50): string
+    public function svg(Equipment $equipment, int $sizeMm = 47): string
     {
-        $size = max(100, (int) round($sizeMm / 25.4 * 203));
+        $size = max(100, (int) round($sizeMm / 25.4 * self::DPI));
 
         $result = (new Builder(
             writer: new SvgWriter,
@@ -55,15 +60,23 @@ final class EquipmentLabelService
     {
         $url = $this->escapeZpl($this->publicUrl($equipment));
         $code = $this->escapeZpl($equipment->equipment_code);
-        $dots = self::LABEL_DOTS;
+        $w = self::LABEL_WIDTH_DOTS;
+        $h = self::LABEL_HEIGHT_DOTS;
+        // BQN mag 5 ≈ 200 dots for a typical /e/{uuid} URL — center on stock.
+        $qrSize = 200;
+        $qrX = (int) round(($w - $qrSize) / 2);
+        $qrY = (int) round(($h - $qrSize) / 2) - 28;
+        $textY = $h - 52;
 
         return implode("\n", [
             '^XA',
-            "^PW{$dots}",
-            "^LL{$dots}",
+            '^PON',
+            '^FWN',
+            "^PW{$w}",
+            "^LL{$h}",
             '^LH0,0',
-            "^FO40,40^BQN,2,5^FDQA,{$url}^FS",
-            "^FO40,320^A0N,28,28^FD{$code}^FS",
+            "^FO{$qrX},{$qrY}^BQN,2,5^FDQA,{$url}^FS",
+            "^FO0,{$textY}^FB{$w},1,0,C^A0N,40,40^FD{$code}^FS",
             '^XZ',
         ])."\n";
     }

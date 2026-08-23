@@ -12,6 +12,7 @@ use App\Services\Hardware\HardwareRegistryService;
 use App\Support\EdgeDeviceCredentials;
 use Database\Seeders\DeviceCredentialsSeeder;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
 
 it('registers assets devices and cameras', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
@@ -114,6 +115,7 @@ it('marks stale devices offline via health service', function () {
 
 it('broadcasts camera offline on markStale with asset_id', function () {
     Event::fake([DeviceStatusChanged::class]);
+    config()->set('camera_stream.mediamtx.api_url', '');
 
     $camera = Camera::factory()->create([
         'status' => HardwareStatus::Online,
@@ -132,6 +134,29 @@ it('broadcasts camera offline on markStale with asset_id', function () {
     );
 });
 
+it('keeps cameras online when MediaMTX path is ready', function () {
+    config()->set('camera_stream.mediamtx.api_url', 'http://mediamtx.test:9997');
+    Http::fake([
+        'mediamtx.test:9997/v3/paths/list' => Http::response([
+            'items' => [
+                ['name' => 'CAM-READY-01', 'ready' => true, 'online' => true],
+            ],
+        ], 200),
+    ]);
+
+    $camera = Camera::factory()->create([
+        'reference' => 'CAM-READY-01',
+        'status' => HardwareStatus::Offline,
+        'last_frame_at' => now()->subHours(2),
+    ]);
+
+    app(AssetHealthService::class)->markStale();
+
+    $fresh = $camera->fresh();
+    expect($fresh->status)->toBe(HardwareStatus::Online)
+        ->and($fresh->last_frame_at?->greaterThan(now()->subMinute()))->toBeTrue();
+});
+
 it('skips maintenance devices in markStale', function () {
     $device = Device::factory()->create([
         'status' => HardwareStatus::Maintenance,
@@ -141,6 +166,30 @@ it('skips maintenance devices in markStale', function () {
     app(AssetHealthService::class)->markStale();
 
     expect($device->fresh()->status)->toBe(HardwareStatus::Maintenance);
+});
+
+it('excludes system weather api from presence counts and markStale', function () {
+    $field = Device::factory()->create([
+        'status' => HardwareStatus::Online,
+        'last_seen_at' => now(),
+        'device_type' => \App\Enums\DeviceType::RfidReader,
+    ]);
+    $weather = Device::factory()->create([
+        'reference' => \App\Support\WeatherSettings::DEVICE_REFERENCE,
+        'status' => HardwareStatus::Online,
+        'last_seen_at' => now()->subHours(2),
+        'device_type' => \App\Enums\DeviceType::EnvironmentalSensor,
+        'asset_id' => null,
+    ]);
+
+    $counts = app(AssetHealthService::class)->devicePresenceCounts();
+    expect($counts['total'])->toBe(1)
+        ->and($counts['online'])->toBe(1);
+
+    app(AssetHealthService::class)->markStale();
+
+    expect($weather->fresh()->status)->toBe(HardwareStatus::Online)
+        ->and($field->fresh()->status)->toBe(HardwareStatus::Online);
 });
 
 it('keeps maintenance when heartbeat posts online', function () {

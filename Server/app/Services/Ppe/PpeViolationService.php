@@ -14,6 +14,7 @@ use App\Models\PpeViolation;
 use App\Models\User;
 use App\Models\Zone;
 use App\Services\Alert\AlertService;
+use App\Services\Hardware\HardwareRegistryService;
 use App\Services\Storage\SignedStorageUrlService;
 use App\Services\Tracking\TrackingService;
 use App\Support\Ingest\IngestEventRejected;
@@ -36,6 +37,7 @@ final class PpeViolationService
         private readonly AlertService $alerts,
         private readonly TrackingService $tracking,
         private readonly SignedStorageUrlService $signedUrls,
+        private readonly HardwareRegistryService $hardware,
     ) {}
 
     /**
@@ -397,7 +399,7 @@ final class PpeViolationService
         $normalized = $this->timestamps->normalize(Carbon::parse((string) $event['detected_at']));
         $detectedAt = $normalized['recorded_at'];
 
-        $camera->forceFill(['last_frame_at' => $normalized['received_at']])->save();
+        $camera = $this->hardware->touchCameraPresence($camera, $normalized['received_at']);
 
         $violationType = ViolationType::tryFrom($eventType);
         if ($violationType === null) {

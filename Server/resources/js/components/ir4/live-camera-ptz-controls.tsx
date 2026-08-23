@@ -18,7 +18,6 @@ type Props = {
     cameraName: string;
     ptzUrl: string;
     enabled?: boolean;
-    isOnline?: boolean;
     onInteract?: () => void;
     className?: string;
 };
@@ -28,11 +27,10 @@ export function LiveCameraPtzControls({
     cameraName,
     ptzUrl,
     enabled = true,
-    isOnline = true,
     onInteract,
     className,
 }: Props) {
-    const canOperate = enabled && isOnline;
+    const canOperate = enabled;
     const { activeKey, isBusy, nudge, stop } = useCameraPtz(ptzUrl, canOperate);
 
     const handleNudge = (key: PtzMoveKey): void => {
@@ -71,11 +69,6 @@ export function LiveCameraPtzControls({
                     PTZ · {cameraName}
                 </div>
             </div>
-            {!isOnline && (
-                <p className="mb-2 text-xs text-[color:var(--warn)]">
-                    Camera offline — PTZ disabled until the stream recovers.
-                </p>
-            )}
             <div className="flex items-end gap-4">
                 <div className="grid grid-cols-3 gap-1">
                     <div />

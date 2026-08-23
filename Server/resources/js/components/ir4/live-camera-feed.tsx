@@ -12,7 +12,6 @@ type Props = {
     cameraName?: string;
     ptzUrl?: string | null;
     canControlPtz?: boolean;
-    isOnline?: boolean;
 };
 
 /**
@@ -41,7 +40,6 @@ export function LiveCameraFeed({
     cameraName,
     ptzUrl = null,
     canControlPtz = false,
-    isOnline = true,
 }: Props) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -211,7 +209,6 @@ export function LiveCameraFeed({
                     cameraName={cameraName ?? title}
                     ptzUrl={ptzUrl}
                     enabled={canControlPtz}
-                    isOnline={isOnline}
                     onInteract={nudgeLiveEdge}
                     className="absolute bottom-4 left-4 z-10"
                 />

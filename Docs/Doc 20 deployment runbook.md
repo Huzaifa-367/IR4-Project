@@ -85,7 +85,7 @@ Three surfaces (DOC-01 §3) with different exposure, enforced at Nginx + host fi
 
 - Connect the Zebra ZT411 to the LAN; assign a static IP; set deploy-only env vars `EQUIPMENT_PRINTER_HOST` / `EQUIPMENT_PRINTER_PORT` (9100). These are **not** runtime settings (DOC-18).
 - Register it as a `qr_printer` device (DOC-05) for inventory/health (non-critical).
-- The app sends **raw ZPL over TCP :9100** for one-click printing (DOC-13 §5); verify with a test label at commissioning. Media: 50×50 mm labels; calibrate once.
+- The app sends **raw ZPL over TCP :9100** for one-click printing (DOC-13 §5); verify with a test label at commissioning. Media: **3.15″ × 1.85″** labels @ 203 dpi; calibrate once.
 - Fallback: if unreachable, the app offers a `.zpl`/PDF download (DOC-13) so labeling isn't blocked.
 
 ---

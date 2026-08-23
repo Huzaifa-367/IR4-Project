@@ -113,6 +113,8 @@ it('renders zpl encoding the public qr url and falls back when printer missing',
 
     $zpl = $labels->zpl($equipment);
     expect($zpl)->toContain('^XA')
+        ->and($zpl)->toContain('^PW639')
+        ->and($zpl)->toContain('^LL376')
         ->and($zpl)->toContain('/e/'.$equipment->qr_token)
         ->and($zpl)->toContain($equipment->equipment_code);
 

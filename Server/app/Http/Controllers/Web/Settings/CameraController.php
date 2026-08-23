@@ -9,7 +9,9 @@ use App\Http\Requests\Settings\StoreCameraRequest;
 use App\Http\Requests\Settings\UpdateCameraRequest;
 use App\Models\Asset;
 use App\Models\Camera;
+use App\Services\Hardware\AssetHealthService;
 use App\Services\Hardware\HardwareRegistryService;
+use App\Support\HardwarePresence;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -18,7 +20,7 @@ use Inertia\Response;
 
 final class CameraController extends BaseController
 {
-    public function index(Request $request): Response
+    public function index(Request $request, AssetHealthService $health): Response
     {
         $this->authorize('viewAny', Camera::class);
 
@@ -31,26 +33,32 @@ final class CameraController extends BaseController
         $this->applyListQuery($query, $request, ['name', 'reference', 'status', 'created_at'], ['name', 'reference'], 'name', 'asc');
 
         $paginator = $query->paginate($this->perPage($request))->withQueryString();
+        $staleMinutes = $health->staleMinutesForCamera();
 
         return Inertia::render('hardware/cameras/index', [
             'cameras' => [
-                'data' => $paginator->getCollection()->map(fn (Camera $camera): array => [
-                    'id' => $camera->id,
-                    'uuid' => $camera->uuid,
-                    'name' => $camera->name,
-                    'reference' => $camera->reference,
-                    'camera_type' => $camera->camera_type->value,
-                    'camera_type_label' => $camera->camera_type->label(),
-                    'status' => $camera->status->value,
-                    'ai_enabled' => $camera->ai_enabled,
-                    'last_frame_at' => $camera->last_frame_at?->toIso8601String(),
-                    'stream_url' => $camera->stream_url,
-                    'asset' => $camera->asset === null ? null : [
-                        'id' => $camera->asset->id,
-                        'uuid' => $camera->asset->uuid,
-                        'name' => $camera->asset->name,
-                    ],
-                ]),
+                'data' => $paginator->getCollection()->map(function (Camera $camera) use ($staleMinutes): array {
+                    $isOnline = HardwarePresence::isCameraOnline($camera, $staleMinutes);
+
+                    return [
+                        'id' => $camera->id,
+                        'uuid' => $camera->uuid,
+                        'name' => $camera->name,
+                        'reference' => $camera->reference,
+                        'camera_type' => $camera->camera_type->value,
+                        'camera_type_label' => $camera->camera_type->label(),
+                        'status' => $camera->status->value,
+                        'is_online' => $isOnline,
+                        'ai_enabled' => $camera->ai_enabled,
+                        'last_frame_at' => $camera->last_frame_at?->toIso8601String(),
+                        'stream_url' => $camera->stream_url,
+                        'asset' => $camera->asset === null ? null : [
+                            'id' => $camera->asset->id,
+                            'uuid' => $camera->asset->uuid,
+                            'name' => $camera->asset->name,
+                        ],
+                    ];
+                }),
                 'meta' => [
                     'current_page' => $paginator->currentPage(),
                     'last_page' => $paginator->lastPage(),

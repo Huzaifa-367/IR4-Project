@@ -21,6 +21,10 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
+import {
+    hardwarePresenceLabel,
+    hardwareStatusTone,
+} from '@/lib/hardware-presence';
 import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
 import settings from '@/routes/settings';
 import type {
@@ -40,22 +44,6 @@ type Props = {
 };
 
 type FormState = { mode: 'create' } | { mode: 'edit'; device: DeviceRow };
-
-function hardwareTone(status: string): 'ok' | 'warn' | 'crit' | 'neutral' {
-    if (status === 'online') {
-        return 'ok';
-    }
-
-    if (status === 'maintenance' || status === 'degraded') {
-        return 'warn';
-    }
-
-    if (status === 'retired' || status === 'fault' || status === 'offline') {
-        return 'crit';
-    }
-
-    return 'neutral';
-}
 
 export default function DevicesIndex({
     devices,
@@ -140,12 +128,16 @@ export default function DevicesIndex({
         {
             key: 'status',
             header: 'Status',
-            cell: (device) => (
-                <StatusPill
-                    label={device.status}
-                    tone={hardwareTone(device.status)}
-                />
-            ),
+            cell: (device) => {
+                const label = hardwarePresenceLabel(
+                    device.status,
+                    device.is_online,
+                );
+
+                return (
+                    <StatusPill label={label} tone={hardwareStatusTone(label)} />
+                );
+            },
         },
         {
             key: 'token',

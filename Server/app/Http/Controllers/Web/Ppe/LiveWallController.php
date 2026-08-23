@@ -8,8 +8,8 @@ use App\Http\Controllers\Web\BaseController;
 use App\Models\Camera;
 use App\Models\PpeViolation;
 use App\Models\User;
+use App\Services\Hardware\AssetHealthService;
 use App\Services\Ppe\PpeViolationService;
-use App\Services\Settings\SettingsService;
 use App\Support\ApiResponse;
 use App\Support\HardwarePresence;
 use Illuminate\Http\JsonResponse;
@@ -61,7 +61,7 @@ final class LiveWallController extends BaseController
     private function cameraRows(?User $user = null): array
     {
         $playbackUrlTemplate = config('camera_stream.browser_url_template');
-        $cameraStaleMinutes = (int) app(SettingsService::class)->get('health.camera_stale_minutes', 3);
+        $cameraStaleMinutes = app(AssetHealthService::class)->staleMinutesForCamera();
 
         return Camera::query()
             ->operational()

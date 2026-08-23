@@ -12,7 +12,9 @@ use App\Models\Asset;
 use App\Models\Camera;
 use App\Models\Device;
 use App\Services\Alert\AlertService;
+use App\Services\Camera\CameraStreamGatewayService;
 use App\Services\Settings\SettingsService;
+use App\Support\HardwarePresence;
 use Illuminate\Support\Carbon;
 
 final class AssetHealthService
@@ -20,13 +22,18 @@ final class AssetHealthService
     public function __construct(
         private readonly AlertService $alerts,
         private readonly SettingsService $settings,
+        private readonly CameraStreamGatewayService $cameraStreams,
+        private readonly HardwareRegistryService $hardware,
     ) {}
 
     public function markStale(?\DateTimeInterface $now = null): void
     {
         $now = Carbon::instance($now ?? now());
 
+        $this->refreshCamerasFromMediaMtx($now);
+
         Device::query()
+            ->fieldHardware()
             ->whereNotIn('status', [
                 HardwareStatus::Maintenance->value,
                 HardwareStatus::Retired->value,
@@ -37,7 +44,7 @@ final class AssetHealthService
                     return;
                 }
 
-                $threshold = $this->deviceThresholdMinutes($device->device_type);
+                $threshold = $this->staleMinutesForDevice($device->device_type);
                 $staleBefore = $now->copy()->subMinutes($threshold);
 
                 if ($device->last_seen_at !== null && $device->last_seen_at->greaterThan($staleBefore)) {
@@ -123,6 +130,34 @@ final class AssetHealthService
             });
     }
 
+    /**
+     * MediaMTX ready/online paths count as live frames (DOC-05 last_frame_at).
+     * Keeps Live Wall in sync when PPE ingest is quiet but RTSP is flowing.
+     */
+    private function refreshCamerasFromMediaMtx(Carbon $now): void
+    {
+        $ready = $this->cameraStreams->readyPathNames();
+        if ($ready === []) {
+            return;
+        }
+
+        $readySet = array_fill_keys($ready, true);
+
+        Camera::query()
+            ->whereNotIn('status', [
+                HardwareStatus::Maintenance->value,
+                HardwareStatus::Retired->value,
+            ])
+            ->each(function (Camera $camera) use ($readySet, $now): void {
+                $path = $this->cameraStreams->pathName($camera->reference);
+                if (! isset($readySet[$path])) {
+                    return;
+                }
+
+                $this->hardware->touchCameraPresence($camera, $now);
+            });
+    }
+
     public function systemHealthSnapshot(): array
     {
         return Asset::query()
@@ -133,12 +168,18 @@ final class AssetHealthService
             ->map(function (Asset $asset): array {
                 $offline = [];
                 foreach ($asset->devices as $device) {
-                    if (in_array($device->status, [HardwareStatus::Offline, HardwareStatus::Fault], true)) {
+                    if (in_array($device->status, [HardwareStatus::Maintenance, HardwareStatus::Retired], true)) {
+                        continue;
+                    }
+                    if (! HardwarePresence::isDeviceOnline($device, $this->staleMinutesForDevice($device->device_type))) {
                         $offline[] = $device->name;
                     }
                 }
                 foreach ($asset->cameras as $camera) {
-                    if (in_array($camera->status, [HardwareStatus::Offline, HardwareStatus::Fault], true)) {
+                    if (in_array($camera->status, [HardwareStatus::Maintenance, HardwareStatus::Retired], true)) {
+                        continue;
+                    }
+                    if (! HardwarePresence::isCameraOnline($camera, $this->staleMinutesForCamera())) {
                         $offline[] = $camera->name;
                     }
                 }
@@ -177,6 +218,7 @@ final class AssetHealthService
         );
 
         $devices = Device::query()
+            ->fieldHardware()
             ->whereIn('device_type', $criticalTypes)
             ->whereNotIn('status', [
                 HardwareStatus::Retired->value,
@@ -189,11 +231,14 @@ final class AssetHealthService
                         fn ($asset) => $asset->where('status', '!=', AssetStatus::Offline->value),
                     );
             })
-            ->get(['id', 'status']);
+            ->get(['id', 'status', 'device_type', 'last_seen_at']);
 
         $total = $devices->count();
         $online = $devices
-            ->filter(static fn (Device $device): bool => $device->status === HardwareStatus::Online)
+            ->filter(fn (Device $device): bool => HardwarePresence::isDeviceOnline(
+                $device,
+                $this->staleMinutesForDevice($device->device_type),
+            ))
             ->count();
 
         return [
@@ -202,7 +247,7 @@ final class AssetHealthService
         ];
     }
 
-    private function deviceThresholdMinutes(DeviceType $type): int
+    public function staleMinutesForDevice(DeviceType $type): int
     {
         $key = match ($type) {
             DeviceType::RfidReader => 'health.reader_stale_minutes',
@@ -220,5 +265,10 @@ final class AssetHealthService
         };
 
         return (int) $this->settings->get($key, $default);
+    }
+
+    public function staleMinutesForCamera(): int
+    {
+        return (int) $this->settings->get('health.camera_stale_minutes', 3);
     }
 }
