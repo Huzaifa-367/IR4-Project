@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 
 /**
  * Path ② weather ingest: OpenWeatherMap Current Weather → environmental_readings.
- * Each successful API call writes one DB row. No cache, no interval skip.
+ * Interval is enforced by the scheduler when() on weather.refresh_minutes.
  */
 final class WeatherIngestService
 {

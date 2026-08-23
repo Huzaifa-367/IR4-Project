@@ -80,6 +80,30 @@ final class WeatherSettings
         return max(self::REFRESH_MINUTES_MIN, min(self::REFRESH_MINUTES_MAX, $minutes));
     }
 
+    /**
+     * Whether the scheduler should run ir4:fetch-weather-api now.
+     * Evaluated at schedule:run time only — never at console.php load.
+     */
+    public function isApiFetchDue(?\DateTimeInterface $now = null): bool
+    {
+        if (! $this->usesApi()) {
+            return false;
+        }
+
+        $now = $now ?? now();
+        $device = Device::query()
+            ->where('reference', self::DEVICE_REFERENCE)
+            ->first(['last_seen_at']);
+
+        if ($device?->last_seen_at === null) {
+            return true;
+        }
+
+        return $device->last_seen_at->lte(
+            \Illuminate\Support\Carbon::instance($now)->subMinutes($this->refreshMinutes()),
+        );
+    }
+
     public function staleMinutes(): int
     {
         return $this->refreshMinutes() * 2;
