@@ -15,7 +15,7 @@ Design rules: `Docs/` DOC-01…22 · Full ops depth: [DOC-20](Docs/Doc%2020%20de
 | Backup volume   | `/data/ir4-backups` (separate disk; must be mounted in Lerd)      |
 | Scripts on SCC  | `/data2/laravel/IR4-Project/scripts/01-setup.sh` … `05-update.sh` |
 
-**Pole split and field IPs:** [EdgeCompute/docs/site-network.md](EdgeCompute/docs/site-network.md) — SCC2 = poles **1–4**, SCC1 = poles **5–8**. Remote access is **SSH over Tailscale only** (no AnyDesk / KVM).
+**Pole split and field IPs:** [site-network.md](site-network.md) — SCC2 = poles **1–4**, SCC1 = poles **5–8**. Remote access is **SSH over Tailscale only** (no AnyDesk / KVM).
 
 Laptop → Tailscale → `https://ir4-project.test` (mount `/data2`, re-link Lerd, hosts file): [SCC-REMOTE-ACCESS.md](SCC-REMOTE-ACCESS.md).
 
@@ -648,12 +648,16 @@ Then open `https://ir4-project.test/login`.
 
 ```bash
 sudo reboot
-# after reboot:
+# after reboot — always as the deploy user (scc1 / scc2), not a second Linux profile:
+export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
+mountpoint /data2 && lerd start
 systemctl is-active ir4.target
 lerd worker list
 curl -sk https://ir4-project.test/up    # mode B; or http://<SCC-IP>:9100/up for mode A
 ls -lah /data/ir4-backups/IR4/
 ```
+
+If `mountpoint /data2` fails, see [SCC-REMOTE-ACCESS.md §1](SCC-REMOTE-ACCESS.md#1-confirm-the-2-tb-app-disk-is-actually-mounted) before `lerd start`.
 
 Full acceptance: [DOC-20 §10](Docs/Doc%2020%20deployment%20runbook.md).
 
@@ -665,7 +669,7 @@ Full acceptance: [DOC-20 §10](Docs/Doc%2020%20deployment%20runbook.md).
 
 Poles **1–4** ingest to **SCC2**. Each Jetson uses the SCC IP on **that pole’s VLAN** (port `9100`), not the office LAN and not `https://ir4-project.test`.
 
-Authoritative IPs: [EdgeCompute/docs/site-network.md](EdgeCompute/docs/site-network.md).
+Authoritative IPs: [site-network.md](site-network.md).
 
 ### 12a. `IR4_BASE_URL` (EdgeCompute secrets)
 
@@ -919,7 +923,7 @@ Paste these as `stream_url` on each camera in Hardware → Cameras. Path is Hikv
 - **SCC2 (poles 1–4):** `admin` / `Unity@320@`
 - **SCC1 (poles 5–8):** `admin` / `UNity@320@`
 
-VLAN map: [EdgeCompute/docs/site-network.md](EdgeCompute/docs/site-network.md). Play from a host on that pole’s VLAN (SCC2 for poles **1–4**, SCC1 for poles **5–8**).
+VLAN map: [site-network.md](site-network.md). Play from a host on that pole’s VLAN (SCC2 for poles **1–4**, SCC1 for poles **5–8**).
 
 ```bash
 ffplay -rtsp_transport tcp "rtsp://admin:Unity@320@@172.16.2.10:554/Streaming/Channels/101"

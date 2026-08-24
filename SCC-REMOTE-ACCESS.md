@@ -1,6 +1,6 @@
 # SCC remote access runbook (laptop → Tailscale → Lerd HTTPS)
 
-How to reach an already-installed IR4 SCC from a Mac/Linux laptop when you are **not** on the site LAN. This is **not** a fresh install — that is [SCC-SETUP.md](SCC-SETUP.md). Field IPs: [EdgeCompute/docs/site-network.md](EdgeCompute/docs/site-network.md).
+How to reach an already-installed IR4 SCC from a Mac/Linux laptop when you are **not** on the site LAN. This is **not** a fresh install — that is [SCC-SETUP.md](SCC-SETUP.md). Field IPs: [site-network.md](site-network.md).
 
 Worked example below is **SCC1** (poles 5–8). The same sequence was used on **SCC2** (poles 1–4) on 14 Aug 2026 after a reboot left `/data2` unmounted.
 
@@ -28,6 +28,24 @@ SSH as the **Linux** user (`scc1` / `scc2`), not your Mac username.
 ```bash
 ssh scc1@100.96.105.106
 # or:  ssh scc1@scc1-poweredge-r360
+```
+
+### Post-reboot quick recovery
+
+After **any** reboot — regardless of which Linux user is logged in (SCC2 may have multiple desktop accounts like separate Windows profiles) — IR4 recovery is always run as the **deploy user** (`scc1` / `scc2`), not root and not a personal profile:
+
+```bash
+ssh scc2@100.118.103.39          # SCC2 — or scc1@… for SCC1 (see table above)
+export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
+mountpoint /data2 && lerd start
+```
+
+If `mountpoint /data2` fails, the app disk did not come up — follow **§1** before `lerd start`. If `:9100` or login still returns **502** after a healthy mount, run `lerd restart` (§1 §5) or re-link the site (§2). A stuck `/data2` journal (`jbd2/sda1` in `D` state, all PHP-FPM workers hung) may require a **reboot** before the above steps will succeed.
+
+Quick check from the SCC:
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:9100/login   # expect 200
 ```
 
 Tailscale SSH needs a tailnet `ssh` ACL (`autogroup:member` → `autogroup:self` → `autogroup:nonroot`) and `sudo tailscale set --ssh=true` on the SCC. If the ACL is missing, use normal `sshd` over the Tailscale IP with a key in `~/.ssh/authorized_keys`.
@@ -349,7 +367,8 @@ lerd artisan ir4:s k 1                  # missing mask
 
 ## 8. Aftercare (optional)
 
-- `sudo mount -a` after reboot; confirm `findmnt /data2` before expecting `:9100` / 443.
+- After reboot: **§0 post-reboot quick recovery** — `mountpoint /data2 && lerd start` as the deploy user.
+- `sudo mount -a` if the mountpoint check fails; confirm `findmnt /data2` before expecting `:9100` / 443.
 - If Lerd nginx fails with `statfs /data2/laravel/IR4-Project: no such file or directory`, the disk is not up yet — wait/mount, then `systemctl --user restart lerd-nginx` (or `lerd start`).
 - Keep `.env.bak-*` until you confirm login; then you may delete those backups on the SCC.
 - Fresh box install remains [SCC-SETUP.md](SCC-SETUP.md) (`01-setup.sh` … TLS step 10).

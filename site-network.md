@@ -19,7 +19,7 @@ ssh scc1@100.96.105.106          # SCC1 — poles 5–8
 # or:  ssh scc2@scc2-poweredge-r360
 ```
 
-Operator browser from a laptop (HTTPS `.test`, `/data2` mount, Lerd link, `/etc/hosts`): [SCC-REMOTE-ACCESS.md](../../SCC-REMOTE-ACCESS.md).
+Operator browser from a laptop (HTTPS `.test`, `/data2` mount, Lerd link, `/etc/hosts`): [SCC-REMOTE-ACCESS.md](SCC-REMOTE-ACCESS.md).
 
 Use the Linux account (`scc2` / `scc1`), not the Mac username. Tailscale SSH needs the tailnet `ssh` ACL (`autogroup:member` → `autogroup:self` → `autogroup:nonroot`).
 
@@ -100,4 +100,4 @@ ssh pole2@172.16.2.2
 
 `IR4_BASE_URL` for agents stays on the **VLAN** (`http://172.16.x.40:9100`), not Tailscale.
 
-Full tables + rsync: [SCC-SETUP.md §12](../../SCC-SETUP.md).
+Full tables + rsync: [SCC-SETUP.md §12](SCC-SETUP.md).
