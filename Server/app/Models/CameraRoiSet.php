@@ -42,7 +42,7 @@ final class CameraRoiSet extends Model
      */
     public function camera(): BelongsTo
     {
-        return $this->belongsTo(Camera::class);
+        return $this->belongsTo(Device::class, 'camera_id');
     }
 
     /**

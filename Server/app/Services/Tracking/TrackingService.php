@@ -17,7 +17,6 @@ use App\Events\EvacuationEntryUpdated;
 use App\Events\HeadcountUpdated;
 use App\Events\PositionsUpdated;
 use App\Models\Alert;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\EntryExitLog;
 use App\Models\EvacuationReport;
@@ -876,7 +875,7 @@ final class TrackingService
         ];
     }
 
-    private function nearestCameraForTag(int $tagId): ?Camera
+    private function nearestCameraForTag(int $tagId): ?Device
     {
         $last = TagReading::query()
             ->where('tag_id', $tagId)
@@ -892,7 +891,7 @@ final class TrackingService
             return null;
         }
 
-        return Camera::query()->where('asset_id', $reader->asset_id)->first();
+        return Device::query()->cameras()->where('asset_id', $reader->asset_id)->first();
     }
 
     private function flushBroadcasts(): void

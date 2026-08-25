@@ -3,13 +3,13 @@
 use App\Enums\AuditEvent;
 use App\Enums\CameraType;
 use App\Models\AuditLog;
-use App\Models\Camera;
+use App\Models\Device;
 use App\Models\User;
 use App\Support\RtspStreamEndpoint;
 use Illuminate\Support\Facades\Http;
 
 it('requires control-ptz-cameras permission', function () {
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'camera_type' => CameraType::Ptz,
         'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
     ]);
@@ -25,7 +25,7 @@ it('requires control-ptz-cameras permission', function () {
 });
 
 it('rejects ptz on fixed cameras', function () {
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'camera_type' => CameraType::Fixed,
         'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
     ]);
@@ -53,7 +53,7 @@ it('proxies each ptz click to a short continuous burst', function (string $label
         );
     });
 
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'reference' => 'CAM-PTZ-VECTORS',
         'camera_type' => CameraType::Ptz,
         'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
@@ -101,7 +101,7 @@ it('audits each click nudge', function () {
         );
     });
 
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'reference' => 'CAM-PTZ-TEST',
         'camera_type' => CameraType::Ptz,
         'stream_url' => 'rtsp://admin:Unity@320@@172.16.1.10:554/Streaming/Channels/101',
@@ -110,7 +110,7 @@ it('audits each click nudge', function () {
     $operator = User::factory()->create();
     $operator->givePermissionTo(['view-live-cameras', 'control-ptz-cameras']);
 
-    $before = AuditLog::query()->count();
+    $beforePtz = AuditLog::query()->where('description', 'PTZ move')->count();
 
     $this->actingAs($operator)
         ->postJson(route('live.cameras.ptz', $camera), [
@@ -129,7 +129,7 @@ it('audits each click nudge', function () {
             && str_contains($request->body(), '<tilt>-35</tilt>');
     });
 
-    expect(AuditLog::query()->count())->toBe($before + 1);
+    expect(AuditLog::query()->where('description', 'PTZ move')->count())->toBe($beforePtz + 1);
 });
 
 it('uses the isapi stop endpoint and audits stop commands', function () {
@@ -145,7 +145,7 @@ it('uses the isapi stop endpoint and audits stop commands', function () {
         );
     });
 
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'reference' => 'CAM-PTZ-STOP',
         'camera_type' => CameraType::Ptz,
         'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
@@ -186,7 +186,7 @@ it('treats an idle stop response as success', function () {
         );
     });
 
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'camera_type' => CameraType::Ptz,
         'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
     ]);
@@ -215,7 +215,7 @@ it('rejects isapi responses whose statusCode is not ok', function () {
         );
     });
 
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'camera_type' => CameraType::Ptz,
         'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
     ]);
@@ -235,11 +235,11 @@ it('rejects isapi responses whose statusCode is not ok', function () {
 });
 
 it('includes ptz flags on live wall camera rows', function () {
-    $ptz = Camera::factory()->create([
+    $ptz = Device::factory()->camera()->create([
         'camera_type' => CameraType::Ptz,
         'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
     ]);
-    Camera::factory()->create([
+    Device::factory()->camera()->create([
         'camera_type' => CameraType::Fixed,
     ]);
 
@@ -262,7 +262,7 @@ it('includes ptz flags on live wall camera rows', function () {
 });
 
 it('parses rtsp passwords containing at signs', function () {
-    $endpoint = RtspStreamEndpoint::fromCamera(new Camera([
+    $endpoint = RtspStreamEndpoint::fromCamera(new Device([
         'stream_url' => 'rtsp://admin:Unity@320@@172.16.3.10:554/Streaming/Channels/101',
         'meta' => null,
     ]));

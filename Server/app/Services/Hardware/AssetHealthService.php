@@ -9,7 +9,6 @@ use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
 use App\Events\DeviceStatusChanged;
 use App\Models\Asset;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Services\Alert\AlertService;
 use App\Services\Camera\CameraStreamGatewayService;
@@ -35,17 +34,8 @@ final class AssetHealthService
         $this->refreshCamerasFromMediaMtx($now);
 
         Device::query()
-            ->fieldHardware()
-            ->whereNotIn('status', [
-                HardwareStatus::Maintenance->value,
-                HardwareStatus::Retired->value,
-            ])
-            ->whereHas('asset', fn ($q) => $q->where('status', '!=', AssetStatus::Maintenance->value))
+            ->healthMonitored()
             ->each(function (Device $device) use ($now): void {
-                if (! $device->device_type->isHealthCritical()) {
-                    return;
-                }
-
                 $threshold = $this->staleMinutesForDevice($device->device_type);
                 $staleBefore = $now->copy()->subMinutes($threshold);
 
@@ -76,15 +66,15 @@ final class AssetHealthService
                     dedupeKey: "device_offline:{$device->id}",
                 );
 
-                if ($device->device_type === DeviceType::EdgeCompute) {
+                if ($device->device_type === DeviceType::Camera) {
                     $this->techTeam->notify(
                         dedupeKey: "device_offline:{$device->id}",
-                        subject: "Server offline: {$device->name}",
+                        subject: "Camera AI offline: {$device->name}",
                         context: [
-                            'category' => 'Server / edge compute',
+                            'category' => 'Camera AI',
                             'severity' => 'Critical for plant ops',
-                            'summary' => "Edge compute host \"{$device->name}\" has stopped heartbeating. Camera AI ingest, gas gateways on that pole, and related field services may be degraded until it returns.",
-                            'suggested_action' => 'Check power, LAN link, and the edge agent process on the pole. Confirm heartbeat resumes in Hardware → Devices, then verify live camera and gas feeds.',
+                            'summary' => "Camera AI host \"{$device->name}\" has stopped heartbeating. Ingest and ROI push on that pole may be degraded until it returns.",
+                            'suggested_action' => 'Check power, LAN link, and the edge agent process on the pole. Confirm heartbeat resumes in Hardware → Devices, then verify live camera and ingest feeds.',
                             'details' => [
                                 'Device' => $device->name,
                                 'Device ID' => $device->id,
@@ -132,12 +122,9 @@ final class AssetHealthService
                 }
             });
 
-        Camera::query()
-            ->whereNotIn('status', [
-                HardwareStatus::Maintenance->value,
-                HardwareStatus::Retired->value,
-            ])
-            ->each(function (Camera $camera) use ($now): void {
+        Device::query()->cameras()
+            ->healthMonitored()
+            ->each(function (Device $camera) use ($now): void {
                 $threshold = (int) $this->settings->get('health.camera_stale_minutes', 3);
                 $staleBefore = $now->copy()->subMinutes($threshold);
 
@@ -174,7 +161,7 @@ final class AssetHealthService
                         'category' => 'Camera',
                         'severity' => 'Feed unavailable',
                         'summary' => "Camera \"{$camera->name}\" has not delivered a fresh frame within the stale window ({$threshold} min). The live wall will drop this feed until frames return.",
-                        'suggested_action' => 'Check camera power/PoE, RTSP URL, and MediaMTX path readiness. Confirm last_frame_at updates under Hardware → Cameras, then verify the live wall tile remounts.',
+                        'suggested_action' => 'Check camera power/PoE, RTSP URL, and MediaMTX path readiness. Confirm last_frame_at updates under Hardware → Devices, then verify the live wall tile remounts.',
                         'details' => [
                             'Camera' => $camera->name,
                             'Camera ID' => $camera->id,
@@ -202,12 +189,9 @@ final class AssetHealthService
 
         $readySet = array_fill_keys($ready, true);
 
-        Camera::query()
-            ->whereNotIn('status', [
-                HardwareStatus::Maintenance->value,
-                HardwareStatus::Retired->value,
-            ])
-            ->each(function (Camera $camera) use ($readySet, $now): void {
+        Device::query()->cameras()
+            ->healthMonitored()
+            ->each(function (Device $camera) use ($readySet, $now): void {
                 $path = $this->cameraStreams->pathName($camera->reference);
                 if (! isset($readySet[$path])) {
                     return;
@@ -220,26 +204,15 @@ final class AssetHealthService
     public function systemHealthSnapshot(): array
     {
         return Asset::query()
-            ->with(['devices', 'cameras'])
+            ->with(['devices' => fn ($query) => $query->healthMonitored()])
             ->where('status', '!=', AssetStatus::Offline->value)
             ->orderBy('name')
             ->get()
             ->map(function (Asset $asset): array {
                 $offline = [];
                 foreach ($asset->devices as $device) {
-                    if (in_array($device->status, [HardwareStatus::Maintenance, HardwareStatus::Retired], true)) {
-                        continue;
-                    }
                     if (! HardwarePresence::isDeviceOnline($device, $this->staleMinutesForDevice($device->device_type))) {
                         $offline[] = $device->name;
-                    }
-                }
-                foreach ($asset->cameras as $camera) {
-                    if (in_array($camera->status, [HardwareStatus::Maintenance, HardwareStatus::Retired], true)) {
-                        continue;
-                    }
-                    if (! HardwarePresence::isCameraOnline($camera, $this->staleMinutesForCamera())) {
-                        $offline[] = $camera->name;
                     }
                 }
 
@@ -268,28 +241,8 @@ final class AssetHealthService
      */
     public function devicePresenceCounts(): array
     {
-        $criticalTypes = array_map(
-            static fn (DeviceType $type): string => $type->value,
-            array_values(array_filter(
-                DeviceType::cases(),
-                static fn (DeviceType $type): bool => $type->isHealthCritical(),
-            )),
-        );
-
         $devices = Device::query()
-            ->fieldHardware()
-            ->whereIn('device_type', $criticalTypes)
-            ->whereNotIn('status', [
-                HardwareStatus::Retired->value,
-                HardwareStatus::Maintenance->value,
-            ])
-            ->where(function ($query): void {
-                $query->whereNull('asset_id')
-                    ->orWhereHas(
-                        'asset',
-                        fn ($asset) => $asset->where('status', '!=', AssetStatus::Offline->value),
-                    );
-            })
+            ->healthMonitored()
             ->get(['id', 'status', 'device_type', 'last_seen_at']);
 
         $total = $devices->count();
@@ -308,22 +261,10 @@ final class AssetHealthService
 
     public function staleMinutesForDevice(DeviceType $type): int
     {
-        $key = match ($type) {
-            DeviceType::RfidReader => 'health.reader_stale_minutes',
-            DeviceType::GasDetector => 'health.gas_stale_minutes',
-            DeviceType::EdgeCompute => 'health.edge_stale_minutes',
-            DeviceType::EnvironmentalSensor,
-            DeviceType::WifiGateway,
-            DeviceType::Rs485Interface,
-            DeviceType::Other => 'health.sensor_stale_minutes',
-        };
-
-        $default = match ($type) {
-            DeviceType::EdgeCompute => 3,
-            default => 5,
-        };
-
-        return (int) $this->settings->get($key, $default);
+        return (int) $this->settings->get(
+            $type->staleMinutesKey(),
+            $type->defaultStaleMinutes(),
+        );
     }
 
     public function staleMinutesForCamera(): int

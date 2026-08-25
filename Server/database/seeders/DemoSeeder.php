@@ -12,7 +12,6 @@ use App\Enums\TagStatus;
 use App\Enums\WorkerType;
 use App\Enums\ZoneType;
 use App\Models\Asset;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\Equipment;
 use App\Models\ReaderZoneBinding;
@@ -29,29 +28,51 @@ use Illuminate\Support\Str;
 
 /**
  * Initial site registry (baseline hardware for first install).
- * Device UUID + tokens come from database/data/device_credentials.php.
+ * LAN IPs, RTSP, and Jetson ROI URLs follow site-network.md + SCC-SETUP §13.
+ * Device UUID + tokens: database/data/device_credentials.php.
  *
- * Poles 1–4: RFID, gas, fixed + PTZ stream cameras, and two edge_compute
- * camera-AI devices each. Also: main gate, starter workers assigned to
- * physical EPCs (database/data/rfid_tags.php), leftover tags in stock,
- * and equipment. More can be added via the operator UI after install.
  * Idempotent: skips when AST-POLE-01 already exists.
  */
 final class DemoSeeder extends Seeder
 {
     private const POLE_COUNT = 4;
 
-    /**
-     * SCC2 pole VLAN third octets (site-network.md). Password is Unity@320@.
-     *
-     * @var array<int, int>
-     */
+    private const RTSP_CREDENTIAL = 'admin:Unity@320@';
+
+    /** Pole number → VLAN third octet (site-network.md). */
     private const POLE_SUBNETS = [
         1 => 3,
         2 => 2,
         3 => 1,
         4 => 4,
     ];
+
+    /** Standard last octets on each pole VLAN. */
+    private const HOST_JETSON = 2;
+
+    private const HOST_JETSON_POLE3 = 50;
+
+    private const HOST_PTZ = 10;
+
+    private const HOST_BULLET = 11;
+
+    private const HOST_RFID = 12;
+
+    private const HOST_SCC = 40;
+
+    private const ROI_PORT = 8600;
+
+    private const IR4_PORT = 9100;
+
+    /** Main gate devices on SCC2 VLAN 3 (commissioning — confirm on site). */
+    private const GATE_CAMERA_IP = '172.16.3.13';
+
+    private const GATE_RFID_IP = '172.16.3.14';
+
+    /** Zebra ZT411 on SCC2 LAN (DOC-13). */
+    private const QR_PRINTER_HOST = '172.16.3.41';
+
+    private const QR_PRINTER_PORT = 9100;
 
     private User $admin;
 
@@ -77,6 +98,7 @@ final class DemoSeeder extends Seeder
         $this->seedZones();
         $this->seedPolesAndDevices();
         $this->seedGate();
+        $this->seedSccInfrastructure();
         $this->seedWorkers();
         $this->seedEquipment();
         $this->printEdgeCredentials();
@@ -89,25 +111,24 @@ final class DemoSeeder extends Seeder
         $this->admin = User::query()->role('Super Admin')->first()
             ?? User::factory()->withRole('Super Admin')->create([
                 'name' => 'Super Admin',
-                'email' => 'admin@ir4.local',
+                'email' => 'admin@gmail.com',
                 'password' => Hash::make('password'),
                 'must_change_password' => true,
             ]);
 
-        // Local/staging convenience accounts only — install already creates Super Admin.
         if (! app()->environment('production')) {
-            User::query()->where('email', 'safety@ir4.local')->first()
+            User::query()->where('email', 'safety@gmail.com')->first()
                 ?? User::factory()->withRole('Safety Manager')->create([
                     'name' => 'Safety Manager',
-                    'email' => 'safety@ir4.local',
+                    'email' => 'safety@gmail.com',
                     'password' => Hash::make('password'),
                     'must_change_password' => true,
                 ]);
 
-            $this->operator = User::query()->where('email', 'operator@ir4.local')->first()
+            $this->operator = User::query()->where('email', 'operator@gmail.com')->first()
                 ?? User::factory()->withRole('SCC Operator')->create([
                     'name' => 'SCC Operator',
-                    'email' => 'operator@ir4.local',
+                    'email' => 'operator@gmail.com',
                     'password' => Hash::make('password'),
                     'must_change_password' => true,
                 ]);
@@ -148,9 +169,11 @@ final class DemoSeeder extends Seeder
             $pad = sprintf('%02d', $n);
             $zone = $this->zones->get($n);
             $label = "Pole {$pad}";
-            $hostname = "pole-{$pad}";
             $fixedCamRef = "CAM-FIXED-{$pad}";
             $ptzCamRef = "CAM-PTZ-{$pad}";
+            $jetsonIp = $this->poleJetsonIp($n);
+            $ir4Base = $this->poleIr4BaseUrl($n);
+            $roiApi = $this->jetsonRoiApiUrl($n);
 
             $asset = Asset::query()->create([
                 'asset_type' => AssetType::Pole,
@@ -168,8 +191,10 @@ final class DemoSeeder extends Seeder
                 'device_type' => DeviceType::RfidReader,
                 'status' => HardwareStatus::Offline,
                 'config' => [
-                    'hostname' => $hostname,
+                    'hostname' => "pole-{$pad}",
+                    'lan_ip' => $this->poleIp($n, self::HOST_RFID),
                     'mqtt_topic' => "zebra/fxr90-{$pad}/tags",
+                    'ir4_base_url' => $ir4Base,
                 ],
             ]);
 
@@ -189,63 +214,67 @@ final class DemoSeeder extends Seeder
                 'device_type' => DeviceType::GasDetector,
                 'status' => HardwareStatus::Offline,
                 'config' => [
-                    'hostname' => $hostname,
+                    'hostname' => $jetsonIp,
+                    'modbus_gateway' => $jetsonIp,
                     'modbus_slaves' => [1, 2, 3, 4, 5],
+                    'ir4_base_url' => $ir4Base,
                 ],
             ]);
 
-            // Camera AI ingest (DOC-08) — EdgeCompute typed, named as cameras.
-            $fixedCamDevice = $this->createDevice("DEV-CAM-FIXED-{$pad}", 'cam_ai', [
+            if ($n === 1) {
+                $this->createDevice('DEV-ENV-01', 'environmental', [
+                    'asset_id' => $asset->id,
+                    'name' => 'SCC Environmental Sensor',
+                    'serial_number' => 'SN-ENV-01',
+                    'device_type' => DeviceType::EnvironmentalSensor,
+                    'status' => HardwareStatus::Offline,
+                    'config' => [
+                        'hostname' => $jetsonIp,
+                        'rs485_gateway' => $jetsonIp,
+                        'ir4_base_url' => $ir4Base,
+                        'scope' => 'scc_site',
+                    ],
+                ]);
+            }
+
+            $this->createCamera($fixedCamRef, 'camera', [
                 'asset_id' => $asset->id,
                 'name' => "{$label} Fixed Camera",
                 'serial_number' => "SN-CAM-FIXED-{$pad}",
-                'device_type' => DeviceType::EdgeCompute,
+                'camera_type' => CameraType::Fixed,
+                'stream_url' => $this->hikvisionRtsp($this->poleIp($n, self::HOST_BULLET)),
+                'ai_enabled' => true,
                 'status' => HardwareStatus::Offline,
+                'api_url' => $roiApi,
                 'config' => [
-                    'hostname' => $hostname,
-                    'api_url' => 'http://'.$this->poleJetsonHost($n).':8600/rois',
-                    'camera_ref' => $fixedCamRef,
+                    'jetson_ip' => $this->poleJetsonIp($n),
+                    'ir4_base_url' => $ir4Base,
                     'role' => 'ppe',
+                ],
+                'meta' => [
+                    'role' => 'ppe',
+                    'camera_ip' => $this->poleIp($n, self::HOST_BULLET),
                 ],
             ]);
 
-            $ptzCamDevice = $this->createDevice("DEV-CAM-PTZ-{$pad}", 'cam_ai', [
+            $this->createCamera($ptzCamRef, 'camera', [
                 'asset_id' => $asset->id,
                 'name' => "{$label} PTZ Camera",
                 'serial_number' => "SN-CAM-PTZ-{$pad}",
-                'device_type' => DeviceType::EdgeCompute,
-                'status' => HardwareStatus::Offline,
-                'config' => [
-                    'hostname' => $hostname,
-                    'api_url' => 'http://'.$this->poleJetsonHost($n).':8600/rois',
-                    'camera_ref' => $ptzCamRef,
-                    'role' => 'overview',
-                ],
-            ]);
-
-            // Stream registry — real Hikvision RTSP (SCC-SETUP §13). .11 bullet, .10 PTZ.
-            // 1:1 device↔camera (DOC-23): processed_by_device_id = this camera's AI device.
-            Camera::query()->create([
-                'asset_id' => $asset->id,
-                'name' => "{$label} Fixed Camera",
-                'reference' => $fixedCamRef,
-                'camera_type' => CameraType::Fixed,
-                'stream_url' => $this->poleStreamUrl($n, 11),
-                'processed_by_device_id' => $fixedCamDevice->id,
+                'camera_type' => CameraType::Ptz,
+                'stream_url' => $this->hikvisionRtsp($this->poleIp($n, self::HOST_PTZ)),
                 'ai_enabled' => true,
                 'status' => HardwareStatus::Offline,
-                'meta' => ['role' => 'ppe'],
-            ]);
-            Camera::query()->create([
-                'asset_id' => $asset->id,
-                'name' => "{$label} PTZ Camera",
-                'reference' => $ptzCamRef,
-                'camera_type' => CameraType::Ptz,
-                'stream_url' => $this->poleStreamUrl($n, 10),
-                'processed_by_device_id' => $ptzCamDevice->id,
-                'ai_enabled' => false,
-                'status' => HardwareStatus::Offline,
-                'meta' => ['role' => 'overview'],
+                'api_url' => $roiApi,
+                'config' => [
+                    'jetson_ip' => $this->poleJetsonIp($n),
+                    'ir4_base_url' => $ir4Base,
+                    'role' => 'overview',
+                ],
+                'meta' => [
+                    'role' => 'overview',
+                    'camera_ip' => $this->poleIp($n, self::HOST_PTZ),
+                ],
             ]);
         }
     }
@@ -253,6 +282,10 @@ final class DemoSeeder extends Seeder
     private function seedGate(): void
     {
         $gateZone = $this->zones->get('gate');
+        $ir4Base = $this->poleIr4BaseUrl(1);
+        $roiApi = $this->jetsonRoiApiUrl(1);
+        $gateCamRef = 'CAM-GATE-FIXED';
+
         $gate = Asset::query()->create([
             'asset_type' => AssetType::Gate,
             'name' => 'Main Gate',
@@ -268,6 +301,11 @@ final class DemoSeeder extends Seeder
             'serial_number' => 'SN-RFID-GATE',
             'device_type' => DeviceType::RfidReader,
             'status' => HardwareStatus::Offline,
+            'config' => [
+                'lan_ip' => self::GATE_RFID_IP,
+                'mqtt_topic' => 'zebra/fxr90-gate/tags',
+                'ir4_base_url' => $ir4Base,
+            ],
         ]);
 
         ReaderZoneBinding::query()->create([
@@ -279,14 +317,47 @@ final class DemoSeeder extends Seeder
             'note' => 'Main Gate entry/exit binding',
         ]);
 
-        Camera::query()->create([
+        $this->createCamera($gateCamRef, 'camera', [
             'asset_id' => $gate->id,
             'name' => 'Main Gate Fixed Camera',
-            'reference' => 'CAM-GATE-FIXED',
+            'serial_number' => 'SN-CAM-GATE',
             'camera_type' => CameraType::Fixed,
-            'stream_url' => 'rtsp://10.20.0.2/Streaming/Channels/101',
-            'ai_enabled' => false,
+            'stream_url' => $this->hikvisionRtsp(self::GATE_CAMERA_IP),
+            'ai_enabled' => true,
             'status' => HardwareStatus::Offline,
+            'api_url' => $roiApi,
+            'config' => [
+                'jetson_ip' => $this->poleJetsonIp(1),
+                'ir4_base_url' => $ir4Base,
+            ],
+            'meta' => ['camera_ip' => self::GATE_CAMERA_IP],
+        ]);
+    }
+
+    private function seedSccInfrastructure(): void
+    {
+        $scc = Asset::query()->create([
+            'asset_type' => AssetType::SccServer,
+            'name' => 'SCC2 Command Server',
+            'identifier' => 'AST-SCC2-01',
+            'status' => AssetStatus::Active,
+            'is_mobile' => false,
+            'current_location_label' => 'SCC2 · 172.16.3.40',
+        ]);
+
+        Device::query()->create([
+            'asset_id' => $scc->id,
+            'name' => 'SCC2 QR Label Printer',
+            'reference' => 'DEV-QR-SCC2',
+            'serial_number' => 'SN-ZT411-SCC2',
+            'device_type' => DeviceType::QrPrinter,
+            'status' => HardwareStatus::Online,
+            'printer_host' => self::QR_PRINTER_HOST,
+            'printer_port' => self::QR_PRINTER_PORT,
+            'config' => [
+                'model' => 'ZT411',
+                'ir4_base_url' => $this->poleIr4BaseUrl(1),
+            ],
         ]);
     }
 
@@ -411,25 +482,50 @@ final class DemoSeeder extends Seeder
         }
     }
 
-    private function poleStreamUrl(int $pole, int $host): string
+    private function poleSubnet(int $pole): int
     {
-        $subnet = self::POLE_SUBNETS[$pole];
+        return self::POLE_SUBNETS[$pole];
+    }
 
+    private function poleIp(int $pole, int $hostOctet): string
+    {
+        if ($hostOctet === self::HOST_JETSON && $pole === 3) {
+            return sprintf('172.16.%d.%d', $this->poleSubnet($pole), self::HOST_JETSON_POLE3);
+        }
+
+        return sprintf('172.16.%d.%d', $this->poleSubnet($pole), $hostOctet);
+    }
+
+    private function poleJetsonIp(int $pole): string
+    {
+        return $this->poleIp($pole, self::HOST_JETSON);
+    }
+
+    private function poleIr4BaseUrl(int $pole): string
+    {
         return sprintf(
-            'rtsp://admin:Unity@320@@172.16.%d.%d:554/Streaming/Channels/101',
-            $subnet,
-            $host,
+            'http://%s:%d',
+            $this->poleIp($pole, self::HOST_SCC),
+            self::IR4_PORT,
         );
     }
 
-    /** Jetson J4012 LAN IP (site-network.md) — AI service listens on :8600. */
-    private function poleJetsonHost(int $pole): string
+    private function jetsonRoiApiUrl(int $pole): string
     {
-        $subnet = self::POLE_SUBNETS[$pole];
-        // Pole 3 Jetson is .50; others .2.
-        $host = $pole === 3 ? 50 : 2;
+        return sprintf(
+            'http://%s:%d/rois',
+            $this->poleJetsonIp($pole),
+            self::ROI_PORT,
+        );
+    }
 
-        return sprintf('172.16.%d.%d', $subnet, $host);
+    private function hikvisionRtsp(string $ip): string
+    {
+        return sprintf(
+            'rtsp://%s@%s:554/Streaming/Channels/101',
+            self::RTSP_CREDENTIAL,
+            $ip,
+        );
     }
 
     /**
@@ -452,6 +548,29 @@ final class DemoSeeder extends Seeder
         $this->recordCredential($device->reference, $device->uuid, $token, $type);
 
         return $device;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createCamera(string $ref, string $type, array $attributes): Device
+    {
+        $committed = EdgeDeviceCredentials::find($ref);
+        $token = $committed['token'] ?? Str::random(48);
+        $payload = array_merge($attributes, [
+            'reference' => $ref,
+            'device_type' => DeviceType::Camera,
+            'api_token_hash' => hash('sha256', $token),
+            'token_issued_at' => now(),
+        ]);
+        if ($committed !== null) {
+            $payload['uuid'] = $committed['uuid'];
+        }
+
+        $camera = Device::query()->cameras()->create($payload);
+        $this->recordCredential($camera->reference, $camera->uuid, $token, $type);
+
+        return $camera;
     }
 
     private function recordCredential(string $ref, string $uuid, string $token, string $type): void
@@ -482,6 +601,6 @@ final class DemoSeeder extends Seeder
                 ];
             })->all(),
         );
-        $this->command?->info('Each pole: DEV-RFID / DEV-GAS / DEV-CAM-FIXED / DEV-CAM-PTZ + CAM-FIXED / CAM-PTZ streams.');
+        $this->command?->info('Poles 1–4: RFID .12 · gas on Jetson · one SCC env sensor (pole 1) · CAM bullet .11 / PTZ .10 · ROI :8600/rois · IR4 :9100.');
     }
 }

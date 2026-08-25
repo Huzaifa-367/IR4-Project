@@ -73,7 +73,13 @@ export default function AssetShow({ asset, assetTypes, statuses }: Props) {
                             Edit asset
                         </Button>
                         <Button asChild variant="outline">
-                            <Link href={settings.cameras.index()}>Cameras</Link>
+                            <Link
+                                href={settings.devices.index.url({
+                                    query: { device_type: 'camera' },
+                                })}
+                            >
+                                Cameras
+                            </Link>
                         </Button>
                         <Button asChild variant="outline">
                             <Link href={settings.devices.index()}>Devices</Link>

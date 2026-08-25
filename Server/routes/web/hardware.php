@@ -1,9 +1,8 @@
 <?php
 
-use App\Http\Controllers\Web\Settings\AssetController;
-use App\Http\Controllers\Web\Settings\CameraController;
-use App\Http\Controllers\Web\Settings\DeviceController;
 use App\Http\Controllers\Web\CameraRoi\CameraRoiController;
+use App\Http\Controllers\Web\Settings\AssetController;
+use App\Http\Controllers\Web\Settings\DeviceController;
 use App\Http\Controllers\Web\Tracking\TagController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,23 +39,8 @@ Route::prefix('hardware/assets')->name('settings.assets.')->group(function (): v
         ->name('destroy');
 });
 
-Route::prefix('hardware/cameras')->name('settings.cameras.')->group(function (): void {
-    Route::get('/', [CameraController::class, 'index'])
-        ->middleware('permission:view-devices')
-        ->name('index');
-    Route::post('/', [CameraController::class, 'store'])
-        ->middleware('permission:create-devices')
-        ->name('store');
-    Route::put('{camera}', [CameraController::class, 'update'])
-        ->middleware('permission:update-devices')
-        ->name('update');
-    Route::patch('{camera}/status', [CameraController::class, 'setStatus'])
-        ->middleware('permission:update-devices')
-        ->name('status');
-    Route::patch('{camera}/ai', [CameraController::class, 'toggleAi'])
-        ->middleware('permission:update-devices')
-        ->name('toggle-ai');
-});
+Route::redirect('/hardware/cameras', '/hardware/devices?device_type=camera')
+    ->middleware('permission:view-devices');
 
 Route::prefix('hardware/camera-rois')->name('hardware.camera-rois.')->group(function (): void {
     Route::get('/', [CameraRoiController::class, 'index'])
@@ -92,4 +76,7 @@ Route::prefix('hardware/devices')->name('settings.devices.')->group(function ():
     Route::post('{device}/token', [DeviceController::class, 'regenerateToken'])
         ->middleware('permission:update-devices')
         ->name('token');
+    Route::patch('{device}/ai', [DeviceController::class, 'toggleAi'])
+        ->middleware('permission:update-devices')
+        ->name('toggle-ai');
 });

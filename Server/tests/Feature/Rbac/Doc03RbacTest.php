@@ -2,7 +2,6 @@
 
 use App\Enums\TagStatus;
 use App\Models\Asset;
-use App\Models\Camera;
 use App\Models\RfidTag;
 use App\Models\Role;
 use App\Models\User;
@@ -212,9 +211,9 @@ it('creates the first Super Admin via ir4:install', function () {
     expect($user->hasRole('Super Admin'))->toBeTrue()
         ->and($user->must_change_password)->toBeTrue()
         ->and(Asset::query()->where('identifier', 'AST-POLE-01')->exists())->toBeTrue()
-        ->and(Camera::query()->where('reference', 'CAM-PTZ-01')->value('stream_url'))
+        ->and(Device::query()->cameras()->where('reference', 'CAM-PTZ-01')->value('stream_url'))
         ->toBe('rtsp://admin:Unity@320@@172.16.3.10:554/Streaming/Channels/101')
-        ->and(Camera::query()->where('reference', 'CAM-FIXED-01')->value('stream_url'))
+        ->and(Device::query()->cameras()->where('reference', 'CAM-FIXED-01')->value('stream_url'))
         ->toBe('rtsp://admin:Unity@320@@172.16.3.11:554/Streaming/Channels/101');
 
     $epcs = SiteRfidTags::all();

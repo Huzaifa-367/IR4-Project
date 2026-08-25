@@ -2,7 +2,7 @@
 
 namespace App\Support;
 
-use App\Models\Camera;
+use App\Models\Device;
 
 /**
  * Parsed RTSP credentials/host/channel for on-LAN camera APIs (ISAPI PTZ, etc.).
@@ -18,14 +18,14 @@ final readonly class RtspStreamEndpoint
         public int $httpPort = 80,
     ) {}
 
-    public static function fromCamera(Camera $camera): ?self
+    public static function fromCamera(Device $device): ?self
     {
-        $parsed = self::parseStreamUrl((string) $camera->stream_url);
+        $parsed = self::parseStreamUrl((string) $device->stream_url);
         if ($parsed === null) {
             return null;
         }
 
-        $meta = is_array($camera->meta) ? $camera->meta : [];
+        $meta = is_array($device->meta) ? $device->meta : [];
         $ptzMeta = is_array($meta['ptz'] ?? null) ? $meta['ptz'] : [];
 
         $channelId = isset($ptzMeta['channel']) ? (int) $ptzMeta['channel'] : $parsed['channelId'];

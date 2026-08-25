@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Web\Ppe;
 use App\Enums\CameraType;
 use App\Enums\ReviewStatus;
 use App\Http\Controllers\Web\BaseController;
-use App\Models\Camera;
+use App\Models\Device;
 use App\Models\PpeViolation;
 use App\Models\User;
 use App\Services\Camera\CameraRoiService;
@@ -65,12 +65,12 @@ final class LiveWallController extends BaseController
         $cameraStaleMinutes = app(AssetHealthService::class)->staleMinutesForCamera();
         $roiService = app(CameraRoiService::class);
 
-        return Camera::query()
-            ->operational()
+        return Device::query()->cameras()
+            ->liveWall()
             ->with(['roiSet.rois', 'asset'])
             ->orderBy('name')
             ->get()
-            ->map(function (Camera $camera) use ($cameraStaleMinutes, $user, $roiService): array {
+            ->map(function (Device $camera) use ($cameraStaleMinutes, $user, $roiService): array {
                 $isPtz = $camera->camera_type === CameraType::Ptz;
 
                 return [

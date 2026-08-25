@@ -9,7 +9,6 @@ use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\Ppe\BulkReviewPpeViolationRequest;
 use App\Http\Requests\Web\Ppe\ExportPpeViolationsRequest;
 use App\Http\Requests\Web\Ppe\ReviewPpeViolationRequest;
-use App\Models\Camera;
 use App\Models\PpeViolation;
 use App\Services\Audit\AuditService;
 use App\Services\Ppe\PpeViolationService;
@@ -78,7 +77,7 @@ final class PpeViolationController extends BaseController
                 'is_backfill' => $request->string('is_backfill')->toString(),
                 'search' => $request->string('search')->toString(),
             ],
-            'cameras' => Camera::query()->operational()->orderBy('name')->get(['id', 'uuid', 'name', 'reference']),
+            'cameras' => Device::query()->cameras()->operational()->orderBy('name')->get(['id', 'uuid', 'name', 'reference']),
             'violationTypes' => collect(ViolationType::cases())->map(fn (ViolationType $t) => [
                 'value' => $t->value,
                 'label' => $t->label(),

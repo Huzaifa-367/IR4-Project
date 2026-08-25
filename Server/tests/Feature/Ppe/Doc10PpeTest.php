@@ -7,7 +7,6 @@ use App\Enums\ReviewStatus;
 use App\Enums\ViolationType;
 use App\Events\PpeViolationDetected;
 use App\Models\Alert;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\IngestEvent;
 use App\Models\PpeViolation;
@@ -47,7 +46,7 @@ it('ingests a ppe violation into a row alert and broadcast', function () {
 
     $plain = 'ppe-token';
     Device::factory()->withPlainToken($plain)->create();
-    $camera = Camera::factory()->create(['reference' => 'cam-ppe-1']);
+    $camera = Device::factory()->camera()->create(['reference' => 'cam-ppe-1']);
 
     $this->postJson(route('api.ingest.ppe-violations'), [
         'events' => [ppeEvent($camera->reference)],
@@ -71,7 +70,7 @@ it('ingests a ppe violation into a row alert and broadcast', function () {
 it('accepts helmet and vest ingest without a camera still', function () {
     $plain = 'ppe-no-still';
     Device::factory()->withPlainToken($plain)->create();
-    $camera = Camera::factory()->create(['reference' => 'cam-no-still']);
+    $camera = Device::factory()->camera()->create(['reference' => 'cam-no-still']);
     $event = ppeEvent($camera->reference, 'missing_vest');
     unset($event['snapshot']);
 
@@ -92,7 +91,7 @@ it('stores fall events as ppe rows and raises fall_detection', function () {
     $plain = 'ppe-fall';
     Device::factory()->withPlainToken($plain)->create();
     $zone = Zone::factory()->create(['name' => 'Deck A']);
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'reference' => 'cam-fall',
         'meta' => ['zone_id' => $zone->id],
     ]);
@@ -121,7 +120,7 @@ it('stores fall events as ppe rows and raises fall_detection', function () {
 it('stores working-at-heights as missing_harness and raises height_without_harness', function () {
     $plain = 'ppe-heights';
     Device::factory()->withPlainToken($plain)->create();
-    $camera = Camera::factory()->create(['reference' => 'cam-heights']);
+    $camera = Device::factory()->camera()->create(['reference' => 'cam-heights']);
 
     $this->postJson(route('api.ingest.ppe-violations'), [
         'events' => [ppeEvent($camera->reference, 'missing_harness')],
@@ -169,7 +168,7 @@ it('rejects unknown camera references', function () {
 it('is idempotent on camera_id and event_uid', function () {
     $plain = 'ppe-idem';
     Device::factory()->withPlainToken($plain)->create();
-    $camera = Camera::factory()->create(['reference' => 'cam-idem']);
+    $camera = Device::factory()->camera()->create(['reference' => 'cam-idem']);
     $uid = (string) Str::uuid();
 
     $this->postJson(route('api.ingest.ppe-violations'), [
@@ -188,7 +187,7 @@ it('stores backfill without broadcasting', function () {
 
     $plain = 'ppe-backfill';
     Device::factory()->withPlainToken($plain)->create();
-    $camera = Camera::factory()->create(['reference' => 'cam-bf']);
+    $camera = Device::factory()->camera()->create(['reference' => 'cam-bf']);
 
     $this->postJson(route('api.ingest.ppe-violations'), [
         'events' => [ppeEvent(
@@ -211,7 +210,7 @@ it('reviews confirm and false positive resolving the alert', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
     $plain = 'ppe-review';
     Device::factory()->withPlainToken($plain)->create();
-    $camera = Camera::factory()->create(['reference' => 'cam-rev']);
+    $camera = Device::factory()->camera()->create(['reference' => 'cam-rev']);
 
     $this->postJson(route('api.ingest.ppe-violations'), [
         'events' => [ppeEvent($camera->reference)],
@@ -301,7 +300,7 @@ it('serves browser playback urls without exposing rtsp credentials', function ()
         'http://127.0.0.1:8888/{reference}',
     );
     $operator = User::factory()->withRole('SCC Operator')->create();
-    Camera::factory()->create([
+    Device::factory()->camera()->create([
         'reference' => 'cam-test-01',
         'stream_url' => 'rtsp://operator:secret@10.0.0.5/stream1',
     ]);
@@ -317,7 +316,7 @@ it('serves browser playback urls without exposing rtsp credentials', function ()
 it('uses same-origin hls proxy template on the live wall', function () {
     config()->set('camera_stream.browser_url_template', '/hls/{reference}/');
     $operator = User::factory()->withRole('SCC Operator')->create();
-    Camera::factory()->create(['reference' => 'cam-proxy-01']);
+    Device::factory()->camera()->create(['reference' => 'cam-proxy-01']);
 
     $this->actingAs($operator)
         ->get(route('live.index'))
@@ -328,7 +327,7 @@ it('uses same-origin hls proxy template on the live wall', function () {
 
 it('includes cameras on the live wall poll snapshot', function () {
     $operator = User::factory()->withRole('SCC Operator')->create();
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'name' => 'Wall cam',
         'status' => HardwareStatus::Online,
         'last_frame_at' => now(),
@@ -345,7 +344,7 @@ it('includes cameras on the live wall poll snapshot', function () {
 
 it('renders offline cameras on the live wall props as not online', function () {
     $operator = User::factory()->withRole('SCC Operator')->create();
-    Camera::factory()->create([
+    Device::factory()->camera()->create([
         'name' => 'Blank cam',
         'status' => HardwareStatus::Offline,
         'last_frame_at' => now()->subHour(),

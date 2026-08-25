@@ -8,7 +8,6 @@ use App\Enums\ViolationType;
 use App\Events\PpeViolationDetected;
 use App\Models\Alert;
 use App\Models\AuditLog;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\PpeViolation;
 use App\Models\User;
@@ -182,7 +181,7 @@ final class PpeViolationService
             ->selectRaw('camera_id, count(*) as aggregate')
             ->groupBy('camera_id')
             ->get();
-        $cameraRefs = Camera::query()
+        $cameraRefs = Device::query()->cameras()
             ->whereIn('id', $byCameraRows->pluck('camera_id'))
             ->pluck('reference', 'id');
         $byCamera = $byCameraRows
@@ -483,7 +482,7 @@ final class PpeViolationService
         };
     }
 
-    private function resolveZoneId(Camera $camera): ?int
+    private function resolveZoneId(Device $camera): ?int
     {
         $camera->loadMissing('asset');
         $meta = $camera->meta ?? [];

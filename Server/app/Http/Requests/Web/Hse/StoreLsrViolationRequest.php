@@ -24,7 +24,7 @@ final class StoreLsrViolationRequest extends FormRequest
             'occurred_at' => ['required', 'date', 'before_or_equal:now'],
             'worker_id' => ['nullable', 'integer', Rule::exists('workers', 'id')],
             'zone_id' => ['nullable', 'integer', Rule::exists('zones', 'id')],
-            'camera_id' => ['nullable', 'integer', Rule::exists('cameras', 'id')],
+            'camera_id' => ['nullable', 'integer', Rule::exists('devices', 'id')],
             'alert_id' => ['nullable', 'integer', Rule::exists('alerts', 'id')],
             'ppe_violation_id' => ['nullable', 'integer', Rule::exists('ppe_violations', 'id')],
             'description' => ['nullable', 'string', 'max:5000'],

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Settings;
 
+use App\Enums\CameraType;
 use App\Enums\DeviceType;
 use App\Models\Device;
 use Illuminate\Foundation\Http\FormRequest;
@@ -22,8 +23,12 @@ final class UpdateDeviceRequest extends FormRequest
         /** @var Device $device */
         $device = $this->route('device');
         $type = (string) ($this->input('device_type') ?? $device->device_type->value);
-        if ($type !== DeviceType::EdgeCompute->value) {
-            $this->merge(['api_url' => null]);
+
+        if ($type !== DeviceType::QrPrinter->value) {
+            $this->merge([
+                'printer_host' => null,
+                'printer_port' => null,
+            ]);
         }
     }
 
@@ -34,6 +39,8 @@ final class UpdateDeviceRequest extends FormRequest
     {
         /** @var Device $device */
         $device = $this->route('device');
+        $type = (string) ($this->input('device_type') ?? $device->device_type->value);
+        $isCamera = $device->isCamera() || $type === DeviceType::Camera->value;
 
         return [
             'asset_id' => ['sometimes', 'required', 'exists:assets,id'],
@@ -46,18 +53,46 @@ final class UpdateDeviceRequest extends FormRequest
                 Rule::unique('devices', 'reference')->ignore($device->id),
             ],
             'serial_number' => [
+                Rule::excludeIf($isCamera),
                 'nullable',
                 'string',
                 'max:150',
                 Rule::unique('devices', 'serial_number')->ignore($device->id),
             ],
-            'device_type' => ['sometimes', 'required', Rule::enum(DeviceType::class)],
+            'device_type' => [
+                'sometimes',
+                'required',
+                Rule::enum(DeviceType::class),
+            ],
             'config' => ['nullable', 'array'],
+            'camera_type' => [
+                Rule::requiredIf($isCamera),
+                Rule::enum(CameraType::class),
+            ],
+            'stream_url' => [
+                Rule::requiredIf($isCamera),
+                'string',
+                'max:500',
+            ],
+            'ai_enabled' => ['sometimes', 'boolean'],
             'api_url' => [
-                'nullable',
+                Rule::requiredIf($isCamera),
                 'string',
                 'max:255',
                 'regex:/^(https?:\/\/)?[^\s]+$/i',
+            ],
+            'printer_host' => [
+                Rule::requiredIf($type === DeviceType::QrPrinter->value),
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'printer_port' => [
+                Rule::requiredIf($type === DeviceType::QrPrinter->value),
+                'nullable',
+                'integer',
+                'min:1',
+                'max:65535',
             ],
         ];
     }

@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Asset;
-use App\Models\Camera;
+use App\Models\Device;
 use App\Models\User;
 use App\Services\Camera\CameraStreamGatewayService;
 use App\Services\Hardware\HardwareRegistryService;
@@ -19,7 +19,7 @@ it('pushes camera rtsp to mediamtx when api url is configured', function () {
         'mediamtx.test:9997/v3/config/paths/replace/*' => Http::response(['status' => 'ok'], 200),
     ]);
 
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'reference' => 'cam-gate-01',
         'stream_url' => 'rtsp://10.0.0.21/stream1',
     ]);
@@ -41,7 +41,7 @@ it('adds mediamtx path when replace fails then add succeeds', function () {
         'mediamtx.test:9997/v3/config/paths/add/*' => Http::response(['status' => 'ok'], 200),
     ]);
 
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'reference' => 'cam-new',
         'stream_url' => 'rtsp://10.0.0.9/live',
     ]);
@@ -61,12 +61,14 @@ it('syncs through hardware registry on camera create', function () {
     $asset = Asset::factory()->create();
 
     $this->actingAs($admin)
-        ->post(route('settings.cameras.store'), [
+        ->post(route('settings.devices.store'), [
             'asset_id' => $asset->id,
             'name' => 'Gate Cam',
             'reference' => 'cam-auto-1',
+            'device_type' => 'camera',
             'camera_type' => 'fixed',
             'stream_url' => 'rtsp://10.0.0.55/stream1',
+            'api_url' => 'http://172.16.3.2:8600/rois',
         ])
         ->assertRedirect();
 
@@ -78,12 +80,14 @@ it('skips sync when mediamtx api is not configured', function () {
     config()->set('camera_stream.mediamtx.api_url', '');
     Http::fake();
 
-    app(HardwareRegistryService::class)->createCamera([
+    app(HardwareRegistryService::class)->createDevice([
         'asset_id' => Asset::factory()->create()->id,
         'name' => 'Offline Cam',
         'reference' => 'cam-skip',
+        'device_type' => 'camera',
         'camera_type' => 'fixed',
         'stream_url' => 'rtsp://10.0.0.1/x',
+        'api_url' => 'http://127.0.0.1:8600/rois',
     ]);
 
     Http::assertNothingSent();
@@ -95,7 +99,7 @@ it('encodes rtsp passwords that contain @ before pushing to mediamtx', function 
         'mediamtx.test:9997/v3/config/paths/replace/*' => Http::response(['status' => 'ok'], 200),
     ]);
 
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'reference' => 'cam-ppe-01',
         'stream_url' => 'rtsp://admin:UNity@320@@192.168.1.64:554/Streaming/Channels/101',
     ]);
@@ -116,7 +120,7 @@ it('reports failed syncs when mediamtx is unreachable', function () {
         'mediamtx.test:9997/*' => Http::response(['error' => 'no'], 500),
     ]);
 
-    Camera::factory()->create([
+    Device::factory()->camera()->create([
         'reference' => 'cam-fail',
         'stream_url' => 'rtsp://10.0.0.1/x',
     ]);

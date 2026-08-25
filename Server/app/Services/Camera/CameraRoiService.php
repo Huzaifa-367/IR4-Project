@@ -4,7 +4,6 @@ namespace App\Services\Camera;
 
 use App\Enums\CameraRoiSetStatus;
 use App\Enums\CameraRoiStaleReason;
-use App\Models\Camera;
 use App\Models\CameraRoi;
 use App\Models\CameraRoiSet;
 use App\Models\Device;
@@ -29,13 +28,13 @@ final class CameraRoiService
     {
         $staleMinutes = app(AssetHealthService::class)->staleMinutesForCamera();
 
-        return Camera::query()
+        return Device::query()->cameras()
             ->operational()
             ->with(['roiSet.rois', 'asset'])
             ->orderBy('name')
             ->get()
-            ->filter(fn (Camera $camera): bool => HardwarePresence::isCameraOnline($camera, $staleMinutes))
-            ->map(fn (Camera $camera): array => $this->cameraSummary($camera))
+            ->filter(fn (Device $camera): bool => HardwarePresence::isCameraOnline($camera, $staleMinutes))
+            ->map(fn (Device $camera): array => $this->cameraSummary($camera))
             ->values()
             ->all();
     }
@@ -43,7 +42,7 @@ final class CameraRoiService
     /**
      * @return array<string, mixed>
      */
-    public function editorPayload(Camera $camera): array
+    public function editorPayload(Device $camera): array
     {
         $camera->loadMissing(['roiSet.rois', 'asset']);
 
@@ -63,7 +62,7 @@ final class CameraRoiService
     /**
      * @param  list<array<string, mixed>>  $rois
      */
-    public function saveDraft(Camera $camera, array $rois, User $user): CameraRoiSet
+    public function saveDraft(Device $camera, array $rois, User $user): CameraRoiSet
     {
         $normalized = $this->normalizeRois($rois);
 
@@ -87,7 +86,7 @@ final class CameraRoiService
     /**
      * @param  list<array<string, mixed>>|null  $rois
      */
-    public function publish(Camera $camera, ?array $rois, User $user): CameraRoiSet
+    public function publish(Device $camera, ?array $rois, User $user): CameraRoiSet
     {
         return DB::transaction(function () use ($camera, $rois, $user): CameraRoiSet {
             $set = $this->ensureSet($camera, $user);
@@ -107,7 +106,7 @@ final class CameraRoiService
                 ]);
             }
 
-            $camera = $camera->fresh(['processedByDevice', 'roiSet.rois']) ?? $camera;
+            $camera = $camera->fresh(['roiSet.rois']) ?? $camera;
             $set->forceFill([
                 'status' => CameraRoiSetStatus::Active,
                 'view_fingerprint' => $this->fingerprintFor($camera),
@@ -119,15 +118,13 @@ final class CameraRoiService
 
             $fresh = $set->fresh(['rois']) ?? $set;
             $camera->setRelation('roiSet', $fresh);
-            if ($camera->processedByDevice !== null) {
-                $this->edgeSync->publish($camera, $this->activePayloadForCamera($camera));
-            }
+            $this->edgeSync->publish($camera, $this->activePayloadForCamera($camera));
 
             return $fresh;
         });
     }
 
-    public function markStale(Camera $camera, CameraRoiStaleReason $reason, ?User $user = null): ?CameraRoiSet
+    public function markStale(Device $camera, CameraRoiStaleReason $reason, ?User $user = null): ?CameraRoiSet
     {
         /** @var CameraRoiSet|null $set */
         $set = CameraRoiSet::query()->where('camera_id', $camera->id)->first();
@@ -155,7 +152,7 @@ final class CameraRoiService
      *
      * @return array{status: string, stale_reason: string|null, rois: list<array<string, mixed>>}|null
      */
-    public function overlayForCamera(Camera $camera): ?array
+    public function overlayForCamera(Device $camera): ?array
     {
         $set = $camera->relationLoaded('roiSet')
             ? $camera->roiSet
@@ -190,12 +187,7 @@ final class CameraRoiService
      */
     public function activePayloadForEdgeDevice(Device $device): array
     {
-        // One camera per AI device (DOC-23). If misconfigured with several, lowest id wins.
-        $camera = Camera::query()
-            ->where('processed_by_device_id', $device->id)
-            ->with(['roiSet.rois'])
-            ->orderBy('id')
-            ->first();
+        $camera = Device::query()->cameras()->find($device->id);
 
         return $this->payloadForDeviceAndCamera($device, $camera);
     }
@@ -210,15 +202,11 @@ final class CameraRoiService
      *     rois: list<array<string, mixed>>
      * }
      */
-    public function activePayloadForCamera(Camera $camera): array
+    public function activePayloadForCamera(Device $camera): array
     {
-        $camera->loadMissing(['processedByDevice', 'roiSet.rois']);
-        $device = $camera->processedByDevice;
-        if ($device === null) {
-            throw new \InvalidArgumentException('Camera has no processed_by_device for ROI push.');
-        }
+        $camera->loadMissing(['roiSet.rois']);
 
-        return $this->payloadForDeviceAndCamera($device, $camera);
+        return $this->payloadForDeviceAndCamera($camera, $camera);
     }
 
     /**
@@ -229,7 +217,7 @@ final class CameraRoiService
      *     rois: list<array<string, mixed>>
      * }
      */
-    private function payloadForDeviceAndCamera(Device $device, ?Camera $camera): array
+    private function payloadForDeviceAndCamera(Device $device, ?Device $camera): array
     {
         $set = $camera?->roiSet;
         $active = $set !== null && $set->status === CameraRoiSetStatus::Active;
@@ -290,7 +278,7 @@ final class CameraRoiService
     /**
      * @return array<string, mixed>
      */
-    private function cameraSummary(Camera $camera): array
+    private function cameraSummary(Device $camera): array
     {
         $set = $camera->roiSet;
 
@@ -347,7 +335,7 @@ final class CameraRoiService
         ];
     }
 
-    private function ensureSet(Camera $camera, User $user): CameraRoiSet
+    private function ensureSet(Device $camera, User $user): CameraRoiSet
     {
         /** @var CameraRoiSet|null $existing */
         $existing = CameraRoiSet::query()->where('camera_id', $camera->id)->first();
@@ -364,7 +352,7 @@ final class CameraRoiService
         ]);
     }
 
-    private function fingerprintFor(Camera $camera): string
+    private function fingerprintFor(Device $camera): string
     {
         return sha1(implode('|', [
             (string) $camera->stream_url,
@@ -473,7 +461,7 @@ final class CameraRoiService
     /**
      * @param  list<array<string, mixed>>  $normalized
      */
-    private function replaceRois(CameraRoiSet $set, Camera $camera, array $normalized, User $user): void
+    private function replaceRois(CameraRoiSet $set, Device $camera, array $normalized, User $user): void
     {
         // Hard-replace: ROI rows are not versioned independently of the set.
         CameraRoi::query()->where('camera_roi_set_id', $set->id)->delete();

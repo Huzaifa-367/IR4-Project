@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Web\Hse;
 
 use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\Hse\StoreVehicleViolationRequest;
-use App\Models\Camera;
 use App\Models\VehicleViolation;
 use App\Services\Hse\VehicleViolationService;
 use Illuminate\Http\RedirectResponse;
@@ -44,7 +43,7 @@ final class VehicleViolationController extends BaseController
                 'search' => $request->string('search')->toString(),
             ],
             'violationTypes' => VehicleViolationService::violationTypes(),
-            'cameras' => Camera::query()->operational()->orderBy('name')->get(['id', 'uuid', 'name', 'reference']),
+            'cameras' => Device::query()->cameras()->operational()->orderBy('name')->get(['id', 'uuid', 'name', 'reference']),
             'canCreate' => $request->user()?->can('create-vehicle-violations') ?? false,
         ]);
     }

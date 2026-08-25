@@ -4,7 +4,7 @@ namespace App\Services\Camera;
 
 use App\Enums\AuditEvent;
 use App\Enums\CameraRoiStaleReason;
-use App\Models\Camera;
+use App\Models\Device;
 use App\Models\User;
 use App\Services\Audit\AuditService;
 use App\Support\RtspStreamEndpoint;
@@ -34,7 +34,7 @@ final class CameraPtzService
         return $this->lastError;
     }
 
-    public function move(Camera $camera, int $pan, int $tilt, int $zoom, User $by): bool
+    public function move(Device $camera, int $pan, int $tilt, int $zoom, User $by): bool
     {
         $pan = $this->clampAxis($pan);
         $tilt = $this->clampAxis($tilt);
@@ -66,7 +66,7 @@ final class CameraPtzService
         return true;
     }
 
-    public function stop(Camera $camera, User $by, bool $audit = true): bool
+    public function stop(Device $camera, User $by, bool $audit = true): bool
     {
         $this->lastError = '';
 
@@ -81,7 +81,7 @@ final class CameraPtzService
         return $stopped;
     }
 
-    private function haltContinuous(Camera $camera): bool
+    private function haltContinuous(Device $camera): bool
     {
         $endpoint = RtspStreamEndpoint::fromCamera($camera);
         if ($endpoint === null) {
@@ -131,7 +131,7 @@ final class CameraPtzService
         );
     }
 
-    private function sendContinuous(Camera $camera, int $pan, int $tilt, int $zoom, bool $lenient = false): bool
+    private function sendContinuous(Device $camera, int $pan, int $tilt, int $zoom, bool $lenient = false): bool
     {
         $this->lastError = '';
 
@@ -254,7 +254,7 @@ final class CameraPtzService
     }
 
     private function auditCommand(
-        Camera $camera,
+        Device $camera,
         ?User $by,
         string $command,
         int $pan,

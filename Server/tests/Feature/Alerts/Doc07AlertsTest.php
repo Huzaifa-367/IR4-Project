@@ -9,7 +9,6 @@ use App\Events\AlertUpdated;
 use App\Mail\TechTeamAlertMail;
 use App\Models\Alert;
 use App\Models\AuditLog;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\HseIncident;
 use App\Models\LsrViolation;
@@ -193,7 +192,7 @@ it('mails the tech team for camera offline without changing operator alert sever
     config()->set('ir4.infrastructure.tech_mail_to', ['tech@ir4.local']);
     config()->set('camera_stream.mediamtx.api_url', '');
 
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'name' => 'Gate cam',
         'status' => HardwareStatus::Online,
         'last_frame_at' => now()->subMinutes(20),

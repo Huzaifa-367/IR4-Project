@@ -9,13 +9,15 @@ use App\Enums\HardwareStatus;
 use App\Events\DeviceStatusChanged;
 use App\Models\Asset;
 use App\Models\AuditLog;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\User;
 use App\Services\Alert\AlertService;
 use App\Services\Camera\CameraRoiService;
 use App\Services\Camera\CameraStreamGatewayService;
 use App\Services\Platform\TechTeamNotifier;
+use App\Support\HardwarePresence;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -57,81 +59,14 @@ final class HardwareRegistryService
 
     public function destroyAsset(Asset $asset): void
     {
-        if ($asset->cameras()->exists() || $asset->devices()->exists()) {
-            throw new HttpException(409, 'Remove or reassign cameras and devices before deleting this asset.');
+        if ($asset->devices()->exists()) {
+            throw new HttpException(409, 'Remove or reassign devices before deleting this asset.');
         }
 
         $asset->delete();
     }
 
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    public function createCamera(array $data): Camera
-    {
-        $camera = Camera::query()->create([
-            'asset_id' => $data['asset_id'],
-            'name' => $data['name'],
-            'reference' => $data['reference'],
-            'camera_type' => $data['camera_type'],
-            'processed_by_device_id' => $data['processed_by_device_id']
-                ?? $this->deviceIdForCameraRef((string) $data['reference']),
-            'stream_url' => $data['stream_url'],
-            'ai_enabled' => (bool) ($data['ai_enabled'] ?? true),
-            'status' => HardwareStatus::Offline,
-            'meta' => $data['meta'] ?? null,
-        ]);
-
-        $this->syncCameraStreamOrFlash($camera);
-
-        return $camera;
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    public function updateCamera(Camera $camera, array $data): Camera
-    {
-        $previousReference = $camera->reference;
-        $previousStreamUrl = $camera->stream_url;
-
-        if (! array_key_exists('processed_by_device_id', $data)) {
-            $ref = (string) ($data['reference'] ?? $camera->reference);
-            $data['processed_by_device_id'] = $this->deviceIdForCameraRef($ref)
-                ?? $camera->processed_by_device_id;
-        }
-
-        $camera->fill($data)->save();
-        $fresh = $camera->fresh() ?? $camera;
-
-        if ($previousReference !== $fresh->reference) {
-            $this->cameraStreams->remove($previousReference);
-            app(CameraRoiService::class)->markStale($fresh, CameraRoiStaleReason::StreamChanged);
-        }
-
-        if ($previousStreamUrl !== $fresh->stream_url) {
-            app(CameraRoiService::class)->markStale($fresh, CameraRoiStaleReason::StreamChanged);
-        }
-
-        $this->syncCameraStreamOrFlash($fresh);
-
-        return $fresh;
-    }
-
-    private function deviceIdForCameraRef(string $cameraRef): ?int
-    {
-        if ($cameraRef === '') {
-            return null;
-        }
-
-        return Device::query()
-            ->where('device_type', DeviceType::EdgeCompute)
-            ->get(['id', 'config'])
-            ->first(fn (Device $d): bool => ($d->config['camera_ref'] ?? null) === $cameraRef)
-            ?->id;
-    }
-
-    private function syncCameraStreamOrFlash(Camera $camera): void
+    private function syncCameraStreamOrFlash(Device $camera): void
     {
         if (! $this->cameraStreams->isConfigured()) {
             return;
@@ -150,36 +85,48 @@ final class HardwareRegistryService
         );
     }
 
-    public function toggleCameraAi(Camera $camera): Camera
+    public function toggleCameraAi(Device $camera): Device
     {
         $camera->forceFill(['ai_enabled' => ! $camera->ai_enabled])->save();
 
         return $camera;
     }
 
-    public function setCameraStatus(Camera $camera, HardwareStatus $status): Camera
-    {
-        $camera->forceFill(['status' => $status])->save();
-
-        return $camera->fresh() ?? $camera;
-    }
-
     /**
      * @param  array<string, mixed>  $data
+     * @return array{device: Device, plain_token?: string}
      */
-    public function createDevice(array $data): Device
+    public function createDevice(array $data, ?User $actor = null): array
     {
         $type = $data['device_type'] instanceof DeviceType
             ? $data['device_type']
             : DeviceType::from((string) $data['device_type']);
 
-        $config = is_array($data['config'] ?? null) ? $data['config'] : [];
-        $config = $this->syncApiUrl(
-            $config,
-            $type,
-            array_key_exists('api_url', $data) ? (string) ($data['api_url'] ?? '') : null,
-        );
-        unset($data['api_url']);
+        if ($type->isCamera()) {
+            return DB::transaction(function () use ($data, $actor): array {
+                $device = Device::query()->create([
+                    'asset_id' => $data['asset_id'],
+                    'name' => $data['name'],
+                    'reference' => $data['reference'],
+                    'device_type' => DeviceType::Camera,
+                    'camera_type' => $data['camera_type'],
+                    'stream_url' => $data['stream_url'],
+                    'ai_enabled' => (bool) ($data['ai_enabled'] ?? true),
+                    'api_url' => trim((string) $data['api_url']),
+                    'status' => HardwareStatus::Offline,
+                    'meta' => $data['meta'] ?? null,
+                ]);
+
+                $issued = $this->issueToken($device, $actor);
+                $device = $issued['device'];
+                $this->syncCameraStreamOrFlash($device);
+
+                return [
+                    'device' => $device,
+                    'plain_token' => $issued['plain_token'],
+                ];
+            });
+        }
 
         $device = Device::query()->create([
             'asset_id' => $data['asset_id'],
@@ -188,12 +135,22 @@ final class HardwareRegistryService
             'serial_number' => $data['serial_number'] ?? null,
             'device_type' => $type,
             'status' => HardwareStatus::Offline,
-            'config' => $config === [] ? null : $config,
+            'config' => $data['config'] ?? null,
+            'printer_host' => $type === DeviceType::QrPrinter ? ($data['printer_host'] ?? null) : null,
+            'printer_port' => $type === DeviceType::QrPrinter ? ($data['printer_port'] ?? null) : null,
         ]);
 
-        $this->linkCameraToDevice($device);
+        $plainToken = null;
+        if (($data['issue_token'] ?? true) && $device->usesIngestToken()) {
+            $issued = $this->issueToken($device, $actor);
+            $device = $issued['device'];
+            $plainToken = $issued['plain_token'];
+        }
 
-        return $device;
+        return [
+            'device' => $device->fresh() ?? $device,
+            'plain_token' => $plainToken,
+        ];
     }
 
     /**
@@ -201,69 +158,72 @@ final class HardwareRegistryService
      */
     public function updateDevice(Device $device, array $data): Device
     {
+        if ($device->isCamera()) {
+            $previousReference = $device->reference;
+            $previousStreamUrl = $device->stream_url;
+
+            return DB::transaction(function () use ($device, $data, $previousReference, $previousStreamUrl): Device {
+                $device->fill([
+                    'asset_id' => $data['asset_id'] ?? $device->asset_id,
+                    'name' => $data['name'] ?? $device->name,
+                    'reference' => $data['reference'] ?? $device->reference,
+                    'camera_type' => $data['camera_type'] ?? $device->camera_type,
+                    'stream_url' => $data['stream_url'] ?? $device->stream_url,
+                    'ai_enabled' => array_key_exists('ai_enabled', $data)
+                        ? (bool) $data['ai_enabled']
+                        : $device->ai_enabled,
+                    'api_url' => array_key_exists('api_url', $data)
+                        ? trim((string) $data['api_url'])
+                        : $device->api_url,
+                ])->save();
+
+                if (! $device->hasToken()) {
+                    $this->issueToken($device);
+                }
+
+                $fresh = $device->fresh() ?? $device;
+
+                if ($previousReference !== $fresh->reference) {
+                    $this->cameraStreams->remove($previousReference);
+                    app(CameraRoiService::class)->markStale($fresh, CameraRoiStaleReason::StreamChanged);
+                }
+
+                if ($previousStreamUrl !== $fresh->stream_url) {
+                    app(CameraRoiService::class)->markStale($fresh, CameraRoiStaleReason::StreamChanged);
+                }
+
+                $this->syncCameraStreamOrFlash($fresh);
+
+                return $fresh;
+            });
+        }
+
         $type = array_key_exists('device_type', $data)
             ? ($data['device_type'] instanceof DeviceType
                 ? $data['device_type']
                 : DeviceType::from((string) $data['device_type']))
             : $device->device_type;
 
-        $config = is_array($device->config) ? $device->config : [];
-        $incoming = array_key_exists('api_url', $data)
-            ? (string) ($data['api_url'] ?? '')
-            : null;
-        $config = $this->syncApiUrl($config, $type, $incoming);
-        $data['config'] = $config === [] ? null : $config;
-        unset($data['api_url']);
+        if ($type->isCamera()) {
+            throw new HttpException(422, 'Cannot change an existing device into a camera.');
+        }
 
-        $device->fill($data)->save();
-        $this->linkCameraToDevice($device->fresh() ?? $device);
+        $device->fill([
+            'asset_id' => $data['asset_id'] ?? $device->asset_id,
+            'name' => $data['name'] ?? $device->name,
+            'reference' => $data['reference'] ?? $device->reference,
+            'serial_number' => array_key_exists('serial_number', $data) ? $data['serial_number'] : $device->serial_number,
+            'device_type' => $type,
+            'config' => array_key_exists('config', $data) ? $data['config'] : $device->config,
+            'printer_host' => $type === DeviceType::QrPrinter
+                ? ($data['printer_host'] ?? $device->printer_host)
+                : null,
+            'printer_port' => $type === DeviceType::QrPrinter
+                ? ($data['printer_port'] ?? $device->printer_port)
+                : null,
+        ])->save();
 
         return $device->fresh() ?? $device;
-    }
-
-    /**
-     * Persist nullable full API URL (incl. path) only for edge_compute devices.
-     * `$url === null` preserves an existing `api_url`; empty string clears it.
-     *
-     * @param  array<string, mixed>  $config
-     * @return array<string, mixed>
-     */
-    private function syncApiUrl(array $config, DeviceType $type, ?string $url): array
-    {
-        // Drop renamed keys from earlier DOC-23 iterations.
-        unset($config['ai_host'], $config['ai_base_url']);
-
-        if ($type !== DeviceType::EdgeCompute) {
-            unset($config['api_url']);
-
-            return $config;
-        }
-
-        if ($url === null) {
-            return $config;
-        }
-
-        $url = trim($url);
-        if ($url === '') {
-            unset($config['api_url']);
-        } else {
-            $config['api_url'] = $url;
-        }
-
-        return $config;
-    }
-
-    /** Bind camera.reference ← device.config.camera_ref when present (DOC-23 1:1). */
-    private function linkCameraToDevice(Device $device): void
-    {
-        $cameraRef = is_array($device->config) ? trim((string) ($device->config['camera_ref'] ?? '')) : '';
-        if ($cameraRef === '') {
-            return;
-        }
-
-        Camera::query()
-            ->where('reference', $cameraRef)
-            ->update(['processed_by_device_id' => $device->id]);
     }
 
     public function setDeviceStatus(Device $device, HardwareStatus $status): Device
@@ -293,6 +253,10 @@ final class HardwareRegistryService
     {
         if ($device->isRetired()) {
             throw new HttpException(409, 'Cannot issue a token for a retired device.');
+        }
+
+        if (! $device->usesIngestToken()) {
+            throw new HttpException(422, 'This device type does not use ingest tokens.');
         }
 
         $plain = 'dev_'.Str::random(48);
@@ -353,10 +317,6 @@ final class HardwareRegistryService
         return $device->fresh() ?? $device;
     }
 
-    /**
-     * Update last_seen_at and restore Online (unless operator-held Maintenance).
-     * Used by device auth + heartbeats. Explicit heartbeat status must not leave maintenance.
-     */
     public function touchPresence(Device $device, ?HardwareStatus $status = null): Device
     {
         if ($device->isRetired()) {
@@ -365,8 +325,6 @@ final class HardwareRegistryService
 
         $previousStatus = $device->status;
 
-        // Operator-set maintenance is sticky until an operator restores status (DOC-05 §6.4).
-        // Edge agents always post status=online; that must not undo disable-without-delete.
         if ($previousStatus === HardwareStatus::Maintenance) {
             $device->forceFill(['last_seen_at' => now()])->save();
 
@@ -398,11 +356,7 @@ final class HardwareRegistryService
         return $device->fresh() ?? $device;
     }
 
-    /**
-     * Refresh camera liveness from a live MediaMTX path (or PPE frame).
-     * Restores Online unless operator-held Maintenance / Retired.
-     */
-    public function touchCameraPresence(Camera $camera, ?\DateTimeInterface $seenAt = null): Camera
+    public function touchCameraPresence(Device $camera, ?\DateTimeInterface $seenAt = null): Device
     {
         if ($camera->status === HardwareStatus::Retired) {
             return $camera;
@@ -436,6 +390,154 @@ final class HardwareRegistryService
         }
 
         return $camera->fresh() ?? $camera;
+    }
+
+    /**
+     * @return array{data: list<array<string, mixed>>, total: int}
+     */
+    public function registryRows(Request $request, AssetHealthService $health): array
+    {
+        $typeFilter = $request->string('device_type')->toString();
+        $statusFilter = $request->string('status')->toString();
+        $search = trim($request->string('q')->toString());
+        $sort = $request->string('sort')->toString() ?: 'name';
+        $direction = strtolower($request->string('direction')->toString()) === 'desc' ? 'desc' : 'asc';
+
+        $rows = collect();
+        $cameraStaleMinutes = $health->staleMinutesForCamera();
+
+        $deviceQuery = Device::query()
+            ->registryVisible()
+            ->with('asset:id,uuid,name');
+
+        if ($typeFilter !== '' && $typeFilter !== 'all') {
+            if ($typeFilter === 'camera') {
+                $deviceQuery->cameras();
+            } else {
+                $deviceQuery->ofType(DeviceType::from($typeFilter));
+            }
+        }
+
+        if ($statusFilter !== '') {
+            $deviceQuery->where('status', $statusFilter);
+        }
+
+        if ($search !== '') {
+            $deviceQuery->where(function ($query) use ($search): void {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('reference', 'like', "%{$search}%")
+                    ->orWhere('serial_number', 'like', "%{$search}%");
+            });
+        }
+
+        foreach ($deviceQuery->get() as $device) {
+            if ($device->isCamera()) {
+                $rows->push($this->cameraUnitRegistryRow($device, $health, $cameraStaleMinutes));
+            } else {
+                $rows->push($this->fieldDeviceRegistryRow($device, $health));
+            }
+        }
+
+        $sorted = $this->sortRegistryRows($rows, $sort, $direction);
+        $total = $sorted->count();
+        $page = max(1, (int) $request->integer('page', 1));
+        $perPage = max(1, min(100, (int) $request->integer('per_page', 25)));
+        $data = $sorted->slice(($page - 1) * $perPage, $perPage)->values()->all();
+
+        return ['data' => $data, 'total' => $total];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function cameraUnitRegistryRow(Device $camera, AssetHealthService $health, int $cameraStaleMinutes): array
+    {
+        $streamOnline = HardwarePresence::isCameraOnline($camera, $cameraStaleMinutes);
+        $tokenOnline = HardwarePresence::isDeviceOnline(
+            $camera,
+            $health->staleMinutesForDevice($camera->device_type),
+        );
+
+        return [
+            'kind' => 'camera',
+            'id' => $camera->id,
+            'uuid' => $camera->uuid,
+            'name' => $camera->name,
+            'reference' => $camera->reference,
+            'camera_type' => $camera->camera_type->value,
+            'camera_type_label' => $camera->camera_type->label(),
+            'stream_url' => $camera->stream_url,
+            'ai_enabled' => $camera->ai_enabled,
+            'status' => $camera->status->value,
+            'is_online' => $streamOnline && $tokenOnline,
+            'stream_is_online' => $streamOnline,
+            'has_token' => $camera->hasToken(),
+            'last_seen_at' => $camera->last_seen_at?->toIso8601String(),
+            'last_frame_at' => $camera->last_frame_at?->toIso8601String(),
+            'is_incomplete' => ! $camera->hasToken(),
+            'api_url' => $camera->api_url,
+            'ai_device' => null,
+            'asset' => $camera->asset === null ? null : [
+                'id' => $camera->asset->id,
+                'uuid' => $camera->asset->uuid,
+                'name' => $camera->asset->name,
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fieldDeviceRegistryRow(Device $device, AssetHealthService $health): array
+    {
+        $isOnline = $device->usesIngestToken()
+            ? HardwarePresence::isDeviceOnline($device, $health->staleMinutesForDevice($device->device_type))
+            : false;
+
+        return [
+            'kind' => 'device',
+            'id' => $device->id,
+            'uuid' => $device->uuid,
+            'name' => $device->name,
+            'reference' => $device->reference,
+            'serial_number' => $device->serial_number,
+            'device_type' => $device->device_type->value,
+            'device_type_label' => $device->device_type->label(),
+            'status' => $device->status->value,
+            'is_online' => $isOnline,
+            'has_token' => $device->hasToken(),
+            'last_seen_at' => $device->last_seen_at?->toIso8601String(),
+            'printer_host' => $device->printer_host,
+            'printer_port' => $device->printer_port,
+            'is_orphan_camera_ai' => false,
+            'asset' => $device->asset === null ? null : [
+                'id' => $device->asset->id,
+                'uuid' => $device->asset->uuid,
+                'name' => $device->asset->name,
+            ],
+        ];
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function sortRegistryRows(Collection $rows, string $sort, string $direction): Collection
+    {
+        $sorted = $rows->sortBy(
+            fn (array $row): string => match ($sort) {
+                'reference' => (string) $row['reference'],
+                'status' => (string) $row['status'],
+                default => (string) $row['name'],
+            },
+            SORT_NATURAL | SORT_FLAG_CASE,
+        );
+
+        if ($direction === 'desc') {
+            $sorted = $sorted->reverse();
+        }
+
+        return $sorted->values();
     }
 
     private function deviceHasZoneBinding(Device $device): bool

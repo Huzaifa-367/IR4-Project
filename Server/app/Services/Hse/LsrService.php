@@ -7,7 +7,6 @@ use App\Enums\LsrCategory;
 use App\Enums\LsrStatus;
 use App\Models\Alert;
 use App\Models\AuditLog;
-use App\Models\Camera;
 use App\Models\LsrViolation;
 use App\Models\PpeViolation;
 use App\Models\User;
@@ -37,10 +36,10 @@ final class LsrService
 
         $camera = $ppe?->camera;
         if ($camera === null && ! empty($payload['camera_id']) && is_numeric($payload['camera_id'])) {
-            $camera = Camera::query()->find((int) $payload['camera_id']);
+            $camera = Device::query()->cameras()->find((int) $payload['camera_id']);
         }
         if ($camera === null && is_string($payload['camera_ref'] ?? null) && $payload['camera_ref'] !== '') {
-            $camera = Camera::query()->where('reference', $payload['camera_ref'])->first();
+            $camera = Device::query()->cameras()->where('reference', $payload['camera_ref'])->first();
         }
 
         $zone = null;

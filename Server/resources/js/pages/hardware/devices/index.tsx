@@ -19,6 +19,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Switch } from '@/components/ui/switch';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state';
 import {
@@ -29,42 +30,60 @@ import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
 import settings from '@/routes/settings';
 import { DeviceType } from '@/types/enums';
 import type {
-    DeviceRow,
+    CameraUnitRow,
+    FieldDeviceRow,
     HardwareOption,
     Paginated,
     PlainDeviceToken,
+    RegistryRow,
 } from '@/types/hardware';
 
 type Props = {
-    devices: Paginated<DeviceRow>;
+    rows: Paginated<RegistryRow>;
     assets: Array<{ id: number; name: string }>;
-    deviceTypes: HardwareOption[];
+    registryTypes: HardwareOption[];
+    cameraTypes: HardwareOption[];
     statuses: HardwareOption[];
     plainToken: PlainDeviceToken | null;
     filters: { q: string; device_type: string; status: string };
 };
 
-type FormState = { mode: 'create' } | { mode: 'edit'; device: DeviceRow };
+type FormState = { mode: 'create' } | { mode: 'edit'; row: RegistryRow };
+
+function isCameraRow(row: RegistryRow): row is CameraUnitRow {
+    return row.kind === 'camera';
+}
+
+function isDeviceRow(row: RegistryRow): row is FieldDeviceRow {
+    return row.kind === 'device';
+}
 
 export default function DevicesIndex({
-    devices,
+    rows,
     assets,
-    deviceTypes,
+    registryTypes,
+    cameraTypes,
     statuses,
     plainToken: initialToken,
     filters,
 }: Props) {
     const [form, setForm] = useState<FormState | null>(null);
-    const [tokenConfirm, setTokenConfirm] = useState<DeviceRow | null>(null);
-    const [retireTarget, setRetireTarget] = useState<DeviceRow | null>(null);
-    const [statusTarget, setStatusTarget] = useState<DeviceRow | null>(null);
+    const [tokenTarget, setTokenTarget] = useState<RegistryRow | null>(null);
+    const [retireTarget, setRetireTarget] = useState<RegistryRow | null>(null);
+    const [statusTarget, setStatusTarget] = useState<RegistryRow | null>(null);
+    const [aiTarget, setAiTarget] = useState<CameraUnitRow | null>(null);
     const [plainToken, setPlainToken] = usePropSyncedState(initialToken);
     const [q, setQ] = useState(filters.q);
     const [deviceType, setDeviceType] = useState(filters.device_type || 'all');
     const [status, setStatus] = useState(filters.status || 'all');
     const [assetId, setAssetId] = useState('');
     const [typeValue, setTypeValue] = useState('rfid_reader');
+    const [cameraModule, setCameraModule] = useState('fixed');
+    const [aiEnabled, setAiEnabled] = useState(true);
     const [nextStatus, setNextStatus] = useState('maintenance');
+
+    const isCameraForm = typeValue === 'camera';
+    const isQrPrinterForm = typeValue === DeviceType.QrPrinter;
 
     const queryParams = {
         q: q || undefined,
@@ -73,11 +92,7 @@ export default function DevicesIndex({
     };
 
     const applyFilters = (
-        patch: Partial<{
-            q: string;
-            device_type: string;
-            status: string;
-        }> = {},
+        patch: Partial<{ q: string; device_type: string; status: string }> = {},
     ): void => {
         const nextQ = patch.q ?? q;
         const nextDeviceType = patch.device_type ?? deviceType;
@@ -95,45 +110,62 @@ export default function DevicesIndex({
         FILTER_SEARCH_DEBOUNCE_MS,
     );
 
-    const columns: SettingsColumn<DeviceRow>[] = [
+    const openCreate = (): void => {
+        setAssetId('');
+        setTypeValue('rfid_reader');
+        setCameraModule('fixed');
+        setAiEnabled(true);
+        setForm({ mode: 'create' });
+    };
+
+    const openEdit = (row: RegistryRow): void => {
+        setAssetId(String(row.asset?.id ?? ''));
+
+        if (isCameraRow(row)) {
+            setTypeValue('camera');
+            setCameraModule(String(row.camera_type));
+            setAiEnabled(row.ai_enabled);
+        } else {
+            setTypeValue(String(row.device_type));
+        }
+
+        setForm({ mode: 'edit', row });
+    };
+
+    const columns: SettingsColumn<RegistryRow>[] = [
         {
-            key: 'number',
-            header: 'Number',
-            className: 'w-28',
-            cell: (device) => (
-                <span className="font-mono text-xs">Device #{device.id}</span>
-            ),
-        },
-        {
-            key: 'device',
-            header: 'Device',
-            cell: (device) => (
+            key: 'name',
+            header: 'Hardware',
+            cell: (row) => (
                 <div>
-                    <div className="font-medium">{device.name}</div>
+                    <div className="font-medium">{row.name}</div>
                     <div className="font-mono text-xs text-text-faint">
-                        {device.reference}
+                        {row.reference}
                     </div>
+                    {isCameraRow(row) ? (
+                        <div className="text-xs text-text-dim">
+                            {row.camera_type_label}
+                        </div>
+                    ) : null}
                 </div>
             ),
         },
         {
             key: 'type',
             header: 'Type',
-            cell: (device) => device.device_type_label,
+            cell: (row) =>
+                isCameraRow(row) ? 'Camera' : row.device_type_label,
         },
         {
             key: 'asset',
             header: 'Asset',
-            cell: (device) => device.asset?.name ?? '—',
+            cell: (row) => row.asset?.name ?? '—',
         },
         {
             key: 'status',
             header: 'Status',
-            cell: (device) => {
-                const label = hardwarePresenceLabel(
-                    device.status,
-                    device.is_online,
-                );
+            cell: (row) => {
+                const label = hardwarePresenceLabel(row.status, row.is_online);
 
                 return (
                     <StatusPill
@@ -144,39 +176,55 @@ export default function DevicesIndex({
             },
         },
         {
-            key: 'token',
-            header: 'Token',
-            cell: (device) => (
-                <StatusPill
-                    label={device.has_token ? 'Issued' : 'None'}
-                    tone={device.has_token ? 'ok' : 'neutral'}
-                />
-            ),
-        },
-        {
-            key: 'ai',
-            header: 'API URL',
-            cell: (device) =>
-                device.device_type === DeviceType.EdgeCompute &&
-                device.api_url ? (
-                    <span className="font-mono text-xs">{device.api_url}</span>
-                ) : (
-                    '—'
-                ),
+            key: 'connectivity',
+            header: 'Token / link',
+            cell: (row) => {
+                if (isCameraRow(row)) {
+                    return (
+                        <StatusPill
+                            label={row.has_token ? 'Token issued' : 'No token'}
+                            tone={row.has_token ? 'ok' : 'neutral'}
+                        />
+                    );
+                }
+
+                if (row.device_type === DeviceType.QrPrinter) {
+                    return (
+                        <span className="font-mono text-xs">
+                            {row.printer_host}:{row.printer_port}
+                        </span>
+                    );
+                }
+
+                return (
+                    <StatusPill
+                        label={row.has_token ? 'Token issued' : 'No token'}
+                        tone={row.has_token ? 'ok' : 'neutral'}
+                    />
+                );
+            },
         },
         {
             key: 'seen',
             header: 'Last seen',
-            cell: (device) =>
-                device.last_seen_at
-                    ? new Date(device.last_seen_at).toLocaleString()
+            cell: (row) =>
+                row.last_seen_at
+                    ? new Date(row.last_seen_at).toLocaleString()
+                    : '—',
+        },
+        {
+            key: 'frame',
+            header: 'Last frame',
+            cell: (row) =>
+                isCameraRow(row) && row.last_frame_at
+                    ? new Date(row.last_frame_at).toLocaleString()
                     : '—',
         },
         {
             key: 'actions',
             header: '',
             className: 'w-12 text-right',
-            cell: (device) => (
+            cell: (row) => (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button
@@ -188,20 +236,14 @@ export default function DevicesIndex({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                            onClick={() => {
-                                setAssetId(String(device.asset?.id ?? ''));
-                                setTypeValue(device.device_type);
-                                setForm({ mode: 'edit', device });
-                            }}
-                        >
+                        <DropdownMenuItem onClick={() => openEdit(row)}>
                             Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
                             onClick={async () => {
                                 try {
                                     await navigator.clipboard.writeText(
-                                        device.uuid,
+                                        row.uuid,
                                     );
                                     toast.success('UUID copied');
                                 } catch {
@@ -211,28 +253,39 @@ export default function DevicesIndex({
                         >
                             Copy UUID
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                            disabled={device.status === 'retired'}
-                            onClick={() => setTokenConfirm(device)}
-                        >
-                            {device.has_token ? 'Rotate token' : 'Issue token'}
-                        </DropdownMenuItem>
+                        {isCameraRow(row) ? (
+                            <DropdownMenuItem
+                                disabled={row.status === 'retired'}
+                                onClick={() => setAiTarget(row)}
+                            >
+                                {row.ai_enabled ? 'Disable AI' : 'Enable AI'}
+                            </DropdownMenuItem>
+                        ) : null}
+                        {(isCameraRow(row) ||
+                            row.device_type !== DeviceType.QrPrinter) && (
+                            <DropdownMenuItem
+                                disabled={row.status === 'retired'}
+                                onClick={() => setTokenTarget(row)}
+                            >
+                                {row.has_token ? 'Rotate token' : 'Issue token'}
+                            </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
                             onClick={() => {
                                 setNextStatus(
-                                    device.status === 'retired'
+                                    row.status === 'retired'
                                         ? 'online'
                                         : 'maintenance',
                                 );
-                                setStatusTarget(device);
+                                setStatusTarget(row);
                             }}
                         >
                             Set status
                         </DropdownMenuItem>
                         <DropdownMenuItem
                             className="text-destructive"
-                            disabled={device.status === 'retired'}
-                            onClick={() => setRetireTarget(device)}
+                            disabled={row.status === 'retired'}
+                            onClick={() => setRetireTarget(row)}
                         >
                             Retire
                         </DropdownMenuItem>
@@ -242,28 +295,31 @@ export default function DevicesIndex({
         },
     ];
 
+    const formAction =
+        form?.mode === 'edit'
+            ? settings.devices.update.url(form.row.uuid)
+            : settings.devices.store.url();
+
+    const editingCamera =
+        form?.mode === 'edit' && isCameraRow(form.row) ? form.row : null;
+    const editingDevice =
+        form?.mode === 'edit' && isDeviceRow(form.row) ? form.row : null;
+
     return (
         <>
             <Head title="Devices" />
             <SettingsPageShell
                 eyebrow="Hardware"
                 title="Devices"
-                description="Readers, sensors, edge units. Tokens shown once at issuance."
+                description="Readers, sensors, cameras, and printers on one registry."
                 actions={
                     <>
                         <Button asChild variant="outline">
                             <Link href={settings.assets.index()}>Assets</Link>
                         </Button>
-                        <Button
-                            type="button"
-                            onClick={() => {
-                                setAssetId('');
-                                setTypeValue('rfid_reader');
-                                setForm({ mode: 'create' });
-                            }}
-                        >
+                        <Button type="button" onClick={openCreate}>
                             <Plus data-icon="inline-start" />
-                            Register device
+                            Register hardware
                         </Button>
                     </>
                 }
@@ -290,7 +346,7 @@ export default function DevicesIndex({
                             triggerClassName="w-44"
                             options={[
                                 { value: 'all', label: 'All types' },
-                                ...deviceTypes.map((type) => ({
+                                ...registryTypes.map((type) => ({
                                     value: type.value,
                                     label: type.label,
                                 })),
@@ -318,13 +374,13 @@ export default function DevicesIndex({
             >
                 <SettingsDataTable
                     columns={columns}
-                    rows={devices.data}
-                    rowKey={(device) => device.id}
-                    meta={devices.meta}
+                    rows={rows.data}
+                    rowKey={(row) => `${row.kind}-${row.id}`}
+                    meta={rows.meta}
                     pageUrl={settings.devices.index.url()}
                     queryParams={queryParams}
-                    emptyTitle="No devices"
-                    emptyDescription="Register a device on an asset to begin commissioning."
+                    emptyTitle="No hardware"
+                    emptyDescription="Register a device or camera on an asset to begin commissioning."
                 />
             </SettingsPageShell>
 
@@ -336,22 +392,30 @@ export default function DevicesIndex({
                     }
                 }}
                 title={
-                    form?.mode === 'edit' ? 'Edit device' : 'Register device'
-                }
-                action={
                     form?.mode === 'edit'
-                        ? settings.devices.update.url(form.device.uuid)
-                        : settings.devices.store.url()
+                        ? 'Edit hardware'
+                        : 'Register hardware'
                 }
+                action={formAction}
                 method={form?.mode === 'edit' ? 'put' : 'post'}
-                submitLabel={
-                    form?.mode === 'edit' ? 'Save device' : 'Create device'
-                }
-                transform={(data) => ({
-                    ...data,
-                    asset_id: assetId,
-                    device_type: typeValue,
-                })}
+                submitLabel={form?.mode === 'edit' ? 'Save' : 'Create'}
+                transform={(data) => {
+                    if (isCameraForm) {
+                        return {
+                            ...data,
+                            asset_id: assetId,
+                            device_type: 'camera',
+                            camera_type: cameraModule,
+                            ai_enabled: aiEnabled,
+                        };
+                    }
+
+                    return {
+                        ...data,
+                        asset_id: assetId,
+                        device_type: typeValue,
+                    };
+                }}
             >
                 {({ errors }) => (
                     <>
@@ -373,40 +437,13 @@ export default function DevicesIndex({
                             ) : null}
                         </div>
                         <div className="flex flex-col gap-2">
-                            <Label htmlFor="device-name">Name</Label>
+                            <Label htmlFor="hw-name">Name</Label>
                             <Input
-                                id="device-name"
+                                id="hw-name"
                                 name="name"
                                 required
                                 defaultValue={
-                                    form?.mode === 'edit'
-                                        ? form.device.name
-                                        : ''
-                                }
-                            />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="device-reference">Reference</Label>
-                            <Input
-                                id="device-reference"
-                                name="reference"
-                                required
-                                defaultValue={
-                                    form?.mode === 'edit'
-                                        ? form.device.reference
-                                        : ''
-                                }
-                            />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="device-serial">Serial number</Label>
-                            <Input
-                                id="device-serial"
-                                name="serial_number"
-                                defaultValue={
-                                    form?.mode === 'edit'
-                                        ? (form.device.serial_number ?? '')
-                                        : ''
+                                    form?.mode === 'edit' ? form.row.name : ''
                                 }
                             />
                         </div>
@@ -415,62 +452,149 @@ export default function DevicesIndex({
                             <SearchableSelect
                                 value={typeValue}
                                 onValueChange={setTypeValue}
-                                options={deviceTypes.map((type) => ({
+                                options={registryTypes.map((type) => ({
                                     value: type.value,
                                     label: type.label,
                                 }))}
                             />
                         </div>
-                        {typeValue === DeviceType.EdgeCompute && (
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="device-api-url">API URL</Label>
-                                <Input
-                                    id="device-api-url"
-                                    name="api_url"
-                                    placeholder="http://172.16.3.2:8600/rois"
-                                    defaultValue={
-                                        form?.mode === 'edit'
-                                            ? (form.device.api_url ?? '')
-                                            : ''
-                                    }
-                                />
-                                <p className="text-xs text-text-dim">
-                                    Full Jetson ROI endpoint (include path).
-                                    Publish POSTs here after ROI publish.
-                                </p>
-                            </div>
-                        )}
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="hw-reference">Reference</Label>
+                            <Input
+                                id="hw-reference"
+                                name="reference"
+                                required
+                                defaultValue={
+                                    form?.mode === 'edit'
+                                        ? form.row.reference
+                                        : ''
+                                }
+                            />
+                        </div>
+                        {isCameraForm ? (
+                            <>
+                                <div className="flex flex-col gap-2">
+                                    <Label>Camera module</Label>
+                                    <SearchableSelect
+                                        value={cameraModule}
+                                        onValueChange={setCameraModule}
+                                        options={cameraTypes.map((type) => ({
+                                            value: type.value,
+                                            label: type.label,
+                                        }))}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="stream-url">
+                                        Stream URL
+                                    </Label>
+                                    <Input
+                                        id="stream-url"
+                                        name="stream_url"
+                                        required
+                                        defaultValue={
+                                            editingCamera?.stream_url ?? ''
+                                        }
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        id="ai-enabled"
+                                        checked={aiEnabled}
+                                        onCheckedChange={setAiEnabled}
+                                    />
+                                    <Label htmlFor="ai-enabled">
+                                        AI enabled
+                                    </Label>
+                                    <input
+                                        type="hidden"
+                                        name="ai_enabled"
+                                        value={aiEnabled ? '1' : '0'}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="api-url">API URL</Label>
+                                    <Input
+                                        id="api-url"
+                                        name="api_url"
+                                        required
+                                        placeholder="http://172.16.3.2:8600/rois"
+                                        defaultValue={
+                                            editingCamera?.api_url ?? ''
+                                        }
+                                    />
+                                </div>
+                            </>
+                        ) : null}
+                        {!isCameraForm ? (
+                            <>
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="device-serial">
+                                        Serial number
+                                    </Label>
+                                    <Input
+                                        id="device-serial"
+                                        name="serial_number"
+                                        defaultValue={
+                                            editingDevice?.serial_number ?? ''
+                                        }
+                                    />
+                                </div>
+                                {isQrPrinterForm ? (
+                                    <>
+                                        <div className="flex flex-col gap-2">
+                                            <Label htmlFor="printer-host">
+                                                Printer IP
+                                            </Label>
+                                            <Input
+                                                id="printer-host"
+                                                name="printer_host"
+                                                required
+                                                defaultValue={
+                                                    editingDevice?.printer_host ??
+                                                    ''
+                                                }
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <Label htmlFor="printer-port">
+                                                Printer port
+                                            </Label>
+                                            <Input
+                                                id="printer-port"
+                                                name="printer_port"
+                                                type="number"
+                                                required
+                                                defaultValue={
+                                                    editingDevice?.printer_port ??
+                                                    9100
+                                                }
+                                            />
+                                        </div>
+                                    </>
+                                ) : null}
+                            </>
+                        ) : null}
                     </>
                 )}
             </CrudFormDialog>
 
             <ConfirmActionDialog
-                open={tokenConfirm !== null}
+                open={tokenTarget !== null}
                 onOpenChange={(open) => {
                     if (!open) {
-                        setTokenConfirm(null);
+                        setTokenTarget(null);
                     }
                 }}
-                title={
-                    tokenConfirm?.has_token
-                        ? 'Rotate device token'
-                        : 'Issue device token'
-                }
-                description={
-                    tokenConfirm?.has_token
-                        ? 'Rotating immediately invalidates the currently configured edge credential.'
-                        : 'A plaintext token will be shown once for field configuration.'
-                }
+                title="Issue device token"
+                description="A plaintext token will be shown once for field configuration."
                 action={
-                    tokenConfirm
-                        ? settings.devices.token.url(tokenConfirm.uuid)
+                    tokenTarget
+                        ? settings.devices.token.url(tokenTarget.uuid)
                         : undefined
                 }
                 method="post"
-                confirmLabel={
-                    tokenConfirm?.has_token ? 'Rotate token' : 'Issue token'
-                }
-                destructive={tokenConfirm?.has_token === true}
+                confirmLabel="Issue token"
             />
 
             <ConfirmActionDialog
@@ -480,8 +604,8 @@ export default function DevicesIndex({
                         setRetireTarget(null);
                     }
                 }}
-                title="Retire device"
-                description="Retiring hides the device from Live View and filters, invalidates the API token, and blocks ingestion. Historical telemetry is retained."
+                title="Retire hardware"
+                description="Retiring hides the unit from live surfaces and blocks ingestion. Historical data is retained."
                 action={
                     retireTarget
                         ? settings.devices.status.url(retireTarget.uuid)
@@ -500,8 +624,7 @@ export default function DevicesIndex({
                         setStatusTarget(null);
                     }
                 }}
-                title="Set device status"
-                description="Maintenance and retired devices are hidden from operator live surfaces. Restoring from retired requires issuing a new token."
+                title="Set status"
                 action={
                     statusTarget
                         ? settings.devices.status.url(statusTarget.uuid)
@@ -527,6 +650,24 @@ export default function DevicesIndex({
                     </div>
                 )}
             </CrudFormDialog>
+
+            <ConfirmActionDialog
+                open={aiTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setAiTarget(null);
+                    }
+                }}
+                title={aiTarget?.ai_enabled ? 'Disable AI' : 'Enable AI'}
+                description="Toggles AI processing for this camera stream."
+                action={
+                    aiTarget
+                        ? settings.devices.toggleAi.url(aiTarget.uuid)
+                        : undefined
+                }
+                method="patch"
+                confirmLabel={aiTarget?.ai_enabled ? 'Disable' : 'Enable'}
+            />
 
             <TokenRevealDialog
                 token={plainToken}

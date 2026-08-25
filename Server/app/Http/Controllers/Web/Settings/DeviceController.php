@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Settings;
 
+use App\Enums\CameraType;
 use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
 use App\Http\Controllers\Web\BaseController;
@@ -11,7 +12,6 @@ use App\Models\Asset;
 use App\Models\Device;
 use App\Services\Hardware\AssetHealthService;
 use App\Services\Hardware\HardwareRegistryService;
-use App\Support\HardwarePresence;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -20,71 +20,39 @@ use Inertia\Response;
 
 final class DeviceController extends BaseController
 {
-    public function index(Request $request, AssetHealthService $health): Response
+    public function index(Request $request, HardwareRegistryService $hardware, AssetHealthService $health): Response
     {
         $this->authorize('viewAny', Device::class);
 
-        $query = Device::query()->fieldHardware()->with('asset:id,uuid,name');
+        $perPage = max(1, min(100, (int) $request->integer('per_page', 25)));
+        $page = max(1, (int) $request->integer('page', 1));
+        $request->merge(['page' => $page, 'per_page' => $perPage]);
 
-        if ($request->filled('device_type')) {
-            $query->where('device_type', $request->string('device_type')->toString());
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status')->toString());
-        }
-
-        $this->applyListQuery($query, $request, ['name', 'reference', 'device_type', 'status', 'last_seen_at'], ['name', 'reference'], 'name', 'asc');
-
-        $paginator = $query->paginate($this->perPage($request))->withQueryString();
+        $result = $hardware->registryRows($request, $health);
+        $lastPage = max(1, (int) ceil($result['total'] / $perPage));
 
         return Inertia::render('hardware/devices/index', [
-            'devices' => [
-                'data' => $paginator->getCollection()->map(function (Device $device) use ($health): array {
-                    $isOnline = HardwarePresence::isDeviceOnline(
-                        $device,
-                        $health->staleMinutesForDevice($device->device_type),
-                    );
-
-                    return [
-                        'id' => $device->id,
-                        'uuid' => $device->uuid,
-                        'name' => $device->name,
-                        'reference' => $device->reference,
-                        'serial_number' => $device->serial_number,
-                        'device_type' => $device->device_type->value,
-                        'device_type_label' => $device->device_type->label(),
-                        'status' => $device->status->value,
-                        'is_online' => $isOnline,
-                        'has_token' => $device->api_token_hash !== null,
-                        'last_seen_at' => $device->last_seen_at?->toIso8601String(),
-                        'api_url' => $device->device_type === DeviceType::EdgeCompute
-                            && is_array($device->config)
-                            && is_string($device->config['api_url'] ?? null)
-                            && $device->config['api_url'] !== ''
-                                ? $device->config['api_url']
-                                : null,
-                        'asset' => $device->asset === null ? null : [
-                            'id' => $device->asset->id,
-                            'uuid' => $device->asset->uuid,
-                            'name' => $device->asset->name,
-                        ],
-                    ];
-                }),
+            'rows' => [
+                'data' => $result['data'],
                 'meta' => [
-                    'current_page' => $paginator->currentPage(),
-                    'last_page' => $paginator->lastPage(),
-                    'total' => $paginator->total(),
+                    'current_page' => $page,
+                    'last_page' => $lastPage,
+                    'total' => $result['total'],
+                    'per_page' => $perPage,
                 ],
             ],
             'assets' => Asset::query()->orderBy('name')->get(['id', 'uuid', 'name']),
-            'deviceTypes' => collect(DeviceType::cases())->map(fn (DeviceType $t) => [
-                'value' => $t->value,
-                'label' => $t->label(),
+            'registryTypes' => collect(DeviceType::registryTypes())->map(fn (DeviceType $type) => [
+                'value' => $type->value,
+                'label' => $type->label(),
+            ])->all(),
+            'cameraTypes' => collect(CameraType::cases())->map(fn (CameraType $type) => [
+                'value' => $type->value,
+                'label' => $type->label(),
             ]),
-            'statuses' => collect(HardwareStatus::cases())->map(fn (HardwareStatus $s) => [
-                'value' => $s->value,
-                'label' => $s->label(),
+            'statuses' => collect(HardwareStatus::cases())->map(fn (HardwareStatus $status) => [
+                'value' => $status->value,
+                'label' => $status->label(),
             ]),
             'plainToken' => $request->session()->pull('plain_device_token'),
             'filters' => [
@@ -97,16 +65,33 @@ final class DeviceController extends BaseController
 
     public function store(StoreDeviceRequest $request, HardwareRegistryService $hardware): RedirectResponse
     {
-        $hardware->createDevice($request->validated());
+        $result = $hardware->createDevice($request->validated(), $request->user());
+        $device = $result['device'];
 
-        return redirect()->route('settings.devices.index');
+        $redirect = redirect()->route(
+            'settings.devices.index',
+            $device->isCamera() ? ['device_type' => 'camera'] : [],
+        );
+
+        if (($result['plain_token'] ?? null) !== null && $device->isCamera()) {
+            $redirect->with('plain_device_token', [
+                'device_id' => $device->id,
+                'device_name' => $device->name,
+                'token' => $result['plain_token'],
+            ]);
+        }
+
+        return $redirect;
     }
 
     public function update(UpdateDeviceRequest $request, Device $device, HardwareRegistryService $hardware): RedirectResponse
     {
         $hardware->updateDevice($device, $request->validated());
 
-        return redirect()->route('settings.devices.index');
+        return redirect()->route(
+            'settings.devices.index',
+            $device->isCamera() ? ['device_type' => 'camera'] : [],
+        );
     }
 
     public function setStatus(Request $request, Device $device, HardwareRegistryService $hardware): RedirectResponse
@@ -122,6 +107,14 @@ final class DeviceController extends BaseController
         return redirect()->back();
     }
 
+    public function toggleAi(Device $device, HardwareRegistryService $hardware): RedirectResponse
+    {
+        $this->authorize('update', $device);
+        $hardware->toggleCameraAi($device);
+
+        return redirect()->back();
+    }
+
     public function regenerateToken(Device $device, HardwareRegistryService $hardware): RedirectResponse
     {
         $this->authorize('update', $device);
@@ -129,7 +122,10 @@ final class DeviceController extends BaseController
         $result = $hardware->issueToken($device, request()->user());
 
         return redirect()
-            ->route('settings.devices.index')
+            ->route(
+                'settings.devices.index',
+                $device->isCamera() ? ['device_type' => 'camera'] : [],
+            )
             ->with('plain_device_token', [
                 'device_id' => $result['device']->id,
                 'device_name' => $result['device']->name,

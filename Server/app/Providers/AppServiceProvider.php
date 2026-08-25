@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Device;
 use App\Services\Platform\BackupStatusService;
 use App\Services\Settings\SettingsService;
 use App\Services\Storage\SignedStorageUrlService;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -68,6 +70,14 @@ class AppServiceProvider extends ServiceProvider
         $this->configureBackupEvents();
         $this->configureRateLimiting();
         $this->configureRuntimeTimezone();
+        $this->configureRouteBindings();
+    }
+
+    protected function configureRouteBindings(): void
+    {
+        Route::bind('camera', function (string $value): Device {
+            return Device::query()->cameras()->where('uuid', $value)->firstOrFail();
+        });
     }
 
     /**

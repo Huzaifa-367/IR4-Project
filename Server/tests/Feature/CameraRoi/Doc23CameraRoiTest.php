@@ -5,12 +5,12 @@ use App\Enums\CameraRoiStaleReason;
 use App\Enums\CameraType;
 use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\User;
 use App\Services\Camera\CameraRoiService;
 use App\Services\Hardware\HardwareRegistryService;
 use Illuminate\Support\Facades\Http;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 function validRoiPayload(string $name = 'Work bay', string $reference = 'roi_work_bay'): array
 {
@@ -31,7 +31,7 @@ function validRoiPayload(string $name = 'Work bay', string $reference = 'roi_wor
 
 it('rejects polygons with fewer than three points', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = Camera::factory()->create(['status' => HardwareStatus::Online]);
+    $camera = Device::factory()->camera()->create(['status' => HardwareStatus::Online]);
 
     $this->actingAs($admin)
         ->put(route('hardware.camera-rois.update', $camera), [
@@ -49,7 +49,7 @@ it('rejects polygons with fewer than three points', function () {
 
 it('rejects coordinates outside the 0-1 normalized range', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = Camera::factory()->create(['status' => HardwareStatus::Online]);
+    $camera = Device::factory()->camera()->create(['status' => HardwareStatus::Online]);
 
     $this->actingAs($admin)
         ->put(route('hardware.camera-rois.update', $camera), [
@@ -68,7 +68,7 @@ it('rejects coordinates outside the 0-1 normalized range', function () {
 
 it('saves a draft and publishes an active set for edge sync', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = Camera::factory()->create(['status' => HardwareStatus::Online]);
+    $camera = Device::factory()->camera()->create(['status' => HardwareStatus::Online]);
 
     $this->actingAs($admin)
         ->put(route('hardware.camera-rois.update', $camera), [
@@ -107,7 +107,7 @@ it('marks the set stale after a successful ptz move', function () {
     });
 
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'camera_type' => CameraType::Ptz,
         'status' => HardwareStatus::Online,
         'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
@@ -146,7 +146,7 @@ it('does not mark rois stale on ptz stop', function () {
     });
 
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'camera_type' => CameraType::Ptz,
         'status' => HardwareStatus::Online,
         'stream_url' => 'rtsp://admin:secret@172.16.1.10:554/Streaming/Channels/101',
@@ -168,21 +168,20 @@ it('does not mark rois stale on ptz stop', function () {
 
 it('marks the set stale when stream_url changes', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'status' => HardwareStatus::Online,
         'stream_url' => 'rtsp://10.0.0.5/stream1',
     ]);
 
     app(CameraRoiService::class)->publish($camera, [validRoiPayload()], $admin);
 
-    app(HardwareRegistryService::class)->updateCamera($camera, [
+    app(HardwareRegistryService::class)->updateDevice($camera, [
         'name' => $camera->name,
         'reference' => $camera->reference,
         'camera_type' => $camera->camera_type->value,
         'stream_url' => 'rtsp://10.0.0.5/stream2',
         'ai_enabled' => $camera->ai_enabled,
         'asset_id' => $camera->asset_id,
-        'processed_by_device_id' => $camera->processed_by_device_id,
     ]);
 
     $camera->refresh()->load('roiSet');
@@ -191,24 +190,21 @@ it('marks the set stale when stream_url changes', function () {
 });
 
 it('returns active rois for the authenticated device camera only', function () {
-    $device = Device::factory()->withoutToken()->create();
-    $plain = app(HardwareRegistryService::class)->issueToken($device)['plain_token'];
-
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->withoutToken()->create([
         'status' => HardwareStatus::Online,
-        'processed_by_device_id' => $device->id,
     ]);
+    $plain = app(HardwareRegistryService::class)->issueToken($camera)['plain_token'];
 
     $admin = User::factory()->withRole('Super Admin')->create();
     app(CameraRoiService::class)->publish($camera, [validRoiPayload('Active', 'roi_active')], $admin);
 
-    $this->getJson(route('api.devices.camera-rois', $device), [
+    $this->getJson(route('api.devices.camera-rois', $camera), [
         'X-Device-Token' => $plain,
     ])
         ->assertOk()
-        ->assertJsonPath('data.device.id', $device->id)
-        ->assertJsonPath('data.device.uuid', $device->uuid)
-        ->assertJsonPath('data.device.reference', $device->reference)
+        ->assertJsonPath('data.device.id', $camera->id)
+        ->assertJsonPath('data.device.uuid', $camera->uuid)
+        ->assertJsonPath('data.device.reference', $camera->reference)
         ->assertJsonPath('data.rois.0.reference', 'roi_active')
         ->assertJsonMissingPath('data.cameras')
         ->assertJsonMissingPath('data.device.token')
@@ -216,7 +212,7 @@ it('returns active rois for the authenticated device camera only', function () {
 
     app(CameraRoiService::class)->markStale($camera, CameraRoiStaleReason::Manual, $admin);
 
-    $this->getJson(route('api.devices.camera-rois', $device), [
+    $this->getJson(route('api.devices.camera-rois', $camera), [
         'X-Device-Token' => $plain,
     ])
         ->assertOk()
@@ -225,38 +221,29 @@ it('returns active rois for the authenticated device camera only', function () {
 });
 
 it('scopes camera-rois pull to the device uuid and rejects token mismatch', function () {
-    $device = Device::factory()->withoutToken()->create();
-    $other = Device::factory()->withoutToken()->create();
-    $plain = app(HardwareRegistryService::class)->issueToken($device)['plain_token'];
-    $otherPlain = app(HardwareRegistryService::class)->issueToken($other)['plain_token'];
+    $owned = Device::factory()->camera()->withoutToken()->create(['status' => HardwareStatus::Online]);
+    $foreign = Device::factory()->camera()->withoutToken()->create(['status' => HardwareStatus::Online]);
+    $plain = app(HardwareRegistryService::class)->issueToken($owned)['plain_token'];
+    $otherPlain = app(HardwareRegistryService::class)->issueToken($foreign)['plain_token'];
     $admin = User::factory()->withRole('Super Admin')->create();
-
-    $owned = Camera::factory()->create([
-        'status' => HardwareStatus::Online,
-        'processed_by_device_id' => $device->id,
-    ]);
-    $foreign = Camera::factory()->create([
-        'status' => HardwareStatus::Online,
-        'processed_by_device_id' => $other->id,
-    ]);
 
     app(CameraRoiService::class)->publish($owned, [validRoiPayload('Keep', 'roi_keep')], $admin);
     app(CameraRoiService::class)->publish($foreign, [validRoiPayload('Foreign', 'roi_foreign')], $admin);
 
-    $this->getJson(route('api.devices.camera-rois', $device), [
+    $this->getJson(route('api.devices.camera-rois', $owned), [
         'X-Device-Token' => $plain,
     ])
         ->assertOk()
         ->assertJsonCount(1, 'data.rois')
         ->assertJsonPath('data.rois.0.reference', 'roi_keep');
 
-    $this->getJson(route('api.devices.camera-rois', $other), [
+    $this->getJson(route('api.devices.camera-rois', $foreign), [
         'X-Device-Token' => $plain,
     ])
         ->assertForbidden()
         ->assertJsonPath('error.code', 'FORBIDDEN');
 
-    $this->getJson(route('api.devices.camera-rois', $other), [
+    $this->getJson(route('api.devices.camera-rois', $foreign), [
         'X-Device-Token' => $otherPlain,
     ])
         ->assertOk()
@@ -266,17 +253,17 @@ it('scopes camera-rois pull to the device uuid and rejects token mismatch', func
 
 it('lists only online cameras on the roi index', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
-    $online = Camera::factory()->create([
+    $online = Device::factory()->camera()->create([
         'status' => HardwareStatus::Online,
         'name' => 'Online Cam',
         'last_frame_at' => now(),
     ]);
-    Camera::factory()->create([
+    Device::factory()->camera()->create([
         'status' => HardwareStatus::Offline,
         'name' => 'Offline Cam',
         'last_frame_at' => null,
     ]);
-    Camera::factory()->create([
+    Device::factory()->camera()->create([
         'status' => HardwareStatus::Online,
         'name' => 'Stale Cam',
         'last_frame_at' => now()->subHours(2),
@@ -292,7 +279,7 @@ it('lists only online cameras on the roi index', function () {
 });
 
 it('gates view and manage camera-rois permissions', function () {
-    $camera = Camera::factory()->create(['status' => HardwareStatus::Online]);
+    $camera = Device::factory()->camera()->create(['status' => HardwareStatus::Online]);
     $viewer = User::factory()->withRole('Project Manager')->create();
     $viewer->givePermissionTo('view-camera-rois');
 
@@ -319,7 +306,7 @@ it('gates view and manage camera-rois permissions', function () {
 it('includes draft active and stale roi overlays on the live wall', function () {
     config()->set('camera_stream.browser_url_template', '/hls/{reference}/');
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'status' => HardwareStatus::Online,
         'reference' => 'cam-roi-live',
         'last_frame_at' => now(),
@@ -355,7 +342,7 @@ it('includes draft active and stale roi overlays on the live wall', function () 
 
 it('blocks publish without at least one roi', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = Camera::factory()->create(['status' => HardwareStatus::Online]);
+    $camera = Device::factory()->camera()->create(['status' => HardwareStatus::Online]);
 
     $this->actingAs($admin)
         ->post(route('hardware.camera-rois.publish', $camera), [
@@ -366,7 +353,7 @@ it('blocks publish without at least one roi', function () {
 
 it('blocks publish when every roi is disabled', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = Camera::factory()->create(['status' => HardwareStatus::Online]);
+    $camera = Device::factory()->camera()->create(['status' => HardwareStatus::Online]);
     $disabled = validRoiPayload();
     $disabled['is_enabled'] = false;
 
@@ -382,27 +369,23 @@ it('pushes the get payload to the jetson ai host on publish', function () {
         'http://172.16.3.2:8600/rois' => Http::response(['ok' => true], 200),
     ]);
 
-    $device = Device::factory()->withoutToken()->create([
+    $camera = Device::factory()->camera()->create([
         'reference' => 'DEV-CAM-AI-PUSH',
-        'device_type' => DeviceType::EdgeCompute,
-        'config' => ['api_url' => 'http://172.16.3.2:8600/rois'],
-    ]);
-    $camera = Camera::factory()->create([
         'status' => HardwareStatus::Online,
-        'processed_by_device_id' => $device->id,
+        'api_url' => 'http://172.16.3.2:8600/rois',
     ]);
     $admin = User::factory()->withRole('Super Admin')->create();
 
     app(CameraRoiService::class)->publish($camera, [validRoiPayload('Bay', 'roi_bay')], $admin);
 
-    Http::assertSent(function ($request) use ($device): bool {
+    Http::assertSent(function ($request) use ($camera): bool {
         if ($request->url() !== 'http://172.16.3.2:8600/rois' || $request->method() !== 'POST') {
             return false;
         }
         $body = $request->data();
 
-        return ($body['device']['uuid'] ?? null) === $device->uuid
-            && ($body['device']['reference'] ?? null) === $device->reference
+        return ($body['device']['uuid'] ?? null) === $camera->uuid
+            && ($body['device']['reference'] ?? null) === $camera->reference
             && ($body['rois'][0]['reference'] ?? null) === 'roi_bay'
             && isset($body['view_fingerprint']);
     });
@@ -413,55 +396,39 @@ it('pushes each pole camera to its own device uuid even when api_url is shared',
         'http://172.16.3.2:8600/rois' => Http::response(['ok' => true], 200),
     ]);
 
-    $fixedDev = Device::factory()->withoutToken()->create([
-        'reference' => 'DEV-CAM-FIXED-X',
-        'device_type' => DeviceType::EdgeCompute,
-        'config' => ['api_url' => 'http://172.16.3.2:8600/rois', 'camera_ref' => 'CAM-FIXED-X'],
-    ]);
-    $ptzDev = Device::factory()->withoutToken()->create([
-        'reference' => 'DEV-CAM-PTZ-X',
-        'device_type' => DeviceType::EdgeCompute,
-        'config' => ['api_url' => 'http://172.16.3.2:8600/rois', 'camera_ref' => 'CAM-PTZ-X'],
-    ]);
-    $fixedCam = Camera::factory()->create([
+    $fixedCam = Device::factory()->camera()->create([
         'reference' => 'CAM-FIXED-X',
         'status' => HardwareStatus::Online,
-        'processed_by_device_id' => $fixedDev->id,
+        'api_url' => 'http://172.16.3.2:8600/rois',
     ]);
-    $ptzCam = Camera::factory()->create([
+    $ptzCam = Device::factory()->camera()->create([
         'reference' => 'CAM-PTZ-X',
         'status' => HardwareStatus::Online,
-        'processed_by_device_id' => $ptzDev->id,
+        'api_url' => 'http://172.16.3.2:8600/rois',
     ]);
     $admin = User::factory()->withRole('Super Admin')->create();
 
     app(CameraRoiService::class)->publish($fixedCam, [validRoiPayload('Fixed ROI', 'roi_fixed')], $admin);
     app(CameraRoiService::class)->publish($ptzCam, [validRoiPayload('Ptz ROI', 'roi_ptz')], $admin);
 
-    Http::assertSent(fn ($r): bool => ($r->data()['device']['uuid'] ?? null) === $fixedDev->uuid
+    Http::assertSent(fn ($r): bool => ($r->data()['device']['uuid'] ?? null) === $fixedCam->uuid
         && ($r->data()['rois'][0]['reference'] ?? null) === 'roi_fixed');
-    Http::assertSent(fn ($r): bool => ($r->data()['device']['uuid'] ?? null) === $ptzDev->uuid
+    Http::assertSent(fn ($r): bool => ($r->data()['device']['uuid'] ?? null) === $ptzCam->uuid
         && ($r->data()['rois'][0]['reference'] ?? null) === 'roi_ptz');
 });
 
-it('scrubs legacy ai_host / ai_base_url keys when updating a device', function () {
-    $device = Device::factory()->withoutToken()->create([
-        'device_type' => DeviceType::EdgeCompute,
-        'config' => [
-            'ai_host' => '172.16.3.2',
-            'ai_base_url' => 'http://172.16.3.2:8600',
-            'camera_ref' => 'CAM-LEGACY',
-        ],
-    ]);
-
-    $updated = app(HardwareRegistryService::class)->updateDevice($device, [
+it('updates camera rows via the unified device form', function () {
+    $camera = Device::factory()->camera()->create([
+        'reference' => 'CAM-LEGACY',
         'api_url' => 'http://172.16.3.2:8600/rois',
     ]);
 
-    expect($updated->config)->toMatchArray([
-        'api_url' => 'http://172.16.3.2:8600/rois',
-        'camera_ref' => 'CAM-LEGACY',
-    ])
-        ->and($updated->config)->not->toHaveKey('ai_host')
-        ->and($updated->config)->not->toHaveKey('ai_base_url');
+    app(HardwareRegistryService::class)->updateDevice($camera, [
+        'name' => 'Renamed camera',
+        'stream_url' => $camera->stream_url,
+        'camera_type' => $camera->camera_type->value,
+        'api_url' => $camera->api_url,
+    ]);
+
+    expect($camera->fresh()->name)->toBe('Renamed camera');
 });

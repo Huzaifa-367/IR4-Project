@@ -178,17 +178,6 @@ export const CameraRoiStaleReasonLabels: Record<CameraRoiStaleReason, string> =
         manual: 'Marked stale manually',
     };
 
-export const RoiViolationType = {
-    Intrusion: 'roi_intrusion',
-} as const;
-
-export type RoiViolationType =
-    (typeof RoiViolationType)[keyof typeof RoiViolationType];
-
-export const RoiViolationTypeLabels: Record<RoiViolationType, string> = {
-    roi_intrusion: 'ROI intrusion',
-};
-
 export const CameraType = {
     Fixed: 'fixed',
     Ptz: 'ptz',
@@ -223,23 +212,19 @@ export const DeviceType = {
     GasDetector: 'gas_detector',
     EnvironmentalSensor: 'environmental_sensor',
     RfidReader: 'rfid_reader',
-    WifiGateway: 'wifi_gateway',
-    Rs485Interface: 'rs485_interface',
     QrPrinter: 'qr_printer',
-    EdgeCompute: 'edge_compute',
+    Camera: 'camera',
     Other: 'other',
 } as const;
 
 export type DeviceType = (typeof DeviceType)[keyof typeof DeviceType];
 
 export const DeviceTypeLabels: Record<DeviceType, string> = {
-    gas_detector: 'Gas detector',
-    environmental_sensor: 'Environmental sensor',
+    gas_detector: 'Gas reader',
+    environmental_sensor: 'Environmental',
     rfid_reader: 'RFID reader',
-    wifi_gateway: 'Wi-Fi gateway',
-    rs485_interface: 'RS485 interface',
     qr_printer: 'QR printer',
-    edge_compute: 'Edge compute',
+    camera: 'Camera',
     other: 'Other',
 };
 
@@ -687,6 +672,17 @@ export const ReviewStatusLabels: Record<ReviewStatus, string> = {
     unreviewed: 'Unreviewed',
     confirmed: 'Confirmed',
     false_positive: 'False positive',
+};
+
+export const RoiViolationType = {
+    Intrusion: 'roi_intrusion',
+} as const;
+
+export type RoiViolationType =
+    (typeof RoiViolationType)[keyof typeof RoiViolationType];
+
+export const RoiViolationTypeLabels: Record<RoiViolationType, string> = {
+    roi_intrusion: 'ROI intrusion',
 };
 
 export const ScheduleType = {

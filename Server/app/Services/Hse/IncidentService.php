@@ -12,7 +12,7 @@ use App\Enums\Involvement;
 use App\Enums\ViolationType;
 use App\Models\Alert;
 use App\Models\AuditLog;
-use App\Models\Camera;
+use App\Models\Device;
 use App\Models\HseIncident;
 use App\Models\IncidentEvidence;
 use App\Models\IncidentPersonnel;
@@ -553,7 +553,7 @@ final class IncidentService
     /**
      * @param  array<string, mixed>  $payload
      */
-    private function resolveCamera(array $payload, ?PpeViolation $ppe): ?Camera
+    private function resolveCamera(array $payload, ?PpeViolation $ppe): ?Device
     {
         if ($ppe !== null) {
             $ppe->loadMissing('camera');
@@ -563,12 +563,12 @@ final class IncidentService
         }
 
         if (! empty($payload['camera_id']) && is_numeric($payload['camera_id'])) {
-            return Camera::query()->find((int) $payload['camera_id']);
+            return Device::query()->cameras()->find((int) $payload['camera_id']);
         }
 
         $ref = $payload['camera_ref'] ?? null;
         if (is_string($ref) && $ref !== '') {
-            return Camera::query()->where('reference', $ref)->first();
+            return Device::query()->cameras()->where('reference', $ref)->first();
         }
 
         return null;
@@ -577,7 +577,7 @@ final class IncidentService
     /**
      * @param  array<string, mixed>  $payload
      */
-    private function resolveZone(array $payload, ?Camera $camera): ?Zone
+    private function resolveZone(array $payload, ?Device $camera): ?Zone
     {
         if (! empty($payload['zone_id']) && is_numeric($payload['zone_id'])) {
             return Zone::query()->find((int) $payload['zone_id']);

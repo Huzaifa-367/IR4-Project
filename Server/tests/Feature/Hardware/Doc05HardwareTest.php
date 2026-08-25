@@ -1,15 +1,16 @@
 <?php
 
+use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
 use App\Events\DeviceStatusChanged;
 use App\Models\Asset;
 use App\Models\AuditLog;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\User;
 use App\Services\Hardware\AssetHealthService;
 use App\Services\Hardware\HardwareRegistryService;
 use App\Support\EdgeDeviceCredentials;
+use App\Support\WeatherSettings;
 use Database\Seeders\DeviceCredentialsSeeder;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -38,17 +39,19 @@ it('registers assets devices and cameras', function () {
         ->assertRedirect();
 
     $this->actingAs($admin)
-        ->post(route('settings.cameras.store'), [
+        ->post(route('settings.devices.store'), [
             'asset_id' => $asset->id,
             'name' => 'Pole 1 North',
             'reference' => 'pole1-cam-n',
+            'device_type' => 'camera',
             'camera_type' => 'fixed',
             'stream_url' => 'rtsp://10.0.0.5/stream1',
+            'api_url' => 'http://172.16.3.2:8600/rois',
         ])
         ->assertRedirect();
 
-    expect(Device::query()->count())->toBe(1)
-        ->and(Camera::query()->count())->toBe(1);
+    expect(Device::query()->count())->toBe(2)
+        ->and(Device::query()->cameras()->count())->toBe(1);
 });
 
 it('issues a plaintext token once and stores only the hash', function () {
@@ -117,7 +120,7 @@ it('broadcasts camera offline on markStale with asset_id', function () {
     Event::fake([DeviceStatusChanged::class]);
     config()->set('camera_stream.mediamtx.api_url', '');
 
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'status' => HardwareStatus::Online,
         'last_frame_at' => now()->subMinutes(20),
     ]);
@@ -144,7 +147,7 @@ it('keeps cameras online when MediaMTX path is ready', function () {
         ], 200),
     ]);
 
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'reference' => 'CAM-READY-01',
         'status' => HardwareStatus::Offline,
         'last_frame_at' => now()->subHours(2),
@@ -172,13 +175,13 @@ it('excludes system weather api from presence counts and markStale', function ()
     $field = Device::factory()->create([
         'status' => HardwareStatus::Online,
         'last_seen_at' => now(),
-        'device_type' => \App\Enums\DeviceType::RfidReader,
+        'device_type' => DeviceType::RfidReader,
     ]);
     $weather = Device::factory()->create([
-        'reference' => \App\Support\WeatherSettings::DEVICE_REFERENCE,
+        'reference' => WeatherSettings::DEVICE_REFERENCE,
         'status' => HardwareStatus::Online,
         'last_seen_at' => now()->subHours(2),
-        'device_type' => \App\Enums\DeviceType::EnvironmentalSensor,
+        'device_type' => DeviceType::EnvironmentalSensor,
         'asset_id' => null,
     ]);
 
@@ -220,32 +223,39 @@ it('forbids hardware settings without view-devices', function () {
 
 it('updates and retires a camera without hard delete', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = Camera::factory()->create([
+    $result = app(HardwareRegistryService::class)->createDevice([
+        'asset_id' => Asset::factory()->create()->id,
         'name' => 'North Cam',
+        'reference' => 'CAM-NORTH-01',
+        'device_type' => 'camera',
+        'camera_type' => 'fixed',
         'stream_url' => 'rtsp://10.0.0.9/stream1',
+        'api_url' => 'http://172.16.3.2:8600/rois',
     ]);
+    $camera = $result['device'];
 
     $this->actingAs($admin)
-        ->put(route('settings.cameras.update', $camera), [
+        ->put(route('settings.devices.update', $camera), [
+            'asset_id' => $camera->asset_id,
             'name' => 'North Cam Updated',
+            'reference' => $camera->reference,
             'stream_url' => 'rtsp://10.0.0.9/stream2',
             'camera_type' => $camera->camera_type->value,
-            'reference' => $camera->reference,
-            'asset_id' => $camera->asset_id,
+            'api_url' => 'http://172.16.3.2:8600/rois',
         ])
-        ->assertRedirect(route('settings.cameras.index'));
+        ->assertRedirect(route('settings.devices.index', ['device_type' => 'camera']));
 
     expect($camera->fresh()->name)->toBe('North Cam Updated')
         ->and($camera->fresh()->stream_url)->toBe('rtsp://10.0.0.9/stream2');
 
     $this->actingAs($admin)
-        ->patch(route('settings.cameras.status', $camera), [
+        ->patch(route('settings.devices.status', $camera), [
             'status' => 'retired',
         ])
         ->assertRedirect();
 
     expect($camera->fresh()->status)->toBe(HardwareStatus::Retired)
-        ->and(Camera::query()->whereKey($camera->id)->exists())->toBeTrue();
+        ->and(Device::query()->cameras()->whereKey($camera->id)->exists())->toBeTrue();
 });
 
 it('seeds default device credentials onto existing devices', function () {

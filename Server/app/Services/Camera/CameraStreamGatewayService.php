@@ -2,7 +2,7 @@
 
 namespace App\Services\Camera;
 
-use App\Models\Camera;
+use App\Models\Device;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -66,7 +66,7 @@ final class CameraStreamGatewayService
         }
     }
 
-    public function sync(Camera $camera): bool
+    public function sync(Device $camera): bool
     {
         $this->lastError = '';
 
@@ -180,7 +180,7 @@ final class CameraStreamGatewayService
         $errors = [];
         $detail = '';
 
-        Camera::query()->operational()->orderBy('id')->each(function (Camera $camera) use (&$synced, &$failed, &$errors, &$detail): void {
+        Device::query()->cameras()->operational()->orderBy('id')->each(function (Device $camera) use (&$synced, &$failed, &$errors, &$detail): void {
             if ($this->sync($camera)) {
                 $synced++;
 

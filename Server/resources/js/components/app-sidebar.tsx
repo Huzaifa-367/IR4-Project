@@ -3,7 +3,6 @@ import {
     ArrowRightLeft,
     Bell,
     Boxes,
-    Camera,
     Car,
     ClipboardList,
     CloudSun,
@@ -375,11 +374,6 @@ export function AppSidebar() {
                       title: 'Devices',
                       href: settings.devices.index(),
                       icon: Cpu,
-                  } satisfies NavItem,
-                  {
-                      title: 'Cameras',
-                      href: settings.cameras.index(),
-                      icon: Camera,
                   } satisfies NavItem,
               ]
             : []),

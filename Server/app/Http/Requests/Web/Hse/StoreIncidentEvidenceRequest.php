@@ -27,7 +27,7 @@ final class StoreIncidentEvidenceRequest extends FormRequest
             'file' => ['nullable', 'file', 'max:51200'],
             'note' => ['nullable', 'string', 'max:5000'],
             'ppe_violation_id' => ['nullable', 'integer', Rule::exists('ppe_violations', 'id')],
-            'camera_id' => ['nullable', 'integer', Rule::exists('cameras', 'id')],
+            'camera_id' => ['nullable', 'integer', Rule::exists('devices', 'id')],
             'captured_at' => ['nullable', 'date'],
         ];
     }

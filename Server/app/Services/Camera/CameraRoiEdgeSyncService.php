@@ -2,18 +2,13 @@
 
 namespace App\Services\Camera;
 
-use App\Enums\DeviceType;
-use App\Models\Camera;
 use App\Models\Device;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * On ROI publish: POST this camera's payload to the linked edge device's API URL.
- *
- * Source of truth: nullable `devices.config.api_url` (edge_compute only) —
- * full endpoint including path, e.g. `http://172.16.3.2:8600/rois`.
+ * On ROI publish: POST this camera's payload to the linked camera_ai device's API URL.
  */
 final class CameraRoiEdgeSyncService
 {
@@ -24,16 +19,15 @@ final class CameraRoiEdgeSyncService
     /**
      * @param  array<string, mixed>  $payload  Same shape as GET camera-rois `data`
      */
-    public function publish(Camera $camera, array $payload): bool
+    public function publish(Device $camera, array $payload): bool
     {
-        $camera->loadMissing('processedByDevice');
-        $device = $camera->processedByDevice;
-        $url = $device !== null ? $this->apiUrl($device) : null;
+        $camera->loadMissing('roiSet.rois');
+        $url = $this->apiUrl($camera);
 
-        if ($device === null || $url === null) {
+        if ($url === null) {
             Log::warning('ir4.camera_roi.edge_push_skipped', [
                 'camera_id' => $camera->id,
-                'reason' => $device === null ? 'no_processed_by_device' : 'no_api_url',
+                'reason' => 'no_api_url',
             ]);
 
             return false;
@@ -70,11 +64,11 @@ final class CameraRoiEdgeSyncService
 
     private function apiUrl(Device $device): ?string
     {
-        if ($device->device_type !== DeviceType::EdgeCompute) {
+        if (! $device->isCamera()) {
             return null;
         }
 
-        $url = trim((string) (is_array($device->config) ? ($device->config['api_url'] ?? '') : ''));
+        $url = trim((string) ($device->api_url ?? ''));
         if ($url === '') {
             return null;
         }

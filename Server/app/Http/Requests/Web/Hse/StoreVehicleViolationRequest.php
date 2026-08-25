@@ -24,7 +24,7 @@ final class StoreVehicleViolationRequest extends FormRequest
             'violation_type' => ['required', 'string', 'max:100', Rule::in(VehicleViolationService::violationTypes())],
             'description' => ['nullable', 'string', 'max:2000'],
             'action_taken' => ['required', 'string', 'min:10', 'max:5000'],
-            'camera_id' => ['nullable', 'integer', Rule::exists('cameras', 'id')],
+            'camera_id' => ['nullable', 'integer', Rule::exists('devices', 'id')],
         ];
     }
 }

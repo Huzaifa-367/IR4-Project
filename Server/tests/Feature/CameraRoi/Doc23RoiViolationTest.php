@@ -5,7 +5,6 @@ use App\Enums\AlertStatus;
 use App\Enums\HardwareStatus;
 use App\Enums\ReviewStatus;
 use App\Models\Alert;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\RoiViolation;
 use App\Models\User;
@@ -13,13 +12,13 @@ use App\Services\Camera\CameraRoiService;
 use App\Services\Hardware\HardwareRegistryService;
 use Illuminate\Support\Str;
 
-function publishRoiForEdge(Device $edge, User $admin, string $roiRef = 'roi_bay'): Camera
+function publishRoiForEdge(User $admin, string $roiRef = 'roi_bay'): array
 {
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->withoutToken()->create([
         'status' => HardwareStatus::Online,
-        'processed_by_device_id' => $edge->id,
         'reference' => 'cam-roi-viol-'.Str::lower(Str::random(4)),
     ]);
+    $plain = app(HardwareRegistryService::class)->issueToken($camera)['plain_token'];
 
     app(CameraRoiService::class)->publish($camera, [[
         'name' => 'Bay',
@@ -35,16 +34,15 @@ function publishRoiForEdge(Device $edge, User $admin, string $roiRef = 'roi_bay'
         'is_enabled' => true,
     ]], $admin);
 
-    return $camera->fresh(['roiSet.rois']) ?? $camera;
+    return [
+        'camera' => $camera->fresh(['roiSet.rois']) ?? $camera,
+        'plain' => $plain,
+    ];
 }
 
 it('ingests an roi intrusion like ppe (camera_ref + device token)', function () {
-    $edge = Device::factory()->withoutToken()->create([
-        'reference' => 'edge-roi-01',
-    ]);
-    $plain = app(HardwareRegistryService::class)->issueToken($edge)['plain_token'];
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = publishRoiForEdge($edge, $admin);
+    ['camera' => $camera, 'plain' => $plain] = publishRoiForEdge($admin);
 
     $uid = (string) Str::uuid();
 
@@ -67,19 +65,15 @@ it('ingests an roi intrusion like ppe (camera_ref + device token)', function () 
     $violation = RoiViolation::query()->where('event_uid', $uid)->first();
     expect($violation)->not->toBeNull()
         ->and($violation->camera_id)->toBe($camera->id)
-        ->and($violation->device_id)->toBe($edge->id)
+        ->and($violation->device_id)->toBe($camera->id)
         ->and($violation->roi_reference)->toBe('roi_bay')
         ->and($violation->review_status)->toBe(ReviewStatus::Unreviewed)
         ->and(Alert::query()->where('alert_type', AlertType::RoiViolation)->count())->toBe(1);
 });
 
 it('rejects unknown camera_ref and unknown roi like ppe unknown reference', function () {
-    $edge = Device::factory()->withoutToken()->create([
-        'reference' => 'edge-roi-02',
-    ]);
-    $plain = app(HardwareRegistryService::class)->issueToken($edge)['plain_token'];
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = publishRoiForEdge($edge, $admin);
+    ['camera' => $camera, 'plain' => $plain] = publishRoiForEdge($admin);
 
     $this->postJson(route('api.ingest.roi-violations'), [
         'events' => [[
@@ -114,10 +108,8 @@ it('rejects unknown camera_ref and unknown roi like ppe unknown reference', func
 });
 
 it('dedupes roi violation event_uid per camera', function () {
-    $edge = Device::factory()->withoutToken()->create();
-    $plain = app(HardwareRegistryService::class)->issueToken($edge)['plain_token'];
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = publishRoiForEdge($edge, $admin);
+    ['camera' => $camera, 'plain' => $plain] = publishRoiForEdge($admin);
     $uid = (string) Str::uuid();
     $payload = [
         'events' => [[
@@ -142,9 +134,8 @@ it('dedupes roi violation event_uid per camera', function () {
 });
 
 it('gates roi violation list and review permissions', function () {
-    $edge = Device::factory()->withoutToken()->create();
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = publishRoiForEdge($edge, $admin);
+    ['camera' => $camera] = publishRoiForEdge($admin);
 
     $violation = RoiViolation::query()->create([
         'camera_id' => $camera->id,
@@ -182,10 +173,8 @@ it('gates roi violation list and review permissions', function () {
 });
 
 it('does not raise alerts for backfill roi events', function () {
-    $edge = Device::factory()->withoutToken()->create();
-    $plain = app(HardwareRegistryService::class)->issueToken($edge)['plain_token'];
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = publishRoiForEdge($edge, $admin);
+    ['camera' => $camera, 'plain' => $plain] = publishRoiForEdge($admin);
 
     $this->postJson(route('api.ingest.roi-violations'), [
         'events' => [[
@@ -209,10 +198,8 @@ it('does not raise alerts for backfill roi events', function () {
 });
 
 it('false-positive review resolves the linked roi alert', function () {
-    $edge = Device::factory()->withoutToken()->create();
-    $plain = app(HardwareRegistryService::class)->issueToken($edge)['plain_token'];
     $admin = User::factory()->withRole('Super Admin')->create();
-    $camera = publishRoiForEdge($edge, $admin);
+    ['camera' => $camera, 'plain' => $plain] = publishRoiForEdge($admin);
 
     $this->postJson(route('api.ingest.roi-violations'), [
         'events' => [[

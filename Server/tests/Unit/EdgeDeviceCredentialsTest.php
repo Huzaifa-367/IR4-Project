@@ -8,7 +8,7 @@ function parseCredentialsMarkdown(string $path): array
     $rows = [];
     foreach (preg_split('/\R/', (string) file_get_contents($path)) ?: [] as $line) {
         if (! preg_match(
-            '/^\|\s*(rfid|gas|cam_ai)\s*\|\s*(DEV-[A-Z0-9-]+)\s*\|\s*([0-9a-f-]{36})\s*\|\s*([A-Za-z0-9]+)\s*\|/i',
+            '/^\|\s*(rfid|gas|environmental|camera|cam_ai)\s*\|\s*(DEV-[A-Z0-9-]+|CAM-[A-Z0-9-]+)\s*\|\s*([0-9a-f-]{36})\s*\|\s*([A-Za-z0-9]+)\s*\|/i',
             $line,
             $match,
         )) {
@@ -34,6 +34,6 @@ it('keeps default device credentials in sync with EdgeCompute/credentials.md', f
         'token' => $row['token'],
     ], $php);
 
-    expect($fromPhp)->toHaveCount(17)
+    expect($fromPhp)->toHaveCount(19)
         ->and($fromPhp)->toEqual($md);
 });

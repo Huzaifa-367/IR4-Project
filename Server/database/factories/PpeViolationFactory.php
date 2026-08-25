@@ -4,7 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\ReviewStatus;
 use App\Enums\ViolationType;
-use App\Models\Camera;
+use App\Models\Device;
 use App\Models\PpeViolation;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -22,7 +22,7 @@ class PpeViolationFactory extends Factory
     public function definition(): array
     {
         return [
-            'camera_id' => Camera::factory(),
+            'camera_id' => Device::factory()->camera(),
             'violation_type' => ViolationType::MissingHelmet,
             'detected_at' => now(),
             'worker_count' => 1,

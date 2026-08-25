@@ -7,7 +7,7 @@ use App\Enums\RoiViolationType;
 use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\RoiViolation\BulkReviewRoiViolationRequest;
 use App\Http\Requests\Web\RoiViolation\ReviewRoiViolationRequest;
-use App\Models\Camera;
+use App\Models\Device;
 use App\Models\RoiViolation;
 use App\Services\Camera\RoiViolationService;
 use Illuminate\Http\RedirectResponse;
@@ -68,7 +68,7 @@ final class RoiViolationController extends BaseController
                 'to' => $request->string('to')->toString(),
                 'search' => $request->string('search')->toString(),
             ],
-            'cameras' => Camera::query()->operational()->orderBy('name')->get(['id', 'uuid', 'name', 'reference']),
+            'cameras' => Device::query()->cameras()->operational()->orderBy('name')->get(['id', 'uuid', 'name', 'reference']),
             'eventTypes' => collect(RoiViolationType::cases())->map(fn (RoiViolationType $t) => [
                 'value' => $t->value,
                 'label' => $t->label(),

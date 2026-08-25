@@ -9,7 +9,6 @@ use App\Enums\RoiViolationType;
 use App\Events\RoiViolationDetected;
 use App\Models\Alert;
 use App\Models\AuditLog;
-use App\Models\Camera;
 use App\Models\CameraRoi;
 use App\Models\Device;
 use App\Models\RoiViolation;
@@ -279,7 +278,7 @@ final class RoiViolationService
         return $normalized['clock_skew'] ? 'skew' : 'accepted';
     }
 
-    private function resolveActiveRoi(Camera $camera, string $roiReference): ?CameraRoi
+    private function resolveActiveRoi(Device $camera, string $roiReference): ?CameraRoi
     {
         $camera->loadMissing('roiSet.rois');
         $set = $camera->roiSet;

@@ -3,7 +3,6 @@
 use App\Enums\AlertType;
 use App\Models\Alert;
 use App\Models\Asset;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\EnvironmentalReading;
 use App\Models\GasReading;
@@ -168,7 +167,7 @@ it('rate limits ingest per device', function () {
 it('routes ppe gas and environmental streams to domain tables', function () {
     $plain = 'ingest-multi';
     $device = Device::factory()->withPlainToken($plain)->create();
-    $camera = Camera::factory()->create(['reference' => 'cam-north']);
+    $camera = Device::factory()->camera()->create(['reference' => 'cam-north']);
 
     $this->postJson(route('api.ingest.ppe-violations'), [
         'events' => [[

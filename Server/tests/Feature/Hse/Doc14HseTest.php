@@ -9,7 +9,6 @@ use App\Enums\Involvement;
 use App\Enums\LsrCategory;
 use App\Enums\LsrStatus;
 use App\Enums\ViolationType;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\HseIncident;
 use App\Models\IncidentEvidence;
@@ -277,7 +276,7 @@ it('opens create via index dialog props and redirects legacy create urls', funct
 
 it('prefills incident create with the camera still and resolved camera', function () {
     $operator = User::factory()->withRole('SCC Operator')->create();
-    $camera = Camera::factory()->create(['name' => 'Pole 4']);
+    $camera = Device::factory()->camera()->create(['name' => 'Pole 4']);
     $ppe = PpeViolation::factory()->create([
         'camera_id' => $camera->id,
         'violation_type' => ViolationType::Fall,

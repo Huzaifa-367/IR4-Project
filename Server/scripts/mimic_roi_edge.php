@@ -9,7 +9,6 @@
 declare(strict_types=1);
 
 use App\Enums\HardwareStatus;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\RoiViolation;
 use App\Models\User;
@@ -28,7 +27,7 @@ $cameraRef = 'CAM-FIXED-01';
 $roiRef = 'roi_bay_floor';
 
 $device = Device::query()->where('reference', $deviceRef)->first();
-$camera = Camera::query()->where('reference', $cameraRef)->first();
+$camera = Device::query()->cameras()->where('reference', $cameraRef)->first();
 if ($device === null || $camera === null) {
     fwrite(STDERR, "Missing {$deviceRef} / {$cameraRef} — run DemoSeeder first.\n");
     exit(1);

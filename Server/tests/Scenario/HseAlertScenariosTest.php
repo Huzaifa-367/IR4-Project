@@ -6,7 +6,6 @@ use App\Enums\LsrCategory;
 use App\Enums\LsrStatus;
 use App\Enums\ZoneType;
 use App\Models\Alert;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Models\HseIncident;
 use App\Models\IncidentEvidence;
@@ -79,7 +78,7 @@ it('scenario 04: ppe ingest raises alert then user logs anonymous lsr link', fun
     $operator = User::factory()->withRole('SCC Operator')->create();
     $plain = 'scenario-04';
     Device::factory()->withPlainToken($plain)->create();
-    $camera = Camera::factory()->create(['reference' => 'cam-scenario-04']);
+    $camera = Device::factory()->camera()->create(['reference' => 'cam-scenario-04']);
 
     $this->postJson(route('api.ingest.ppe-violations'), [
         'events' => [scenarioPpeEvent($camera->reference)],
@@ -128,7 +127,7 @@ it('scenario 05: fall and stationary correlate to worker down then user incident
 
     $plain = 'scenario-05';
     Device::factory()->withPlainToken($plain)->create();
-    $camera = Camera::factory()->create([
+    $camera = Device::factory()->camera()->create([
         'reference' => 'cam-scenario-05',
         'meta' => ['zone_id' => $zone->id],
     ]);

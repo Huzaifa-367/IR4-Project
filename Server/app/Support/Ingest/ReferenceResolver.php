@@ -2,7 +2,6 @@
 
 namespace App\Support\Ingest;
 
-use App\Models\Camera;
 use App\Models\Device;
 
 final class ReferenceResolver
@@ -17,8 +16,8 @@ final class ReferenceResolver
         return $this->resolveDevice($reference);
     }
 
-    public function resolveCamera(string $reference): ?Camera
+    public function resolveCamera(string $reference): ?Device
     {
-        return Camera::query()->where('reference', $reference)->first();
+        return Device::query()->cameras()->where('reference', $reference)->first();
     }
 }

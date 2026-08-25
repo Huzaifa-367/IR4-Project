@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Web\Ppe;
 
 use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\Live\ControlCameraPtzRequest;
-use App\Models\Camera;
+use App\Models\Device;
 use App\Services\Camera\CameraPtzService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +16,7 @@ final class CameraPtzController extends BaseController
 {
     public function __invoke(
         ControlCameraPtzRequest $request,
-        Camera $camera,
+        Device $camera,
         CameraPtzService $ptz,
     ): JsonResponse {
         $user = $request->user();

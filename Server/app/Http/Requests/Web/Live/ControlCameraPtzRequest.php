@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Web\Live;
 
-use App\Models\Camera;
+use App\Models\Device;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +10,7 @@ final class ControlCameraPtzRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        /** @var Camera $camera */
+        /** @var Device $camera */
         $camera = $this->route('camera');
 
         return $this->user()?->can('controlPtz', $camera) ?? false;

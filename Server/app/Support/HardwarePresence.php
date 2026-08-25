@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Enums\HardwareStatus;
-use App\Models\Camera;
 use App\Models\Device;
 use Illuminate\Support\Carbon;
 
@@ -44,7 +43,7 @@ final class HardwarePresence
         return self::isSeenRecently($device->last_seen_at, $staleMinutes, $now);
     }
 
-    public static function isCameraOnline(Camera $camera, int $staleMinutes, ?\DateTimeInterface $now = null): bool
+    public static function isCameraOnline(Device $camera, int $staleMinutes, ?\DateTimeInterface $now = null): bool
     {
         if (in_array($camera->status, [
             HardwareStatus::Retired,

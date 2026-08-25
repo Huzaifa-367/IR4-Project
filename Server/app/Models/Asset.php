@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\AssetStatus;
 use App\Enums\AssetType;
+use App\Enums\DeviceType;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\AssetFactory;
@@ -47,11 +48,11 @@ final class Asset extends Model
     }
 
     /**
-     * @return HasMany<Camera, $this>
+     * @return HasMany<Device, $this>
      */
     public function cameras(): HasMany
     {
-        return $this->hasMany(Camera::class);
+        return $this->hasMany(Device::class)->where('device_type', DeviceType::Camera->value);
     }
 
     /** @return HasMany<EnvironmentalReading, $this> */

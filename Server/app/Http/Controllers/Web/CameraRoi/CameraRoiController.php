@@ -6,7 +6,7 @@ use App\Enums\CameraRoiStaleReason;
 use App\Http\Controllers\Web\BaseController;
 use App\Http\Requests\Web\CameraRoi\PublishCameraRoisRequest;
 use App\Http\Requests\Web\CameraRoi\SaveCameraRoisRequest;
-use App\Models\Camera;
+use App\Models\Device;
 use App\Services\Camera\CameraRoiService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,7 +23,7 @@ final class CameraRoiController extends BaseController
         ]);
     }
 
-    public function edit(Request $request, Camera $camera, CameraRoiService $rois): InertiaResponse
+    public function edit(Request $request, Device $camera, CameraRoiService $rois): InertiaResponse
     {
         return Inertia::render('camera-rois/edit', [
             ...$rois->editorPayload($camera),
@@ -33,7 +33,7 @@ final class CameraRoiController extends BaseController
 
     public function update(
         SaveCameraRoisRequest $request,
-        Camera $camera,
+        Device $camera,
         CameraRoiService $rois,
     ): RedirectResponse {
         $rois->saveDraft($camera, $request->validated('rois'), $request->user());
@@ -45,7 +45,7 @@ final class CameraRoiController extends BaseController
 
     public function publish(
         PublishCameraRoisRequest $request,
-        Camera $camera,
+        Device $camera,
         CameraRoiService $rois,
     ): RedirectResponse {
         $payload = $request->validated();
@@ -62,7 +62,7 @@ final class CameraRoiController extends BaseController
 
     public function markStale(
         Request $request,
-        Camera $camera,
+        Device $camera,
         CameraRoiService $rois,
     ): RedirectResponse {
         abort_unless($request->user()?->can('manage-camera-rois'), 403);

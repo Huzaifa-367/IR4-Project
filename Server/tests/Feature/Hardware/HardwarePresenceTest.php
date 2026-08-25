@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\HardwareStatus;
-use App\Models\Camera;
 use App\Models\Device;
 use App\Support\HardwarePresence;
 use Illuminate\Support\Carbon;
@@ -31,15 +30,15 @@ it('is online only when last_seen is inside the stale window', function () {
 
 it('treats camera online from recent last_frame_at heartbeat', function () {
     $now = Carbon::parse('2026-08-13 12:00:00');
-    $fresh = Camera::factory()->create([
+    $fresh = Device::factory()->camera()->create([
         'status' => HardwareStatus::Online,
         'last_frame_at' => $now->copy()->subMinute(),
     ]);
-    $stale = Camera::factory()->create([
+    $stale = Device::factory()->camera()->create([
         'status' => HardwareStatus::Online,
         'last_frame_at' => $now->copy()->subMinutes(10),
     ]);
-    $never = Camera::factory()->create([
+    $never = Device::factory()->camera()->create([
         'status' => HardwareStatus::Online,
         'last_frame_at' => null,
     ]);
