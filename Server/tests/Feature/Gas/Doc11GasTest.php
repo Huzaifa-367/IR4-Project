@@ -222,6 +222,132 @@ it('updates thresholds with audit and manage permission', function () {
     expect((float) GasThreshold::query()->where('gas_type', GasType::H2s)->first()?->warning_level)->toBe(4.0);
 });
 
+it('raises warning and alarm only against active gas_thresholds values', function () {
+    $plain = 'gas-thresh-bounds';
+    $device = Device::factory()->gasDetector()->withPlainToken($plain)->create();
+
+    // Seeded H2S: warn 5, alarm 10.
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['h2s_ppm' => 4.99], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    expect(GasAlarm::query()->count())->toBe(0)
+        ->and(Alert::query()->whereIn('alert_type', [AlertType::GasAlarm, AlertType::GasWarning])->count())->toBe(0);
+
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['h2s_ppm' => 5.0], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    $warn = GasAlarm::query()->where('level', GasAlarmLevel::Warning)->first();
+    expect($warn)->not->toBeNull()
+        ->and((float) $warn->threshold_value)->toBe(5.0)
+        ->and((float) $warn->reading_value)->toBe(5.0)
+        ->and(Alert::query()->where('alert_type', AlertType::GasWarning)->count())->toBe(1)
+        ->and((float) (Alert::query()->where('alert_type', AlertType::GasWarning)->first()?->payload['threshold_value'] ?? 0))->toBe(5.0);
+
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['h2s_ppm' => 9.9], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    expect(GasAlarm::query()->where('level', GasAlarmLevel::Alarm)->count())->toBe(0);
+
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['h2s_ppm' => 10.0], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    $alarm = GasAlarm::query()->where('level', GasAlarmLevel::Alarm)->first();
+    expect($alarm)->not->toBeNull()
+        ->and((float) $alarm->threshold_value)->toBe(10.0)
+        ->and((float) $alarm->reading_value)->toBe(10.0)
+        ->and((float) (Alert::query()->where('alert_type', AlertType::GasAlarm)->first()?->payload['threshold_value'] ?? 0))->toBe(10.0);
+});
+
+it('follows updated warning and alarm thresholds after save', function () {
+    $manager = User::factory()->withRole('Safety Manager')->create();
+    $plain = 'gas-thresh-live';
+    $device = Device::factory()->gasDetector()->withPlainToken($plain)->create();
+
+    $this->actingAs($manager)
+        ->put(route('gas.thresholds.update'), [
+            'thresholds' => [
+                ['gas_type' => 'h2s', 'warning_level' => 7, 'alarm_level' => 15],
+            ],
+        ])
+        ->assertRedirect();
+
+    // Old seeded warn (5) must no longer fire.
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['h2s_ppm' => 6.5], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    expect(GasAlarm::query()->count())->toBe(0);
+
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['h2s_ppm' => 7.0], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    $warn = GasAlarm::query()->where('level', GasAlarmLevel::Warning)->first();
+    expect($warn)->not->toBeNull()
+        ->and((float) $warn->threshold_value)->toBe(7.0);
+
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['h2s_ppm' => 14.9], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    expect(GasAlarm::query()->where('level', GasAlarmLevel::Alarm)->count())->toBe(0);
+
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['h2s_ppm' => 15.0], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    $alarm = GasAlarm::query()->where('level', GasAlarmLevel::Alarm)->first();
+    expect($alarm)->not->toBeNull()
+        ->and((float) $alarm->threshold_value)->toBe(15.0)
+        ->and(GasAlarm::query()->where('level', GasAlarmLevel::Warning)->whereNull('resolved_at')->count())->toBe(0);
+});
+
+it('ignores inactive thresholds when evaluating readings', function () {
+    GasThreshold::query()->where('gas_type', GasType::H2s)->update(['is_active' => false]);
+
+    $plain = 'gas-thresh-off';
+    $device = Device::factory()->gasDetector()->withPlainToken($plain)->create();
+
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['h2s_ppm' => 50], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    expect(GasAlarm::query()->count())->toBe(0)
+        ->and(Alert::query()->whereIn('alert_type', [AlertType::GasAlarm, AlertType::GasWarning])->count())->toBe(0);
+});
+
+it('evaluates o2-low warning and alarm against below-direction thresholds', function () {
+    $plain = 'gas-o2-bounds';
+    $device = Device::factory()->gasDetector()->withPlainToken($plain)->create();
+
+    // Seeded O2-low: warn <= 19.5, alarm <= 19.0.
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['o2_pct' => 19.6], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    expect(GasAlarm::query()->count())->toBe(0);
+
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['o2_pct' => 19.5], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    $warn = GasAlarm::query()->where('gas_type', GasType::O2Low)->where('level', GasAlarmLevel::Warning)->first();
+    expect($warn)->not->toBeNull()
+        ->and((float) $warn->threshold_value)->toBe(19.5);
+
+    $this->postJson(route('api.ingest.gas-readings'), [
+        'events' => [gasEvent(['o2_pct' => 19.0], deviceRef: $device->reference)],
+    ], gasIngestHeaders($plain))->assertAccepted();
+
+    $alarm = GasAlarm::query()->where('gas_type', GasType::O2Low)->where('level', GasAlarmLevel::Alarm)->first();
+    expect($alarm)->not->toBeNull()
+        ->and((float) $alarm->threshold_value)->toBe(19.0);
+});
+
 it('returns live panels with stale badge', function () {
     $admin = User::factory()->withRole('Super Admin')->create();
     $device = Device::factory()->gasDetector()->create([
