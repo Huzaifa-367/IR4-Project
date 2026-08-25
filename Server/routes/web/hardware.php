@@ -3,6 +3,7 @@
 use App\Http\Controllers\Web\Settings\AssetController;
 use App\Http\Controllers\Web\Settings\CameraController;
 use App\Http\Controllers\Web\Settings\DeviceController;
+use App\Http\Controllers\Web\CameraRoi\CameraRoiController;
 use App\Http\Controllers\Web\Tracking\TagController;
 use Illuminate\Support\Facades\Route;
 
@@ -55,6 +56,24 @@ Route::prefix('hardware/cameras')->name('settings.cameras.')->group(function ():
     Route::patch('{camera}/ai', [CameraController::class, 'toggleAi'])
         ->middleware('permission:update-devices')
         ->name('toggle-ai');
+});
+
+Route::prefix('hardware/camera-rois')->name('hardware.camera-rois.')->group(function (): void {
+    Route::get('/', [CameraRoiController::class, 'index'])
+        ->middleware('permission:view-camera-rois')
+        ->name('index');
+    Route::get('/{camera:uuid}', [CameraRoiController::class, 'edit'])
+        ->middleware('permission:view-camera-rois')
+        ->name('edit');
+    Route::put('/{camera:uuid}', [CameraRoiController::class, 'update'])
+        ->middleware('permission:manage-camera-rois')
+        ->name('update');
+    Route::post('/{camera:uuid}/publish', [CameraRoiController::class, 'publish'])
+        ->middleware('permission:manage-camera-rois')
+        ->name('publish');
+    Route::post('/{camera:uuid}/mark-stale', [CameraRoiController::class, 'markStale'])
+        ->middleware('permission:manage-camera-rois')
+        ->name('mark-stale');
 });
 
 Route::prefix('hardware/devices')->name('settings.devices.')->group(function (): void {

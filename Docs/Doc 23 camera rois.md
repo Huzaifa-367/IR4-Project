@@ -132,7 +132,7 @@ One current set per camera; ROI rows hard-replaced on save/publish. Status: `dra
 Fingerprint: `sha1(stream_url | playback_template | camera.reference | ptz_generation)`.
 
 ### 5.3 Operator UI
-`/settings/camera-rois` — online cameras only; editor with live feed + canvas; Live wall overlays draft/active/stale.
+`/hardware/camera-rois` — online cameras only; editor with live feed + canvas; Live wall overlays draft/active/stale.
 
 ---
 

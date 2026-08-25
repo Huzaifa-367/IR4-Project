@@ -163,4 +163,4 @@ echo 'POST duplicate → '.json_encode($dup['json'] ?? [])."\n";
 
 echo "\nroi_violations DB count: ".RoiViolation::query()->count()."\n";
 echo "UI: {$base}/roi-violations\n";
-echo "ROIs: {$base}/settings/camera-rois\n";
+echo "ROIs: {$base}/hardware/camera-rois\n";

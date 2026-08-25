@@ -34,7 +34,7 @@ it('rejects polygons with fewer than three points', function () {
     $camera = Camera::factory()->create(['status' => HardwareStatus::Online]);
 
     $this->actingAs($admin)
-        ->put(route('settings.camera-rois.update', $camera), [
+        ->put(route('hardware.camera-rois.update', $camera), [
             'rois' => [[
                 'name' => 'Too small',
                 'reference' => 'roi_small',
@@ -52,7 +52,7 @@ it('rejects coordinates outside the 0-1 normalized range', function () {
     $camera = Camera::factory()->create(['status' => HardwareStatus::Online]);
 
     $this->actingAs($admin)
-        ->put(route('settings.camera-rois.update', $camera), [
+        ->put(route('hardware.camera-rois.update', $camera), [
             'rois' => [[
                 'name' => 'OOB',
                 'reference' => 'roi_oob',
@@ -71,10 +71,10 @@ it('saves a draft and publishes an active set for edge sync', function () {
     $camera = Camera::factory()->create(['status' => HardwareStatus::Online]);
 
     $this->actingAs($admin)
-        ->put(route('settings.camera-rois.update', $camera), [
+        ->put(route('hardware.camera-rois.update', $camera), [
             'rois' => [validRoiPayload()],
         ])
-        ->assertRedirect(route('settings.camera-rois.edit', $camera));
+        ->assertRedirect(route('hardware.camera-rois.edit', $camera));
 
     $camera->refresh()->load('roiSet.rois');
     expect($camera->roiSet)->not->toBeNull()
@@ -82,10 +82,10 @@ it('saves a draft and publishes an active set for edge sync', function () {
         ->and($camera->roiSet->rois)->toHaveCount(1);
 
     $this->actingAs($admin)
-        ->post(route('settings.camera-rois.publish', $camera), [
+        ->post(route('hardware.camera-rois.publish', $camera), [
             'rois' => [validRoiPayload()],
         ])
-        ->assertRedirect(route('settings.camera-rois.edit', $camera));
+        ->assertRedirect(route('hardware.camera-rois.edit', $camera));
 
     $camera->refresh()->load('roiSet');
     expect($camera->roiSet->status)->toBe(CameraRoiSetStatus::Active)
@@ -283,7 +283,7 @@ it('lists only online cameras on the roi index', function () {
     ]);
 
     $this->actingAs($admin)
-        ->get(route('settings.camera-rois.index'))
+        ->get(route('hardware.camera-rois.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('camera-rois/index')
@@ -296,10 +296,10 @@ it('gates view and manage camera-rois permissions', function () {
     $viewer = User::factory()->withRole('Project Manager')->create();
     $viewer->givePermissionTo('view-camera-rois');
 
-    $this->actingAs($viewer)->get(route('settings.camera-rois.index'))->assertOk();
-    $this->actingAs($viewer)->get(route('settings.camera-rois.edit', $camera))->assertOk();
+    $this->actingAs($viewer)->get(route('hardware.camera-rois.index'))->assertOk();
+    $this->actingAs($viewer)->get(route('hardware.camera-rois.edit', $camera))->assertOk();
     $this->actingAs($viewer)
-        ->putJson(route('settings.camera-rois.update', $camera), [
+        ->putJson(route('hardware.camera-rois.update', $camera), [
             'rois' => [validRoiPayload()],
         ])
         ->assertForbidden();
@@ -308,7 +308,7 @@ it('gates view and manage camera-rois permissions', function () {
     $manager->givePermissionTo(['view-camera-rois', 'manage-camera-rois']);
 
     $this->actingAs($manager)
-        ->put(route('settings.camera-rois.update', $camera), [
+        ->put(route('hardware.camera-rois.update', $camera), [
             'rois' => [validRoiPayload()],
         ])
         ->assertRedirect();
@@ -358,7 +358,7 @@ it('blocks publish without at least one roi', function () {
     $camera = Camera::factory()->create(['status' => HardwareStatus::Online]);
 
     $this->actingAs($admin)
-        ->post(route('settings.camera-rois.publish', $camera), [
+        ->post(route('hardware.camera-rois.publish', $camera), [
             'rois' => [],
         ])
         ->assertSessionHasErrors('rois');
@@ -371,7 +371,7 @@ it('blocks publish when every roi is disabled', function () {
     $disabled['is_enabled'] = false;
 
     $this->actingAs($admin)
-        ->post(route('settings.camera-rois.publish', $camera), [
+        ->post(route('hardware.camera-rois.publish', $camera), [
             'rois' => [$disabled],
         ])
         ->assertSessionHasErrors('rois');

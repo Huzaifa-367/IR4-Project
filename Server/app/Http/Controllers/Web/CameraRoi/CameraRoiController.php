@@ -39,7 +39,7 @@ final class CameraRoiController extends BaseController
         $rois->saveDraft($camera, $request->validated('rois'), $request->user());
 
         return redirect()
-            ->route('settings.camera-rois.edit', $camera)
+            ->route('hardware.camera-rois.edit', $camera)
             ->with('success', 'ROI draft saved.');
     }
 
@@ -56,7 +56,7 @@ final class CameraRoiController extends BaseController
         );
 
         return redirect()
-            ->route('settings.camera-rois.edit', $camera)
+            ->route('hardware.camera-rois.edit', $camera)
             ->with('success', 'ROIs published for edge AI.');
     }
 
@@ -70,7 +70,7 @@ final class CameraRoiController extends BaseController
         $rois->markStale($camera, CameraRoiStaleReason::Manual, $request->user());
 
         return redirect()
-            ->route('settings.camera-rois.edit', $camera)
+            ->route('hardware.camera-rois.edit', $camera)
             ->with('success', 'ROI set marked stale.');
     }
 }

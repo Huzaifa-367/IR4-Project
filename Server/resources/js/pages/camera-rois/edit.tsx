@@ -14,7 +14,7 @@ import {
     cameraRoiStatusLabel,
     cameraRoiStatusTone,
 } from '@/lib/camera-roi-status';
-import settings from '@/routes/settings';
+import hardware from '@/routes/hardware';
 import type { CameraRoi, CameraRoiSet, RoiPoint } from '@/types/camera-roi';
 import { CameraRoiSetStatus, CameraRoiStaleReasonLabels } from '@/types/enums';
 import type {
@@ -127,7 +127,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
 
         setSaving(true);
         router.put(
-            settings.cameraRois.update.url(camera.uuid),
+            hardware.cameraRois.update.url(camera.uuid),
             { rois: payload },
             { preserveScroll: true, onFinish: () => setSaving(false) },
         );
@@ -140,7 +140,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
 
         setSaving(true);
         router.post(
-            settings.cameraRois.publish.url(camera.uuid),
+            hardware.cameraRois.publish.url(camera.uuid),
             { rois: rois.filter(isComplete) },
             { preserveScroll: true, onFinish: () => setSaving(false) },
         );
@@ -153,7 +153,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
 
         setSaving(true);
         router.post(
-            settings.cameraRois.markStale.url(camera.uuid),
+            hardware.cameraRois.markStale.url(camera.uuid),
             {},
             { preserveScroll: true, onFinish: () => setSaving(false) },
         );
@@ -165,7 +165,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
             <div className="flex h-[calc(100dvh-3.5rem)] flex-col gap-3 p-3 md:p-4">
                 <header className="flex shrink-0 flex-wrap items-center gap-2">
                     <Button asChild size="sm" variant="ghost" className="-ml-1">
-                        <Link href={settings.cameraRois.index.url()}>
+                        <Link href={hardware.cameraRois.index.url()}>
                             <ArrowLeft className="size-4" />
                             <span className="sr-only">Back</span>
                         </Link>
@@ -396,7 +396,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
 
 CameraRoisEdit.layout = {
     breadcrumbs: [
-        { title: 'Camera ROIs', href: settings.cameraRois.index.url() },
+        { title: 'Camera ROIs', href: hardware.cameraRois.index.url() },
         { title: 'Edit' },
     ],
 };

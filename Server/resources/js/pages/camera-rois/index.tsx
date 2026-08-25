@@ -7,7 +7,7 @@ import {
     cameraRoiStatusLabel,
     cameraRoiStatusTone,
 } from '@/lib/camera-roi-status';
-import settings from '@/routes/settings';
+import hardware from '@/routes/hardware';
 import type { CameraRoiIndexRow } from '@/types/camera-roi';
 import { CameraRoiStaleReasonLabels } from '@/types/enums';
 import type { CameraRoiStaleReason } from '@/types/enums';
@@ -84,7 +84,7 @@ export default function CameraRoisIndex({ cameras, canManage }: Props) {
                                             variant="secondary"
                                         >
                                             <Link
-                                                href={settings.cameraRois.edit.url(
+                                                href={hardware.cameraRois.edit.url(
                                                     camera.uuid,
                                                 )}
                                             >
@@ -115,6 +115,6 @@ export default function CameraRoisIndex({ cameras, canManage }: Props) {
 
 CameraRoisIndex.layout = {
     breadcrumbs: [
-        { title: 'Camera ROIs', href: settings.cameraRois.index.url() },
+        { title: 'Camera ROIs', href: hardware.cameraRois.index.url() },
     ],
 };

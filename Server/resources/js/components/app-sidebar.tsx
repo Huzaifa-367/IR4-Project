@@ -52,6 +52,7 @@ import alerts from '@/routes/alerts';
 import environment from '@/routes/environment';
 import equipment from '@/routes/equipment';
 import gas from '@/routes/gas';
+import hardware from '@/routes/hardware';
 import hse from '@/routes/hse';
 import live from '@/routes/live';
 import permits from '@/routes/permits';
@@ -383,6 +384,16 @@ export function AppSidebar() {
               ]
             : []),
 
+        ...(can('view-camera-rois')
+            ? [
+                  {
+                      title: 'Camera ROIs',
+                      href: hardware.cameraRois.index(),
+                      icon: Layers,
+                  } satisfies NavItem,
+              ]
+            : []),
+
         ...(can('view-tracking') || can('create-tags') || can('update-tags')
             ? [
                   {
@@ -438,15 +449,6 @@ export function AppSidebar() {
                       title: 'General',
                       href: settings.general.edit(),
                       icon: Settings2,
-                  } satisfies NavItem,
-              ]
-            : []),
-        ...(can('view-camera-rois')
-            ? [
-                  {
-                      title: 'Camera ROIs',
-                      href: settings.cameraRois.index(),
-                      icon: Layers,
                   } satisfies NavItem,
               ]
             : []),
