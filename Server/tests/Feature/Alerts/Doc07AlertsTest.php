@@ -6,8 +6,10 @@ use App\Enums\AlertType;
 use App\Enums\HardwareStatus;
 use App\Events\AlertRaised;
 use App\Events\AlertUpdated;
+use App\Mail\TechTeamAlertMail;
 use App\Models\Alert;
 use App\Models\AuditLog;
+use App\Models\Camera;
 use App\Models\Device;
 use App\Models\HseIncident;
 use App\Models\LsrViolation;
@@ -17,6 +19,7 @@ use App\Services\Hardware\AssetHealthService;
 use App\Services\Hardware\HardwareRegistryService;
 use App\Services\Settings\SettingsService;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 
 it('raises an alert with AlertPolicy defaults and broadcasts AlertRaised', function () {
     Event::fake([AlertRaised::class, AlertUpdated::class]);
@@ -183,4 +186,44 @@ it('strips worker identity from alert payload without view-worker-identity', fun
         ->assertOk()
         ->assertJsonPath('data.0.payload.worker_name', 'Worker #7')
         ->assertJsonMissingPath('data.0.payload.badge_number');
+});
+
+it('mails the tech team for camera offline without changing operator alert severity', function () {
+    Mail::fake();
+    config()->set('ir4.infrastructure.tech_mail_to', ['tech@ir4.local']);
+    config()->set('camera_stream.mediamtx.api_url', '');
+
+    $camera = Camera::factory()->create([
+        'name' => 'Gate cam',
+        'status' => HardwareStatus::Online,
+        'last_frame_at' => now()->subMinutes(20),
+    ]);
+
+    app(AssetHealthService::class)->markStale();
+    app(AssetHealthService::class)->markStale();
+
+    $alert = Alert::query()->where('dedupe_key', "camera_offline:{$camera->id}")->first();
+
+    expect($alert)->not->toBeNull()
+        ->and($alert->severity)->toBe(AlertSeverity::Warning)
+        ->and($alert->alert_type)->toBe(AlertType::CameraOffline);
+
+    Mail::assertSent(TechTeamAlertMail::class, 1);
+    Mail::assertSent(
+        TechTeamAlertMail::class,
+        fn (TechTeamAlertMail $mail): bool => $mail->hasTo('tech@ir4.local')
+            && $mail->alertSubject === 'Camera feed offline: Gate cam',
+    );
+});
+
+it('does not mail the tech team when raising operator safety alerts', function () {
+    Mail::fake();
+    config()->set('ir4.infrastructure.tech_mail_to', ['tech@ir4.local']);
+
+    app(AlertService::class)->raise(type: AlertType::FallDetection, title: 'Fall');
+    app(AlertService::class)->raise(type: AlertType::GasAlarm, title: 'H2S');
+
+    Mail::assertNothingSent();
+    expect(Alert::query()->where('alert_type', AlertType::FallDetection)->first()?->severity)
+        ->toBe(AlertSeverity::Critical);
 });

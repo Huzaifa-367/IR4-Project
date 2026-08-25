@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import Heading from '@/components/heading';
 import { LiveCameraFeed } from '@/components/ir4/live-camera-feed';
@@ -86,6 +87,43 @@ export default function LiveWall({
     canControlPtz,
 }: Props) {
     const [cameras, setCameras] = usePropSyncedState(initialCameras);
+    /** Client blank/stall — hide player until poll/status retry. */
+    const [blankFeedIds, setBlankFeedIds] = useState<ReadonlySet<number>>(
+        () => new Set(),
+    );
+
+    const markFeedBlank = useCallback((cameraId: number): void => {
+        setBlankFeedIds((current) => {
+            if (current.has(cameraId)) {
+                return current;
+            }
+
+            const next = new Set(current);
+            next.add(cameraId);
+
+            return next;
+        });
+    }, []);
+
+    const clearBlankFeeds = useCallback((ids?: number[]): void => {
+        setBlankFeedIds((current) => {
+            if (current.size === 0) {
+                return current;
+            }
+
+            if (ids === undefined) {
+                return new Set();
+            }
+
+            const next = new Set(current);
+
+            for (const id of ids) {
+                next.delete(id);
+            }
+
+            return next.size === current.size ? current : next;
+        });
+    }, []);
 
     const ppeLive = useReverbChannel({
         channel: 'ppe',
@@ -102,6 +140,9 @@ export default function LiveWall({
 
             if (next) {
                 setCameras(next);
+                clearBlankFeeds(
+                    next.filter((camera) => camera.is_online).map((c) => c.id),
+                );
             }
         },
         pollIntervalMs: 30_000,
@@ -117,12 +158,28 @@ export default function LiveWall({
                 return;
             }
 
+            const offline =
+                event.status === 'offline' || event.status === 'fault';
+
             setCameras((current) => patchCameraChip(current, event));
+
+            if (offline) {
+                markFeedBlank(event.device_id);
+            } else if (event.device_type === 'camera') {
+                clearBlankFeeds([event.device_id]);
+            }
         },
         pollIntervalMs: 30_000,
     });
 
     const status = combineReverbStatus(ppeLive.status, systemLive.status);
+
+    const liveCameras = cameras.filter(
+        (camera) => camera.is_online && !blankFeedIds.has(camera.id),
+    );
+    const downCameras = cameras.filter(
+        (camera) => !camera.is_online || blankFeedIds.has(camera.id),
+    );
 
     return (
         <>
@@ -132,7 +189,7 @@ export default function LiveWall({
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <Heading
                             title="Live camera wall"
-                            description={`${cameras.length} cameras`}
+                            description={`${liveCameras.length} live · ${downCameras.length} down`}
                         />
                         <div className="flex items-center gap-2">
                             {canViewPpe && (
@@ -164,7 +221,7 @@ export default function LiveWall({
                 )}
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {cameras.map((camera) => (
+                    {liveCameras.map((camera) => (
                         <div
                             key={camera.id}
                             className="overflow-hidden rounded-[var(--radius)] border border-border bg-surface"
@@ -181,16 +238,7 @@ export default function LiveWall({
                                             showDot={false}
                                         />
                                     )}
-                                    <StatusPill
-                                        label={
-                                            camera.is_online
-                                                ? 'Online'
-                                                : camera.status
-                                        }
-                                        tone={
-                                            camera.is_online ? 'ok' : 'neutral'
-                                        }
-                                    />
+                                    <StatusPill label="Online" tone="ok" />
                                 </div>
                             </div>
                             <div className="aspect-video bg-black">
@@ -211,6 +259,9 @@ export default function LiveWall({
                                             canControlPtz &&
                                             camera.can_control_ptz
                                         }
+                                        onDown={() => {
+                                            markFeedBlank(camera.id);
+                                        }}
                                     />
                                 ) : (
                                     <div className="flex size-full items-center justify-center text-xs text-text-faint">
@@ -226,6 +277,27 @@ export default function LiveWall({
                         </div>
                     )}
                 </div>
+
+                {downCameras.length > 0 && (
+                    <div className="space-y-2">
+                        <p className="text-xs font-medium tracking-wide text-text-faint uppercase">
+                            Down ({downCameras.length})
+                        </p>
+                        <ul className="flex flex-wrap gap-2">
+                            {downCameras.map((camera) => (
+                                <li
+                                    key={camera.id}
+                                    className="flex items-center gap-2 rounded-[var(--radius)] border border-[color:var(--crit)]/40 bg-[#0b0d10] px-3 py-2 text-sm"
+                                >
+                                    <StatusPill label="Down" tone="crit" />
+                                    <span className="font-medium text-text">
+                                        {camera.name}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
             </div>
         </>
     );

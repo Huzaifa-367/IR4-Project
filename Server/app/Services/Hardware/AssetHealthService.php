@@ -13,6 +13,7 @@ use App\Models\Camera;
 use App\Models\Device;
 use App\Services\Alert\AlertService;
 use App\Services\Camera\CameraStreamGatewayService;
+use App\Services\Platform\TechTeamNotifier;
 use App\Services\Settings\SettingsService;
 use App\Support\HardwarePresence;
 use Illuminate\Support\Carbon;
@@ -24,6 +25,7 @@ final class AssetHealthService
         private readonly SettingsService $settings,
         private readonly CameraStreamGatewayService $cameraStreams,
         private readonly HardwareRegistryService $hardware,
+        private readonly TechTeamNotifier $techTeam,
     ) {}
 
     public function markStale(?\DateTimeInterface $now = null): void
@@ -74,6 +76,27 @@ final class AssetHealthService
                     dedupeKey: "device_offline:{$device->id}",
                 );
 
+                if ($device->device_type === DeviceType::EdgeCompute) {
+                    $this->techTeam->notify(
+                        dedupeKey: "device_offline:{$device->id}",
+                        subject: "Server offline: {$device->name}",
+                        context: [
+                            'category' => 'Server / edge compute',
+                            'severity' => 'Critical for plant ops',
+                            'summary' => "Edge compute host \"{$device->name}\" has stopped heartbeating. Camera AI ingest, gas gateways on that pole, and related field services may be degraded until it returns.",
+                            'suggested_action' => 'Check power, LAN link, and the edge agent process on the pole. Confirm heartbeat resumes in Hardware → Devices, then verify live camera and gas feeds.',
+                            'details' => [
+                                'Device' => $device->name,
+                                'Device ID' => $device->id,
+                                'Type' => $device->device_type->value,
+                                'Asset ID' => $device->asset_id ?? '—',
+                                'Last seen' => $device->last_seen_at?->timezone((string) config('app.timezone'))->toDateTimeString() ?? 'never',
+                                'Stale threshold (min)' => $threshold,
+                            ],
+                        ],
+                    );
+                }
+
                 $gasEscalate = (int) $this->settings->get('health.gas_offline_escalate_minutes', 30);
                 if (
                     $device->device_type === DeviceType::GasDetector
@@ -88,6 +111,23 @@ final class AssetHealthService
                         source: $device,
                         audible: true,
                         dedupeKey: "gas_telemetry_lost:{$device->id}",
+                    );
+                    $this->techTeam->notify(
+                        dedupeKey: "gas_telemetry_lost:{$device->id}",
+                        subject: "Gas telemetry lost: {$device->name}",
+                        context: [
+                            'category' => 'Gas detector',
+                            'severity' => 'Critical — prolonged silence',
+                            'summary' => "Gas detector \"{$device->name}\" has been offline longer than the escalate window ({$gasEscalate} min). Operators already see a critical system alert; this mail is for tech recovery.",
+                            'suggested_action' => 'Inspect detector power/RS-485/gateway path, confirm the edge pole is online, and watch Hardware heartbeats until gas readings resume.',
+                            'details' => [
+                                'Device' => $device->name,
+                                'Device ID' => $device->id,
+                                'Last seen' => $device->last_seen_at->timezone((string) config('app.timezone'))->toDateTimeString(),
+                                'Escalate after (min)' => $gasEscalate,
+                                'Asset ID' => $device->asset_id ?? '—',
+                            ],
+                        ],
                     );
                 }
             });
@@ -126,6 +166,25 @@ final class AssetHealthService
                     payload: ['camera_id' => $camera->id, 'camera_name' => $camera->name],
                     source: $camera,
                     dedupeKey: "camera_offline:{$camera->id}",
+                );
+                $this->techTeam->notify(
+                    dedupeKey: "camera_offline:{$camera->id}",
+                    subject: "Camera feed offline: {$camera->name}",
+                    context: [
+                        'category' => 'Camera',
+                        'severity' => 'Feed unavailable',
+                        'summary' => "Camera \"{$camera->name}\" has not delivered a fresh frame within the stale window ({$threshold} min). The live wall will drop this feed until frames return.",
+                        'suggested_action' => 'Check camera power/PoE, RTSP URL, and MediaMTX path readiness. Confirm last_frame_at updates under Hardware → Cameras, then verify the live wall tile remounts.',
+                        'details' => [
+                            'Camera' => $camera->name,
+                            'Camera ID' => $camera->id,
+                            'Reference' => $camera->reference,
+                            'Asset ID' => $camera->asset_id ?? '—',
+                            'Last frame' => $camera->last_frame_at?->timezone((string) config('app.timezone'))->toDateTimeString() ?? 'never',
+                            'Stale threshold (min)' => $threshold,
+                            'Status' => $camera->status->value,
+                        ],
+                    ],
                 );
             });
     }

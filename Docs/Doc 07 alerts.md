@@ -180,6 +180,7 @@ Rules:
 - **Resource:** `AlertResource` serializes the row + strips identity fields from `payload` unless the viewer has `view-worker-identity` (DOC-04 §5) — so an operator without identity permission sees "Worker #42 in Restricted Substation" not the name. **Broadcast** payloads (`AlertRaised`/`AlertUpdated`) always strip identity — the private `alerts` channel is shared by every logged-in subscriber.
 - **Poll fallback:** `GET /api/alerts/open` every 30 s when the socket is down (DOC-08). The bell/badge and display banner reconcile from this.
 - **Audible:** the client plays a looping chime while **any unacknowledged `audible` critical alert** exists; acknowledging the last one stops it. Master mute = `alert.audible_enabled` (DOC-18). The 55″ display honors the same.
+- **Tech-team SMTP (parallel, not Alert Centre):** plant-health conditions (camera offline, edge/server offline, backup/disk, prolonged gas telemetry loss) also call `TechTeamNotifier`, which mails `MAIL_TECH_TO` over local SMTP once per open dedupe key. This does **not** change DOC-07 severities, does **not** create a second alert row, and never mails fall/PPE/gas/zone safety alerts — those stay operator-only in the Alert Centre.
 
 ---
 

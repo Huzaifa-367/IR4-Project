@@ -12,6 +12,7 @@ final class DiskSpaceMonitor
 {
     public function __construct(
         private readonly AlertService $alerts,
+        private readonly TechTeamNotifier $techTeam,
     ) {}
 
     public function check(): void
@@ -39,18 +40,20 @@ final class DiskSpaceMonitor
 
             return;
         }
+        $payload = [
+            'disk' => $diskName,
+            'root' => $root,
+            'free_pct' => $freePercentage,
+            'threshold_pct' => $threshold,
+        ];
+        $dedupeKey = 'disk_space_low:'.$diskName;
         try {
             $this->alerts->raise(
                 type: AlertType::System,
                 severity: AlertSeverity::Warning,
                 title: 'Disk space low',
-                payload: [
-                    'disk' => $diskName,
-                    'root' => $root,
-                    'free_pct' => $freePercentage,
-                    'threshold_pct' => $threshold,
-                ],
-                dedupeKey: 'disk_space_low:'.$diskName,
+                payload: $payload,
+                dedupeKey: $dedupeKey,
             );
         } catch (Throwable $exception) {
             Log::error('ir4.disk_space.alert_failed', [
@@ -58,17 +61,35 @@ final class DiskSpaceMonitor
                 'error' => $exception->getMessage(),
             ]);
         }
+        $this->techTeam->notify($dedupeKey, 'Disk space low', [
+            'category' => 'Disk',
+            'severity' => 'Storage risk',
+            'summary' => "Filesystem \"{$diskName}\" is down to {$freePercentage}% free (threshold {$threshold}%). Snapshots, backups, or ingest may fail if space runs out.",
+            'suggested_action' => $diskName === 'backups'
+                ? 'Free space on the backup volume, verify backup:clean rotation, and confirm BACKUP_DISK_ROOT is on its own disk.'
+                : 'Free space on the private data volume (snapshots/documents). Move or delete aged export files only from allow-listed paths.',
+            'details' => [
+                'Disk' => $diskName,
+                'Root path' => $root,
+                'Free' => $freePercentage.'%',
+                'Warn below' => $threshold.'%',
+                'Free bytes' => number_format((int) $free),
+                'Total bytes' => number_format((int) $total),
+            ],
+        ]);
     }
 
     private function resolveAlert(string $diskName): void
     {
+        $dedupeKey = 'disk_space_low:'.$diskName;
         try {
-            $this->alerts->resolveByDedupeKey('disk_space_low:'.$diskName);
+            $this->alerts->resolveByDedupeKey($dedupeKey);
         } catch (Throwable $exception) {
             Log::error('ir4.disk_space.alert_resolution_failed', [
                 'disk' => $diskName,
                 'error' => $exception->getMessage(),
             ]);
         }
+        $this->techTeam->clear($dedupeKey);
     }
 }

@@ -343,6 +343,23 @@ it('includes cameras on the live wall poll snapshot', function () {
         ->assertJsonStructure(['data' => ['cameras', 'violations']]);
 });
 
+it('renders offline cameras on the live wall props as not online', function () {
+    $operator = User::factory()->withRole('SCC Operator')->create();
+    Camera::factory()->create([
+        'name' => 'Blank cam',
+        'status' => HardwareStatus::Offline,
+        'last_frame_at' => now()->subHour(),
+    ]);
+
+    $this->actingAs($operator)
+        ->get(route('live.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('live/index')
+            ->where('cameras.0.name', 'Blank cam')
+            ->where('cameras.0.is_online', false));
+});
+
 it('renders the live wall kiosk without the dashboard display route', function () {
     $operator = User::factory()->withRole('SCC Operator')->create();
 

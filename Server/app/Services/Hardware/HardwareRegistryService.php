@@ -12,6 +12,7 @@ use App\Models\Device;
 use App\Models\User;
 use App\Services\Alert\AlertService;
 use App\Services\Camera\CameraStreamGatewayService;
+use App\Services\Platform\TechTeamNotifier;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -22,6 +23,7 @@ final class HardwareRegistryService
     public function __construct(
         private readonly AlertService $alerts,
         private readonly CameraStreamGatewayService $cameraStreams,
+        private readonly TechTeamNotifier $techTeam,
     ) {}
 
     /**
@@ -273,6 +275,9 @@ final class HardwareRegistryService
         ])->save();
 
         $this->alerts->resolveByDedupeKey("device_offline:{$device->id}");
+        $this->alerts->resolveByDedupeKey("gas_telemetry_lost:{$device->id}");
+        $this->techTeam->clear("device_offline:{$device->id}");
+        $this->techTeam->clear("gas_telemetry_lost:{$device->id}");
 
         if ($previousStatus !== $nextStatus) {
             broadcast(new DeviceStatusChanged(
@@ -312,6 +317,7 @@ final class HardwareRegistryService
         ])->save();
 
         $this->alerts->resolveByDedupeKey("camera_offline:{$camera->id}");
+        $this->techTeam->clear("camera_offline:{$camera->id}");
 
         if ($previousStatus !== HardwareStatus::Online) {
             broadcast(new DeviceStatusChanged(

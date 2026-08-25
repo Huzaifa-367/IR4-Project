@@ -18,7 +18,8 @@ use Spatie\Backup\Events\UnhealthyBackupWasFound;
 use Throwable;
 
 /**
- * Routes Spatie backup events into in-app system alerts (on-prem, no mail).
+ * Routes Spatie backup events into in-app system alerts (DOC-07) and a parallel
+ * tech-team SMTP notice (MAIL_TECH_TO) — not the same channel.
  */
 final class BackupStatusService
 {
@@ -26,6 +27,7 @@ final class BackupStatusService
 
     public function __construct(
         private readonly AlertService $alerts,
+        private readonly TechTeamNotifier $techTeam,
     ) {}
 
     public function recordSuccess(BackupWasSuccessful $event): void
@@ -159,6 +161,47 @@ final class BackupStatusService
                 'error' => $exception->getMessage(),
             ]);
         }
+
+        [$category, $summary, $action] = match (true) {
+            str_starts_with($dedupeKey, 'backup:failed') => [
+                'Backup',
+                'The scheduled site backup did not complete. Retention pruning will stay blocked until a successful backup exists for today.',
+                'Check BACKUP_DISK_ROOT free space, mysqldump on PATH, BACKUP_ARCHIVE_PASSWORD, and queue/worker logs. Re-run `php artisan backup:run` after fixing.',
+            ],
+            str_starts_with($dedupeKey, 'backup:missing') => [
+                'Backup monitor',
+                'Spatie backup health checks report the archive set as unhealthy (missing, too old, or incomplete).',
+                'Inspect /data/ir4-backups archives, run `php artisan backup:monitor`, and restore a healthy nightly cycle before relying on prune.',
+            ],
+            str_starts_with($dedupeKey, 'backup:cleanup-failed') => [
+                'Backup cleanup',
+                'Old backup archives could not be rotated. Disk may fill if cleanup keeps failing.',
+                'Check permissions on the backup volume and Spatie cleanup logs, then re-run `php artisan backup:clean`.',
+            ],
+            str_starts_with($dedupeKey, 'backup:prune-blocked') => [
+                'Retention',
+                'Raw-sensor pruning refused to run because there is no successful site backup marker for the current day.',
+                'Fix and complete tonight\'s backup first. Do not force-prune without a verified archive.',
+            ],
+            default => [
+                'Backup / platform',
+                $title,
+                'Investigate on the SCC, fix the underlying condition, and confirm the related system alert resolves.',
+            ],
+        };
+
+        $details = [];
+        foreach ($payload as $key => $value) {
+            $details[str_replace('_', ' ', (string) $key)] = $value;
+        }
+
+        $this->techTeam->notify($dedupeKey, $title, [
+            'category' => $category,
+            'severity' => 'Platform attention required',
+            'summary' => $summary,
+            'suggested_action' => $action,
+            'details' => $details,
+        ]);
     }
 
     private function resolveAlert(string $dedupeKey): void
@@ -171,5 +214,7 @@ final class BackupStatusService
                 'error' => $exception->getMessage(),
             ]);
         }
+
+        $this->techTeam->clear($dedupeKey);
     }
 }

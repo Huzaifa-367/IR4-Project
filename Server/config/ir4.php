@@ -29,6 +29,11 @@ return [
 
     'infrastructure' => [
         'disk_space_warn_pct' => (int) env('DISK_SPACE_WARN_PCT', 15),
+        // Tech-team SMTP only (cameras / servers / backups / disk). Not operator alerts.
+        'tech_mail_to' => array_values(array_filter(array_map(
+            static fn (string $email): string => trim($email),
+            explode(',', (string) env('MAIL_TECH_TO', '')),
+        ))),
     ],
 
 ];

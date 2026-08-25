@@ -12,7 +12,15 @@ type Props = {
     cameraName?: string;
     ptzUrl?: string | null;
     canControlPtz?: boolean;
+    /** Fired once when the feed goes blank / stalls — parent hides the player. */
+    onDown?: () => void;
 };
+
+const STARTUP_GRACE_MS = 6_000;
+const STALL_MS = 12_000;
+const BLANK_SAMPLE_MS = 2_000;
+const BLANK_HOLD_MS = 8_000;
+const LUMA_BLANK_MAX = 8;
 
 /**
  * Play MediaMTX HLS via same-origin /hls/{reference}/index.m3u8 (or absolute
@@ -33,6 +41,39 @@ function resolvePlaylistUrl(playbackUrl: string): string {
     return base.endsWith('/') ? `${base}index.m3u8` : `${base}/index.m3u8`;
 }
 
+function sampleIsBlank(video: HTMLVideoElement): boolean | null {
+    if (video.videoWidth < 8 || video.videoHeight < 8) {
+        return null;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 16;
+    canvas.height = 9;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    if (ctx === null) {
+        return null;
+    }
+
+    try {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        let luma = 0;
+        const samples = pixels.length / 4;
+
+        for (let i = 0; i < pixels.length; i += 4) {
+            luma +=
+                0.2126 * pixels[i] +
+                0.7152 * pixels[i + 1] +
+                0.0722 * pixels[i + 2];
+        }
+
+        return luma / samples < LUMA_BLANK_MAX;
+    } catch {
+        return null;
+    }
+}
+
 export function LiveCameraFeed({
     playbackUrl,
     title,
@@ -40,13 +81,30 @@ export function LiveCameraFeed({
     cameraName,
     ptzUrl = null,
     canControlPtz = false,
+    onDown,
 }: Props) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const hlsRef = useRef<Hls | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const lastFrameAtRef = useRef(0);
+    const blankSinceRef = useRef<number | null>(null);
+    const downNotifiedRef = useRef(false);
+    const onDownRef = useRef(onDown);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const playlistUrl = resolvePlaylistUrl(playbackUrl);
+
+    useEffect(() => {
+        onDownRef.current = onDown;
+    }, [onDown]);
+
+    const notifyDown = useCallback((): void => {
+        if (downNotifiedRef.current) {
+            return;
+        }
+
+        downNotifiedRef.current = true;
+        onDownRef.current?.();
+    }, []);
 
     useEffect(() => {
         const onFsChange = (): void => {
@@ -91,14 +149,34 @@ export function LiveCameraFeed({
             return;
         }
 
-        setError(null);
+        downNotifiedRef.current = false;
+        lastFrameAtRef.current = Date.now();
+        blankSinceRef.current = null;
         let hls: Hls | null = null;
         let cancelled = false;
 
-        const onFatal = (message: string): void => {
-            if (!cancelled) {
-                setError(message);
+        const markActivity = (): void => {
+            lastFrameAtRef.current = Date.now();
+        };
+
+        const tearDown = (): void => {
+            if (hls !== null) {
+                hls.destroy();
+                hls = null;
             }
+
+            hlsRef.current = null;
+            video.removeAttribute('src');
+            video.load();
+        };
+
+        const onFatal = (): void => {
+            if (cancelled) {
+                return;
+            }
+
+            tearDown();
+            notifyDown();
         };
 
         if (Hls.isSupported()) {
@@ -107,10 +185,13 @@ export function LiveCameraFeed({
             hls.loadSource(playlistUrl);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                markActivity();
                 void video.play().catch(() => undefined);
                 nudgeHlsToLiveEdge(hls, video);
             });
             hls.on(Hls.Events.FRAG_BUFFERED, () => {
+                markActivity();
+
                 if (video.paused) {
                     void video.play().catch(() => undefined);
                 }
@@ -132,29 +213,56 @@ export function LiveCameraFeed({
                     return;
                 }
 
-                onFatal(data.type || 'HLS playback failed');
-                hls.destroy();
+                onFatal();
             });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = playlistUrl;
             void video.play().catch(() => undefined);
         } else {
-            onFatal('HLS is not supported in this browser');
+            onFatal();
         }
+
+        const startedAt = Date.now();
+        const watchdog = window.setInterval(() => {
+            if (cancelled || downNotifiedRef.current) {
+                return;
+            }
+
+            const now = Date.now();
+
+            if (now - startedAt < STARTUP_GRACE_MS) {
+                return;
+            }
+
+            if (now - lastFrameAtRef.current >= STALL_MS) {
+                tearDown();
+                notifyDown();
+
+                return;
+            }
+
+            const blank = sampleIsBlank(video);
+
+            if (blank === true) {
+                blankSinceRef.current ??= now;
+
+                if (now - blankSinceRef.current >= BLANK_HOLD_MS) {
+                    tearDown();
+                    notifyDown();
+                }
+
+                return;
+            }
+
+            blankSinceRef.current = null;
+        }, BLANK_SAMPLE_MS);
 
         return () => {
             cancelled = true;
-
-            if (hls !== null) {
-                hls.destroy();
-            }
-
-            hlsRef.current = null;
-
-            video.removeAttribute('src');
-            video.load();
+            window.clearInterval(watchdog);
+            tearDown();
         };
-    }, [playlistUrl]);
+    }, [playlistUrl, notifyDown]);
 
     const showPtzControls =
         isFullscreen &&
@@ -212,11 +320,6 @@ export function LiveCameraFeed({
                     onInteract={nudgeLiveEdge}
                     className="absolute bottom-4 left-4 z-10"
                 />
-            )}
-            {error !== null && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/80 px-3 text-center text-xs text-text-faint">
-                    {error}
-                </div>
             )}
         </div>
     );
