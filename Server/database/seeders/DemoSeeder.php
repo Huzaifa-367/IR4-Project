@@ -89,25 +89,25 @@ final class DemoSeeder extends Seeder
         $this->admin = User::query()->role('Super Admin')->first()
             ?? User::factory()->withRole('Super Admin')->create([
                 'name' => 'Super Admin',
-                'email' => 'admin@ir4.local',
+                'email' => 'admin@gmail.com',
                 'password' => Hash::make('password'),
                 'must_change_password' => true,
             ]);
 
         // Local/staging convenience accounts only — install already creates Super Admin.
         if (! app()->environment('production')) {
-            User::query()->where('email', 'safety@ir4.local')->first()
+            User::query()->where('email', 'safety@gmail.com')->first()
                 ?? User::factory()->withRole('Safety Manager')->create([
                     'name' => 'Safety Manager',
-                    'email' => 'safety@ir4.local',
+                    'email' => 'safety@gmail.com',
                     'password' => Hash::make('password'),
                     'must_change_password' => true,
                 ]);
 
-            $this->operator = User::query()->where('email', 'operator@ir4.local')->first()
+            $this->operator = User::query()->where('email', 'operator@gmail.com')->first()
                 ?? User::factory()->withRole('SCC Operator')->create([
                     'name' => 'SCC Operator',
-                    'email' => 'operator@ir4.local',
+                    'email' => 'operator@gmail.com',
                     'password' => Hash::make('password'),
                     'must_change_password' => true,
                 ]);
