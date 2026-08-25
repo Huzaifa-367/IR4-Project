@@ -50,6 +50,7 @@ export type DeviceRow = {
     is_online: boolean;
     has_token: boolean;
     last_seen_at: string | null;
+    api_url?: string | null;
     asset: { id: number; uuid: string; name: string } | null;
 };
 

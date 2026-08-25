@@ -263,7 +263,7 @@ final class LsrService
     {
         return match ($alert->alert_type) {
             AlertType::PpeViolation, AlertType::HeightWithoutHarness => LsrCategory::MissingPpe,
-            AlertType::RedZoneIntrusion => LsrCategory::RedZoneIntrusion,
+            AlertType::RoiViolation, AlertType::RedZoneIntrusion => LsrCategory::RedZoneIntrusion,
             AlertType::UnauthorizedZoneAccess => LsrCategory::UnauthorizedZoneAccess,
             AlertType::ZoneOccupancyExceeded => LsrCategory::ZoneOccupancyExceeded,
             AlertType::WorkerDown => LsrCategory::WorkerDown,
@@ -276,6 +276,7 @@ final class LsrService
         return (($alert->payload['suggested_action'] ?? null) === 'log_lsr')
             || in_array($alert->alert_type, [
                 AlertType::PpeViolation,
+                AlertType::RoiViolation,
                 AlertType::RedZoneIntrusion,
                 AlertType::UnauthorizedZoneAccess,
                 AlertType::ZoneOccupancyExceeded,

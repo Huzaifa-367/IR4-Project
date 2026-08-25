@@ -5,7 +5,7 @@ alwaysApply: true
 
 # IR4 Platform — Engineering Conventions
 
-> Authoritative source: `Docs/Doc 01` through `Doc 22`. This file distills the written docs into working rules. If code and the Docs folder disagree, the Docs folder wins — fix this file, don't silently override it.
+> Authoritative source: `Docs/Doc 01` through `Doc 23`. This file distills the written docs into working rules. If code and the Docs folder disagree, the Docs folder wins — fix this file, don't silently override it.
 >
 > Repeatable procedures live as skills in `.claude/skills/` (mirrored under `.cursor/skills/` for Cursor). Use those instead of re-deriving steps.
 
@@ -20,7 +20,7 @@ alwaysApply: true
 | 05 | Assets/cameras/devices, tokens, heartbeats, fully dynamic hardware |
 | 06 | Zones, time-aware reader bindings, repositioning, access lists |
 | 07 | Unified `AlertService`, dedupe, suggested_action (never auto-creates domain rows) |
-| 08 | `/api/ingest/*` contract, five ingest endpoints, Reverb channels |
+| 08 | `/api/ingest/*` (+ ROI violations), `/api/devices/{uuid}/camera-rois` pull, Reverb channels |
 | 09 | RFID tracking, entry/exit, evacuation, tags, portable devices |
 | 10 | PPE + fall ingest, false-positive review, anonymous violations |
 | 11 | Gas/CO₂ readings, thresholds, hysteresis, backfill-creates-no-alarms |
@@ -35,6 +35,7 @@ alwaysApply: true
 | 20 | On-prem deploy/ops runbook: Dell R360, Supervisor, Nginx LAN fences, DB grants, ZT411, commissioning checklist |
 | 21 | Testing strategy: endpoint matrix, invariant guards, scenario catalogue, CI gates (Pint/PHPStan/TS/enum-sync/on-prem grep) |
 | 22 | Permit to Work: GI 2.100-aligned flow; dynamic types/tests/checklists; worker document packs; RFID/gas cross-detection |
+| 23 | Camera ROI polygons; device 1:1 pull; ROI violation ingest + review (≠ DOC-06 zones) |
 
 `[CONFIRM AT DESIGN]` items in docs: **implement the documented default** until the client confirms otherwise. Do not invent a third option.
 
@@ -88,6 +89,7 @@ Machine truth is immutable. Human judgment is always path ③. Alerts are path �
 - **Settings (DOC-18):** whitelist only via `SettingsRegistry`; per-key permissions; sensitive keys need confirm; printer/backup paths stay `.env`.
 - **Retention (DOC-19):** prune allow-list only; compliance never pruned; encrypted Spatie daily backups on a separate volume; backup before prune; failures → `AlertService` (no mail).
 - **Permit to Work (DOC-22):** GI 2.100-aligned flow; **dynamic** types/tests/checklists/doc packs (not hardcoded enums); worker document gate; issuer/receiver certs; RFID/gas cross-detection suggests LSR (never auto-creates).
+- **Camera ROI (DOC-23):** image-space polygons separate from RFID zones; stale on PTZ/`stream_url` change; publish before device use; device pull active-only 1:1 (`GET /api/devices/{uuid}/camera-rois`) + push to `device.config.api_url`; ROI violations ingest + review via shared `AlertService` (PPE-parallel).
 
 ## 7. RBAC — never check role names
 

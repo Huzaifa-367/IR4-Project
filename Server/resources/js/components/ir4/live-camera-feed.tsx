@@ -1,9 +1,12 @@
 import Hls from 'hls.js';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CameraRoiCanvas } from '@/components/ir4/camera-roi-canvas';
 import { LiveCameraPtzControls } from '@/components/ir4/live-camera-ptz-controls';
 import { Button } from '@/components/ui/button';
 import { liveWallHlsConfig, nudgeHlsToLiveEdge } from '@/lib/live-hls-config';
+import type { CameraRoiOverlay } from '@/types/camera-roi';
+import { CameraRoiSetStatus } from '@/types/enums';
 
 type Props = {
     playbackUrl: string;
@@ -14,6 +17,9 @@ type Props = {
     canControlPtz?: boolean;
     /** Fired once when the feed goes blank / stalls — parent hides the player. */
     onDown?: () => void;
+    roiOverlay?: CameraRoiOverlay | null;
+    /** Match ROI canvas: stretch video to the container (editor / overlay). */
+    fillFrame?: boolean;
 };
 
 const STARTUP_GRACE_MS = 6_000;
@@ -82,6 +88,8 @@ export function LiveCameraFeed({
     ptzUrl = null,
     canControlPtz = false,
     onDown,
+    roiOverlay = null,
+    fillFrame = false,
 }: Props) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -281,13 +289,26 @@ export function LiveCameraFeed({
         >
             <video
                 ref={videoRef}
-                className="size-full object-contain"
+                className={
+                    fillFrame || roiOverlay
+                        ? 'size-full object-fill'
+                        : 'size-full object-contain'
+                }
                 title={title}
                 muted
                 autoPlay
                 playsInline
                 controls={false}
             />
+            {roiOverlay && roiOverlay.rois.length > 0 && (
+                <CameraRoiCanvas
+                    rois={roiOverlay.rois}
+                    selectedIndex={null}
+                    editable={false}
+                    stale={roiOverlay.status === CameraRoiSetStatus.Stale}
+                    className="z-[2]"
+                />
+            )}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-end bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                 <Button
                     type="button"

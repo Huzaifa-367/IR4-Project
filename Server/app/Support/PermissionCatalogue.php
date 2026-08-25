@@ -24,6 +24,8 @@ final class PermissionCatalogue
             'Live view & cameras' => [
                 'view-live-cameras',
                 'control-ptz-cameras',
+                'view-camera-rois',
+                'manage-camera-rois',
             ],
             'Alerts' => [
                 'acknowledge-alerts',
@@ -33,6 +35,10 @@ final class PermissionCatalogue
                 'view-ppe',
                 'update-ppe-violations',
                 'export-ppe-violations',
+            ],
+            'ROI violations' => [
+                'view-roi-violations',
+                'update-roi-violations',
             ],
             'Tracking / RFID' => [
                 'view-tracking',

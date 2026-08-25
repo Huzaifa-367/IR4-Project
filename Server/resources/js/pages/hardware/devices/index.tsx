@@ -27,6 +27,7 @@ import {
 } from '@/lib/hardware-presence';
 import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
 import settings from '@/routes/settings';
+import { DeviceType } from '@/types/enums';
 import type {
     DeviceRow,
     HardwareOption,
@@ -135,7 +136,10 @@ export default function DevicesIndex({
                 );
 
                 return (
-                    <StatusPill label={label} tone={hardwareStatusTone(label)} />
+                    <StatusPill
+                        label={label}
+                        tone={hardwareStatusTone(label)}
+                    />
                 );
             },
         },
@@ -148,6 +152,17 @@ export default function DevicesIndex({
                     tone={device.has_token ? 'ok' : 'neutral'}
                 />
             ),
+        },
+        {
+            key: 'ai',
+            header: 'API URL',
+            cell: (device) =>
+                device.device_type === DeviceType.EdgeCompute &&
+                device.api_url ? (
+                    <span className="font-mono text-xs">{device.api_url}</span>
+                ) : (
+                    '—'
+                ),
         },
         {
             key: 'seen',
@@ -406,6 +421,25 @@ export default function DevicesIndex({
                                 }))}
                             />
                         </div>
+                        {typeValue === DeviceType.EdgeCompute && (
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="device-api-url">API URL</Label>
+                                <Input
+                                    id="device-api-url"
+                                    name="api_url"
+                                    placeholder="http://172.16.3.2:8600/rois"
+                                    defaultValue={
+                                        form?.mode === 'edit'
+                                            ? (form.device.api_url ?? '')
+                                            : ''
+                                    }
+                                />
+                                <p className="text-xs text-text-dim">
+                                    Full Jetson ROI endpoint (include path).
+                                    Publish POSTs here after ROI publish.
+                                </p>
+                            </div>
+                        )}
                     </>
                 )}
             </CrudFormDialog>

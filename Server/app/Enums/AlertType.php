@@ -5,6 +5,7 @@ namespace App\Enums;
 enum AlertType: string
 {
     case PpeViolation = 'ppe_violation';
+    case RoiViolation = 'roi_violation';
     case GasWarning = 'gas_warning';
     case GasAlarm = 'gas_alarm';
     case RedZoneIntrusion = 'red_zone_intrusion';
@@ -25,6 +26,7 @@ enum AlertType: string
     {
         return match ($this) {
             self::PpeViolation => 'PPE violation',
+            self::RoiViolation => 'ROI violation',
             self::GasWarning => 'Gas warning',
             self::GasAlarm => 'Gas alarm',
             self::RedZoneIntrusion => 'Red zone intrusion',

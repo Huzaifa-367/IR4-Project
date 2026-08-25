@@ -1,3 +1,5 @@
+import type { CameraRoiOverlay } from '@/types/camera-roi';
+
 export type PpeViolation = {
     id: number;
     uuid: string;
@@ -33,6 +35,7 @@ export type LiveCamera = {
     is_online: boolean;
     last_frame_at: string | null;
     location_label: string | null;
+    roi_overlay?: CameraRoiOverlay | null;
 };
 
 export type PpeSummary = {

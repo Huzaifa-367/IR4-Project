@@ -15,17 +15,15 @@ use App\Models\User;
 use App\Models\Zone;
 use App\Services\Alert\AlertService;
 use App\Services\Hardware\HardwareRegistryService;
-use App\Services\Storage\SignedStorageUrlService;
 use App\Services\Tracking\TrackingService;
 use App\Support\Ingest\IngestEventRejected;
+use App\Support\Ingest\IngestSnapshotStore;
 use App\Support\Ingest\IngestTimestamps;
 use App\Support\Ingest\ReferenceResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -36,7 +34,7 @@ final class PpeViolationService
         private readonly ReferenceResolver $refs,
         private readonly AlertService $alerts,
         private readonly TrackingService $tracking,
-        private readonly SignedStorageUrlService $signedUrls,
+        private readonly IngestSnapshotStore $snapshots,
         private readonly HardwareRegistryService $hardware,
     ) {}
 
@@ -378,7 +376,7 @@ final class PpeViolationService
             'reviewed_at' => $violation->reviewed_at?->toIso8601String(),
             'review_note' => $violation->review_note,
             'is_backfill' => $violation->is_backfill,
-            'snapshot_url' => $this->snapshotUrl($violation->snapshot_path),
+            'snapshot_url' => $this->snapshots->temporaryUrl($violation->snapshot_path),
         ];
     }
 
@@ -413,7 +411,7 @@ final class PpeViolationService
             return 'duplicate';
         }
 
-        $snapshotPath = $this->storeSnapshot(isset($event['snapshot']) ? (string) $event['snapshot'] : null);
+        $snapshotPath = $this->snapshots->store(isset($event['snapshot']) ? (string) $event['snapshot'] : null);
         $camera->loadMissing('asset');
         $zoneId = $this->resolveZoneId($camera);
         $zone = $zoneId !== null ? Zone::query()->find($zoneId) : null;
@@ -451,7 +449,7 @@ final class PpeViolationService
                     'violation_type' => $violationType->value,
                     'detected_at' => $detectedAt->toIso8601String(),
                     'snapshot_path' => $snapshotPath,
-                    'snapshot_url' => $this->snapshotUrl($snapshotPath),
+                    'snapshot_url' => $this->snapshots->temporaryUrl($snapshotPath),
                     'zone_id' => $zoneId,
                     'zone_name' => $zone?->name,
                 ],
@@ -464,7 +462,7 @@ final class PpeViolationService
                 'uuid' => $violation->uuid,
                 'violation_type' => $violationType->value,
                 'camera_ref' => $camera->reference,
-                'snapshot_url' => $this->snapshotUrl($snapshotPath),
+                'snapshot_url' => $this->snapshots->temporaryUrl($snapshotPath),
                 'detected_at' => $detectedAt->toIso8601String(),
             ]));
 
@@ -483,30 +481,6 @@ final class PpeViolationService
             ViolationType::MissingHarness => AlertType::HeightWithoutHarness,
             default => AlertType::PpeViolation,
         };
-    }
-
-    private function snapshotUrl(?string $path): ?string
-    {
-        if ($path === null || $path === '') {
-            return null;
-        }
-
-        return $this->signedUrls->temporaryUrl($path);
-    }
-
-    private function storeSnapshot(?string $base64): ?string
-    {
-        if ($base64 === null || $base64 === '') {
-            return null;
-        }
-        $decoded = base64_decode($base64, true);
-        if ($decoded === false || $decoded === '') {
-            return null;
-        }
-        $path = 'snapshots/'.now()->format('Y/m/d').'/'.Str::uuid().'.jpg';
-        Storage::disk('private')->put($path, $decoded);
-
-        return $path;
     }
 
     private function resolveZoneId(Camera $camera): ?int

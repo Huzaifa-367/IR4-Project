@@ -38,6 +38,8 @@ Route::middleware([
     require __DIR__.'/web/alerts.php';
     require __DIR__.'/web/gas.php';
     require __DIR__.'/web/ppe.php';
+    require __DIR__.'/web/camera-rois.php';
+    require __DIR__.'/web/roi-violations.php';
     require __DIR__.'/web/tracking.php';
     require __DIR__.'/web/hardware.php';
     require __DIR__.'/web/workforce.php';

@@ -58,6 +58,12 @@ final class DeviceController extends BaseController
                         'is_online' => $isOnline,
                         'has_token' => $device->api_token_hash !== null,
                         'last_seen_at' => $device->last_seen_at?->toIso8601String(),
+                        'api_url' => $device->device_type === DeviceType::EdgeCompute
+                            && is_array($device->config)
+                            && is_string($device->config['api_url'] ?? null)
+                            && $device->config['api_url'] !== ''
+                                ? $device->config['api_url']
+                                : null,
                         'asset' => $device->asset === null ? null : [
                             'id' => $device->asset->id,
                             'uuid' => $device->asset->uuid,

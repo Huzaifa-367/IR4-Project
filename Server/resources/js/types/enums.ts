@@ -45,6 +45,7 @@ export const AlertStatusLabels: Record<AlertStatus, string> = {
 
 export const AlertType = {
     PpeViolation: 'ppe_violation',
+    RoiViolation: 'roi_violation',
     GasWarning: 'gas_warning',
     GasAlarm: 'gas_alarm',
     RedZoneIntrusion: 'red_zone_intrusion',
@@ -66,6 +67,7 @@ export type AlertType = (typeof AlertType)[keyof typeof AlertType];
 
 export const AlertTypeLabels: Record<AlertType, string> = {
     ppe_violation: 'PPE violation',
+    roi_violation: 'ROI violation',
     gas_warning: 'Gas warning',
     gas_alarm: 'Gas alarm',
     red_zone_intrusion: 'Red zone intrusion',
@@ -143,6 +145,48 @@ export const AuditEventLabels: Record<AuditEvent, string> = {
     published: 'Published',
     acknowledged: 'Acknowledged',
     exported: 'Exported',
+};
+
+export const CameraRoiSetStatus = {
+    Draft: 'draft',
+    Active: 'active',
+    Stale: 'stale',
+} as const;
+
+export type CameraRoiSetStatus =
+    (typeof CameraRoiSetStatus)[keyof typeof CameraRoiSetStatus];
+
+export const CameraRoiSetStatusLabels: Record<CameraRoiSetStatus, string> = {
+    draft: 'Draft',
+    active: 'Active',
+    stale: 'Stale',
+};
+
+export const CameraRoiStaleReason = {
+    Ptz: 'ptz',
+    StreamChanged: 'stream_changed',
+    Manual: 'manual',
+} as const;
+
+export type CameraRoiStaleReason =
+    (typeof CameraRoiStaleReason)[keyof typeof CameraRoiStaleReason];
+
+export const CameraRoiStaleReasonLabels: Record<CameraRoiStaleReason, string> =
+    {
+        ptz: 'PTZ moved',
+        stream_changed: 'Stream config changed',
+        manual: 'Marked stale manually',
+    };
+
+export const RoiViolationType = {
+    Intrusion: 'roi_intrusion',
+} as const;
+
+export type RoiViolationType =
+    (typeof RoiViolationType)[keyof typeof RoiViolationType];
+
+export const RoiViolationTypeLabels: Record<RoiViolationType, string> = {
+    roi_intrusion: 'ROI intrusion',
 };
 
 export const CameraType = {
@@ -781,11 +825,15 @@ export const Permission = {
     ViewDashboard: 'view-dashboard',
     ViewLiveCameras: 'view-live-cameras',
     ControlPtzCameras: 'control-ptz-cameras',
+    ViewCameraRois: 'view-camera-rois',
+    ManageCameraRois: 'manage-camera-rois',
     AcknowledgeAlerts: 'acknowledge-alerts',
     ResolveAlerts: 'resolve-alerts',
     ViewPpe: 'view-ppe',
     UpdatePpeViolations: 'update-ppe-violations',
     ExportPpeViolations: 'export-ppe-violations',
+    ViewRoiViolations: 'view-roi-violations',
+    UpdateRoiViolations: 'update-roi-violations',
     ViewTracking: 'view-tracking',
     ViewWorkerIdentity: 'view-worker-identity',
     CreateWorkers: 'create-workers',

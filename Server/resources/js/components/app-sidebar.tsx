@@ -57,6 +57,7 @@ import live from '@/routes/live';
 import permits from '@/routes/permits';
 import ppe from '@/routes/ppe';
 import reports from '@/routes/reports';
+import roiViolations from '@/routes/roi-violations';
 import settings from '@/routes/settings';
 import tracking from '@/routes/tracking';
 import workOrders from '@/routes/work-orders';
@@ -207,6 +208,15 @@ export function AppSidebar() {
                       title: 'PPE Violations',
                       href: ppe.violations.index(),
                       icon: Shield,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('view-roi-violations')
+            ? [
+                  {
+                      title: 'ROI Violations',
+                      href: roiViolations.index(),
+                      icon: Layers,
                   } satisfies NavItem,
               ]
             : []),
@@ -372,6 +382,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
+
         ...(can('view-tracking') || can('create-tags') || can('update-tags')
             ? [
                   {
@@ -427,6 +438,15 @@ export function AppSidebar() {
                       title: 'General',
                       href: settings.general.edit(),
                       icon: Settings2,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('view-camera-rois')
+            ? [
+                  {
+                      title: 'Camera ROIs',
+                      href: settings.cameraRois.index(),
+                      icon: Layers,
                   } satisfies NavItem,
               ]
             : []),
@@ -542,8 +562,8 @@ export function AppSidebar() {
                 <NavMain items={catalogue} label="Catalogue" />
             </SidebarContent>
 
-            <SidebarFooter className="gap-3 border-t border-sidebar-border p-3">
-                <div className="px-1 group-data-[collapsible=icon]:hidden">
+            <SidebarFooter className="gap-2.5 border-t border-sidebar-border p-3">
+                <div className="px-0.5 group-data-[collapsible=icon]:hidden">
                     <SystemStatusPanel />
                 </div>
                 <NavUser />

@@ -2,24 +2,74 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "IR4 Platform API",
-    "description": "REST/JSON surfaces for IR4 (DOC-01 / DOC-02 / DOC-08 / DOC-13).\n\n**Three entry surfaces**\n- **A. Operator JSON helpers** — session cookie (Fortify). Poll fallbacks for live screens.\n- **B. Device API** — `X-Device-Token` header. `/api/ingest/*` + heartbeat.\n- **C. Public** — unauthenticated LAN QR page (read-only).\n- **Mobile** — Sanctum Bearer token under `/api/mobile/*` (operator app; not device auth).\n\nSuccess envelope (most endpoints): `{ \"data\": { … } }`\nIngest batch response (202): `{ \"accepted\", \"duplicates\", \"rejected\": [] }`\nErrors: `{ \"error\": { \"code\", \"message\", \"details?\" } }`",
+    "description": "REST/JSON surfaces for IR4 (DOC-01 / DOC-02 / DOC-08 / DOC-13 / DOC-23).\n\n**Three entry surfaces**\n- **A. Operator JSON helpers** — session cookie (Fortify). Poll fallbacks for live screens.\n- **B. Device API** — `X-Device-Token` header. `/api/ingest/*`, heartbeat, edge ROI pull.\n- **C. Public** — unauthenticated LAN QR page (read-only).\n- **Mobile** — Sanctum Bearer token under `/api/mobile/*` (operator app; not device auth).\n\nSuccess envelope (most endpoints): `{ \"data\": { … } }`\nIngest batch response (202): `{ \"accepted\", \"duplicates\", \"rejected\": [] }`\nErrors: `{ \"error\": { \"code\", \"message\", \"details?\" } }`",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://127.0.0.1:8000" },
-    { "key": "deviceToken", "value": "" },
-    { "key": "deviceUuid", "value": "00000000-0000-4000-8000-000000000010" },
-    { "key": "readerRef", "value": "reader-01" },
-    { "key": "cameraRef", "value": "cam-01" },
-    { "key": "deviceRef", "value": "gas-01" },
-    { "key": "tagUid", "value": "TAG-001" },
-    { "key": "mobileToken", "value": "" },
-    { "key": "mobileEmail", "value": "admin@example.com" },
-    { "key": "mobilePassword", "value": "password" },
-    { "key": "qrToken", "value": "00000000-0000-4000-8000-000000000001" },
-    { "key": "equipmentUuid", "value": "00000000-0000-4000-8000-000000000020" },
-    { "key": "workerId", "value": "1" },
-    { "key": "zoneId", "value": "1" }
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "deviceToken",
+      "value": "pBChoXvCFBbW3HR0aFaoRVFT5UpO5u5upnoztS7RSPMbw6g5"
+    },
+    {
+      "key": "deviceUuid",
+      "value": "7cd2d9bc-4986-4c07-9cd8-631a2eb66b02"
+    },
+    {
+      "key": "deviceRef",
+      "value": "gas-01"
+    },
+    {
+      "key": "readerRef",
+      "value": "reader-01"
+    },
+    {
+      "key": "cameraRef",
+      "value": "CAM-FIXED-01"
+    },
+    {
+      "key": "roiReference",
+      "value": "roi_bay_floor"
+    },
+    {
+      "key": "tagUid",
+      "value": "TAG-001"
+    },
+    {
+      "key": "mobileToken",
+      "value": ""
+    },
+    {
+      "key": "mobileEmail",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "mobilePassword",
+      "value": "password"
+    },
+    {
+      "key": "qrToken",
+      "value": "00000000-0000-4000-8000-000000000001"
+    },
+    {
+      "key": "equipmentUuid",
+      "value": "00000000-0000-4000-8000-000000000020"
+    },
+    {
+      "key": "workerId",
+      "value": "1"
+    },
+    {
+      "key": "zoneId",
+      "value": "1"
+    },
+    {
+      "key": "apiUrl",
+      "value": "http://172.16.3.2:8600/rois"
+    }
   ],
   "item": [
     {
@@ -29,7 +79,12 @@
           "name": "GET /api/health",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/health",
             "description": "Unauthenticated liveness probe. Returns `{ data: { status: \"ok\" } }`."
           }
@@ -38,7 +93,7 @@
     },
     {
       "name": "Device API (auth.device)",
-      "description": "Surface B — DOC-02 / DOC-08.\n\nHeader: `X-Device-Token: <plain token>` (shown once when the device is created/rotated in Hardware settings).\n\nIngest body shape: `{ \"events\": [ … ] }` (max `ingest.max_batch`, default 1000).\nResponse: **202 Accepted** with per-event outcomes — never all-or-nothing.",
+      "description": "Surface B — DOC-02 / DOC-08 / DOC-23.\n\nHeader: `X-Device-Token: <plain token>` (shown once when the device is created/rotated in Hardware settings).\n\nDevice-scoped routes use path `{deviceUuid}` + matching token (heartbeat, camera-rois) — same pattern.\nIngest body shape: `{ \"events\": [ … ] }` (max `ingest.max_batch`, default 1000).\nResponse: **202 Accepted** with per-event outcomes — never all-or-nothing.\n\nDemo defaults: `deviceUuid` / `deviceToken` = DEV-CAM-FIXED-01; `cameraRef` = CAM-FIXED-01.",
       "item": [
         {
           "name": "Heartbeat",
@@ -48,9 +103,18 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "X-Device-Token", "value": "{{deviceToken}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Device-Token",
+                    "value": "{{deviceToken}}"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -59,6 +123,112 @@
                 "url": "{{baseUrl}}/api/devices/{{deviceUuid}}/heartbeat",
                 "description": "Liveness ping (DOC-05). `{device}` is the device **UUID** (route key), not the integer id.\n\nOptional body: `status` (`online`|`offline`|`degraded`|`fault`|`maintenance`), `meta` (object, merged into `devices.config`).\nToken must belong to this device or 403. Empty body is also valid."
               }
+            }
+          ]
+        },
+        {
+          "name": "Camera ROIs",
+          "item": [
+            {
+              "name": "GET /api/devices/{device}/camera-rois",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Device-Token",
+                    "value": "{{deviceToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/devices/{{deviceUuid}}/camera-rois",
+                "description": "Pull **active** ROI polygons for this camera **device** (DOC-23).\n\nSame auth as heartbeat: `GET /api/devices/{deviceUuid}/camera-rois` + `X-Device-Token` (must match).\nThe device is the camera unit (1:1). Response = `device` + `rois` only (no cameras list).\n\n**Example:**\n\n```json\n{\n  \"data\": {\n    \"device\": {\n      \"id\": 3,\n      \"uuid\": \"7cd2d9bc-4986-4c07-9cd8-631a2eb66b02\",\n      \"reference\": \"DEV-CAM-FIXED-01\",\n      \"name\": \"Pole 01 Fixed Camera\"\n    },\n    \"view_fingerprint\": \"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\",\n    \"published_at\": \"2026-08-25T18:00:00+00:00\",\n    \"rois\": [\n      {\n        \"name\": \"Bay floor\",\n        \"reference\": \"roi_bay_floor\",\n        \"polygon\": [\n          {\n            \"x\": 0.12,\n            \"y\": 0.25\n          },\n          {\n            \"x\": 0.88,\n            \"y\": 0.25\n          },\n          {\n            \"x\": 0.88,\n            \"y\": 0.92\n          },\n          {\n            \"x\": 0.12,\n            \"y\": 0.92\n          }\n        ],\n        \"sort_order\": 0,\n        \"meta\": null\n      }\n    ]\n  }\n}\n```\n\nOn publish, SCC also **POSTs this same `data` object** to `http://{device.config.api_url}:8600/rois` (see **Edge AI (Jetson ROI push)**)."
+              },
+              "response": [
+                {
+                  "name": "200 — device + active ROIs",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "X-Device-Token",
+                        "value": "{{deviceToken}}"
+                      }
+                    ],
+                    "url": "{{baseUrl}}/api/devices/{{deviceUuid}}/camera-rois"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"data\": {\n    \"device\": {\n      \"id\": 3,\n      \"uuid\": \"7cd2d9bc-4986-4c07-9cd8-631a2eb66b02\",\n      \"reference\": \"DEV-CAM-FIXED-01\",\n      \"name\": \"Pole 01 Fixed Camera\"\n    },\n    \"view_fingerprint\": \"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\",\n    \"published_at\": \"2026-08-25T18:00:00+00:00\",\n    \"rois\": [\n      {\n        \"name\": \"Bay floor\",\n        \"reference\": \"roi_bay_floor\",\n        \"polygon\": [\n          {\n            \"x\": 0.12,\n            \"y\": 0.25\n          },\n          {\n            \"x\": 0.88,\n            \"y\": 0.25\n          },\n          {\n            \"x\": 0.88,\n            \"y\": 0.92\n          },\n          {\n            \"x\": 0.12,\n            \"y\": 0.92\n          }\n        ],\n        \"sort_order\": 0,\n        \"meta\": null\n      }\n    ]\n  }\n}"
+                },
+                {
+                  "name": "200 — no active ROIs",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "X-Device-Token",
+                        "value": "{{deviceToken}}"
+                      }
+                    ],
+                    "url": "{{baseUrl}}/api/devices/{{deviceUuid}}/camera-rois"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"data\": {\n    \"device\": {\n      \"id\": 3,\n      \"uuid\": \"7cd2d9bc-4986-4c07-9cd8-631a2eb66b02\",\n      \"reference\": \"DEV-CAM-FIXED-01\",\n      \"name\": \"Pole 01 Fixed Camera\"\n    },\n    \"view_fingerprint\": null,\n    \"published_at\": null,\n    \"rois\": []\n  }\n}"
+                },
+                {
+                  "name": "403 — token does not match device UUID",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "X-Device-Token",
+                        "value": "{{deviceToken}}"
+                      }
+                    ],
+                    "url": "{{baseUrl}}/api/devices/{{deviceUuid}}/camera-rois"
+                  },
+                  "status": "Forbidden",
+                  "code": 403,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"error\": {\n    \"code\": \"FORBIDDEN\",\n    \"message\": \"Token does not match device.\"\n  }\n}"
+                }
+              ]
             }
           ]
         },
@@ -86,9 +256,18 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "X-Device-Token", "value": "{{deviceToken}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Device-Token",
+                    "value": "{{deviceToken}}"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -119,16 +298,67 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "X-Device-Token", "value": "{{deviceToken}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Device-Token",
+                    "value": "{{deviceToken}}"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"events\": [\n    {\n      \"event_uid\": \"{{eventUid}}\",\n      \"camera_ref\": \"{{cameraRef}}\",\n      \"event_type\": \"missing_helmet\",\n      \"detected_at\": \"{{detectedAt}}\",\n      \"worker_count\": 1,\n      \"confidence\": 0.92,\n      \"snapshot\": null\n    }\n  ]\n}"
                 },
                 "url": "{{baseUrl}}/api/ingest/ppe-violations",
-                "description": "Single ingest endpoint for PPE + fall detections (DOC-10 / DOC-14).\n\n`event_type`: `missing_helmet` | `missing_vest` | `missing_harness` | `missing_mask` | `fall`\n\nRequired: `event_uid`, `camera_ref`, `event_type`, `detected_at`, `confidence` (0–1).\nOptional: `worker_count`, `snapshot` (base64 string). For `fall`, omit `worker_count`."
+                "description": "Single ingest endpoint for PPE + fall detections (DOC-10 / DOC-14).\n\n`event_type`: `missing_helmet` | `missing_vest` | `missing_harness` | `missing_mask` | `fall`\n\nRequired: `event_uid`, `camera_ref`, `event_type`, `detected_at`, `confidence` (0–1).\nOptional: `worker_count`, `snapshot` (raw base64 JPEG string — same store as ROI: private `snapshots/Y/m/d/{uuid}.jpg`). For `fall`, omit `worker_count`."
+              }
+            },
+            {
+              "name": "POST /api/ingest/roi-violations",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {",
+                      "  const r = Math.random() * 16 | 0;",
+                      "  return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);",
+                      "});",
+                      "pm.variables.set('eventUid', uuid());",
+                      "pm.variables.set('detectedAt', new Date().toISOString());"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Device-Token",
+                    "value": "{{deviceToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"events\": [\n    {\n      \"event_uid\": \"{{eventUid}}\",\n      \"camera_ref\": \"{{cameraRef}}\",\n      \"roi_reference\": \"{{roiReference}}\",\n      \"event_type\": \"roi_intrusion\",\n      \"detected_at\": \"{{detectedAt}}\",\n      \"confidence\": 0.91,\n      \"snapshot\": null\n    }\n  ]\n}"
+                },
+                "url": "{{baseUrl}}/api/ingest/roi-violations",
+                "description": "Camera ROI intrusion detections (DOC-23). Same DOC-08 / DOC-10 envelope as PPE.\n\n`event_type`: `roi_intrusion` only (v1).\n\nRequired: `event_uid`, `camera_ref`, `roi_reference`, `event_type`, `detected_at`, `confidence` (0–1).\nOptional: `snapshot` (raw base64 JPEG — identical store path as PPE via shared `IngestSnapshotStore`).\n\nCamera resolved by `camera_ref` (same `ReferenceResolver` as PPE). `roi_reference` must match an enabled ROI on that camera’s **active** published set (else `UNKNOWN_ROI`). Raises `roi_violation` alert (DOC-07) unless backfill."
               }
             },
             {
@@ -152,9 +382,18 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "X-Device-Token", "value": "{{deviceToken}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Device-Token",
+                    "value": "{{deviceToken}}"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -185,9 +424,18 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "X-Device-Token", "value": "{{deviceToken}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Device-Token",
+                    "value": "{{deviceToken}}"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -196,6 +444,67 @@
                 "url": "{{baseUrl}}/api/ingest/environmental-readings",
                 "description": "Environmental telemetry (DOC-12).\nOptional: `temperature_c`, `humidity_pct`, `wind_speed_ms`, `extra` (object)."
               }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Edge AI (Jetson ROI push)",
+      "description": "Outbound contract: **SCC → Jetson AI** on publish (DOC-23).\n\nNot an IR4 Laravel route — this is what the camera AI service must accept on the pole.\n\n| Pole | Host |\n|---|---|\n| 1 | `172.16.3.2` |\n| 2 | `172.16.2.2` |\n| 3 | `172.16.1.50` |\n| 4 | `172.16.4.2` |\n\nURL: `{{apiUrl}}` (= `device.config.api_url`, full endpoint including path).\nBody = same object as `GET /api/devices/{uuid}/camera-rois` → `data`.",
+      "item": [
+        {
+          "name": "POST {api_url}",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device\": {\n    \"id\": 3,\n    \"uuid\": \"7cd2d9bc-4986-4c07-9cd8-631a2eb66b02\",\n    \"reference\": \"DEV-CAM-FIXED-01\",\n    \"name\": \"Pole 01 Fixed Camera\"\n  },\n  \"view_fingerprint\": \"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\",\n  \"published_at\": \"2026-08-25T18:00:00+00:00\",\n  \"rois\": [\n    {\n      \"name\": \"Bay floor\",\n      \"reference\": \"roi_bay_floor\",\n      \"polygon\": [\n        {\n          \"x\": 0.12,\n          \"y\": 0.25\n        },\n        {\n          \"x\": 0.88,\n          \"y\": 0.25\n        },\n        {\n          \"x\": 0.88,\n          \"y\": 0.92\n        },\n        {\n          \"x\": 0.12,\n          \"y\": 0.92\n        }\n      ],\n      \"sort_order\": 0,\n      \"meta\": null\n    }\n  ]\n}"
+            },
+            "url": "{{apiUrl}}",
+            "description": "SCC calls this when an operator **publishes** ROIs.\n\n**Auth:** none in v1 (LAN-only Jetson). Full URL from `device.config.api_url`.\n\n**Body:** identical to IR4 GET camera-rois `data` (device + view_fingerprint + published_at + rois).\n\nPole 1 example: `POST http://172.16.3.2:8600/rois`"
+          },
+          "response": [
+            {
+              "name": "200 — AI accepted ROIs",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"device\": {\n    \"id\": 3,\n    \"uuid\": \"7cd2d9bc-4986-4c07-9cd8-631a2eb66b02\",\n    \"reference\": \"DEV-CAM-FIXED-01\",\n    \"name\": \"Pole 01 Fixed Camera\"\n  },\n  \"view_fingerprint\": \"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\",\n  \"published_at\": \"2026-08-25T18:00:00+00:00\",\n  \"rois\": [\n    {\n      \"name\": \"Bay floor\",\n      \"reference\": \"roi_bay_floor\",\n      \"polygon\": [\n        {\n          \"x\": 0.12,\n          \"y\": 0.25\n        },\n        {\n          \"x\": 0.88,\n          \"y\": 0.25\n        },\n        {\n          \"x\": 0.88,\n          \"y\": 0.92\n        },\n        {\n          \"x\": 0.12,\n          \"y\": 0.92\n        }\n      ],\n      \"sort_order\": 0,\n      \"meta\": null\n    }\n  ]\n}"
+                },
+                "url": "{{apiUrl}}"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"ok\": true\n}"
             }
           ]
         }
@@ -228,8 +537,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -244,10 +559,20 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{mobileToken}}" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mobileToken}}"
+                }
+              ]
             },
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/mobile/me",
             "description": "Bootstrap: current user + permission catalogue."
           }
@@ -257,10 +582,20 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{mobileToken}}" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mobileToken}}"
+                }
+              ]
             },
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/mobile/equipment/by-token/{{qrToken}}",
             "description": "Resolve equipment by permanent QR UUID. Returns equipment, active workers, zones, `can_checkout`.\nRequires `view-equipment`. Worker names stripped without `view-worker-identity`."
           }
@@ -270,12 +605,23 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{mobileToken}}" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mobileToken}}"
+                }
+              ]
             },
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -290,12 +636,23 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{mobileToken}}" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mobileToken}}"
+                }
+              ]
             },
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -310,10 +667,20 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{mobileToken}}" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mobileToken}}"
+                }
+              ]
             },
             "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/mobile/logout",
             "description": "Deletes the current Sanctum access token."
           }
@@ -328,7 +695,12 @@
           "name": "GET /api/dashboard/summary",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/dashboard/summary",
             "description": "Permission-filtered dashboard aggregate (DOC-16). Requires `view-dashboard`."
           }
@@ -337,7 +709,12 @@
           "name": "GET /api/alerts/open",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/alerts/open",
             "description": "Open alerts poll fallback (DOC-07). Authenticated session."
           }
@@ -346,7 +723,12 @@
           "name": "GET /api/environment/live",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/environment/live",
             "description": "Latest environmental values per sensor (DOC-12)."
           }
@@ -355,14 +737,32 @@
           "name": "GET /api/environment/trends",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/environment/trends?parameter=temperature_c&range=day",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "environment", "trends"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "environment",
+                "trends"
+              ],
               "query": [
-                { "key": "parameter", "value": "temperature_c" },
-                { "key": "range", "value": "day", "description": "day | week | custom" }
+                {
+                  "key": "parameter",
+                  "value": "temperature_c"
+                },
+                {
+                  "key": "range",
+                  "value": "day",
+                  "description": "day | week | custom"
+                }
               ]
             },
             "description": "Environmental trend series. `range=day|week|custom`."
@@ -372,7 +772,12 @@
           "name": "GET /api/live/violations",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/live/violations",
             "description": "Live wall PPE violation snapshot. Requires `view-live-cameras`."
           }
@@ -381,7 +786,12 @@
           "name": "GET /tracking/api/headcount",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/tracking/api/headcount",
             "description": "On-site headcount totals (DOC-09). Requires `view-tracking`."
           }
@@ -390,7 +800,12 @@
           "name": "GET /tracking/api/positions",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/tracking/api/positions",
             "description": "Active tag positions (identity-stripped without `view-worker-identity`)."
           }
@@ -399,7 +814,12 @@
           "name": "GET /gas/api/live",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/gas/api/live",
             "description": "Live gas panel snapshot (DOC-11). Requires `view-gas`."
           }
@@ -408,16 +828,44 @@
           "name": "GET /ppe/api/violations/summary",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/ppe/api/violations/summary?range=daily&group_by=type",
-              "host": ["{{baseUrl}}"],
-              "path": ["ppe", "api", "violations", "summary"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ppe",
+                "api",
+                "violations",
+                "summary"
+              ],
               "query": [
-                { "key": "range", "value": "daily", "description": "daily | weekly | custom" },
-                { "key": "group_by", "value": "type", "description": "type | camera | hour" },
-                { "key": "from", "value": "", "disabled": true },
-                { "key": "to", "value": "", "disabled": true }
+                {
+                  "key": "range",
+                  "value": "daily",
+                  "description": "daily | weekly | custom"
+                },
+                {
+                  "key": "group_by",
+                  "value": "type",
+                  "description": "type | camera | hour"
+                },
+                {
+                  "key": "from",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "",
+                  "disabled": true
+                }
               ]
             },
             "description": "PPE aggregates for trends / weekly report. Excludes `false_positive`."
@@ -427,7 +875,12 @@
           "name": "GET /ppe/api/violations/recent",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/ppe/api/violations/recent",
             "description": "Recent PPE violations for live/poll UIs."
           }
@@ -436,7 +889,12 @@
           "name": "GET /api/equipment/by-token/{qrToken}",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/equipment/by-token/{{qrToken}}",
             "description": "Desktop session resolve-by-QR (DOC-13). Distinct from mobile Sanctum route and public `/e/{token}`."
           }
@@ -445,7 +903,12 @@
           "name": "GET /lsr-violations/api/summary",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/lsr-violations/api/summary",
             "description": "LSR summary JSON helper (DOC-14)."
           }
@@ -460,7 +923,12 @@
           "name": "GET /e/{qrToken}",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "text/html" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
             "url": "{{baseUrl}}/e/{{qrToken}}",
             "description": "Public equipment QR page (Inertia/HTML). Writes are rejected (405/403)."
           }

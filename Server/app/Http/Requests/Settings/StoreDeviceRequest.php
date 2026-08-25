@@ -14,6 +14,14 @@ final class StoreDeviceRequest extends FormRequest
         return $this->user()?->can('create', Device::class) ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $type = (string) $this->input('device_type', '');
+        if ($type !== DeviceType::EdgeCompute->value) {
+            $this->merge(['api_url' => null]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -26,6 +34,12 @@ final class StoreDeviceRequest extends FormRequest
             'serial_number' => ['nullable', 'string', 'max:150', 'unique:devices,serial_number'],
             'device_type' => ['required', Rule::enum(DeviceType::class)],
             'config' => ['nullable', 'array'],
+            'api_url' => [
+                'nullable',
+                'string',
+                'max:255',
+                'regex:/^(https?:\/\/)?[^\s]+$/i',
+            ],
         ];
     }
 }

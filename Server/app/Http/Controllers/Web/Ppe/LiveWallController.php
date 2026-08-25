@@ -8,9 +8,11 @@ use App\Http\Controllers\Web\BaseController;
 use App\Models\Camera;
 use App\Models\PpeViolation;
 use App\Models\User;
+use App\Services\Camera\CameraRoiService;
 use App\Services\Hardware\AssetHealthService;
 use App\Services\Ppe\PpeViolationService;
 use App\Support\ApiResponse;
+use App\Support\CameraPlaybackUrl;
 use App\Support\HardwarePresence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,15 +62,15 @@ final class LiveWallController extends BaseController
      */
     private function cameraRows(?User $user = null): array
     {
-        $playbackUrlTemplate = config('camera_stream.browser_url_template');
         $cameraStaleMinutes = app(AssetHealthService::class)->staleMinutesForCamera();
+        $roiService = app(CameraRoiService::class);
 
         return Camera::query()
             ->operational()
-            ->with('asset')
+            ->with(['roiSet.rois', 'asset'])
             ->orderBy('name')
             ->get()
-            ->map(function (Camera $camera) use ($playbackUrlTemplate, $cameraStaleMinutes, $user): array {
+            ->map(function (Camera $camera) use ($cameraStaleMinutes, $user, $roiService): array {
                 $isPtz = $camera->camera_type === CameraType::Ptz;
 
                 return [
@@ -79,30 +81,16 @@ final class LiveWallController extends BaseController
                     'camera_type' => $camera->camera_type->value,
                     'is_ptz' => $isPtz,
                     'can_control_ptz' => $isPtz && ($user?->can('controlPtz', $camera) ?? false),
-                    'playback_url' => $this->playbackUrl($playbackUrlTemplate, $camera->reference),
+                    'playback_url' => CameraPlaybackUrl::forReference($camera->reference),
                     'ai_enabled' => $camera->ai_enabled,
                     'status' => $camera->status->value,
                     'is_online' => HardwarePresence::isCameraOnline($camera, $cameraStaleMinutes),
                     'last_frame_at' => $camera->last_frame_at?->toIso8601String(),
                     'location_label' => $camera->asset?->current_location_label,
+                    'roi_overlay' => $roiService->overlayForCamera($camera),
                 ];
             })
             ->values()
             ->all();
-    }
-
-    private function playbackUrl(mixed $template, string $reference): ?string
-    {
-        if (! is_string($template) || $template === '') {
-            return null;
-        }
-
-        $url = str_replace('{reference}', rawurlencode($reference), $template);
-        // MediaMTX HLS reader expects a trailing slash on path roots.
-        if (! str_contains(parse_url($url, PHP_URL_PATH) ?: $url, '.') && ! str_ends_with($url, '/')) {
-            $url .= '/';
-        }
-
-        return $url;
     }
 }

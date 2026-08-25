@@ -3,6 +3,7 @@
 namespace App\Services\Camera;
 
 use App\Enums\AuditEvent;
+use App\Enums\CameraRoiStaleReason;
 use App\Models\Camera;
 use App\Models\User;
 use App\Services\Audit\AuditService;
@@ -53,6 +54,14 @@ final class CameraPtzService
         $this->haltContinuous($camera);
 
         $this->auditCommand($camera, $by, 'move', $pan, $tilt, $zoom);
+
+        $camera->forceFill([
+            'ptz_generation' => ((int) $camera->ptz_generation) + 1,
+        ])->save();
+        app(CameraRoiService::class)->markStale(
+            $camera->fresh() ?? $camera,
+            CameraRoiStaleReason::Ptz,
+        );
 
         return true;
     }

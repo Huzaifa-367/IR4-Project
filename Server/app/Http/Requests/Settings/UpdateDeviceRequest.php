@@ -17,6 +17,16 @@ final class UpdateDeviceRequest extends FormRequest
         return $this->user()?->can('update', $device) ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        /** @var Device $device */
+        $device = $this->route('device');
+        $type = (string) ($this->input('device_type') ?? $device->device_type->value);
+        if ($type !== DeviceType::EdgeCompute->value) {
+            $this->merge(['api_url' => null]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -43,6 +53,12 @@ final class UpdateDeviceRequest extends FormRequest
             ],
             'device_type' => ['sometimes', 'required', Rule::enum(DeviceType::class)],
             'config' => ['nullable', 'array'],
+            'api_url' => [
+                'nullable',
+                'string',
+                'max:255',
+                'regex:/^(https?:\/\/)?[^\s]+$/i',
+            ],
         ];
     }
 }

@@ -19,6 +19,7 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 Broadcast::channel('alerts', fn ($user) => $user !== null);
 Broadcast::channel('permits', fn ($user) => $user !== null);
 Broadcast::channel('ppe', fn ($user) => $user !== null);
+Broadcast::channel('roi', fn ($user) => $user !== null);
 Broadcast::channel('tracking', fn ($user) => $user !== null);
 Broadcast::channel('gas', fn ($user) => $user !== null);
 Broadcast::channel('environment', fn ($user) => $user !== null);

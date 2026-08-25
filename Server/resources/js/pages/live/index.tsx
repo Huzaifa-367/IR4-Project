@@ -13,7 +13,7 @@ import {
 } from '@/hooks/use-reverb-channel';
 import live from '@/routes/live';
 import ppe from '@/routes/ppe';
-import { ViolationTypeLabels } from '@/types/enums';
+import { CameraRoiSetStatus, ViolationTypeLabels } from '@/types/enums';
 import type { LiveCamera } from '@/types/ppe';
 
 type Props = {
@@ -177,9 +177,6 @@ export default function LiveWall({
     const liveCameras = cameras.filter(
         (camera) => camera.is_online && !blankFeedIds.has(camera.id),
     );
-    const downCameras = cameras.filter(
-        (camera) => !camera.is_online || blankFeedIds.has(camera.id),
-    );
 
     return (
         <>
@@ -189,7 +186,11 @@ export default function LiveWall({
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <Heading
                             title="Live camera wall"
-                            description={`${liveCameras.length} live · ${downCameras.length} down`}
+                            description={
+                                liveCameras.length === 1
+                                    ? '1 live camera'
+                                    : `${liveCameras.length} live cameras`
+                            }
                         />
                         <div className="flex items-center gap-2">
                             {canViewPpe && (
@@ -238,6 +239,30 @@ export default function LiveWall({
                                             showDot={false}
                                         />
                                     )}
+                                    {camera.roi_overlay?.status ===
+                                        CameraRoiSetStatus.Stale && (
+                                        <StatusPill
+                                            label="ROI stale"
+                                            tone="warn"
+                                            showDot={false}
+                                        />
+                                    )}
+                                    {camera.roi_overlay?.status ===
+                                        CameraRoiSetStatus.Draft && (
+                                        <StatusPill
+                                            label="ROI draft"
+                                            tone="info"
+                                            showDot={false}
+                                        />
+                                    )}
+                                    {camera.roi_overlay?.status ===
+                                        CameraRoiSetStatus.Active && (
+                                        <StatusPill
+                                            label="ROI"
+                                            tone="accent"
+                                            showDot={false}
+                                        />
+                                    )}
                                     <StatusPill label="Online" tone="ok" />
                                 </div>
                             </div>
@@ -259,6 +284,7 @@ export default function LiveWall({
                                             canControlPtz &&
                                             camera.can_control_ptz
                                         }
+                                        roiOverlay={camera.roi_overlay ?? null}
                                         onDown={() => {
                                             markFeedBlank(camera.id);
                                         }}
@@ -271,33 +297,14 @@ export default function LiveWall({
                             </div>
                         </div>
                     ))}
-                    {cameras.length === 0 && (
+                    {liveCameras.length === 0 && (
                         <div className="col-span-full rounded-[var(--radius)] border border-dashed border-border p-8 text-center text-text-faint">
-                            No cameras registered
+                            {cameras.length === 0
+                                ? 'No cameras registered'
+                                : 'No live cameras'}
                         </div>
                     )}
                 </div>
-
-                {downCameras.length > 0 && (
-                    <div className="space-y-2">
-                        <p className="text-xs font-medium tracking-wide text-text-faint uppercase">
-                            Down ({downCameras.length})
-                        </p>
-                        <ul className="flex flex-wrap gap-2">
-                            {downCameras.map((camera) => (
-                                <li
-                                    key={camera.id}
-                                    className="flex items-center gap-2 rounded-[var(--radius)] border border-[color:var(--crit)]/40 bg-[#0b0d10] px-3 py-2 text-sm"
-                                >
-                                    <StatusPill label="Down" tone="crit" />
-                                    <span className="font-medium text-text">
-                                        {camera.name}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
             </div>
         </>
     );

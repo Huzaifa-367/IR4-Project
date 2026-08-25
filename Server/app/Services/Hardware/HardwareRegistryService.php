@@ -3,6 +3,8 @@
 namespace App\Services\Hardware;
 
 use App\Enums\AssetStatus;
+use App\Enums\CameraRoiStaleReason;
+use App\Enums\DeviceType;
 use App\Enums\HardwareStatus;
 use App\Events\DeviceStatusChanged;
 use App\Models\Asset;
@@ -11,6 +13,7 @@ use App\Models\Camera;
 use App\Models\Device;
 use App\Models\User;
 use App\Services\Alert\AlertService;
+use App\Services\Camera\CameraRoiService;
 use App\Services\Camera\CameraStreamGatewayService;
 use App\Services\Platform\TechTeamNotifier;
 use Illuminate\Support\Facades\DB;
@@ -71,7 +74,8 @@ final class HardwareRegistryService
             'name' => $data['name'],
             'reference' => $data['reference'],
             'camera_type' => $data['camera_type'],
-            'processed_by_device_id' => $data['processed_by_device_id'] ?? null,
+            'processed_by_device_id' => $data['processed_by_device_id']
+                ?? $this->deviceIdForCameraRef((string) $data['reference']),
             'stream_url' => $data['stream_url'],
             'ai_enabled' => (bool) ($data['ai_enabled'] ?? true),
             'status' => HardwareStatus::Offline,
@@ -89,16 +93,42 @@ final class HardwareRegistryService
     public function updateCamera(Camera $camera, array $data): Camera
     {
         $previousReference = $camera->reference;
+        $previousStreamUrl = $camera->stream_url;
+
+        if (! array_key_exists('processed_by_device_id', $data)) {
+            $ref = (string) ($data['reference'] ?? $camera->reference);
+            $data['processed_by_device_id'] = $this->deviceIdForCameraRef($ref)
+                ?? $camera->processed_by_device_id;
+        }
+
         $camera->fill($data)->save();
         $fresh = $camera->fresh() ?? $camera;
 
         if ($previousReference !== $fresh->reference) {
             $this->cameraStreams->remove($previousReference);
+            app(CameraRoiService::class)->markStale($fresh, CameraRoiStaleReason::StreamChanged);
+        }
+
+        if ($previousStreamUrl !== $fresh->stream_url) {
+            app(CameraRoiService::class)->markStale($fresh, CameraRoiStaleReason::StreamChanged);
         }
 
         $this->syncCameraStreamOrFlash($fresh);
 
         return $fresh;
+    }
+
+    private function deviceIdForCameraRef(string $cameraRef): ?int
+    {
+        if ($cameraRef === '') {
+            return null;
+        }
+
+        return Device::query()
+            ->where('device_type', DeviceType::EdgeCompute)
+            ->get(['id', 'config'])
+            ->first(fn (Device $d): bool => ($d->config['camera_ref'] ?? null) === $cameraRef)
+            ?->id;
     }
 
     private function syncCameraStreamOrFlash(Camera $camera): void
@@ -139,15 +169,31 @@ final class HardwareRegistryService
      */
     public function createDevice(array $data): Device
     {
-        return Device::query()->create([
+        $type = $data['device_type'] instanceof DeviceType
+            ? $data['device_type']
+            : DeviceType::from((string) $data['device_type']);
+
+        $config = is_array($data['config'] ?? null) ? $data['config'] : [];
+        $config = $this->syncApiUrl(
+            $config,
+            $type,
+            array_key_exists('api_url', $data) ? (string) ($data['api_url'] ?? '') : null,
+        );
+        unset($data['api_url']);
+
+        $device = Device::query()->create([
             'asset_id' => $data['asset_id'],
             'name' => $data['name'],
             'reference' => $data['reference'],
             'serial_number' => $data['serial_number'] ?? null,
-            'device_type' => $data['device_type'],
+            'device_type' => $type,
             'status' => HardwareStatus::Offline,
-            'config' => $data['config'] ?? null,
+            'config' => $config === [] ? null : $config,
         ]);
+
+        $this->linkCameraToDevice($device);
+
+        return $device;
     }
 
     /**
@@ -155,9 +201,69 @@ final class HardwareRegistryService
      */
     public function updateDevice(Device $device, array $data): Device
     {
+        $type = array_key_exists('device_type', $data)
+            ? ($data['device_type'] instanceof DeviceType
+                ? $data['device_type']
+                : DeviceType::from((string) $data['device_type']))
+            : $device->device_type;
+
+        $config = is_array($device->config) ? $device->config : [];
+        $incoming = array_key_exists('api_url', $data)
+            ? (string) ($data['api_url'] ?? '')
+            : null;
+        $config = $this->syncApiUrl($config, $type, $incoming);
+        $data['config'] = $config === [] ? null : $config;
+        unset($data['api_url']);
+
         $device->fill($data)->save();
+        $this->linkCameraToDevice($device->fresh() ?? $device);
 
         return $device->fresh() ?? $device;
+    }
+
+    /**
+     * Persist nullable full API URL (incl. path) only for edge_compute devices.
+     * `$url === null` preserves an existing `api_url`; empty string clears it.
+     *
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
+     */
+    private function syncApiUrl(array $config, DeviceType $type, ?string $url): array
+    {
+        // Drop renamed keys from earlier DOC-23 iterations.
+        unset($config['ai_host'], $config['ai_base_url']);
+
+        if ($type !== DeviceType::EdgeCompute) {
+            unset($config['api_url']);
+
+            return $config;
+        }
+
+        if ($url === null) {
+            return $config;
+        }
+
+        $url = trim($url);
+        if ($url === '') {
+            unset($config['api_url']);
+        } else {
+            $config['api_url'] = $url;
+        }
+
+        return $config;
+    }
+
+    /** Bind camera.reference ← device.config.camera_ref when present (DOC-23 1:1). */
+    private function linkCameraToDevice(Device $device): void
+    {
+        $cameraRef = is_array($device->config) ? trim((string) ($device->config['camera_ref'] ?? '')) : '';
+        if ($cameraRef === '') {
+            return;
+        }
+
+        Camera::query()
+            ->where('reference', $cameraRef)
+            ->update(['processed_by_device_id' => $device->id]);
     }
 
     public function setDeviceStatus(Device $device, HardwareStatus $status): Device

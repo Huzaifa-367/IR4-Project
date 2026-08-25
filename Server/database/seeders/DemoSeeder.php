@@ -195,7 +195,7 @@ final class DemoSeeder extends Seeder
             ]);
 
             // Camera AI ingest (DOC-08) — EdgeCompute typed, named as cameras.
-            $this->createDevice("DEV-CAM-FIXED-{$pad}", 'cam_ai', [
+            $fixedCamDevice = $this->createDevice("DEV-CAM-FIXED-{$pad}", 'cam_ai', [
                 'asset_id' => $asset->id,
                 'name' => "{$label} Fixed Camera",
                 'serial_number' => "SN-CAM-FIXED-{$pad}",
@@ -203,12 +203,13 @@ final class DemoSeeder extends Seeder
                 'status' => HardwareStatus::Offline,
                 'config' => [
                     'hostname' => $hostname,
+                    'api_url' => 'http://'.$this->poleJetsonHost($n).':8600/rois',
                     'camera_ref' => $fixedCamRef,
                     'role' => 'ppe',
                 ],
             ]);
 
-            $this->createDevice("DEV-CAM-PTZ-{$pad}", 'cam_ai', [
+            $ptzCamDevice = $this->createDevice("DEV-CAM-PTZ-{$pad}", 'cam_ai', [
                 'asset_id' => $asset->id,
                 'name' => "{$label} PTZ Camera",
                 'serial_number' => "SN-CAM-PTZ-{$pad}",
@@ -216,18 +217,21 @@ final class DemoSeeder extends Seeder
                 'status' => HardwareStatus::Offline,
                 'config' => [
                     'hostname' => $hostname,
+                    'api_url' => 'http://'.$this->poleJetsonHost($n).':8600/rois',
                     'camera_ref' => $ptzCamRef,
                     'role' => 'overview',
                 ],
             ]);
 
             // Stream registry — real Hikvision RTSP (SCC-SETUP §13). .11 bullet, .10 PTZ.
+            // 1:1 device↔camera (DOC-23): processed_by_device_id = this camera's AI device.
             Camera::query()->create([
                 'asset_id' => $asset->id,
                 'name' => "{$label} Fixed Camera",
                 'reference' => $fixedCamRef,
                 'camera_type' => CameraType::Fixed,
                 'stream_url' => $this->poleStreamUrl($n, 11),
+                'processed_by_device_id' => $fixedCamDevice->id,
                 'ai_enabled' => true,
                 'status' => HardwareStatus::Offline,
                 'meta' => ['role' => 'ppe'],
@@ -238,6 +242,7 @@ final class DemoSeeder extends Seeder
                 'reference' => $ptzCamRef,
                 'camera_type' => CameraType::Ptz,
                 'stream_url' => $this->poleStreamUrl($n, 10),
+                'processed_by_device_id' => $ptzCamDevice->id,
                 'ai_enabled' => false,
                 'status' => HardwareStatus::Offline,
                 'meta' => ['role' => 'overview'],
@@ -415,6 +420,16 @@ final class DemoSeeder extends Seeder
             $subnet,
             $host,
         );
+    }
+
+    /** Jetson J4012 LAN IP (site-network.md) — AI service listens on :8600. */
+    private function poleJetsonHost(int $pole): string
+    {
+        $subnet = self::POLE_SUBNETS[$pole];
+        // Pole 3 Jetson is .50; others .2.
+        $host = $pole === 3 ? 50 : 2;
+
+        return sprintf('172.16.%d.%d', $subnet, $host);
     }
 
     /**

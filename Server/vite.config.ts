@@ -6,7 +6,7 @@ import laravel from 'laravel-vite-plugin';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineConfig, type ServerOptions } from 'vite';
+import { defineConfig, type Plugin, type ServerOptions } from 'vite';
 
 /**
  * Local default: HTTP Vite on 127.0.0.1 (matches `php artisan serve`).
@@ -59,24 +59,23 @@ if (useHttps) {
     };
 }
 
+/** Real pusher-js Node build uses require() and breaks Vite SSR; stub only on SSR. */
+const ssrPusherShim = (): Plugin => ({
+    name: 'ir4-ssr-pusher-shim',
+    resolveId(id, _importer, options) {
+        if (id === 'pusher-js' && options?.ssr) {
+            return path.resolve(rootDir, 'resources/js/shims/pusher-js-ssr.ts');
+        }
+    },
+});
+
 export default defineConfig({
     server,
     optimizeDeps: {
         include: ['pusher-js', 'laravel-echo', '@laravel/echo-react'],
     },
-    ssr: {
-        // Real pusher-js Node build uses require() and breaks Vite SSR. Stub it;
-        // app.tsx configures Echo with the null broadcaster during SSR.
-        resolve: {
-            alias: {
-                'pusher-js': path.resolve(
-                    rootDir,
-                    'resources/js/shims/pusher-js-ssr.ts',
-                ),
-            },
-        },
-    },
     plugins: [
+        ssrPusherShim(),
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
@@ -92,7 +91,7 @@ export default defineConfig({
             formVariants: true,
             command:
                 process.env.WAYFINDER_COMMAND ??
-                'php artisan wayfinder:generate',
+                'php artisan wayfinder:generate --with-form',
         }),
     ],
 });

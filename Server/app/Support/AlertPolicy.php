@@ -21,6 +21,11 @@ final class AlertPolicy
                 'audible' => false,
                 'suggested_action' => 'log_lsr',
             ],
+            AlertType::RoiViolation => [
+                'severity' => AlertSeverity::Warning,
+                'audible' => false,
+                'suggested_action' => 'log_lsr',
+            ],
             AlertType::GasWarning => [
                 'severity' => AlertSeverity::Warning,
                 'audible' => false,

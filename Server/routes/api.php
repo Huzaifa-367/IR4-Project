@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\Api\DeviceHeartbeatController;
+use App\Http\Controllers\Api\Edge\EdgeCameraRoiController;
 use App\Http\Controllers\Api\Ingest\EnvironmentalReadingIngestController;
 use App\Http\Controllers\Api\Ingest\GasReadingIngestController;
 use App\Http\Controllers\Api\Ingest\PpeViolationIngestController;
+use App\Http\Controllers\Api\Ingest\RoiViolationIngestController;
 use App\Http\Controllers\Api\Ingest\TagReadingIngestController;
 use App\Http\Controllers\Api\Mobile\MobileAuthController;
 use App\Http\Controllers\Api\Mobile\MobileEquipmentController;
@@ -28,9 +30,13 @@ Route::middleware('auth.device')->group(function (): void {
     Route::post('/devices/{device}/heartbeat', DeviceHeartbeatController::class)
         ->name('api.devices.heartbeat');
 
+    Route::get('/devices/{device}/camera-rois', EdgeCameraRoiController::class)
+        ->name('api.devices.camera-rois');
+
     Route::middleware('throttle:ingest')->prefix('ingest')->name('api.ingest.')->group(function (): void {
         Route::post('/tag-readings', TagReadingIngestController::class)->name('tag-readings');
         Route::post('/ppe-violations', PpeViolationIngestController::class)->name('ppe-violations');
+        Route::post('/roi-violations', RoiViolationIngestController::class)->name('roi-violations');
         Route::post('/gas-readings', GasReadingIngestController::class)->name('gas-readings');
         Route::post('/environmental-readings', EnvironmentalReadingIngestController::class)
             ->name('environmental-readings');

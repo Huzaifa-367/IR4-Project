@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -26,6 +27,7 @@ use Illuminate\Support\Carbon;
  * @property HardwareStatus $status
  * @property Carbon|null $last_frame_at
  * @property array<string, mixed>|null $meta
+ * @property int $ptz_generation
  */
 final class Camera extends Model
 {
@@ -55,6 +57,7 @@ final class Camera extends Model
             'status' => HardwareStatus::class,
             'last_frame_at' => 'datetime',
             'meta' => 'array',
+            'ptz_generation' => 'integer',
         ];
     }
 
@@ -104,6 +107,14 @@ final class Camera extends Model
     public function lsrViolations(): HasMany
     {
         return $this->hasMany(LsrViolation::class);
+    }
+
+    /**
+     * @return HasOne<CameraRoiSet, $this>
+     */
+    public function roiSet(): HasOne
+    {
+        return $this->hasOne(CameraRoiSet::class);
     }
 
     /**

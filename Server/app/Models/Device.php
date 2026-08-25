@@ -86,6 +86,22 @@ final class Device extends Model
         return $this->hasOne(ReaderZoneBinding::class)->whereNull('bound_until');
     }
 
+    /**
+     * @return HasMany<Camera, $this>
+     */
+    public function processedCameras(): HasMany
+    {
+        return $this->hasMany(Camera::class, 'processed_by_device_id');
+    }
+
+    /**
+     * @return HasMany<RoiViolation, $this>
+     */
+    public function roiViolations(): HasMany
+    {
+        return $this->hasMany(RoiViolation::class);
+    }
+
     /** @return HasMany<EnvironmentalReading, $this> */
     public function environmentalReadings(): HasMany
     {

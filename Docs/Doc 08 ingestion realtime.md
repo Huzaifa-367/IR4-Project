@@ -70,15 +70,17 @@ Each event carries **`recorded_at`** (device clock). The server also stamps **`r
 
 ## 4. Ingest endpoint catalogue
 
-All under `/api/ingest/*` (or `/api/devices/*` for heartbeats), `auth.device`, batch envelope, 202 response. There are **five** ingest endpoints. Payload *meaning* is in the owning DOC; here is the wire contract.
+All under `/api/ingest/*` (or `/api/devices/*` for heartbeats / camera-rois pull), `auth.device`, batch envelope, 202 response. Payload *meaning* is in the owning DOC; here is the wire contract.
 
 | Endpoint | Sender (device_type) | Per-event payload | Owning DOC |
 |---|---|---|---|
 | `POST /api/ingest/tag-readings` | `rfid_reader` (pole + gate; pole reads may relay via edge) | `{ event_uid, reader_ref, tag_uid, recorded_at, rssi?, antenna? }` — unknown EPCs are auto-registered as `in_stock` (DOC-09). FXR90 does not report tag distance; proximity is derived from `rssi`. | DOC-09 |
 | `POST /api/ingest/ppe-violations` | `edge_compute` (camera AI) | `{ event_uid, camera_ref, event_type, detected_at, worker_count?, confidence, snapshot(base64 or multipart) }` — `event_type` covers PPE violations **and** fall detection (`missing_helmet`\|`missing_vest`\|`missing_harness`\|`missing_mask`\|`fall`) | DOC-10/14 |
+| `POST /api/ingest/roi-violations` | `edge_compute` (camera AI) | `{ event_uid, camera_ref, roi_reference, event_type, detected_at, confidence, snapshot? }` — `event_type` = `roi_intrusion` (DOC-23; PPE-parallel envelope) | DOC-23 |
 | `POST /api/ingest/gas-readings` | `gas_detector` / `wifi_gateway` | `{ event_uid, device_ref?, recorded_at, lel_pct?, h2s_ppm?, o2_pct?, co_ppm?, co2_ppm? }` — one endpoint for all five gas channels; a reading includes whichever fields the sending device measures | DOC-11 |
 | `POST /api/ingest/environmental-readings` | `environmental_sensor` (edge RS485) | `{ event_uid, device_ref?, recorded_at, temperature_c?, humidity_pct?, wind_speed_ms?, extra? }` | DOC-12 |
-| `POST /api/devices/{id}/heartbeat` | any device/edge agent | `{ status?, meta? }` (not batched; simple liveness ping) | DOC-05 |
+| `POST /api/devices/{uuid}/heartbeat` | any device/edge agent | `{ status?, meta? }` (not batched; simple liveness ping) | DOC-05 |
+| `GET /api/devices/{uuid}/camera-rois` | `edge_compute` (camera AI unit) | (no body) — returns `{ device, view_fingerprint, published_at, rois[] }` for the single camera bound 1:1 to that device. On publish, SCC also **POSTs** that same object to `device.config.api_url` (Jetson AI; DOC-23) | DOC-23 |
 
 Notes:
 - **PPE + fall are one endpoint.** The camera AI reports both kinds of computer-vision event through `/api/ingest/ppe-violations`, discriminated by `event_type`. DOC-10 stores every accepted type as a `ppe_violations` row (`fall` included) and raises the matching alert (`fall_detection` / `height_without_harness` / `ppe_violation`).
@@ -100,6 +102,7 @@ Private channels (authorized in `routes/channels.php`); since the platform is a 
 |---|---|---|---|
 | `alerts` | `AlertRaised`, `AlertUpdated` | `AlertResource` (identity always stripped on broadcast) | AlertProvider, dashboard feed (07/16) |
 | `ppe` | `PpeViolationDetected` | id, type, camera_ref, snapshot_url, detected_at | live wall, PPE card (10/16) |
+| `roi` | `RoiViolationDetected` | id, uuid, event_type, camera_ref, roi_reference, snapshot_url, detected_at | ROI violations UI, live chips (23) |
 | `tracking` | `HeadcountUpdated` (throttled 5 s), `PositionsUpdated` (throttled 5 s), `EvacuationTriggered`, `EvacuationEntryUpdated` | headcount totals / changed positions / evac state | tracking page, dashboard occupancy (09/16) |
 | `gas` | `GasLiveUpdated` (throttled 5 s), `GasAlarmRaised`, `GasAlarmResolved` | per-device latest panel / alarm | gas dashboard, dashboard cards (11/16) |
 | `environment` | `EnvironmentUpdated` (throttled) | latest weather values | weather widget (12/16) |
