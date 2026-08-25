@@ -40,7 +40,7 @@ Reverb WebSockets use **the same origin as that browser URL** (Lerd proxies `/ap
 | SCC | Fill-in IP | Commissioning URL (mode A) | Production URL (mode B) |
 | --- | --- | --- | --- |
 | **SCC1** | `192.168.3.149` | `http://192.168.3.149:9100` | `https://ir4-project.test` |
-| **SCC2** | `192.168.2.91` | `http://192.168.2.91:9100` | `https://ir4-project.test` |
+| **SCC2** | `192.168.2.101` | `http://192.168.2.101:9100` | `https://ir4-project.test` |
 
 Workstation setup for mode B is **§10** below. Remote / Tailscale laptop: [SCC-REMOTE-ACCESS.md](SCC-REMOTE-ACCESS.md).
 
@@ -483,9 +483,10 @@ Both SCCs share the **same hostname**. The PC can point at **only one** SCC at a
 | Which SCC? | Hosts IP | CA file to install |
 | --- | --- | --- |
 | SCC1 | `192.168.3.149` | `lerd-rootCA-scc1.pem` |
-| SCC2 | `192.168.2.91` | `lerd-rootCA-scc2.pem` |
+| SCC2 | `192.168.2.101` | `lerd-rootCA-scc2.pem` |
 
-SCC2 also has `192.168.2.42` on the same NIC — use **`.91`** unless it is missing (`ip -4 addr show eno8303`).  
+SCC2 often has both `192.168.2.42` (static) and `192.168.2.101` (DHCP secondary) on `eno8303`. **Either IP works for hosts** if `ping` reaches it — keep using `.101` if that was already working. Confirm with `ip -4 addr show eno8303`.  
+Lerd’s “public IP” may show `192.168.2.101:9100` — use the **IP only** in hosts; do **not** open the `:9100` HTTP URL in mode B (that causes the login loop when `SESSION_SECURE_COOKIE=true`).  
 Do **not** put pole IPs (`172.16.*`), Tailscale (`100.*`), or `192.0.2.1` in hosts for LAN workstations.
 
 ---
@@ -542,15 +543,15 @@ Examples below are for **SCC2**. For SCC1, use `192.168.3.149` and `lerd-rootCA-
 #### B1 — Hosts (name → IP)
 
 **Must have a space** between IP and name.  
-Wrong: `192.168.2.91ir4-project.test` → ping fails.  
-Right: `192.168.2.91 ir4-project.test`
+Wrong: `192.168.2.101ir4-project.test` → ping fails.  
+Right: `192.168.2.101 ir4-project.test`
 
 **Option 1 — Notepad (same method used on SCC1):**
 
 1. Open Notepad **as Administrator**  
 2. Open `C:\Windows\System32\drivers\etc\hosts`  
 3. Delete any old line containing `ir4-project.test`  
-4. Add one line: `192.168.2.91 ir4-project.test`  
+4. Add one line: `192.168.2.101 ir4-project.test`  
 5. Save  
 6. Run: `ipconfig /flushdns`
 
@@ -584,7 +585,7 @@ Select-String -Path $hostsFile -Pattern "ir4-project\.test"
 ping ir4-project.test
 ```
 
-**Pass:** Select-String shows `192.168.2.91 ir4-project.test` and ping replies from that IP.
+**Pass:** Select-String shows `192.168.2.101 ir4-project.test` and ping replies from that IP. (If `.101` is gone after a DHCP renew, use `192.168.2.42` instead.)
 
 **Chrome:** Settings → Privacy and security → Security → turn **off** “Use secure DNS” (otherwise `.test` may ignore hosts).
 
@@ -608,8 +609,8 @@ https://ir4-project.test/login
 
 | Do | Don’t |
 | --- | --- |
-| `https://ir4-project.test` | `http://192.168.2.91:9100` |
-| Hosts IP = office LAN | Pole / Tailscale / `lerd0` IPs |
+| `https://ir4-project.test` | `http://192.168.2.101:9100` or any Lerd `…:9100` link |
+| Hosts IP = `.101` (or `.42` if `.101` is down) | Pole / Tailscale / `lerd0` IPs |
 
 Login: `admin@ir4.local` (or the email from `ir4:install`).
 
@@ -628,7 +629,7 @@ Login: `admin@ir4.local` (or the email from `ir4:install`).
 ```bash
 # Hosts — SCC2 example
 sudo sed -i.bak '/ir4-project\.test/d' /etc/hosts
-echo '192.168.2.91 ir4-project.test' | sudo tee -a /etc/hosts
+echo '192.168.2.101 ir4-project.test' | sudo tee -a /etc/hosts
 ping -c 1 ir4-project.test
 
 # CA — macOS
@@ -687,7 +688,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' http://172.16.2.40:9100/up
 # expect 200
 ```
 
-Do **not** point poles at `http://192.168.2.91:9100`, Tailscale, or old template `192.168.8.40`. Operators still use `https://ir4-project.test` (hosts → `192.168.2.91`) — that is a different path.
+Do **not** point poles at `http://192.168.2.101:9100`, Tailscale, or old template `192.168.8.40`. Operators still use `https://ir4-project.test` (hosts → `192.168.2.101`) — that is a different path.
 
 ### 12b. SSH to a pole desktop / Jetson — two ways
 
