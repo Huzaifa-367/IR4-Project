@@ -109,7 +109,7 @@ final class RoiViolationService
         if ($status === ReviewStatus::FalsePositive && $violation->alert_id !== null) {
             $alert = Alert::query()->find($violation->alert_id);
             if ($alert !== null) {
-                $this->alerts->resolve($alert, 'Marked false positive during ROI review');
+                $this->alerts->resolve($alert, 'Marked false positive during Red Zone review');
             }
         }
 

@@ -435,8 +435,9 @@ export default function DevicesIndex({
                                     }
                                 />
                                 <p className="text-xs text-text-dim">
-                                    Full Jetson ROI endpoint (include path).
-                                    Publish POSTs here after ROI publish.
+                                    Full Jetson Red Zone endpoint (include
+                                    path). Publish POSTs here after Red Zone
+                                    publish.
                                 </p>
                             </div>
                         )}

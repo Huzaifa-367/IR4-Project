@@ -242,7 +242,7 @@ export default function LiveWall({
                                     {camera.roi_overlay?.status ===
                                         CameraRoiSetStatus.Stale && (
                                         <StatusPill
-                                            label="ROI stale"
+                                            label="Red Zone stale"
                                             tone="warn"
                                             showDot={false}
                                         />
@@ -250,7 +250,7 @@ export default function LiveWall({
                                     {camera.roi_overlay?.status ===
                                         CameraRoiSetStatus.Draft && (
                                         <StatusPill
-                                            label="ROI draft"
+                                            label="Red Zone draft"
                                             tone="info"
                                             showDot={false}
                                         />
@@ -258,7 +258,7 @@ export default function LiveWall({
                                     {camera.roi_overlay?.status ===
                                         CameraRoiSetStatus.Active && (
                                         <StatusPill
-                                            label="ROI"
+                                            label="Red Zone"
                                             tone="accent"
                                             showDot={false}
                                         />

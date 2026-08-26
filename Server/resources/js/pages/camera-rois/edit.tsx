@@ -106,7 +106,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
         setRois((current) => [
             ...current,
             {
-                name: `ROI ${index + 1}`,
+                name: `Red Zone ${index + 1}`,
                 reference: '',
                 polygon: draftPoints,
                 color: nextRoiColor(index),
@@ -161,7 +161,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
 
     return (
         <>
-            <Head title={`ROIs · ${camera.name}`} />
+            <Head title={`Red Zones · ${camera.name}`} />
             <div className="flex h-[calc(100dvh-3.5rem)] flex-col gap-3 p-3 md:p-4">
                 <header className="flex shrink-0 flex-wrap items-center gap-2">
                     <Button asChild size="sm" variant="ghost" className="-ml-1">
@@ -224,7 +224,9 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
                                   set.stale_reason as CameraRoiStaleReason
                               ]
                             : 'View changed'}
-                        {' — publish again before edge AI uses these ROIs.'}
+                        {
+                            ' — publish again before edge AI uses these red zones.'
+                        }
                     </p>
                 )}
 
@@ -233,7 +235,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
                         {camera.playback_url ? (
                             <LiveCameraFeed
                                 playbackUrl={camera.playback_url}
-                                title={`${camera.name} ROI editor`}
+                                title={`${camera.name} red zone editor`}
                                 canControlPtz={false}
                                 fillFrame
                             />
@@ -305,7 +307,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
 
                     <aside className="flex min-h-0 flex-col gap-2 rounded-[var(--radius)] border border-border bg-surface p-3">
                         <p className="text-xs font-medium text-text-faint">
-                            ROIs ({rois.length})
+                            Red Zones ({rois.length})
                         </p>
 
                         <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
@@ -341,7 +343,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
                         {selected && canManage && !isDrawing && (
                             <div className="shrink-0 space-y-2 border-t border-border pt-2">
                                 <Input
-                                    aria-label="ROI name"
+                                    aria-label="Red Zone name"
                                     value={selected.name}
                                     onChange={(event) =>
                                         updateSelected({
@@ -351,7 +353,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
                                 />
                                 <div className="flex items-center gap-2">
                                     <Input
-                                        aria-label="ROI color"
+                                        aria-label="Red Zone color"
                                         type="color"
                                         className="h-8 w-10 shrink-0 cursor-pointer p-0.5"
                                         value={selected.color}
@@ -396,7 +398,7 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
 
 CameraRoisEdit.layout = {
     breadcrumbs: [
-        { title: 'Camera ROIs', href: hardware.cameraRois.index.url() },
+        { title: 'Red Zones', href: hardware.cameraRois.index.url() },
         { title: 'Edit' },
     ],
 };

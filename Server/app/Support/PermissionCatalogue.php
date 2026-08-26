@@ -36,7 +36,7 @@ final class PermissionCatalogue
                 'update-ppe-violations',
                 'export-ppe-violations',
             ],
-            'ROI violations' => [
+            'Red Zone violations' => [
                 'view-roi-violations',
                 'update-roi-violations',
             ],

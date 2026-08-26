@@ -78,10 +78,7 @@ export function CameraRoiCanvas({
         }
 
         onSelect?.(null);
-        onDraftPointsChange([
-            ...draftPoints,
-            toNorm(event, svgRef.current),
-        ]);
+        onDraftPointsChange([...draftPoints, toNorm(event, svgRef.current)]);
     };
 
     const previewPoints =
@@ -115,7 +112,7 @@ export function CameraRoiCanvas({
             }}
             onPointerLeave={() => setHoverPoint(null)}
             role="img"
-            aria-label="Camera ROI overlay"
+            aria-label="Red Zone overlay"
         >
             <defs>
                 <clipPath id={clipId}>

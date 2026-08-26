@@ -9,7 +9,7 @@ enum RoiViolationType: string
     public function label(): string
     {
         return match ($this) {
-            self::Intrusion => 'ROI intrusion',
+            self::Intrusion => 'Red Zone intrusion',
         };
     }
 }

@@ -57,7 +57,7 @@ export default function RoiViolationShow({ violation, canReview }: Props) {
 
     return (
         <>
-            <Head title={`ROI #${violation.id}`} />
+            <Head title={`Red Zone #${violation.id}`} />
             <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:p-5">
                 <header className="overflow-hidden rounded-[var(--radius)] border border-border bg-surface shadow-[var(--shadow-card)]">
                     <div className={cn('h-1.5 w-full', heroBar)} aria-hidden />
@@ -69,7 +69,9 @@ export default function RoiViolationShow({ violation, canReview }: Props) {
                                 className="size-16 shrink-0 md:size-20"
                             />
                             <div className="min-w-0 space-y-2">
-                                <p className="eyebrow">ROI #{violation.id}</p>
+                                <p className="eyebrow">
+                                    Red Zone #{violation.id}
+                                </p>
                                 <h1 className="font-display text-2xl font-semibold tracking-tight text-text md:text-3xl">
                                     {typeLabel}
                                 </h1>
@@ -121,7 +123,7 @@ export default function RoiViolationShow({ violation, canReview }: Props) {
                             ) : null}
                             <Button asChild variant="outline">
                                 <Link href={roiViolations.index.url()}>
-                                    All ROI violations
+                                    All Red Zone violations
                                 </Link>
                             </Button>
                         </div>
@@ -157,7 +159,7 @@ export default function RoiViolationShow({ violation, canReview }: Props) {
                     >
                         <PpeSnapshotStill
                             url={violation.snapshot_url}
-                            alt="ROI violation snapshot"
+                            alt="Red Zone violation snapshot"
                             className="aspect-video w-full object-contain"
                         />
                     </Panel>
@@ -173,7 +175,7 @@ export default function RoiViolationShow({ violation, canReview }: Props) {
                                 }
                             />
                             <DetailField
-                                label="ROI"
+                                label="Red Zone"
                                 value={`${violation.roi_name ?? '—'} (${violation.roi_reference})`}
                             />
                             <DetailField
@@ -206,43 +208,45 @@ export default function RoiViolationShow({ violation, canReview }: Props) {
                     </Panel>
                 </div>
 
-                {canReview &&
-                    violation.review_status === 'unreviewed' && (
-                        <Panel title="Review" subtitle="Confirm or mark false positive">
-                            <div className="flex flex-wrap gap-2">
-                                <Form
-                                    action={roiViolations.review.url(
-                                        violation.uuid,
-                                    )}
-                                    method="post"
-                                >
-                                    <input
-                                        type="hidden"
-                                        name="status"
-                                        value="confirmed"
-                                    />
-                                    <Button type="submit">Confirm</Button>
-                                </Form>
-                                <Form
-                                    action={roiViolations.review.url(
-                                        violation.uuid,
-                                    )}
-                                    method="post"
-                                    className="flex flex-wrap items-end gap-2"
-                                >
-                                    <input
-                                        type="hidden"
-                                        name="status"
-                                        value="false_positive"
-                                    />
-                                    <InputNote />
-                                    <Button type="submit" variant="secondary">
-                                        False positive
-                                    </Button>
-                                </Form>
-                            </div>
-                        </Panel>
-                    )}
+                {canReview && violation.review_status === 'unreviewed' && (
+                    <Panel
+                        title="Review"
+                        subtitle="Confirm or mark false positive"
+                    >
+                        <div className="flex flex-wrap gap-2">
+                            <Form
+                                action={roiViolations.review.url(
+                                    violation.uuid,
+                                )}
+                                method="post"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="status"
+                                    value="confirmed"
+                                />
+                                <Button type="submit">Confirm</Button>
+                            </Form>
+                            <Form
+                                action={roiViolations.review.url(
+                                    violation.uuid,
+                                )}
+                                method="post"
+                                className="flex flex-wrap items-end gap-2"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="status"
+                                    value="false_positive"
+                                />
+                                <InputNote />
+                                <Button type="submit" variant="secondary">
+                                    False positive
+                                </Button>
+                            </Form>
+                        </div>
+                    </Panel>
+                )}
             </div>
         </>
     );
@@ -264,7 +268,7 @@ function InputNote() {
 
 RoiViolationShow.layout = {
     breadcrumbs: [
-        { title: 'ROI Violations', href: '/roi-violations' },
+        { title: 'Red Zone Violations', href: '/roi-violations' },
         { title: 'Detail' },
     ],
 };

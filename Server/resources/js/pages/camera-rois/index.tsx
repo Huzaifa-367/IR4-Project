@@ -20,10 +20,10 @@ type Props = {
 export default function CameraRoisIndex({ cameras, canManage }: Props) {
     return (
         <>
-            <Head title="Camera ROIs" />
+            <Head title="Red Zones" />
             <div className="space-y-6 p-6">
                 <Heading
-                    title="Camera ROIs"
+                    title="Red Zones"
                     description="Detection polygons on live camera feeds for edge AI."
                 />
 
@@ -37,7 +37,7 @@ export default function CameraRoisIndex({ cameras, canManage }: Props) {
                                 <th className="px-4 py-3 font-medium">
                                     Status
                                 </th>
-                                <th className="px-4 py-3 font-medium">ROIs</th>
+                                <th className="px-4 py-3 font-medium">Zones</th>
                                 <th className="px-4 py-3 font-medium" />
                             </tr>
                         </thead>
@@ -115,6 +115,6 @@ export default function CameraRoisIndex({ cameras, canManage }: Props) {
 
 CameraRoisIndex.layout = {
     breadcrumbs: [
-        { title: 'Camera ROIs', href: hardware.cameraRois.index.url() },
+        { title: 'Red Zones', href: hardware.cameraRois.index.url() },
     ],
 };

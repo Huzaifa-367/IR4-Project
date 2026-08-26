@@ -215,7 +215,7 @@ export function AppSidebar() {
         ...(can('view-roi-violations')
             ? [
                   {
-                      title: 'ROI Violations',
+                      title: 'Red Zone Violations',
                       href: roiViolations.index(),
                       icon: Layers,
                   } satisfies NavItem,
@@ -387,7 +387,7 @@ export function AppSidebar() {
         ...(can('view-camera-rois')
             ? [
                   {
-                      title: 'Camera ROIs',
+                      title: 'Red Zones',
                       href: hardware.cameraRois.index(),
                       icon: Layers,
                   } satisfies NavItem,

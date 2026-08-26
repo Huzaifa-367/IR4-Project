@@ -26,7 +26,7 @@ enum AlertType: string
     {
         return match ($this) {
             self::PpeViolation => 'PPE violation',
-            self::RoiViolation => 'ROI violation',
+            self::RoiViolation => 'Red Zone violation',
             self::GasWarning => 'Gas warning',
             self::GasAlarm => 'Gas alarm',
             self::RedZoneIntrusion => 'Red zone intrusion',

@@ -40,7 +40,7 @@ final class CameraRoiController extends BaseController
 
         return redirect()
             ->route('hardware.camera-rois.edit', $camera)
-            ->with('success', 'ROI draft saved.');
+            ->with('success', 'Red Zone draft saved.');
     }
 
     public function publish(
@@ -57,7 +57,7 @@ final class CameraRoiController extends BaseController
 
         return redirect()
             ->route('hardware.camera-rois.edit', $camera)
-            ->with('success', 'ROIs published for edge AI.');
+            ->with('success', 'Red Zones published for edge AI.');
     }
 
     public function markStale(
@@ -71,6 +71,6 @@ final class CameraRoiController extends BaseController
 
         return redirect()
             ->route('hardware.camera-rois.edit', $camera)
-            ->with('success', 'ROI set marked stale.');
+            ->with('success', 'Red Zone set marked stale.');
     }
 }

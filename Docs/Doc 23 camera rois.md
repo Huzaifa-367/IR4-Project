@@ -1,10 +1,10 @@
-# DOC-23 — Camera ROI (detection polygons) + ROI violations
+# DOC-23 — Camera ROI (detection polygons) + Red Zone violations
 
 > **Depends on:** DOC-01 (conventions, enums, surfaces), DOC-03 (`view-camera-rois`, `manage-camera-rois`, `view-roi-violations`, `update-roi-violations`), DOC-05 (cameras, `processed_by_device_id`, stream URLs), DOC-07 (`roi_violation` alert via `AlertService`), DOC-08 (`auth.device` ingest envelope), DOC-10 (PPE review pattern mirrored here). **Feeds:** edge AI inference (pull ROIs; push violations via ingest). **Edge AI guide:** [Doc 23 edge AI ROI integration.md](./Doc%2023%20edge%20AI%20ROI%20integration.md).
 >
-> **Scope:** named polygon **regions of interest (ROIs)** drawn on a camera’s live feed; device pull of **active** ROIs; SCC **push** of the same payload to the Jetson AI service on publish; anonymous **ROI intrusion** events from edge AI with false-positive review. **Out of scope:** RFID DOC-06 zones (logical presence — not image geometry), auto-redraw / CV-assisted polygons, multi-set version history, trends/exports (v1 list+review only).
+> **Scope:** named polygon **regions of interest (ROIs)** drawn on a camera’s live feed; device pull of **active** ROIs; SCC **push** of the same payload to the Jetson AI service on publish; anonymous **Red Zone intrusion** events from edge AI with false-positive review. **Out of scope:** RFID DOC-06 zones (logical presence — not image geometry), auto-redraw / CV-assisted polygons, multi-set version history, trends/exports (v1 list+review only).
 >
-> **Naming:** this module is **Camera ROI / ROI Violations**, never “zones,” to avoid collision with DOC-06 RFID zones and DOC-07 RFID zone alerts (`red_zone_intrusion`, etc.).
+> **Naming:** technical identifiers stay `roi_*` (image polygons ≠ DOC-06 RFID zones). **Operator UI:** editor module **Red Zones**, review module **Red Zone Violations** (distinct from DOC-07 RFID alert `red_zone_intrusion`).
 
 ---
 
@@ -18,9 +18,9 @@ Edge AI needs **image-space** regions — e.g. “only flag intrusion in this wo
 
 | Path | Writer |
 |---|---|
-| ③ user | Save draft, publish, manual mark-stale; review ROI violations |
+| ③ user | Save draft, publish, manual mark-stale; review Red Zone violations |
 | ② system | Auto mark-stale after PTZ **move** / stream or reference change; raise `roi_violation` alerts |
-| ① device | Pull active ROIs; ingest ROI violation events |
+| ① device | Pull active ROIs; ingest Red Zone violation events |
 
 ---
 

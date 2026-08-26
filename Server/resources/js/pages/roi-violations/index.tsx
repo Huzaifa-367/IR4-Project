@@ -141,7 +141,7 @@ export default function RoiViolationsIndex({
                     href={roiViolations.show.url(row.uuid)}
                     className="font-mono text-xs hover:underline"
                 >
-                    ROI #{row.id}
+                    Red Zone #{row.id}
                 </Link>
             ),
         },
@@ -169,7 +169,7 @@ export default function RoiViolationsIndex({
         },
         {
             key: 'roi',
-            header: 'ROI',
+            header: 'Red Zone',
             cell: (row) => row.roi_name ?? row.roi_reference,
         },
         {
@@ -206,10 +206,10 @@ export default function RoiViolationsIndex({
 
     return (
         <>
-            <Head title="ROI Violations" />
+            <Head title="Red Zone Violations" />
             <SettingsPageShell
                 eyebrow="Safety"
-                title="ROI Violations"
+                title="Red Zone Violations"
                 description={`${violations.meta.total} records`}
                 filters={
                     <>
@@ -343,7 +343,7 @@ export default function RoiViolationsIndex({
                     meta={violations.meta}
                     pageUrl={roiViolations.index.url()}
                     queryParams={queryParams}
-                    emptyTitle="No ROI violations"
+                    emptyTitle="No Red Zone violations"
                     emptyDescription="No violations match these filters."
                 />
             </SettingsPageShell>
@@ -352,5 +352,5 @@ export default function RoiViolationsIndex({
 }
 
 RoiViolationsIndex.layout = {
-    breadcrumbs: [{ title: 'ROI Violations', href: '/roi-violations' }],
+    breadcrumbs: [{ title: 'Red Zone Violations', href: '/roi-violations' }],
 };

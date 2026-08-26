@@ -67,7 +67,7 @@ export type AlertType = (typeof AlertType)[keyof typeof AlertType];
 
 export const AlertTypeLabels: Record<AlertType, string> = {
     ppe_violation: 'PPE violation',
-    roi_violation: 'ROI violation',
+    roi_violation: 'Red Zone violation',
     gas_warning: 'Gas warning',
     gas_alarm: 'Gas alarm',
     red_zone_intrusion: 'Red zone intrusion',
@@ -186,7 +186,7 @@ export type RoiViolationType =
     (typeof RoiViolationType)[keyof typeof RoiViolationType];
 
 export const RoiViolationTypeLabels: Record<RoiViolationType, string> = {
-    roi_intrusion: 'ROI intrusion',
+    roi_intrusion: 'Red Zone intrusion',
 };
 
 export const CameraType = {

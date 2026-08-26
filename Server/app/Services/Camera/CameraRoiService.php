@@ -103,7 +103,7 @@ final class CameraRoiService
 
             if ($enabled->isEmpty()) {
                 throw ValidationException::withMessages([
-                    'rois' => 'Publish requires at least one enabled ROI with 3+ points.',
+                    'rois' => 'Publish requires at least one enabled Red Zone with 3+ points.',
                 ]);
             }
 
@@ -382,7 +382,7 @@ final class CameraRoiService
     {
         if ($rois === []) {
             throw ValidationException::withMessages([
-                'rois' => 'At least one ROI is required when saving.',
+                'rois' => 'At least one Red Zone is required when saving.',
             ]);
         }
 
@@ -396,7 +396,7 @@ final class CameraRoiService
 
             if ($name === '') {
                 throw ValidationException::withMessages([
-                    "rois.$index.name" => 'ROI name is required.',
+                    "rois.$index.name" => 'Red Zone name is required.',
                 ]);
             }
 
@@ -412,7 +412,7 @@ final class CameraRoiService
 
             if (isset($seenRefs[$reference])) {
                 throw ValidationException::withMessages([
-                    "rois.$index.reference" => 'ROI references must be unique per camera.',
+                    "rois.$index.reference" => 'Red Zone references must be unique per camera.',
                 ]);
             }
             $seenRefs[$reference] = true;
@@ -444,7 +444,7 @@ final class CameraRoiService
     {
         if (! is_array($polygon) || count($polygon) < 3) {
             throw ValidationException::withMessages([
-                "rois.$index.polygon" => 'Each ROI needs at least 3 points.',
+                "rois.$index.polygon" => 'Each Red Zone needs at least 3 points.',
             ]);
         }
 
