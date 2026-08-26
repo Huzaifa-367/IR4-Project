@@ -61,11 +61,11 @@ function writeAudioUnlockFlag(): void {
     }
 }
 
-async function unlockAlertAudio(): Promise<boolean> {
+async function ensureAlertAudioCtx(): Promise<AudioContext | null> {
     const Ctor = alertAudioCtor();
 
     if (!Ctor) {
-        return false;
+        return null;
     }
 
     if (
@@ -75,9 +75,19 @@ async function unlockAlertAudio(): Promise<boolean> {
         sharedAlertAudioCtx = new Ctor();
     }
 
-    await sharedAlertAudioCtx.resume();
+    try {
+        await sharedAlertAudioCtx.resume();
+    } catch {
+        // Suspended until a user gesture — caller may retry on pointer/key.
+    }
 
-    if (sharedAlertAudioCtx.state !== 'running') {
+    return sharedAlertAudioCtx;
+}
+
+async function unlockAlertAudio(): Promise<boolean> {
+    const ctx = await ensureAlertAudioCtx();
+
+    if (ctx === null || ctx.state !== 'running') {
         return false;
     }
 
@@ -163,17 +173,17 @@ export function AlertProvider({
     const [refreshFn, setRefreshFn] = useState<() => Promise<void>>(
         () => async () => undefined,
     );
-    const [audioUnlocked, setAudioUnlocked] = useState(false);
+    const [audioUnlocked, setAudioUnlocked] = useState(() =>
+        readAudioUnlockFlag(),
+    );
 
     useEffect(() => {
         if (!isAuthenticated || !readAudioUnlockFlag()) {
             return;
         }
 
-        // Prior session unlock — try resume; browsers often still need the gate.
-        void unlockAlertAudio().then((ok) => {
-            setAudioUnlocked(ok);
-        });
+        // Already granted this session — keep gate closed; resume is best-effort.
+        void ensureAlertAudioCtx();
     }, [isAuthenticated]);
 
     const onEvent = useCallback((alert: Alert): void => {
@@ -208,6 +218,7 @@ export function AlertProvider({
             alert.severity === 'critical' &&
             alert.status === 'open',
     );
+    // Only when never enabled this browser session — not after every refresh.
     const needsAudioPermission = isAuthenticated && !audioUnlocked;
 
     return (
@@ -327,17 +338,15 @@ function CriticalAudibleLoop({
             return;
         }
 
-        const ctx = sharedAlertAudioCtx;
-
-        if (!ctx || ctx.state === 'closed') {
-            return;
-        }
-
         let stopped = false;
         let timeoutId = 0;
         let looping = false;
 
-        const beep = (): void => {
+        const ensureCtx = async (): Promise<AudioContext | null> => {
+            return ensureAlertAudioCtx();
+        };
+
+        const beep = (ctx: AudioContext): void => {
             if (stopped || ctx.state !== 'running') {
                 return;
             }
@@ -351,23 +360,44 @@ function CriticalAudibleLoop({
             gain.connect(ctx.destination);
             oscillator.start();
             oscillator.stop(ctx.currentTime + 0.18);
-            timeoutId = window.setTimeout(beep, 900);
+            timeoutId = window.setTimeout(() => beep(ctx), 900);
         };
 
-        const startLoop = (): void => {
+        const startLoop = (ctx: AudioContext): void => {
             if (stopped || looping || ctx.state !== 'running') {
                 return;
             }
 
             looping = true;
-            beep();
+            beep(ctx);
         };
 
-        void ctx.resume().then(startLoop);
+        const tryStart = (): void => {
+            void ensureCtx().then((ctx) => {
+                if (stopped || !ctx) {
+                    return;
+                }
+
+                void ctx.resume().then(() => startLoop(ctx));
+            });
+        };
+
+        tryStart();
+
+        // After refresh, AudioContext is often suspended until any gesture —
+        // resume silently; do not re-open the permission dialog.
+        const onGesture = (): void => {
+            tryStart();
+        };
+
+        window.addEventListener('pointerdown', onGesture);
+        window.addEventListener('keydown', onGesture);
 
         return () => {
             stopped = true;
             window.clearTimeout(timeoutId);
+            window.removeEventListener('pointerdown', onGesture);
+            window.removeEventListener('keydown', onGesture);
         };
     }, [active, audioUnlocked]);
 
