@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { Volume2, X } from 'lucide-react';
 import {
     createContext,
     useCallback,
@@ -8,11 +8,83 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 import { LiveStatusPill } from '@/components/ir4/live-status-pill';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth, useSharedSettings } from '@/hooks/use-auth';
 import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import type { ReverbLiveStatus } from '@/hooks/use-reverb-channel';
 import alerts from '@/routes/alerts';
 import type { Alert } from '@/types/alert';
+
+/** Session flag — browsers still require one gesture before AudioContext runs. */
+const AUDIO_UNLOCK_KEY = 'ir4.alert-audio-unlocked';
+
+let sharedAlertAudioCtx: AudioContext | null = null;
+
+function alertAudioCtor(): typeof AudioContext | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    return (
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext })
+            .webkitAudioContext ||
+        null
+    );
+}
+
+function readAudioUnlockFlag(): boolean {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    try {
+        return sessionStorage.getItem(AUDIO_UNLOCK_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+function writeAudioUnlockFlag(): void {
+    try {
+        sessionStorage.setItem(AUDIO_UNLOCK_KEY, '1');
+    } catch {
+        // Private mode / blocked storage — in-memory unlock still works this tab.
+    }
+}
+
+async function unlockAlertAudio(): Promise<boolean> {
+    const Ctor = alertAudioCtor();
+
+    if (!Ctor) {
+        return false;
+    }
+
+    if (
+        sharedAlertAudioCtx === null ||
+        sharedAlertAudioCtx.state === 'closed'
+    ) {
+        sharedAlertAudioCtx = new Ctor();
+    }
+
+    await sharedAlertAudioCtx.resume();
+
+    if (sharedAlertAudioCtx.state !== 'running') {
+        return false;
+    }
+
+    writeAudioUnlockFlag();
+
+    return true;
+}
 
 type AlertStore = {
     openAlerts: Alert[];
@@ -91,6 +163,18 @@ export function AlertProvider({
     const [refreshFn, setRefreshFn] = useState<() => Promise<void>>(
         () => async () => undefined,
     );
+    const [audioUnlocked, setAudioUnlocked] = useState(false);
+
+    useEffect(() => {
+        if (!isAuthenticated || !readAudioUnlockFlag()) {
+            return;
+        }
+
+        // Prior session unlock — try resume; browsers often still need the gate.
+        void unlockAlertAudio().then((ok) => {
+            setAudioUnlocked(ok);
+        });
+    }, [isAuthenticated]);
 
     const onEvent = useCallback((alert: Alert): void => {
         setOpenAlerts((current) => upsertAlert(current, alert));
@@ -124,6 +208,7 @@ export function AlertProvider({
             alert.severity === 'critical' &&
             alert.status === 'open',
     );
+    const needsAudioPermission = isAuthenticated && !audioUnlocked;
 
     return (
         <AlertContext.Provider
@@ -144,33 +229,116 @@ export function AlertProvider({
             )}
             {children}
             <AlertToasts alerts={sessionAlerts} />
-            <CriticalAudibleLoop active={hasAudibleCritical} />
+            <CriticalAudibleLoop
+                active={hasAudibleCritical}
+                audioUnlocked={audioUnlocked}
+            />
+            <AlertAudioPermissionGate
+                open={needsAudioPermission}
+                urgent={hasAudibleCritical}
+                onEnabled={() => setAudioUnlocked(true)}
+            />
         </AlertContext.Provider>
     );
 }
 
-function CriticalAudibleLoop({ active }: { active: boolean }): null {
+function AlertAudioPermissionGate({
+    open,
+    urgent,
+    onEnabled,
+}: {
+    open: boolean;
+    urgent: boolean;
+    onEnabled: () => void;
+}): ReactNode {
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const enable = async (): Promise<void> => {
+        setBusy(true);
+        setError(null);
+
+        const ok = await unlockAlertAudio();
+        setBusy(false);
+
+        if (!ok) {
+            setError(
+                'Browser blocked alarm audio. Check site sound settings, then try again.',
+            );
+
+            return;
+        }
+
+        onEnabled();
+    };
+
+    return (
+        <AlertDialog
+            open={open}
+            onOpenChange={() => {
+                // Compulsory — ignore dismiss / Escape until audio is enabled.
+            }}
+        >
+            <AlertDialogContent
+                className="z-[100]"
+                onEscapeKeyDown={(event) => event.preventDefault()}
+            >
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                        <Volume2 className="size-5 shrink-0 text-red-600" />
+                        Enable critical alarm sound
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {urgent
+                            ? 'A critical audible alert is open. Alarm sound is required before you continue.'
+                            : 'This console plays an automatic chime for critical audible alerts. Browsers block sound until you allow it once per session.'}
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                {error && (
+                    <p className="text-sm text-red-600" role="alert">
+                        {error}
+                    </p>
+                )}
+                <AlertDialogFooter>
+                    <AlertDialogAction
+                        disabled={busy}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            void enable();
+                        }}
+                    >
+                        {busy ? 'Enabling…' : 'Enable alarm sound'}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
+
+function CriticalAudibleLoop({
+    active,
+    audioUnlocked,
+}: {
+    active: boolean;
+    audioUnlocked: boolean;
+}): null {
     useEffect(() => {
-        if (!active || typeof window === 'undefined') {
+        if (!active || !audioUnlocked || typeof window === 'undefined') {
             return;
         }
 
-        const AudioCtx =
-            window.AudioContext ||
-            (window as unknown as { webkitAudioContext?: typeof AudioContext })
-                .webkitAudioContext;
+        const ctx = sharedAlertAudioCtx;
 
-        if (!AudioCtx) {
+        if (!ctx || ctx.state === 'closed') {
             return;
         }
 
-        const ctx = new AudioCtx();
         let stopped = false;
         let timeoutId = 0;
         let looping = false;
 
         const beep = (): void => {
-            if (stopped) {
+            if (stopped || ctx.state !== 'running') {
                 return;
             }
 
@@ -195,23 +363,13 @@ function CriticalAudibleLoop({ active }: { active: boolean }): null {
             beep();
         };
 
-        // Browsers often leave AudioContext suspended until a user gesture.
-        const onGesture = (): void => {
-            void ctx.resume().then(startLoop);
-        };
-
-        window.addEventListener('pointerdown', onGesture);
-        window.addEventListener('keydown', onGesture);
         void ctx.resume().then(startLoop);
 
         return () => {
             stopped = true;
             window.clearTimeout(timeoutId);
-            window.removeEventListener('pointerdown', onGesture);
-            window.removeEventListener('keydown', onGesture);
-            void ctx.close();
         };
-    }, [active]);
+    }, [active, audioUnlocked]);
 
     return null;
 }
