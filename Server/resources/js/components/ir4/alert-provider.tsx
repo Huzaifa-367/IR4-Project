@@ -167,6 +167,7 @@ function CriticalAudibleLoop({ active }: { active: boolean }): null {
         const ctx = new AudioCtx();
         let stopped = false;
         let timeoutId = 0;
+        let looping = false;
 
         const beep = (): void => {
             if (stopped) {
@@ -185,11 +186,29 @@ function CriticalAudibleLoop({ active }: { active: boolean }): null {
             timeoutId = window.setTimeout(beep, 900);
         };
 
-        void ctx.resume().then(beep);
+        const startLoop = (): void => {
+            if (stopped || looping || ctx.state !== 'running') {
+                return;
+            }
+
+            looping = true;
+            beep();
+        };
+
+        // Browsers often leave AudioContext suspended until a user gesture.
+        const onGesture = (): void => {
+            void ctx.resume().then(startLoop);
+        };
+
+        window.addEventListener('pointerdown', onGesture);
+        window.addEventListener('keydown', onGesture);
+        void ctx.resume().then(startLoop);
 
         return () => {
             stopped = true;
             window.clearTimeout(timeoutId);
+            window.removeEventListener('pointerdown', onGesture);
+            window.removeEventListener('keydown', onGesture);
             void ctx.close();
         };
     }, [active]);
