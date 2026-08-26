@@ -405,7 +405,7 @@ it('follows mediamtx hls cookie redirect server-side for playlists', function ()
     Http::fake([
         'mediamtx.test:8888/CAM-FIXED-01/index.m3u8' => Http::response('', 302, [
             'Location' => '/CAM-FIXED-01/index.m3u8?cookieCheck=1',
-            'Set-Cookie' => 'cookieCheck=1',
+            'Set-Cookie' => 'mtx_hls=abc; Path=/; Secure; SameSite=None',
         ]),
         'mediamtx.test:8888/CAM-FIXED-01/index.m3u8?cookieCheck=1' => Http::response(
             "#EXTM3U\n#EXT-X-VERSION:10\nvideo1_stream.m3u8\n",
@@ -423,6 +423,15 @@ it('follows mediamtx hls cookie redirect server-side for playlists', function ()
         ->assertSee('#EXTM3U');
 
     Http::assertSentCount(2);
+    Http::assertSent(function ($request): bool {
+        if (! str_contains($request->url(), 'cookieCheck=1')) {
+            return false;
+        }
+
+        $cookie = $request->header('Cookie')[0] ?? '';
+
+        return str_contains($cookie, 'mtx_hls=abc');
+    });
 });
 
 it('reuses mediamtx hls cookies for child playlists and segments', function () {

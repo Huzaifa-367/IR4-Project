@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Tracking;
 
 use App\Http\Controllers\Web\BaseController;
+use App\Services\Tracking\HeadcountIngestService;
 use App\Services\Tracking\TrackingService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -10,8 +11,11 @@ use Inertia\Response;
 
 final class TrackingDashboardController extends BaseController
 {
-    public function __invoke(Request $request, TrackingService $tracking): Response
-    {
+    public function __invoke(
+        Request $request,
+        TrackingService $tracking,
+        HeadcountIngestService $headcounts,
+    ): Response {
         $user = $request->user();
         abort_unless($user !== null && $user->can('view-tracking'), 403);
 
@@ -24,6 +28,7 @@ final class TrackingDashboardController extends BaseController
             'positions' => $canSeePositions ? $tracking->livePositions($user) : [],
             'coverage' => $canSeePositions ? $tracking->liveCoverage() : [],
             'readings' => $canSeePositions ? $tracking->liveReadings($user) : [],
+            'headcountReadings' => $headcounts->liveReadings(),
             'canSeePositions' => $canSeePositions,
             'canTriggerEvacuation' => $user->can('create-evacuation'),
         ]);

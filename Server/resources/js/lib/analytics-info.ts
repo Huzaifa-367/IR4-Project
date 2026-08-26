@@ -79,7 +79,8 @@ export const gasInfo = {
 
 export const environmentInfo = {
     temperature: {
-        summary: 'Ambient temperature from environmental sensors or weather API.',
+        summary:
+            'Ambient temperature from environmental sensors or weather API.',
         items: [
             'Live value from the primary environmental source.',
             'Display-only in v1 — no environmental alarms.',
@@ -93,9 +94,7 @@ export const environmentInfo = {
     },
     trend: {
         summary: 'Temperature and humidity on one chart.',
-        items: [
-            'Raw readings within 24 hours; hourly aggregates beyond that.',
-        ],
+        items: ['Raw readings within 24 hours; hourly aggregates beyond that.'],
         source: 'environmental_readings',
     },
 } as const satisfies Record<string, SectionInfoContent>;
@@ -152,17 +151,17 @@ export const ppeInfo = {
 
 export const trackingInfo = {
     onSite: {
-        summary: 'Workers currently marked on site from RFID presence.',
+        summary: 'People currently marked on site.',
         items: [
             'Live total — not a historical range total.',
-            'Updates when entry/exit or zone presence changes.',
+            'Updates when on-site headcount changes.',
         ],
-        source: 'TrackingService headcount · worker positions',
+        source: 'TrackingService headcount',
     },
     zone: {
-        summary: 'Workers currently present in this zone.',
+        summary: 'People currently counted in this zone.',
         items: [
-            'Live RFID occupancy for the named zone.',
+            'Live occupancy for the named zone.',
             'Open a zone row to edit bindings and access.',
         ],
         source: 'headcount.by_zone',

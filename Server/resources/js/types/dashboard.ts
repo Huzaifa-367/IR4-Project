@@ -22,6 +22,8 @@ export type DashboardSummary = {
     headcount?: {
         total_on_site: number;
         by_zone: Array<{ zone_id: number; zone_name: string; count: number }>;
+        source?: 'rfid' | 'camera';
+        as_of?: string | null;
         range_start_count?: number;
         delta_vs_range_start?: number;
         peak?: number;

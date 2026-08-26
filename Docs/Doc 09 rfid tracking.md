@@ -8,7 +8,7 @@
 
 ## 1. Purpose
 
-Give the command centre a live, trustworthy picture of **who is on site, where, and since when** — plus the safety rules that fire when someone is somewhere they shouldn't be, isn't moving, or an emergency demands everyone be accounted for. RFID is **zone-level** (a tag is "in a zone" because a reader covering that zone saw it — DOC-06), not GPS. The definitive count comes from the **gate reader**; movement between work zones comes from **pole readers**.
+Give the command centre a live, trustworthy picture of **who is on site, where, and since when** — plus the safety rules that fire when someone is somewhere they shouldn't be, isn't moving, or an emergency demands everyone be accounted for. RFID is **zone-level** (a tag is "in a zone" because a reader covering that zone saw it — DOC-06), not GPS. **Live Total Manpower** is selected by `tracking.headcount_source`: **`rfid`** counts on-site `worker_positions` from the **gate reader**; **`camera`** sums the latest absolute count **per camera**, each camera time-bound to a zone via `camera_zone_bindings` (same repositioning pattern as RFID readers) so `by_zone` stays separable by board/zone. Both paths always write their own data; only the setting picks the live number. Movement between work zones still comes from **pole readers** (RFID only).
 
 ---
 
@@ -190,7 +190,7 @@ These raise alerts only; **no LSR row is written** until an operator confirms in
 
 ## 5. Headcount, occupancy & reading records (reads)
 
-- **`GET /api/tracking/headcount`** — `{ total_on_site, by_zone[] }` from `worker_positions` (cached ~5 s). Powers the counter + display.
+- **`GET /api/tracking/headcount`** — `{ total_on_site, by_zone[], source, as_of }` (cached ~5 s). When `source=rfid`, totals come from `worker_positions`; when `source=camera`, each camera's latest non-backfill count (with `zone_id` snapped from `camera_zone_bindings` at `recorded_at`) is summed into `total_on_site` and grouped into `by_zone`. Powers the counter + display.
 - **`GET /tracking/api/positions`** — active tags with worker (identity-stripped without `view-worker-identity` — DOC-04 §5), zone, last_seen. Powers the presence table.
 - **`GET /tracking/api/readings?zone_id=`** — recent `tag_readings` for all zones or one selected zone.
 - **`GET /tracking/coverage`** — current reader↔zone bindings (DOC-06).
@@ -269,6 +269,7 @@ Big red **Trigger Evacuation** button (confirm dialog) → live two-column board
 | Zones/access lists/rebind | `/settings/zones…`, `/settings/repositioning` | DOC-06 (`manage-zones`) |
 | Headcount / positions / coverage | `GET /api/tracking/{headcount,positions,coverage}` | `view-tracking` |
 | Tag reading records | `GET /tracking/readings` (zone, reader, from/to, backfill, proximity, search) | `view-tracking` |
+| Headcount records | `GET /tracking/headcount-readings` (zone, camera, from/to, backfill, search) + `GET /tracking/api/headcount-readings` | `view-tracking` |
 | Entry/exit + corrections + CSV | `/tracking/entry-exit…` | `view-entry-exit` (correct: `manage-workers`) |
 | Portable devices CRUD + revoke | `/tracking/portable-devices…` | `manage-portable-devices` |
 | Evacuation trigger/entries/close/pdf | `/tracking/evacuation…` | `trigger-evacuation` / `manage-evacuation` |
@@ -281,15 +282,16 @@ All operator screens are Inertia (surface A); the three `GET /api/tracking/*` sn
 
 ## 11. Frontend (React / Inertia)
 
-- **`pages/tracking/index.tsx`** — live occupancy, presence, reader coverage, and latest 25 reads. No map. Identity stripped without `view-worker-identity`. Updates via the `tracking` channel with poll fallback + LIVE/RECONNECTING pill.
+- **`pages/tracking/index.tsx`** — live occupancy, latest headcount samples, presence, reader coverage, and latest tag reads. No map. Identity stripped without `view-worker-identity`. Updates via the `tracking` channel with poll fallback + LIVE/RECONNECTING pill.
 - **`pages/tracking/readings/index.tsx`** — all `tag_readings` as records: when, zone, reader, tag, person, RSSI, antenna, proximity, live/backfill. Filters: search (tag/reader), zone (incl. unbound), reader, from/to datetime, backfill, proximity.
+- **`pages/tracking/headcount-readings/index.tsx`** — all `camera_headcount_readings` as records: when, zone, camera, count, live/backfill. Filters: search (camera/zone), zone (incl. unbound), camera, from/to, backfill. No source badge — operators see counts only.
 - **`pages/tracking/tags/index.tsx`** — TagListPage (status filter, spare-pool count), assign/unassign/ReplaceTagDialog.
 - **`pages/tracking/entry-exit/index.tsx`** — EntryExitPage (filters, CSV, ManualCorrectionModal).
 - **`pages/tracking/portable-devices/index.tsx`** — register + approve/revoke.
 - **`pages/tracking/evacuation/{index,show}.tsx`** — trigger + live accounting board + print.
 - Worker list/detail are DOC-04's pages (shared).
-- **Components (`components/ir4/`):** `ZoneOccupancyTable` / `ZonePresenceTable` / `ZoneReadingsTable` (shared with DOC-16), `HeadcountCards`, `TagStatusBadge`, `ReplaceTagDialog`, `EvacuationBoard`.
-- **Types (`types/tracking.ts`):** `RfidTag`, `TagStatus`, `WorkerPosition`, `EntryExitLog`, `Direction`, `PortableDevice`, `EvacuationReport`, `EvacuationEntry`, `HeadcountSnapshot`, `PositionSnapshot`, `CoverageBinding`.
+- **Components (`components/ir4/`):** `ZoneOccupancyTable` / `ZonePresenceTable` / `ZoneReadingsTable` / `ZoneHeadcountReadingsTable` (shared with DOC-16), `HeadcountCards`, `TagStatusBadge`, `ReplaceTagDialog`, `EvacuationBoard`.
+- **Types (`types/tracking.ts`):** `RfidTag`, `TagStatus`, `WorkerPosition`, `EntryExitLog`, `Direction`, `PortableDevice`, `EvacuationReport`, `EvacuationEntry`, `HeadcountSnapshot`, `HeadcountReading`, `PositionSnapshot`, `CoverageBinding`.
 
 ---
 
@@ -316,7 +318,7 @@ All operator screens are Inertia (surface A); the three `GET /api/tracking/*` sn
 - **Entry/exit correction:** creates a new `manual_correction` row (never edits a gate row); adjusts presence; audited; CSV export works.
 - **Evacuation:** trigger freezes exactly the on-site set into entries; muster-reader read auto-accounts; gate-out auto-accounts; manual tap accounts; close blocked while unaccounted unless `force`+note (audited); PDF generates.
 - **Identity:** `positions` strips identity without `view-worker-identity` (resource-level); PM gets headcount-only (no positions).
-- **Readings:** `GET /tracking/api/readings` returns recent records; `?zone_id=` filters to one bound zone. `GET /tracking/readings` is the paginated Inertia records page (zone, reader, from/to, backfill, proximity, search).
+- **Readings:** `GET /tracking/api/readings` returns recent tag records; `?zone_id=` filters to one bound zone. `GET /tracking/readings` is the paginated Inertia tag records page. `GET /tracking/api/headcount-readings` + `GET /tracking/headcount-readings` are the camera sample equivalents (zone/camera/time/backfill filters).
 - Authorization: each action gated by its permission (matrix).
 
 ---

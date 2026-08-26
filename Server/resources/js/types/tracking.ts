@@ -1,6 +1,8 @@
 export type HeadcountSnapshot = {
     total_on_site: number;
     by_zone: Array<{ zone_id: number; count: number; zone_name: string }>;
+    source?: 'rfid' | 'camera';
+    as_of?: string | null;
 };
 
 export type TrackingPosition = {
@@ -37,6 +39,18 @@ export type TrackingReading = {
     rssi: number | null;
     antenna: number | null;
     proximity: string | null;
+    is_backfill: boolean;
+};
+
+export type HeadcountReading = {
+    id: number;
+    recorded_at: string;
+    zone_id: number | null;
+    zone_name: string | null;
+    camera_id: number | null;
+    camera_ref: string | null;
+    camera_name: string | null;
+    count: number;
     is_backfill: boolean;
 };
 

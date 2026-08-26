@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Tracking;
 
 use App\Http\Controllers\Web\BaseController;
+use App\Services\Tracking\HeadcountIngestService;
 use App\Services\Tracking\TrackingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -44,6 +45,18 @@ final class TrackingApiController extends BaseController
 
         return response()->json([
             'data' => $tracking->liveReadings($user, $zoneId, $limit),
+        ]);
+    }
+
+    public function headcountReadings(Request $request, HeadcountIngestService $headcounts): JsonResponse
+    {
+        abort_unless($request->user()?->can('view-tracking'), 403);
+
+        $zoneId = $request->filled('zone_id') ? $request->integer('zone_id') : null;
+        $limit = $request->integer('limit', 100);
+
+        return response()->json([
+            'data' => $headcounts->liveReadings($zoneId, $limit),
         ]);
     }
 }

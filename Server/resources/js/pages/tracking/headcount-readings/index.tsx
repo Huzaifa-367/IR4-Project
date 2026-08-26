@@ -11,21 +11,20 @@ import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
 import tracking from '@/routes/tracking';
 import type { PaginatedMeta } from '@/types/hardware';
-import type { TrackingReading } from '@/types/tracking';
+import type { HeadcountReading } from '@/types/tracking';
 
 type Props = {
-    readings: { data: TrackingReading[]; meta: PaginatedMeta };
+    readings: { data: HeadcountReading[]; meta: PaginatedMeta };
     filters: {
         zone_id: string;
-        reader_id: string;
+        camera_id: string;
         from: string;
         to: string;
         backfill: string;
-        proximity: string;
         search: string;
     };
     zones: Array<{ id: number; name: string }>;
-    readers: Array<{
+    cameras: Array<{
         id: number;
         name: string | null;
         reference: string | null;
@@ -34,46 +33,42 @@ type Props = {
 
 const ALL = 'all';
 
-export default function ReadingsIndex({
+export default function HeadcountReadingsIndex({
     readings,
     filters,
     zones,
-    readers,
+    cameras,
 }: Props) {
     const [zoneId, setZoneId] = useState(filters.zone_id || ALL);
-    const [readerId, setReaderId] = useState(filters.reader_id || ALL);
+    const [cameraId, setCameraId] = useState(filters.camera_id || ALL);
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
     const [backfill, setBackfill] = useState(filters.backfill || ALL);
-    const [proximity, setProximity] = useState(filters.proximity || ALL);
     const [search, setSearch] = useState(filters.search);
 
     function applyFilters(
         patch: Partial<{
             zone_id: string;
-            reader_id: string;
+            camera_id: string;
             from: string;
             to: string;
             backfill: string;
-            proximity: string;
             search: string;
         }> = {},
     ): void {
         const nextZone = patch.zone_id ?? zoneId;
-        const nextReader = patch.reader_id ?? readerId;
+        const nextCamera = patch.camera_id ?? cameraId;
         const nextFrom = patch.from ?? from;
         const nextTo = patch.to ?? to;
         const nextBackfill = patch.backfill ?? backfill;
-        const nextProximity = patch.proximity ?? proximity;
         const nextSearch = patch.search ?? search;
 
-        visitFilters(tracking.readings.index.url(), {
+        visitFilters(tracking.headcountReadings.index.url(), {
             zone_id: nextZone === ALL ? undefined : nextZone,
-            reader_id: nextReader === ALL ? undefined : nextReader,
+            camera_id: nextCamera === ALL ? undefined : nextCamera,
             from: nextFrom || undefined,
             to: nextTo || undefined,
             backfill: nextBackfill === ALL ? undefined : nextBackfill,
-            proximity: nextProximity === ALL ? undefined : nextProximity,
             search: nextSearch || undefined,
         });
     }
@@ -84,21 +79,20 @@ export default function ReadingsIndex({
 
     const queryParams = {
         zone_id: zoneId === ALL ? undefined : zoneId,
-        reader_id: readerId === ALL ? undefined : readerId,
+        camera_id: cameraId === ALL ? undefined : cameraId,
         from: from || undefined,
         to: to || undefined,
         backfill: backfill === ALL ? undefined : backfill,
-        proximity: proximity === ALL ? undefined : proximity,
         search: search || undefined,
     };
 
-    const columns: SettingsColumn<TrackingReading>[] = [
+    const columns: SettingsColumn<HeadcountReading>[] = [
         {
             key: 'number',
             header: 'Number',
             className: 'w-28',
             cell: (row) => (
-                <span className="font-mono text-xs">Reading #{row.id}</span>
+                <span className="font-mono text-xs">Sample #{row.id}</span>
             ),
         },
         {
@@ -116,56 +110,19 @@ export default function ReadingsIndex({
             cell: (row) => row.zone_name ?? 'Unbound',
         },
         {
-            key: 'reader',
-            header: 'Reader',
+            key: 'camera',
+            header: 'Camera',
             cell: (row) => (
                 <span className="font-mono text-xs">
-                    {row.reader_ref ?? row.reader_name ?? '—'}
+                    {row.camera_ref ?? row.camera_name ?? '—'}
                 </span>
             ),
         },
         {
-            key: 'tag',
-            header: 'Tag',
-            cell: (row) => (
-                <span className="font-mono text-xs">{row.tag_uid ?? '—'}</span>
-            ),
-        },
-        {
-            key: 'person',
-            header: 'Person',
-            cell: (row) => row.worker_label ?? '—',
-        },
-        {
-            key: 'rssi',
-            header: 'RSSI',
+            key: 'count',
+            header: 'Count',
             className: 'text-right font-mono tabular-nums',
-            cell: (row) => row.rssi ?? '—',
-        },
-        {
-            key: 'ant',
-            header: 'Ant',
-            className: 'text-right font-mono tabular-nums',
-            cell: (row) => row.antenna ?? '—',
-        },
-        {
-            key: 'prox',
-            header: 'Proximity',
-            cell: (row) =>
-                row.proximity ? (
-                    <StatusPill
-                        label={row.proximity}
-                        tone={
-                            row.proximity === 'near'
-                                ? 'ok'
-                                : row.proximity === 'mid'
-                                  ? 'warn'
-                                  : 'neutral'
-                        }
-                    />
-                ) : (
-                    '—'
-                ),
+            cell: (row) => row.count,
         },
         {
             key: 'kind',
@@ -181,16 +138,16 @@ export default function ReadingsIndex({
 
     return (
         <>
-            <Head title="Tag readings" />
+            <Head title="Headcount records" />
             <SettingsPageShell
                 eyebrow="Tracking"
-                title="Tag readings"
-                description="Every RFID read as a record — filter by time, zone, reader, or tag"
+                title="Headcount records"
+                description="Every on-site count sample — filter by time, zone, or camera"
                 actions={
                     <div className="flex items-center gap-2">
                         <Button asChild variant="outline" size="sm">
-                            <Link href={tracking.headcountReadings.index()}>
-                                Headcount records
+                            <Link href={tracking.readings.index()}>
+                                Tag readings
                             </Link>
                         </Button>
                         <Button asChild variant="outline" size="sm">
@@ -200,17 +157,17 @@ export default function ReadingsIndex({
                 }
                 filters={
                     <div className="flex w-full min-w-0 flex-col gap-2">
-                        <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
+                        <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
                             <Input
                                 type="search"
-                                placeholder="Tag or reader"
+                                placeholder="Camera or zone"
                                 value={search}
                                 onChange={(event) => {
                                     const value = event.target.value;
                                     setSearch(value);
                                     applySearch(value);
                                 }}
-                                aria-label="Search tag or reader"
+                                aria-label="Search camera or zone"
                                 className="min-w-0"
                             />
                             <SearchableSelect
@@ -231,37 +188,22 @@ export default function ReadingsIndex({
                                 ]}
                             />
                             <SearchableSelect
-                                value={readerId}
+                                value={cameraId}
                                 onValueChange={(value) => {
-                                    setReaderId(value);
-                                    applyFilters({ reader_id: value });
+                                    setCameraId(value);
+                                    applyFilters({ camera_id: value });
                                 }}
-                                placeholder="Reader"
+                                placeholder="Camera"
                                 className="min-w-0"
                                 options={[
-                                    { value: ALL, label: 'All readers' },
-                                    ...readers.map((reader) => ({
-                                        value: String(reader.id),
+                                    { value: ALL, label: 'All cameras' },
+                                    ...cameras.map((camera) => ({
+                                        value: String(camera.id),
                                         label:
-                                            reader.reference ??
-                                            reader.name ??
-                                            `#${reader.id}`,
+                                            camera.reference ??
+                                            camera.name ??
+                                            `#${camera.id}`,
                                     })),
-                                ]}
-                            />
-                            <SearchableSelect
-                                value={proximity}
-                                onValueChange={(value) => {
-                                    setProximity(value);
-                                    applyFilters({ proximity: value });
-                                }}
-                                placeholder="Proximity"
-                                className="min-w-0"
-                                options={[
-                                    { value: ALL, label: 'Any proximity' },
-                                    { value: 'near', label: 'Near' },
-                                    { value: 'mid', label: 'Mid' },
-                                    { value: 'far', label: 'Far' },
                                 ]}
                             />
                             <SearchableSelect
@@ -322,10 +264,10 @@ export default function ReadingsIndex({
                     rows={readings.data}
                     rowKey={(row) => row.id}
                     meta={readings.meta}
-                    pageUrl={tracking.readings.index.url()}
+                    pageUrl={tracking.headcountReadings.index.url()}
                     queryParams={queryParams}
-                    emptyTitle="No readings"
-                    emptyDescription="No tag readings match these filters."
+                    emptyTitle="No headcount records"
+                    emptyDescription="No headcount samples match these filters."
                 />
             </SettingsPageShell>
         </>

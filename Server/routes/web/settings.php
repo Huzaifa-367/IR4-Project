@@ -3,6 +3,7 @@
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Web\Settings\AuditLogController;
+use App\Http\Controllers\Web\Settings\CameraBindingController;
 use App\Http\Controllers\Web\Settings\GeneralSettingsController;
 use App\Http\Controllers\Web\Settings\ReaderBindingController;
 use App\Http\Controllers\Web\Settings\RepositioningController;
@@ -73,3 +74,6 @@ Route::post('settings/readers/{device}/rebind', [ReaderBindingController::class,
 Route::get('settings/readers/{device}/bindings', [ReaderBindingController::class, 'history'])
     ->middleware('permission:view-zones')
     ->name('settings.readers.bindings');
+Route::post('settings/cameras/{camera}/rebind', [CameraBindingController::class, 'store'])
+    ->middleware('permission:update-zones')
+    ->name('settings.cameras.rebind');

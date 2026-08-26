@@ -32,7 +32,7 @@ Each item, its source module, and its automation classification (the badge shown
 | ii | HSE Accidents & Incidents | incidents in period, classified (DOC-14) | **Auto-detect + Manual** (sensor-suggested, human-authored) |
 | iii | LSR Violations & Actions Taken | LSR entries in period, incl. action taken (DOC-14) | **Automated + Manual** (mix of alert-suggested + permit-manual) |
 | iv | Weather Conditions | environmental weekly stats (DOC-12) | **Automated** |
-| v | Site Manpower | entry/exit → daily peak + average headcount (DOC-09) | **Automated** |
+| v | Site Manpower | `tracking.headcount_source` at generation: RFID entry/exit peak/avg **or** camera absolute-count samples (DOC-09); `source` frozen in `data` | **Automated** |
 | vi | Total Vehicles/Units Monitored | count of active field-unit assets (DOC-05) | **Automated (partial)** — see §4.6 |
 | vii | Vehicle Violations & Actions Taken | manual `vehicle_violations` (§5) | **Manual** |
 | viii | Environmental Data | environmental weekly stats incl. air-quality (DOC-12) | **Automated** |
@@ -105,7 +105,7 @@ Schema::create('vehicle_violations', function (Blueprint $table) {
                    "zone":"Work Front A", "action_taken":"work stopped, fire watch assigned", "status":"closed" } ]
   },
   "iv_weather": { "per_day": [ { "date":"…", "temp":{"min","avg","max"}, "humidity":{…}, "wind":{…} } ] },
-  "v_manpower": { "per_day": [ { "date":"…", "peak":78, "average":54.2, "entries":81, "exits":80 } ] },
+  "v_manpower": { "source": "rfid|camera", "per_day": [ { "date":"…", "peak":78, "average":54.2, "entries":81, "exits":80 } ] },
   "vi_units_monitored": { "count": 5, "note": "active field units with monitoring devices" },
   "vii_vehicle_violations": [ { "observed_at":"…", "vehicle_description":"…", "violation_type":"speeding",
                                "description":"…", "action_taken":"…", "logged_by":"…" } ],
@@ -128,7 +128,7 @@ Schema::create('vehicle_violations', function (Blueprint $table) {
 Identity in item iii entries is rendered per the **report author's** `view-worker-identity` at generation `[CONFIRM AT DESIGN]` (default: reports are compliance documents for managers who typically hold identity; a redacted variant can be generated for read-only-role recipients).
 
 ### 4.4 `WeeklyReportService::generate(Carbon $start, Carbon $end, bool $auto): WeeklyReport`
-- Collects all 9 datasets from the module services (`PpeViolationService::summarize`, `IncidentService`/LSR queries, `EnvironmentalDataService::weeklyStats`, manpower from entry/exit, gas weekly stats for all five channels, `vehicle_violations` query, asset count).
+- Collects all 9 datasets from the module services (`PpeViolationService::summarize`, `IncidentService`/LSR queries, `EnvironmentalDataService::weeklyStats`, manpower from entry/exit **or** camera headcount samples per `tracking.headcount_source`, gas weekly stats for all five channels, `vehicle_violations` query, asset count).
 - Freezes them into `data`, computes `completeness` notes (§4.5), renders PDF + CSV (§6), stores paths, sets `status=generated`, `generated_at/by`.
 - **Manual generate** (`POST /weekly-reports/generate`) runs **in-request** and redirects to the new report. **Scheduled auto-generate** still uses the `GenerateWeeklyReport` job on the **`reports` queue**.
 

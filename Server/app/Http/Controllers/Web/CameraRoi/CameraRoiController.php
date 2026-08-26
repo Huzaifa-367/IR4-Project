@@ -38,9 +38,9 @@ final class CameraRoiController extends BaseController
     ): RedirectResponse {
         $rois->saveDraft($camera, $request->validated('rois'), $request->user());
 
-        return redirect()
-            ->route('hardware.camera-rois.edit', $camera)
-            ->with('success', 'Red Zone draft saved.');
+        // Toast is raised client-side in camera-rois/edit onSuccess (avoids
+        // double-toast with the shared flash hook).
+        return redirect()->route('hardware.camera-rois.edit', $camera);
     }
 
     public function publish(
@@ -55,9 +55,7 @@ final class CameraRoiController extends BaseController
             $request->user(),
         );
 
-        return redirect()
-            ->route('hardware.camera-rois.edit', $camera)
-            ->with('success', 'Red Zones published for edge AI.');
+        return redirect()->route('hardware.camera-rois.edit', $camera);
     }
 
     public function markStale(
@@ -69,8 +67,6 @@ final class CameraRoiController extends BaseController
 
         $rois->markStale($camera, CameraRoiStaleReason::Manual, $request->user());
 
-        return redirect()
-            ->route('hardware.camera-rois.edit', $camera)
-            ->with('success', 'Red Zone set marked stale.');
+        return redirect()->route('hardware.camera-rois.edit', $camera);
     }
 }

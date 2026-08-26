@@ -5,6 +5,7 @@ import { MetricRow } from '@/components/ir4/metric-row';
 import { Panel } from '@/components/ir4/panel';
 import {
     ZoneCoverageTable,
+    ZoneHeadcountReadingsTable,
     ZoneOccupancyTable,
     ZonePresenceTable,
     ZoneReadingsTable,
@@ -15,6 +16,7 @@ import { useReverbChannel } from '@/hooks/use-reverb-channel';
 import settings from '@/routes/settings';
 import tracking from '@/routes/tracking';
 import type {
+    HeadcountReading,
     HeadcountSnapshot,
     TrackingCoverage,
     TrackingPosition,
@@ -28,6 +30,7 @@ type Props = {
     positions: TrackingPosition[];
     coverage: TrackingCoverage[];
     readings: TrackingReading[];
+    headcountReadings: HeadcountReading[];
     canSeePositions: boolean;
     canTriggerEvacuation: boolean;
 };
@@ -87,6 +90,7 @@ export default function TrackingIndex({
     positions: initialPositions,
     coverage: initialCoverage,
     readings: initialReadings,
+    headcountReadings: initialHeadcountReadings,
     canSeePositions,
     canTriggerEvacuation,
 }: Props) {
@@ -95,7 +99,13 @@ export default function TrackingIndex({
     const [positions, setPositions] = usePropSyncedState(initialPositions);
     const [coverage, setCoverage] = usePropSyncedState(initialCoverage);
     const [readings, setReadings] = usePropSyncedState(initialReadings);
+    const [headcountReadings, setHeadcountReadings] = usePropSyncedState(
+        initialHeadcountReadings,
+    );
     const [zoneFilter, setZoneFilter] = useState<number | 'all'>('all');
+    const [headcountZoneFilter, setHeadcountZoneFilter] = useState<
+        number | 'all'
+    >('all');
 
     const loadReadings = useCallback(
         async (zoneId: number | 'all'): Promise<void> => {
@@ -120,6 +130,29 @@ export default function TrackingIndex({
         [setReadings],
     );
 
+    const loadHeadcountReadings = useCallback(
+        async (zoneId: number | 'all'): Promise<void> => {
+            const res = await fetch(
+                tracking.api.headcountReadings.url({
+                    query:
+                        zoneId === 'all'
+                            ? { limit: 25 }
+                            : { zone_id: zoneId, limit: 25 },
+                }),
+                {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                },
+            );
+
+            if (res.ok) {
+                const json = (await res.json()) as { data: HeadcountReading[] };
+                setHeadcountReadings(json.data);
+            }
+        },
+        [setHeadcountReadings],
+    );
+
     const loadSnapshots = useCallback(async (): Promise<void> => {
         const headRes = await fetch(tracking.api.headcount.url(), {
             headers: { Accept: 'application/json' },
@@ -130,6 +163,8 @@ export default function TrackingIndex({
             const json = (await headRes.json()) as { data: HeadcountSnapshot };
             setHeadcount(json.data);
         }
+
+        await loadHeadcountReadings(headcountZoneFilter);
 
         if (!canSeePositions) {
             return;
@@ -162,6 +197,8 @@ export default function TrackingIndex({
         await loadReadings(zoneFilter);
     }, [
         canSeePositions,
+        headcountZoneFilter,
+        loadHeadcountReadings,
         loadReadings,
         setCoverage,
         setHeadcount,
@@ -182,6 +219,7 @@ export default function TrackingIndex({
 
             if ('total_on_site' in p) {
                 setHeadcount(p as unknown as HeadcountSnapshot);
+                void loadHeadcountReadings(headcountZoneFilter);
             }
 
             if ('positions' in p && Array.isArray(p.positions)) {
@@ -227,9 +265,25 @@ export default function TrackingIndex({
     }, [headcount.by_zone, zones]);
     const boundReaders = coverage.filter((row) => row.zone !== null).length;
     const unboundReaders = coverage.filter((row) => row.zone === null).length;
-    const lastReading = readings[0]?.recorded_at
-        ? new Date(readings[0].recorded_at).toLocaleString()
+    const lastSampleAt =
+        headcount.as_of ??
+        headcountReadings[0]?.recorded_at ??
+        readings[0]?.recorded_at ??
+        null;
+    const lastReading = lastSampleAt
+        ? new Date(lastSampleAt).toLocaleString()
         : '—';
+
+    const occupancyZones =
+        zones.length > 0
+            ? zones
+            : headcount.by_zone.map((row) => ({
+                  id: row.zone_id,
+                  uuid: String(row.zone_id),
+                  name: row.zone_name,
+                  zone_type: 'work',
+                  color: null,
+              }));
 
     return (
         <>
@@ -238,7 +292,7 @@ export default function TrackingIndex({
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <Heading
                         title="Live tracking"
-                        description="Who is on site now, which reader covers which zone, latest reads"
+                        description="Who is on site now, zone occupancy, and latest activity"
                     />
                     <div className="flex items-center gap-2">
                         <Button
@@ -251,7 +305,12 @@ export default function TrackingIndex({
                         </Button>
                         <Button asChild variant="outline" size="sm">
                             <Link href={tracking.readings.index()}>
-                                All records
+                                Tag readings
+                            </Link>
+                        </Button>
+                        <Button asChild variant="outline" size="sm">
+                            <Link href={tracking.headcountReadings.index()}>
+                                Headcount records
                             </Link>
                         </Button>
                         {canTriggerEvacuation && (
@@ -264,7 +323,7 @@ export default function TrackingIndex({
                     </div>
                 </div>
 
-                <Panel title="Now" subtitle="Live from bound readers">
+                <Panel title="Now" subtitle="Live on-site total">
                     <MetricRow
                         className="sm:grid-cols-2 lg:grid-cols-5"
                         items={[
@@ -294,30 +353,91 @@ export default function TrackingIndex({
                                     unboundReaders > 0 ? 'crit' : 'neutral',
                             },
                             {
-                                label: 'Last read',
+                                label: 'Last sample',
                                 value: lastReading,
                             },
                         ]}
                     />
                 </Panel>
 
+                <div className="grid gap-4 xl:grid-cols-12">
+                    <Panel
+                        title="Zone occupancy"
+                        subtitle="Live counts by zone"
+                        className="xl:col-span-5"
+                    >
+                        <ZoneOccupancyTable
+                            zones={occupancyZones}
+                            occupancy={headcount.by_zone}
+                            onSelect={
+                                canSeePositions
+                                    ? (zone) =>
+                                          router.visit(
+                                              settings.zones.show.url(
+                                                  zone.uuid,
+                                              ),
+                                          )
+                                    : undefined
+                            }
+                        />
+                    </Panel>
+                    <Panel
+                        title="Latest headcount"
+                        subtitle="Most recent 25 samples — open Headcount records for history"
+                        className="xl:col-span-7"
+                        action={
+                            <div className="flex items-center gap-2">
+                                <select
+                                    className="rounded-[var(--radius-sm)] border border-border bg-surface-2 px-2 py-1 text-xs"
+                                    value={
+                                        headcountZoneFilter === 'all'
+                                            ? 'all'
+                                            : String(headcountZoneFilter)
+                                    }
+                                    onChange={(event) => {
+                                        const next =
+                                            event.target.value === 'all'
+                                                ? 'all'
+                                                : Number(event.target.value);
+                                        setHeadcountZoneFilter(next);
+                                        void loadHeadcountReadings(next);
+                                    }}
+                                >
+                                    <option value="all">All zones</option>
+                                    {occupancyZones.map((zone) => (
+                                        <option key={zone.id} value={zone.id}>
+                                            {zone.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <Link
+                                    href={
+                                        headcountZoneFilter === 'all'
+                                            ? tracking.headcountReadings.index()
+                                            : tracking.headcountReadings.index.url(
+                                                  {
+                                                      query: {
+                                                          zone_id:
+                                                              headcountZoneFilter,
+                                                      },
+                                                  },
+                                              )
+                                    }
+                                    className="text-xs text-[color:var(--accent)] hover:underline"
+                                >
+                                    All records ›
+                                </Link>
+                            </div>
+                        }
+                    >
+                        <ZoneHeadcountReadingsTable
+                            readings={headcountReadings}
+                        />
+                    </Panel>
+                </div>
+
                 {canSeePositions ? (
                     <div className="grid gap-4 xl:grid-cols-12">
-                        <Panel
-                            title="Zone occupancy"
-                            subtitle="Counts from the reader currently bound to each zone"
-                            className="xl:col-span-5"
-                        >
-                            <ZoneOccupancyTable
-                                zones={zones}
-                                occupancy={headcount.by_zone}
-                                onSelect={(zone) =>
-                                    router.visit(
-                                        settings.zones.show.url(zone.uuid),
-                                    )
-                                }
-                            />
-                        </Panel>
                         <Panel
                             title="On site now"
                             subtitle="Latest resolved position per tag"
@@ -341,9 +461,9 @@ export default function TrackingIndex({
                             <ZoneCoverageTable coverage={coverage} />
                         </Panel>
                         <Panel
-                            title="Latest readings"
-                            subtitle="Most recent 25 — open All records for history and filters"
-                            className="xl:col-span-7"
+                            title="Latest tag readings"
+                            subtitle="Most recent 25 — open Tag readings for history and filters"
+                            className="xl:col-span-12"
                             action={
                                 <div className="flex items-center gap-2">
                                     <select
@@ -396,8 +516,8 @@ export default function TrackingIndex({
                     </div>
                 ) : (
                     <p className="text-sm text-text-faint">
-                        Headcount-only view — presence, coverage, and readings
-                        require additional permissions.
+                        Presence, reader coverage, and tag readings require
+                        additional permissions.
                     </p>
                 )}
 

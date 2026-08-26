@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Check, Trash2, Undo2, X } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import {
     CameraRoiCanvas,
     nextRoiColor,
@@ -21,6 +22,16 @@ import type {
     CameraRoiSetStatus as RoiStatus,
     CameraRoiStaleReason,
 } from '@/types/enums';
+
+function firstErrorMessage(errors: Record<string, string | string[]>): string {
+    const first = Object.values(errors)[0];
+
+    if (Array.isArray(first)) {
+        return first[0] ?? 'Could not save Red Zones.';
+    }
+
+    return first ?? 'Could not save Red Zones.';
+}
 
 type Props = {
     camera: {
@@ -121,7 +132,11 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
     function saveDraft(): void {
         const payload = rois.filter(isComplete);
 
-        if (!canManage || isDrawing || payload.length === 0) {
+        if (!canManage || payload.length === 0) {
+            toast.error(
+                'Finish at least one Red Zone (3+ points) before saving.',
+            );
+
             return;
         }
 
@@ -129,12 +144,22 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
         router.put(
             hardware.cameraRois.update.url(camera.uuid),
             { rois: payload },
-            { preserveScroll: true, onFinish: () => setSaving(false) },
+            {
+                preserveScroll: true,
+                // Toast here — don't rely on flash events for this screen.
+                onSuccess: () => toast.success('Red Zone draft saved.'),
+                onError: (errors) => toast.error(firstErrorMessage(errors)),
+                onFinish: () => setSaving(false),
+            },
         );
     }
 
     function publish(): void {
         if (!canPublish) {
+            toast.error(
+                'Publish needs at least one enabled Red Zone with 3+ points.',
+            );
+
             return;
         }
 
@@ -142,7 +167,13 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
         router.post(
             hardware.cameraRois.publish.url(camera.uuid),
             { rois: rois.filter(isComplete) },
-            { preserveScroll: true, onFinish: () => setSaving(false) },
+            {
+                preserveScroll: true,
+                onSuccess: () =>
+                    toast.success('Red Zones published for edge AI.'),
+                onError: (errors) => toast.error(firstErrorMessage(errors)),
+                onFinish: () => setSaving(false),
+            },
         );
     }
 
@@ -155,7 +186,12 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
         router.post(
             hardware.cameraRois.markStale.url(camera.uuid),
             {},
-            { preserveScroll: true, onFinish: () => setSaving(false) },
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Red Zone set marked stale.'),
+                onError: (errors) => toast.error(firstErrorMessage(errors)),
+                onFinish: () => setSaving(false),
+            },
         );
     }
 
@@ -195,7 +231,8 @@ export default function CameraRoisEdit({ camera, set, canManage }: Props) {
                                 size="sm"
                                 variant="secondary"
                                 disabled={
-                                    saving || isDrawing || rois.length === 0
+                                    saving ||
+                                    !rois.some((roi) => isComplete(roi))
                                 }
                                 onClick={saveDraft}
                             >

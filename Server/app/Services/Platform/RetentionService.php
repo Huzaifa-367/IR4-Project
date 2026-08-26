@@ -2,6 +2,7 @@
 
 namespace App\Services\Platform;
 
+use App\Models\CameraHeadcountReading;
 use App\Models\EnvironmentalReading;
 use App\Models\GasReading;
 use App\Models\TagReading;
@@ -28,6 +29,7 @@ final class RetentionService
         'tag_readings',
         'gas_readings',
         'environmental_readings',
+        'camera_headcount_readings',
     ];
 
     public const COMPLIANCE_TABLES = [
@@ -79,6 +81,7 @@ final class RetentionService
             'tag_readings' => $this->pruneTagReadings($now->copy()->subDays($tagDays)),
             'gas_readings' => $this->pruneGasReadings($now->copy()->subDays($sensorDays)),
             'environmental_readings' => $this->pruneEnvironmentalReadings($now->copy()->subDays($sensorDays)),
+            'camera_headcount_readings' => $this->pruneCameraHeadcountReadings($now->copy()->subDays($sensorDays)),
         ];
 
         Log::info('ir4.retention.pruned', $counts);
@@ -218,6 +221,20 @@ final class RetentionService
             ->chunkById(self::CHUNK, function ($rows) use (&$deleted): void {
                 $ids = $rows->pluck('id');
                 $deleted += EnvironmentalReading::query()->whereIn('id', $ids)->delete();
+            });
+
+        return $deleted;
+    }
+
+    private function pruneCameraHeadcountReadings(\DateTimeInterface $before): int
+    {
+        $deleted = 0;
+        CameraHeadcountReading::query()
+            ->where('recorded_at', '<', Carbon::instance($before))
+            ->orderBy('id')
+            ->chunkById(self::CHUNK, function ($rows) use (&$deleted): void {
+                $ids = $rows->pluck('id');
+                $deleted += CameraHeadcountReading::query()->whereIn('id', $ids)->delete();
             });
 
         return $deleted;

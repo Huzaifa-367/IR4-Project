@@ -6,6 +6,7 @@ use App\Enums\AlertType;
 use App\Enums\AssetStatus;
 use App\Enums\DeviceType;
 use App\Enums\Direction;
+use App\Enums\HeadcountSource;
 use App\Enums\ReportStatus;
 use App\Enums\ReviewStatus;
 use App\Models\Alert;
@@ -27,6 +28,7 @@ use App\Services\Hse\LsrService;
 use App\Services\Ppe\PpeViolationService;
 use App\Services\Settings\SettingsService;
 use App\Services\Storage\SignedStorageUrlService;
+use App\Services\Tracking\HeadcountIngestService;
 use App\Support\SqlTimeBucket;
 use App\Support\WeatherSettings;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -45,6 +47,7 @@ final class WeeklyReportService
         private readonly PpeViolationService $ppe,
         private readonly LsrService $lsr,
         private readonly WeatherSettings $weather,
+        private readonly HeadcountIngestService $cameraHeadcounts,
     ) {}
 
     /**
@@ -61,7 +64,6 @@ final class WeeklyReportService
             'v_manpower',
             'vi_units_monitored',
             'vii_vehicle_violations',
-            'viii_environmental',
             'ix_gas',
             'completeness',
         ];
@@ -275,7 +277,6 @@ final class WeeklyReportService
             'v_manpower' => $this->itemManpower($start, $end),
             'vi_units_monitored' => $this->itemUnitsMonitored(),
             'vii_vehicle_violations' => $this->itemVehicleViolations($start, $end),
-            'viii_environmental' => $this->itemEnvironmental($start, $end),
             'ix_gas' => $this->itemGas($start, $end),
             'completeness' => ['notes' => $completenessNotes],
         ];
@@ -459,9 +460,29 @@ final class WeeklyReportService
     }
 
     /**
-     * @return array{per_day: list<array<string, mixed>>}
+     * @return array{source: string, per_day: list<array<string, mixed>>}
      */
     private function itemManpower(Carbon $start, Carbon $end): array
+    {
+        $source = $this->cameraHeadcounts->configuredSource();
+
+        if ($source === HeadcountSource::Camera) {
+            return [
+                'source' => HeadcountSource::Camera->value,
+                'per_day' => $this->cameraHeadcounts->manpowerPerDay($start, $end),
+            ];
+        }
+
+        return [
+            'source' => HeadcountSource::Rfid->value,
+            'per_day' => $this->itemManpowerFromRfid($start, $end),
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function itemManpowerFromRfid(Carbon $start, Carbon $end): array
     {
         $logs = EntryExitLog::query()
             ->whereBetween('occurred_at', [$start->copy()->subDays(14), $end])
@@ -520,7 +541,7 @@ final class WeeklyReportService
             $opening = $headcount;
         }
 
-        return ['per_day' => $perDay];
+        return $perDay;
     }
 
     /**
@@ -561,57 +582,6 @@ final class WeeklyReportService
             ])
             ->values()
             ->all();
-    }
-
-    /**
-     * @return array{per_day: list<array<string, mixed>>}
-     */
-    private function itemEnvironmental(Carbon $start, Carbon $end): array
-    {
-        $rows = EnvironmentalReading::query()
-            ->whereBetween('recorded_at', [$start, $end])
-            ->whereNotNull('extra')
-            ->orderBy('recorded_at')
-            ->get(['recorded_at', 'extra']);
-
-        $perDay = [];
-        foreach ($this->eachDate($start, $end) as $date) {
-            $day = $rows->filter(fn (EnvironmentalReading $r): bool => $r->recorded_at->toDateString() === $date);
-            $air = [];
-            foreach ($day as $row) {
-                foreach (($row->extra ?? []) as $param => $value) {
-                    if (! is_numeric($value)) {
-                        continue;
-                    }
-                    $num = (float) $value;
-                    $air[$param] ??= ['min' => null, 'avg_sum' => 0.0, 'avg_n' => 0, 'max' => null];
-                    $air[$param]['min'] = $air[$param]['min'] === null
-                        ? $num
-                        : min($air[$param]['min'], $num);
-                    $air[$param]['max'] = $air[$param]['max'] === null
-                        ? $num
-                        : max($air[$param]['max'], $num);
-                    $air[$param]['avg_sum'] += $num;
-                    $air[$param]['avg_n']++;
-                }
-            }
-
-            $airOut = [];
-            foreach ($air as $param => $agg) {
-                $airOut[$param] = [
-                    'min' => $agg['min'],
-                    'avg' => $agg['avg_n'] > 0 ? round($agg['avg_sum'] / $agg['avg_n'], 2) : null,
-                    'max' => $agg['max'],
-                ];
-            }
-
-            $perDay[] = [
-                'date' => $date,
-                'air_quality' => $airOut,
-            ];
-        }
-
-        return ['per_day' => $perDay];
     }
 
     /**
@@ -672,16 +642,19 @@ final class WeeklyReportService
     }
 
     /**
+     * Outage honesty (DOC-15 §4.5): one note per affected report item —
+     * never a per-camera / per-device wall. Uses worst offline % among
+     * devices over report.completeness_threshold_pct.
+     *
      * @return list<array{item: string, message: string}>
      */
     private function completenessNotes(Carbon $start, Carbon $end): array
     {
         $threshold = (float) $this->settings->get('report.completeness_threshold_pct', 20);
         $periodSeconds = max(1, $start->diffInSeconds($end));
-        $notes = [];
 
         $alerts = Alert::query()
-            ->where('alert_type', AlertType::DeviceOffline)
+            ->whereIn('alert_type', [AlertType::DeviceOffline, AlertType::CameraOffline])
             ->where(function ($q) use ($start, $end): void {
                 $q->whereBetween('created_at', [$start, $end])
                     ->orWhere(function ($inner) use ($start): void {
@@ -693,12 +666,10 @@ final class WeeklyReportService
             })
             ->get();
 
-        $byDevice = [];
+        /** @var array<string, array{seconds: float, item: string, label: string}> $buckets */
+        $buckets = [];
+
         foreach ($alerts as $alert) {
-            $deviceId = (int) ($alert->payload['device_id'] ?? 0);
-            if ($deviceId <= 0) {
-                continue;
-            }
             $outageStart = Carbon::parse($alert->created_at)->max($start);
             $outageEnd = $alert->resolved_at !== null
                 ? Carbon::parse($alert->resolved_at)->min($end)
@@ -706,32 +677,106 @@ final class WeeklyReportService
             if ($outageEnd->lte($outageStart)) {
                 continue;
             }
-            $byDevice[$deviceId] = ($byDevice[$deviceId] ?? 0) + $outageStart->diffInSeconds($outageEnd);
+            $seconds = (float) $outageStart->diffInSeconds($outageEnd);
+
+            if ($alert->alert_type === AlertType::CameraOffline) {
+                $cameraId = (int) ($alert->payload['camera_id'] ?? 0);
+                $label = (string) ($alert->payload['camera_name'] ?? ('Camera #'.$cameraId));
+                if ($cameraId <= 0 && $label === 'Camera #0') {
+                    continue;
+                }
+                $key = 'camera:'.($cameraId > 0 ? $cameraId : $label);
+                $buckets[$key] = [
+                    'seconds' => ($buckets[$key]['seconds'] ?? 0) + $seconds,
+                    'item' => 'vi_units_monitored',
+                    'label' => $label,
+                ];
+
+                continue;
+            }
+
+            $deviceId = (int) ($alert->payload['device_id'] ?? 0);
+            if ($deviceId <= 0) {
+                continue;
+            }
+            $device = Device::query()->find($deviceId);
+            $fromPayload = trim((string) ($alert->payload['device_name'] ?? ''));
+            $label = $device?->name ?? ($fromPayload !== '' ? $fromPayload : 'Device #'.$deviceId);
+            // Unknown / deleted device id: still declare the gap (DOC-15 honesty)
+            // under units-monitored — never default cameras/RFID into ix_gas.
+            $item = match ($device?->device_type) {
+                DeviceType::GasDetector => 'ix_gas',
+                DeviceType::EnvironmentalSensor => 'iv_weather',
+                DeviceType::RfidReader => 'v_manpower',
+                DeviceType::EdgeCompute => 'vi_units_monitored',
+                default => 'vi_units_monitored',
+            };
+            $key = 'device:'.$deviceId;
+            $buckets[$key] = [
+                'seconds' => ($buckets[$key]['seconds'] ?? 0) + $seconds,
+                'item' => $item,
+                'label' => $label,
+            ];
         }
 
-        foreach ($byDevice as $deviceId => $seconds) {
-            $pct = round(($seconds / $periodSeconds) * 100, 1);
+        /** @var array<string, list<array{label: string, pct: float}>> $byItem */
+        $byItem = [];
+
+        foreach ($buckets as $bucket) {
+            $pct = min(100.0, round(($bucket['seconds'] / $periodSeconds) * 100, 1));
             if ($pct <= $threshold) {
                 continue;
             }
 
-            $device = Device::query()->find($deviceId);
-            $item = match ($device?->device_type) {
-                DeviceType::GasDetector => 'ix_gas',
-                DeviceType::EnvironmentalSensor => 'viii_environmental',
-                default => 'ix_gas',
-            };
+            $byItem[$bucket['item']][] = [
+                'label' => $bucket['label'],
+                'pct' => $pct,
+            ];
+        }
+
+        $itemTitles = [
+            'i_daily_safety_observations' => 'PPE camera coverage',
+            'iv_weather' => 'Weather / environmental',
+            'v_manpower' => 'Site headcount',
+            'vi_units_monitored' => 'Field unit monitoring',
+            'ix_gas' => 'Gas telemetry',
+        ];
+
+        $notes = [];
+
+        foreach ($byItem as $item => $devices) {
+            usort($devices, static fn (array $a, array $b): int => $b['pct'] <=> $a['pct']);
+            $count = count($devices);
+            $worst = $devices[0]['pct'];
+            $title = $itemTitles[$item] ?? 'Sensor coverage';
+
+            if ($count === 1) {
+                $notes[] = [
+                    'item' => $item,
+                    'message' => sprintf(
+                        '%s incomplete — %s offline %.0f%% of the period.',
+                        $title,
+                        $devices[0]['label'],
+                        $worst,
+                    ),
+                ];
+
+                continue;
+            }
 
             $notes[] = [
                 'item' => $item,
                 'message' => sprintf(
-                    '%s telemetry offline %.1f%% of the period (%s).',
-                    $device?->name ?? ('Device #'.$deviceId),
-                    $pct,
-                    $device?->name ?? ('id '.$deviceId),
+                    '%s incomplete — %d units offline more than %.0f%% of the period (worst %.0f%%).',
+                    $title,
+                    $count,
+                    $threshold,
+                    $worst,
                 ),
             ];
         }
+
+        usort($notes, static fn (array $a, array $b): int => strcmp($a['item'], $b['item']));
 
         return $notes;
     }
@@ -741,13 +786,18 @@ final class WeeklyReportService
      */
     private function renderArtifacts(WeeklyReport $report): array
     {
+        $report->loadMissing('supersedes');
+        $badges = $this->automationBadges();
+        $view = WeeklyReportPresenter::for($report, $badges);
+
         $dir = 'reports/'.$report->id;
         Storage::disk('private')->makeDirectory($dir);
 
         $pdf = Pdf::loadView('pdf.weekly-report', [
             'report' => $report,
             'data' => $report->data,
-            'badges' => $this->automationBadges(),
+            'badges' => $badges,
+            'view' => $view,
         ]);
         $pdfPath = $dir.'/report.pdf';
         Storage::disk('private')->put($pdfPath, $pdf->output());
@@ -760,7 +810,7 @@ final class WeeklyReportService
 
         $zip = new ZipArchive;
         $zip->open($tmpZip, ZipArchive::OVERWRITE);
-        foreach ($this->csvFiles($report) as $name => $csv) {
+        foreach ($view->csvFiles() as $name => $csv) {
             $zip->addFromString($name, $csv);
         }
         $zip->close();
@@ -768,90 +818,6 @@ final class WeeklyReportService
         @unlink($tmpZip);
 
         return ['pdf' => $pdfPath, 'csv' => $zipPath];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function csvFiles(WeeklyReport $report): array
-    {
-        $data = $report->data ?? [];
-        $files = [
-            'summary.csv' => $this->toCsv([
-                ['report_number', 'period_start', 'period_end', 'status'],
-                [$report->report_number, $data['period']['start'] ?? '', $data['period']['end'] ?? '', $report->status->value],
-            ]),
-            'i_daily_safety_observations.csv' => $this->rowsToCsv($data['i_daily_safety_observations']['per_day'] ?? []),
-            'ii_hse_incidents.csv' => $this->rowsToCsv($data['ii_hse_incidents'] ?? []),
-            'iii_lsr_violations.csv' => $this->rowsToCsv($data['iii_lsr_violations']['entries'] ?? []),
-            'iv_weather.csv' => $this->rowsToCsv($data['iv_weather']['per_day'] ?? []),
-            'v_manpower.csv' => $this->rowsToCsv($data['v_manpower']['per_day'] ?? []),
-            'vi_units_monitored.csv' => $this->toCsv([
-                ['count', 'note'],
-                [$data['vi_units_monitored']['count'] ?? 0, $data['vi_units_monitored']['note'] ?? ''],
-            ]),
-            'vii_vehicle_violations.csv' => $this->rowsToCsv($data['vii_vehicle_violations'] ?? []),
-            'viii_environmental.csv' => $this->rowsToCsv($data['viii_environmental']['per_day'] ?? []),
-            'ix_gas.csv' => $this->rowsToCsv($data['ix_gas']['per_day'] ?? []),
-        ];
-
-        return $files;
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $rows
-     */
-    private function rowsToCsv(array $rows): string
-    {
-        if ($rows === []) {
-            return "empty\n";
-        }
-
-        $headers = array_keys($this->flattenRow($rows[0]));
-        $lines = [$headers];
-        foreach ($rows as $row) {
-            $flat = $this->flattenRow($row);
-            $lines[] = array_map(fn (string $h) => $flat[$h] ?? '', $headers);
-        }
-
-        return $this->toCsv($lines);
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     * @return array<string, string>
-     */
-    private function flattenRow(array $row): array
-    {
-        $out = [];
-        foreach ($row as $key => $value) {
-            if (is_array($value)) {
-                $out[$key] = json_encode($value, JSON_UNESCAPED_UNICODE) ?: '';
-            } else {
-                $out[$key] = (string) ($value ?? '');
-            }
-        }
-
-        return $out;
-    }
-
-    /**
-     * @param  list<list<string|int|float|null>>  $lines
-     */
-    private function toCsv(array $lines): string
-    {
-        $fh = fopen('php://temp', 'r+');
-        if ($fh === false) {
-            return '';
-        }
-        foreach ($lines as $line) {
-            fputcsv($fh, $line);
-        }
-        rewind($fh);
-        $csv = stream_get_contents($fh) ?: '';
-        fclose($fh);
-
-        return $csv;
     }
 
     /**
@@ -867,7 +833,6 @@ final class WeeklyReportService
             'v_manpower' => 'Automated',
             'vi_units_monitored' => 'Automated (partial)',
             'vii_vehicle_violations' => 'Manual',
-            'viii_environmental' => 'Automated',
             'ix_gas' => 'Automated',
         ];
     }

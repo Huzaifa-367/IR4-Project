@@ -126,12 +126,12 @@ final class HlsProxyService
 
         if ($response->status() === 401 && $cameraReference !== null && $sessionKey !== null) {
             $request->session()->forget($sessionKey);
-            $jar = new CookieJar;
+            $jar = new MediaMtxCookieJar;
             $this->primeMediaMtxCookie($jar, $upstream, $cameraReference);
             $response = $this->sendUpstream($request, $target, $suffix, $jar);
         }
 
-        if ($sessionKey !== null && $response->successful()) {
+        if ($sessionKey !== null && ($response->successful() || count($jar) > 0)) {
             $this->storeCookieJar($request, $sessionKey, $jar);
         }
 
@@ -172,8 +172,8 @@ final class HlsProxyService
             'cookies' => $jar,
             'stream' => ! $this->isPlaylist($suffix),
         ])
-            ->timeout(60)
-            ->connectTimeout(5)
+            ->timeout(90)
+            ->connectTimeout(15)
             ->withHeaders($this->forwardHeaders($request))
             ->send($request->method(), $target, [
                 'body' => $request->getContent(),
@@ -186,20 +186,20 @@ final class HlsProxyService
             'allow_redirects' => true,
             'cookies' => $jar,
         ])
-            ->timeout(10)
-            ->connectTimeout(5)
+            ->timeout(20)
+            ->connectTimeout(10)
             ->get(rtrim($upstream, '/').'/'.$cameraReference.'/index.m3u8');
     }
 
     private function loadCookieJar(Request $request, ?string $sessionKey): CookieJar
     {
         if ($sessionKey === null) {
-            return new CookieJar;
+            return new MediaMtxCookieJar;
         }
 
         /** @var list<array<string, mixed>> $stored */
         $stored = $request->session()->get($sessionKey, []);
-        $jar = new CookieJar;
+        $jar = new MediaMtxCookieJar;
 
         foreach ($stored as $cookieData) {
             $jar->setCookie(new SetCookie($cookieData));

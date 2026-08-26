@@ -36,7 +36,8 @@ Operates on an **explicit allow-list** of raw sensor tables only:
 | `tag_readings` | `retention.tag_readings_days` | 90 | `recorded_at` older — **unconditionally** after window (v1 has no tag rollup; manpower derives from entry/exit) |
 | `gas_readings` | `retention.sensor_readings_days` | 180 | older — **unconditionally** after window (gas is raw-only; no rollup gate) |
 | `environmental_readings` | `retention.sensor_readings_days` | 180 | older — **unconditionally** after window (env is raw-only; no rollup gate) |
-- Gas, environmental, and tags all prune by age alone (no rollup gate).
+| `camera_headcount_readings` | `retention.sensor_readings_days` | 180 | older — absolute camera headcount samples (DOC-09) |
+- Gas, environmental, camera headcount, and tags all prune by age alone (no rollup gate).
 - Deletes in **chunks** (avoid long locks), off-peak, logged (rows pruned per table) as a `system` info summary.
 - **Explicitly excluded (never in the allow-list):** `alerts`, `gas_alarms`, `hse_incidents`, `incident_*`, `lsr_violations`, `weekly_reports`, `audit_logs`, `entry_exit_logs`, `worker_positions` (current state), `equipment*`, `evacuation_*`, all registry/config tables. A code comment + a DOC-21 test asserts this list can't accidentally include a compliance table.
 

@@ -181,9 +181,9 @@ export default function LiveWall({
     return (
         <>
             <Head title="Live wall" />
-            <div className={displayMode ? 'space-y-4' : 'space-y-6 p-6'}>
+            <div className={displayMode ? 'space-y-4' : 'space-y-3 p-6'}>
                 {!displayMode && (
-                    <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex flex-wrap items-start justify-between gap-4 [&>header]:mb-0">
                         <Heading
                             title="Live camera wall"
                             description={

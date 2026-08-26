@@ -13,7 +13,7 @@ final class HeadcountUpdated implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
-     * @param  array{total_on_site: int, by_zone: list<array{zone_id: int, count: int}>}  $headcount
+     * @param  array{total_on_site: int, by_zone: list<array{zone_id: int, count: int}>, source?: string, as_of?: string|null}  $headcount
      */
     public function __construct(
         public array $headcount,

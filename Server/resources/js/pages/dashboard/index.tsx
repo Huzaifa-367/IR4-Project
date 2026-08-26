@@ -393,7 +393,7 @@ export default function DashboardIndex({
                         {showOccupancy ? (
                             <Panel
                                 title="Zone occupancy"
-                                subtitle="RFID reader bindings · live"
+                                subtitle="Live counts by zone"
                                 info={dashboardInfo.occupancy}
                                 className="xl:col-span-8"
                                 action={
@@ -697,7 +697,9 @@ export default function DashboardIndex({
                             </Panel>
                         ) : null}
 
-                        {showOccupancy && zoneDonut.length > 0 ? (
+                        {showOccupancy &&
+                        (summary.headcount?.by_zone?.length ?? 0) > 0 &&
+                        zoneDonut.length > 0 ? (
                             <Panel
                                 title="Workers by Zone"
                                 subtitle={`live distribution · ${summary.headcount?.total_on_site ?? 0} on site`}

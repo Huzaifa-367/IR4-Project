@@ -129,6 +129,58 @@ it('adds completeness notes when device offline exceeds threshold', function () 
         ->and($notes[0]['item'])->toBe('ix_gas');
 });
 
+it('maps edge/rfid outages away from ix_gas and keeps payload names for missing devices', function () {
+    $manager = User::factory()->withRole('Safety Manager')->create();
+    $start = now()->startOfWeek(Carbon::SUNDAY)->subWeek();
+    $end = $start->copy()->endOfWeek(Carbon::SATURDAY);
+
+    $edge = Device::factory()->create([
+        'name' => 'Pole 03 Fixed Camera',
+        'device_type' => DeviceType::EdgeCompute,
+    ]);
+    $rfid = Device::factory()->create([
+        'name' => 'Pole 03 RFID Reader',
+        'device_type' => DeviceType::RfidReader,
+    ]);
+    $gas = Device::factory()->create([
+        'name' => 'Pole 03 Gas Detector',
+        'device_type' => DeviceType::GasDetector,
+    ]);
+
+    foreach ([$edge, $rfid, $gas] as $device) {
+        Alert::factory()->create([
+            'alert_type' => AlertType::DeviceOffline,
+            'payload' => ['device_id' => $device->id, 'device_name' => $device->name],
+            'created_at' => $start->copy(),
+            'resolved_at' => $start->copy()->addDays(3),
+        ]);
+    }
+
+    Alert::factory()->create([
+        'alert_type' => AlertType::DeviceOffline,
+        'payload' => ['device_id' => 999999, 'device_name' => 'Former Device 17'],
+        'created_at' => $start->copy(),
+        'resolved_at' => $start->copy()->addDays(3),
+    ]);
+
+    Alert::factory()->create([
+        'alert_type' => AlertType::CameraOffline,
+        'payload' => ['camera_id' => 99, 'camera_name' => 'Pole 04 Fixed Camera'],
+        'created_at' => $start->copy(),
+        'resolved_at' => $start->copy()->addDays(3),
+    ]);
+
+    $notes = collect(app(WeeklyReportService::class)->generate($start, $end, $manager)->data['completeness']['notes']);
+
+    expect($notes->where('item', 'ix_gas'))->toHaveCount(1)
+        ->and($notes->where('item', 'v_manpower'))->toHaveCount(1)
+        ->and($notes->where('item', 'vi_units_monitored'))->toHaveCount(1)
+        ->and($notes->firstWhere('item', 'ix_gas')['message'])->toContain('Pole 03 Gas Detector')
+        ->and($notes->firstWhere('item', 'v_manpower')['message'])->toContain('Pole 03 RFID Reader')
+        ->and($notes->firstWhere('item', 'vi_units_monitored')['message'])->toContain('units offline')
+        ->and($notes->where('item', 'ix_gas')->every(fn (array $n): bool => ! str_contains($n['message'], 'Camera')))->toBeTrue();
+});
+
 it('publish-locks and supersedes without mutating the old published report', function () {
     $manager = User::factory()->withRole('Safety Manager')->create();
     $start = now()->startOfWeek(Carbon::SUNDAY)->subWeek();

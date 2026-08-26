@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import {
     avgOf,
     byTypeSummary,
+    cameraRefLabel,
+    deviceRefLabel,
     formatDate,
     formatDateCompact,
     formatDateTime,
@@ -16,6 +18,7 @@ import {
     labelize,
     maxOf,
     mergeCounts,
+    pluralize,
     sumBy,
 } from '@/lib/report-format';
 import { cn } from '@/lib/utils';
@@ -33,6 +36,7 @@ type SectionDef = {
     key: keyof WeeklyReportData;
     title: string;
     short: string;
+    blurb: string;
 };
 
 const sectionOrder: SectionDef[] = [
@@ -40,46 +44,49 @@ const sectionOrder: SectionDef[] = [
         key: 'i_daily_safety_observations',
         title: 'i. Daily Safety Observations',
         short: 'Safety observations',
+        blurb: 'Confirmed PPE detections by day and camera. False positives are excluded from totals.',
     },
     {
         key: 'ii_hse_incidents',
         title: 'ii. HSE Accidents & Incidents',
         short: 'HSE incidents',
+        blurb: 'Operator-logged accidents and incidents for this week, with actions taken.',
     },
     {
         key: 'iii_lsr_violations',
         title: 'iii. LSR Violations & Actions Taken',
         short: 'LSR violations',
+        blurb: 'Life-Saving Rule breaches and the corrective action recorded for each.',
     },
     {
         key: 'iv_weather',
         title: 'iv. Weather Conditions',
         short: 'Weather',
+        blurb: 'Daily temperature and humidity from the site weather feed.',
     },
     {
         key: 'v_manpower',
         title: 'v. Site Manpower',
         short: 'Manpower',
+        blurb: 'Peak and average people on site for each day.',
     },
     {
         key: 'vi_units_monitored',
         title: 'vi. Total Vehicles/Units Monitored',
         short: 'Units monitored',
+        blurb: 'How many field poles/units were actively monitored this week.',
     },
     {
         key: 'vii_vehicle_violations',
         title: 'vii. Vehicle Violations & Actions Taken',
         short: 'Vehicle violations',
-    },
-    {
-        key: 'viii_environmental',
-        title: 'viii. Environmental Data',
-        short: 'Environmental',
+        blurb: 'Manually logged vehicle violations and follow-up actions.',
     },
     {
         key: 'ix_gas',
         title: 'ix. Gas Monitoring (LEL / H₂S / O₂ / CO / CO₂)',
         short: 'Gas',
+        blurb: 'Daily gas channel ranges and alarm events. Cells show min / avg / max.',
     },
 ];
 
@@ -130,25 +137,135 @@ function rangeLabel(
 
 function EmptyState({
     label = 'No records in this period.',
+    hint,
 }: {
     label?: string;
+    hint?: string;
 }) {
     return (
-        <p className="rounded-md border border-dashed border-border bg-surface-2/30 px-3 py-6 text-center text-sm text-text-dim">
-            {label}
-        </p>
+        <div className="rounded-md border border-dashed border-border bg-surface-2/30 px-3 py-6 text-center">
+            <p className="text-sm text-text-dim">{label}</p>
+            {hint ? (
+                <p className="mt-1 text-xs text-text-dim/80">{hint}</p>
+            ) : null}
+        </div>
     );
+}
+
+function SectionIntro({ text }: { text: string }) {
+    return <p className="mb-3 text-sm leading-relaxed text-text-dim">{text}</p>;
+}
+
+/** Items that carry a coverage gap — never list every device %. */
+function coverageGapItems(
+    notes: WeeklyReportData['completeness']['notes'],
+): Set<string> {
+    return new Set(notes.map((note) => note.item));
+}
+
+/**
+ * One short banner per section. New generates store a single aggregated note;
+ * older frozen reports may still have many device rows — collapse those.
+ */
+function sectionCoverageMessage(
+    notes: WeeklyReportData['completeness']['notes'],
+): string | null {
+    if (notes.length === 0) {
+        return null;
+    }
+
+    if (notes.length === 1) {
+        return notes[0].message;
+    }
+
+    return 'Coverage incomplete — some sensors for this item were offline more than 20% of the week. Treat figures with care.';
+}
+
+function buildExecutiveLines(data: WeeklyReportData): string[] {
+    const lines: string[] = [];
+    const ppeDays = data.i_daily_safety_observations?.per_day ?? [];
+    const ppeTotal = sumBy(ppeDays, (row) => row.total);
+    const fpExcluded =
+        data.i_daily_safety_observations?.false_positives_excluded ?? 0;
+    const incidents = data.ii_hse_incidents ?? [];
+    const lsr = data.iii_lsr_violations?.entries ?? [];
+    const alarms = data.ix_gas?.alarm_events ?? [];
+    const vehicles = data.vii_vehicle_violations ?? [];
+    const gapItems = coverageGapItems(data.completeness?.notes ?? []);
+    const manpowerDays = data.v_manpower?.per_day ?? [];
+    const peakManpower = maxOf(
+        manpowerDays.map((day) => num(asRecord(day).peak)),
+    );
+    const weatherHasData = (data.iv_weather?.per_day ?? []).some((day) => {
+        const temp = asRecord(asRecord(day).temp);
+
+        return typeof temp.avg === 'number';
+    });
+
+    if (ppeTotal > 0) {
+        lines.push(
+            `${pluralize(ppeTotal, 'confirmed PPE observation')}${
+                fpExcluded > 0
+                    ? ` after excluding ${formatNumber(fpExcluded, 0)} false positives`
+                    : ''
+            }.`,
+        );
+    } else {
+        lines.push('No confirmed PPE observations this week.');
+    }
+
+    lines.push(
+        `${pluralize(incidents.length, 'HSE incident')}, ${pluralize(lsr.length, 'LSR violation')}, and ${pluralize(vehicles.length, 'vehicle violation')} logged by operators.`,
+    );
+
+    if (alarms.length > 0) {
+        lines.push(
+            `${pluralize(alarms.length, 'gas alarm event')} — open Gas Monitoring for details.`,
+        );
+    } else {
+        lines.push('No gas alarm events in this period.');
+    }
+
+    if (peakManpower !== null && peakManpower > 0) {
+        lines.push(
+            `Peak site manpower reached ${formatNumber(peakManpower, 0)}.`,
+        );
+    } else {
+        lines.push(
+            'Site headcount stayed at zero — check Manpower coverage notes.',
+        );
+    }
+
+    if (!weatherHasData) {
+        lines.push('Weather samples were unavailable for this week.');
+    }
+
+    if (gapItems.size > 0) {
+        const labels = sectionOrder
+            .filter((section) => gapItems.has(section.key))
+            .map((section) => section.short);
+
+        lines.push(
+            `Sensor coverage gaps on ${labels.join(', ')} — figures for those items may be incomplete.`,
+        );
+    }
+
+    return lines;
 }
 
 function DataTable({
     columns,
     rows,
+    emptyLabel,
+    emptyHint,
 }: {
     columns: Array<{ key: string; label: string; className?: string }>;
     rows: Array<Record<string, ReactNode>>;
+    emptyLabel?: string;
+    emptyHint?: string;
 }) {
     if (rows.length === 0) {
-        return <EmptyState />;
+        return <EmptyState label={emptyLabel} hint={emptyHint} />;
     }
 
     return (
@@ -223,6 +340,8 @@ function buildSummary(data: WeeklyReportData) {
         num(asRecord(asRecord(day).humidity).avg),
     );
 
+    const weatherHasData = weatherTemps.some((v) => v !== null);
+
     const manpowerDays = data.v_manpower?.per_day ?? [];
     const peakManpower = maxOf(
         manpowerDays.map((day) => num(asRecord(day).peak)),
@@ -230,6 +349,15 @@ function buildSummary(data: WeeklyReportData) {
     const avgManpower = avgOf(
         manpowerDays.map((day) => num(asRecord(day).average)),
     );
+    const manpowerActive =
+        (peakManpower ?? 0) > 0 ||
+        manpowerDays.some((day) => {
+            const row = asRecord(day);
+
+            return (
+                (num(row.entries) ?? 0) > 0 || (num(row.samples) ?? 0) > 0
+            );
+        });
 
     const units = data.vi_units_monitored?.count ?? 0;
 
@@ -240,20 +368,6 @@ function buildSummary(data: WeeklyReportData) {
 
             return type ? { [type]: 1 } : {};
         }),
-    );
-
-    const envDays = data.viii_environmental?.per_day ?? [];
-    const envSampled = envDays.filter((day) => {
-        const air = asRecord(asRecord(day).air_quality);
-
-        return Object.keys(air).length > 0;
-    }).length;
-    const envParams = Array.from(
-        new Set(
-            envDays.flatMap((day) =>
-                Object.keys(asRecord(asRecord(day).air_quality)),
-            ),
-        ),
     );
 
     const gasDays = data.ix_gas?.per_day ?? [];
@@ -302,22 +416,28 @@ function buildSummary(data: WeeklyReportData) {
         {
             key: 'iv_weather',
             label: 'iv. Weather',
-            value: `${formatNumber(avgOf(weatherTemps))} °C`,
-            detail: `RH ${formatNumber(avgOf(weatherHumidity), 0)}%`,
-            tone: 'neutral' as const,
+            value: weatherHasData
+                ? `${formatNumber(avgOf(weatherTemps))} °C`
+                : 'No data',
+            detail: weatherHasData
+                ? `Avg RH ${formatNumber(avgOf(weatherHumidity), 0)}%`
+                : 'Weather feed empty',
+            tone: weatherHasData ? ('neutral' as const) : ('warn' as const),
         },
         {
             key: 'v_manpower',
             label: 'v. Manpower',
-            value: formatNumber(peakManpower, 0),
-            detail: `Peak · avg ${formatNumber(avgManpower, 0)}/day`,
-            tone: 'accent' as const,
+            value: manpowerActive ? formatNumber(peakManpower, 0) : '0',
+            detail: manpowerActive
+                ? `Peak · avg ${formatNumber(avgManpower, 0)}/day`
+                : 'No headcount this week',
+            tone: manpowerActive ? ('accent' as const) : ('warn' as const),
         },
         {
             key: 'vi_units_monitored',
             label: 'vi. Units monitored',
             value: String(units),
-            detail: 'Active field units',
+            detail: 'Active field poles / units',
             tone: 'neutral' as const,
         },
         {
@@ -331,23 +451,13 @@ function buildSummary(data: WeeklyReportData) {
             tone: vehicles.length > 0 ? ('warn' as const) : ('ok' as const),
         },
         {
-            key: 'viii_environmental',
-            label: 'viii. Environmental',
-            value: String(envSampled),
-            detail:
-                envParams.length === 0
-                    ? 'No air-quality samples'
-                    : `${envSampled}/${envDays.length} days · ${envParams.slice(0, 3).join(', ')}`,
-            tone: 'neutral' as const,
-        },
-        {
             key: 'ix_gas',
             label: 'ix. Gas monitoring',
             value: String(gasAlarms.length),
             detail:
                 gasAlarms.length > 0
-                    ? `${gasAlarms.length} alarm(s) · ${gasDetailParts.slice(0, 3).join(' · ')}`
-                    : gasDetailParts.join(' · '),
+                    ? `${pluralize(gasAlarms.length, 'alarm')} · ${gasDetailParts.slice(0, 3).join(' · ')}`
+                    : `No alarms · ${gasDetailParts.slice(0, 3).join(' · ')}`,
             tone: gasAlarms.length > 0 ? ('crit' as const) : ('ok' as const),
         },
     ];
@@ -363,17 +473,17 @@ function SectionBody({
     if (sectionKey === 'i_daily_safety_observations') {
         const section = data.i_daily_safety_observations;
         const cameras = section?.by_camera ?? [];
+        const perDay = section?.per_day ?? [];
+        const total = sumBy(perDay, (row) => row.total);
+        const types = mergeCounts(perDay.map((row) => row.by_type));
+        const typeEntries = Object.entries(types)
+            .filter(([, count]) => count > 0)
+            .sort((a, b) => b[1] - a[1]);
 
         return (
             <div className="space-y-4">
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    <DetailField
-                        label="Confirmed observations"
-                        value={sumBy(
-                            section?.per_day ?? [],
-                            (row) => row.total,
-                        )}
-                    />
+                    <DetailField label="Confirmed observations" value={total} />
                     <DetailField
                         label="False positives excluded"
                         value={section?.false_positives_excluded ?? 0}
@@ -383,29 +493,52 @@ function SectionBody({
                         value={cameras.length}
                     />
                 </div>
+                {typeEntries.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                        {typeEntries.map(([type, count]) => (
+                            <StatusPill
+                                key={type}
+                                label={`${labelize(type)} · ${count}`}
+                                tone="warn"
+                                showDot={false}
+                            />
+                        ))}
+                    </div>
+                )}
                 <DataTable
                     columns={[
                         { key: 'date', label: 'Date' },
                         { key: 'total', label: 'Total', className: 'w-20' },
                         { key: 'types', label: 'By type' },
                     ]}
-                    rows={(section?.per_day ?? []).map((row) => ({
+                    rows={perDay.map((row) => ({
                         date: formatDate(row.date),
                         total: row.total,
                         types: byTypeSummary(row.by_type),
                     }))}
+                    emptyLabel="No confirmed PPE observations this week."
+                    emptyHint="Detections marked as false positives are excluded from this total."
                 />
                 {cameras.length > 0 && (
-                    <DataTable
-                        columns={[
-                            { key: 'camera', label: 'Camera' },
-                            { key: 'total', label: 'Total', className: 'w-24' },
-                        ]}
-                        rows={cameras.map((row) => ({
-                            camera: row.camera,
-                            total: row.total,
-                        }))}
-                    />
+                    <>
+                        <h3 className="text-xs font-semibold tracking-wide text-text-dim uppercase">
+                            By camera
+                        </h3>
+                        <DataTable
+                            columns={[
+                                { key: 'camera', label: 'Camera' },
+                                {
+                                    key: 'total',
+                                    label: 'Total',
+                                    className: 'w-24',
+                                },
+                            ]}
+                            rows={cameras.map((row) => ({
+                                camera: cameraRefLabel(row.camera),
+                                total: row.total,
+                            }))}
+                        />
+                    </>
                 )}
             </div>
         );
@@ -438,6 +571,8 @@ function SectionBody({
                     { key: 'corrective', label: 'Corrective action' },
                 ]}
                 rows={rows}
+                emptyLabel="No HSE incidents logged this week."
+                emptyHint="Incidents are created by operators — none were recorded for this period."
             />
         );
     }
@@ -480,56 +615,120 @@ function SectionBody({
                         { key: 'status', label: 'Status' },
                     ]}
                     rows={entries}
+                    emptyLabel="No LSR violations logged this week."
+                    emptyHint="Life-Saving Rule entries are operator-created."
                 />
             </div>
         );
     }
 
     if (sectionKey === 'iv_weather') {
-        const rows = (data.iv_weather?.per_day ?? []).map((raw) => {
-            const row = asRecord(raw);
-            const temp = asRecord(row.temp);
-            const humidity = asRecord(row.humidity);
+        const days = data.iv_weather?.per_day ?? [];
+        const rows = days
+            .map((raw) => {
+                const row = asRecord(raw);
+                const temp = asRecord(row.temp);
+                const humidity = asRecord(row.humidity);
+                const hasTemp =
+                    num(temp.min) !== null ||
+                    num(temp.avg) !== null ||
+                    num(temp.max) !== null;
+                const hasHumidity =
+                    num(humidity.min) !== null ||
+                    num(humidity.avg) !== null ||
+                    num(humidity.max) !== null;
 
-            return {
-                date: formatDate(str(row.date)),
-                temp: rangeLabel(
-                    num(temp.min),
-                    num(temp.avg),
-                    num(temp.max),
-                    '°C',
-                ),
-                humidity: rangeLabel(
-                    num(humidity.min),
-                    num(humidity.avg),
-                    num(humidity.max),
-                    '%',
-                ),
-            };
-        });
+                return {
+                    date: formatDate(str(row.date)),
+                    temp: hasTemp
+                        ? rangeLabel(
+                              num(temp.min),
+                              num(temp.avg),
+                              num(temp.max),
+                          )
+                        : 'No sample',
+                    humidity: hasHumidity
+                        ? rangeLabel(
+                              num(humidity.min),
+                              num(humidity.avg),
+                              num(humidity.max),
+                          )
+                        : 'No sample',
+                    hasData: hasTemp || hasHumidity,
+                };
+            })
+            .filter((row) => row.hasData);
+
+        if (rows.length === 0) {
+            return (
+                <EmptyState
+                    label="No weather samples in this period."
+                    hint="The weather feed was empty or offline — check Data completeness if an outage was declared."
+                />
+            );
+        }
+
+        const temps = days.map((day) => num(asRecord(asRecord(day).temp).avg));
+        const humidities = days.map((day) =>
+            num(asRecord(asRecord(day).humidity).avg),
+        );
 
         return (
-            <DataTable
-                columns={[
-                    { key: 'date', label: 'Date' },
-                    { key: 'temp', label: 'Temp (min / avg / max)' },
-                    { key: 'humidity', label: 'Humidity (min / avg / max)' },
-                ]}
-                rows={rows}
-            />
+            <div className="space-y-4">
+                <div className="grid gap-2 sm:grid-cols-2">
+                    <DetailField
+                        label="Week avg temperature"
+                        value={`${formatNumber(avgOf(temps))} °C`}
+                    />
+                    <DetailField
+                        label="Week avg humidity"
+                        value={`${formatNumber(avgOf(humidities), 0)}%`}
+                    />
+                </div>
+                <DataTable
+                    columns={[
+                        { key: 'date', label: 'Date' },
+                        { key: 'temp', label: 'Temp °C (min · avg · max)' },
+                        {
+                            key: 'humidity',
+                            label: 'Humidity % (min · avg · max)',
+                        },
+                    ]}
+                    rows={rows}
+                />
+            </div>
         );
     }
 
     if (sectionKey === 'v_manpower') {
-        const rows = (data.v_manpower?.per_day ?? []).map((raw) => {
+        const days = data.v_manpower?.per_day ?? [];
+        const hasMovement = days.some((raw) => {
+            const row = asRecord(raw);
+
+            return (
+                (num(row.peak) ?? 0) > 0 ||
+                (num(row.entries) ?? 0) > 0 ||
+                (num(row.exits) ?? 0) > 0 ||
+                (num(row.samples) ?? 0) > 0
+            );
+        });
+
+        if (!hasMovement) {
+            return (
+                <EmptyState
+                    label="No headcount this week."
+                    hint="Peak and average stayed at zero. Check coverage notes under Data completeness."
+                />
+            );
+        }
+
+        const rows = days.map((raw) => {
             const row = asRecord(raw);
 
             return {
                 date: formatDate(str(row.date)),
                 peak: formatNumber(num(row.peak), 0),
                 average: formatNumber(num(row.average), 1),
-                entries: formatNumber(num(row.entries), 0),
-                exits: formatNumber(num(row.exits), 0),
             };
         });
 
@@ -539,8 +738,6 @@ function SectionBody({
                     { key: 'date', label: 'Date' },
                     { key: 'peak', label: 'Peak' },
                     { key: 'average', label: 'Average' },
-                    { key: 'entries', label: 'Entries' },
-                    { key: 'exits', label: 'Exits' },
                 ]}
                 rows={rows}
             />
@@ -548,16 +745,21 @@ function SectionBody({
     }
 
     if (sectionKey === 'vi_units_monitored') {
+        const count = data.vi_units_monitored?.count ?? 0;
+        const note =
+            data.vi_units_monitored?.note ||
+            'Active field units with monitoring devices';
+
         return (
-            <div className="grid gap-2 sm:grid-cols-2">
-                <DetailField
-                    label="Active units"
-                    value={data.vi_units_monitored?.count ?? 0}
-                />
-                <DetailField
-                    label="Note"
-                    value={data.vi_units_monitored?.note || '—'}
-                />
+            <div className="space-y-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                    <DetailField label="Active units" value={count} />
+                    <DetailField
+                        label="What this counts"
+                        value="Poles / field assets with live monitoring devices — not fleet telematics"
+                    />
+                </div>
+                <p className="text-sm text-text-dim">{note}</p>
             </div>
         );
     }
@@ -587,43 +789,20 @@ function SectionBody({
                     { key: 'by', label: 'Logged by' },
                 ]}
                 rows={rows}
-            />
-        );
-    }
-
-    if (sectionKey === 'viii_environmental') {
-        const rows = (data.viii_environmental?.per_day ?? []).map((raw) => {
-            const row = asRecord(raw);
-            const air = asRecord(row.air_quality);
-            const airParts = Object.entries(air)
-                .filter(([, value]) => value !== null && value !== undefined)
-                .map(
-                    ([key, value]) =>
-                        `${labelize(key)}: ${formatNumber(num(value) ?? Number(value))}`,
-                );
-
-            return {
-                date: formatDate(str(row.date)),
-                air:
-                    airParts.length > 0
-                        ? airParts.join(' · ')
-                        : 'No air-quality samples',
-            };
-        });
-
-        return (
-            <DataTable
-                columns={[
-                    { key: 'date', label: 'Date' },
-                    { key: 'air', label: 'Air quality' },
-                ]}
-                rows={rows}
+                emptyLabel="No vehicle violations logged this week."
+                emptyHint="This item is entered manually by operators."
             />
         );
     }
 
     if (sectionKey === 'ix_gas') {
-        const readings = (data.ix_gas?.per_day ?? []).map((raw) => {
+        const gasDays = data.ix_gas?.per_day ?? [];
+        const alarmRaw = data.ix_gas?.alarm_events ?? [];
+        const gasAvg = (channel: string): number | null =>
+            avgOf(
+                gasDays.map((day) => num(asRecord(asRecord(day)[channel]).avg)),
+            );
+        const readings = gasDays.map((raw) => {
             const row = asRecord(raw);
 
             return {
@@ -635,25 +814,81 @@ function SectionBody({
                 co2: formatMinAvgMax(asRecord(row.co2), 0),
             };
         });
-        const alarms = (data.ix_gas?.alarm_events ?? []).map((raw) => {
+        const alarms = alarmRaw.map((raw) => {
             const row = asRecord(raw);
 
             return {
                 when: formatDateTime(str(row.triggered_at)),
-                device: str(row.device),
+                device: deviceRefLabel(str(row.device)),
                 gas: labelize(str(row.gas)),
                 level: labelize(str(row.level)),
                 peak: formatNumber(num(row.peak)),
                 duration: row.duration_s ? `${row.duration_s}s` : '—',
                 ack: str(row.acknowledged_by),
+                duringOutage: Boolean(row.during_outage),
             };
         });
+        const warningCount = alarms.filter((a) =>
+            a.level.toLowerCase().includes('warn'),
+        ).length;
+        const alarmCount = alarms.length - warningCount;
+        const duringOutage = alarms.filter((a) => a.duringOutage).length;
+        const byGas = mergeCounts(
+            alarms.map((a) => (a.gas !== '—' ? { [a.gas]: 1 } : {})),
+        );
 
         return (
             <div className="space-y-4">
-                <p className="text-xs text-text-dim">
-                    Cells show min / avg / max for each channel.
-                </p>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    <DetailField label="Alarm events" value={alarms.length} />
+                    <DetailField
+                        label="Warning / alarm split"
+                        value={`${warningCount} warn · ${alarmCount} alarm`}
+                    />
+                    <DetailField
+                        label="During declared outage"
+                        value={duringOutage}
+                    />
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                    <DetailField
+                        label="Week avg LEL"
+                        value={`${formatNumber(gasAvg('lel'))}%`}
+                    />
+                    <DetailField
+                        label="Week avg H₂S"
+                        value={`${formatNumber(gasAvg('h2s'))} ppm`}
+                    />
+                    <DetailField
+                        label="Week avg O₂"
+                        value={`${formatNumber(gasAvg('o2'))}%`}
+                    />
+                    <DetailField
+                        label="Week avg CO"
+                        value={`${formatNumber(gasAvg('co'))} ppm`}
+                    />
+                    <DetailField
+                        label="Week avg CO₂"
+                        value={`${formatNumber(gasAvg('co2'), 0)} ppm`}
+                    />
+                </div>
+                {Object.keys(byGas).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(byGas)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([gas, count]) => (
+                                <StatusPill
+                                    key={gas}
+                                    label={`${gas} · ${count}`}
+                                    tone="crit"
+                                    showDot={false}
+                                />
+                            ))}
+                    </div>
+                )}
+                <h3 className="text-xs font-semibold tracking-wide text-text-dim uppercase">
+                    Daily readings (min · avg · max)
+                </h3>
                 <DataTable
                     columns={[
                         {
@@ -668,10 +903,11 @@ function SectionBody({
                         { key: 'co2', label: 'CO₂ ppm', className: 'px-2' },
                     ]}
                     rows={readings}
+                    emptyLabel="No daily gas readings in this period."
                 />
                 <div>
                     <h3 className="mb-2 text-xs font-semibold tracking-wide text-text-dim uppercase">
-                        Alarm events
+                        Alarm events ({alarms.length})
                     </h3>
                     <DataTable
                         columns={[
@@ -684,6 +920,8 @@ function SectionBody({
                             { key: 'ack', label: 'Acknowledged by' },
                         ]}
                         rows={alarms}
+                        emptyLabel="No gas alarm events this week."
+                        emptyHint="Channels stayed within thresholds for the period."
                     />
                 </div>
             </div>
@@ -695,6 +933,8 @@ function SectionBody({
 
 export default function ReportShow({ report, badges, canPublish }: Props) {
     const notes = report.data.completeness?.notes ?? [];
+    const gapItems = coverageGapItems(notes);
+    const executiveLines = buildExecutiveLines(report.data);
     const summary = buildSummary(report.data);
     const periodLabel = `${formatDate(report.period_start)} → ${formatDate(report.period_end)}`;
 
@@ -830,91 +1070,113 @@ export default function ReportShow({ report, badges, canPublish }: Props) {
                     </div>
                 )}
 
-                {notes.length > 0 && (
-                    <Panel
-                        title="Data completeness"
-                        subtitle="Sensor outages declared for this period"
-                    >
-                        <ul className="space-y-2">
-                            {notes.map((note) => (
-                                <li
-                                    key={`${note.item}-${note.message}`}
-                                    className="rounded-md border border-[color:var(--warn)]/35 bg-[color:var(--warn-bg)] px-3 py-2 text-sm"
-                                >
-                                    <span className="font-medium">
-                                        {sectionOrder.find(
-                                            (s) => s.key === note.item,
-                                        )?.short ?? labelize(note.item)}
-                                        :
-                                    </span>{' '}
-                                    {note.message}
-                                </li>
-                            ))}
-                        </ul>
-                    </Panel>
-                )}
+                <Panel
+                    title="At a glance"
+                    subtitle="What a reviewer needs to know first"
+                >
+                    <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-text">
+                        {executiveLines.map((line) => (
+                            <li key={line}>{line}</li>
+                        ))}
+                    </ul>
+                </Panel>
 
                 <Panel
                     title="Weekly summary"
-                    subtitle="One tile per report item — headline figure and concise detail"
+                    subtitle="One tile per report item — click to jump"
                 >
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {summary.map((item) => (
-                            <div key={item.key} className="min-w-0">
-                                <FactTile
-                                    label={item.label}
-                                    tone={item.tone}
-                                    value={item.value}
-                                />
-                                <p className="mt-1 px-1 text-[11px] leading-snug text-text-dim">
-                                    {item.detail}
-                                </p>
-                            </div>
-                        ))}
+                        {summary.map((item) => {
+                            const hasGap = gapItems.has(item.key);
+
+                            return (
+                                <a
+                                    key={item.key}
+                                    href={`#section-${item.key}`}
+                                    className="min-w-0 rounded-[var(--radius)] ring-[color:var(--accent)] outline-none focus-visible:ring-2"
+                                >
+                                    <FactTile
+                                        label={item.label}
+                                        tone={
+                                            hasGap && item.tone === 'ok'
+                                                ? 'warn'
+                                                : item.tone
+                                        }
+                                        value={item.value}
+                                    />
+                                    <p className="mt-1 px-1 text-[11px] leading-snug text-text-dim">
+                                        {hasGap
+                                            ? `${item.detail} · coverage gap`
+                                            : item.detail}
+                                    </p>
+                                </a>
+                            );
+                        })}
                     </div>
                 </Panel>
 
                 <div className="space-y-4">
-                    <div>
-                        <h2 className="font-display text-lg font-semibold text-text">
-                            Detailed report
-                        </h2>
-                        <p className="text-sm text-text-dim">
-                            Full day-by-day and event-level figures for the
-                            period.
-                        </p>
+                    <div className="sticky top-0 z-10 -mx-1 space-y-2 rounded-[var(--radius)] border border-border bg-surface/95 p-3 backdrop-blur-sm md:mx-0">
+                        <div>
+                            <h2 className="font-display text-lg font-semibold text-text">
+                                Detailed report
+                            </h2>
+                            <p className="text-sm text-text-dim">
+                                Jump to a section. Badges show how each item was
+                                produced.
+                            </p>
+                        </div>
+                        <nav
+                            aria-label="Report sections"
+                            className="flex flex-wrap gap-1.5"
+                        >
+                            {sectionOrder.map(({ key, short }) => (
+                                <a
+                                    key={key}
+                                    href={`#section-${key}`}
+                                    className={cn(
+                                        'rounded-pill border px-2.5 py-1 text-[11px] font-medium hover:text-text',
+                                        gapItems.has(key)
+                                            ? 'border-[color:var(--warn)]/50 bg-[color:var(--warn-bg)]/50 text-text'
+                                            : 'border-border bg-surface-2/40 text-text-dim hover:border-[color:var(--accent)]/50',
+                                    )}
+                                >
+                                    {short}
+                                    {gapItems.has(key) ? ' · gap' : ''}
+                                </a>
+                            ))}
+                        </nav>
                     </div>
 
-                    {sectionOrder.map(({ key, title }) => {
-                        const sectionNotes = notes.filter(
-                            (note) => note.item === key,
+                    {sectionOrder.map(({ key, title, blurb }) => {
+                        const coverageMessage = sectionCoverageMessage(
+                            notes.filter((note) => note.item === key),
                         );
 
                         return (
-                            <Panel
-                                key={key}
-                                title={title}
-                                action={
-                                    badges[key] ? (
-                                        <span className="rounded border border-border px-2 py-0.5 text-[11px] text-text-dim">
-                                            {badges[key]}
-                                        </span>
-                                    ) : undefined
-                                }
-                            >
-                                {sectionNotes.map((note) => (
-                                    <div
-                                        key={note.message}
-                                        className="mb-3 rounded-md border border-[color:var(--warn)]/35 bg-[color:var(--warn-bg)] px-3 py-2 text-sm"
-                                    >
-                                        {note.message}
-                                    </div>
-                                ))}
-                                <SectionBody
-                                    sectionKey={key}
-                                    data={report.data}
-                                />
-                            </Panel>
+                            <div key={key} id={`section-${key}`}>
+                                <Panel
+                                    title={title}
+                                    action={
+                                        badges[key] ? (
+                                            <span className="rounded border border-border px-2 py-0.5 text-[11px] text-text-dim">
+                                                {badges[key]}
+                                            </span>
+                                        ) : undefined
+                                    }
+                                >
+                                    <SectionIntro text={blurb} />
+                                    {coverageMessage ? (
+                                        <div className="mb-3 rounded-md border border-[color:var(--warn)]/35 bg-[color:var(--warn-bg)] px-3 py-2 text-sm text-text">
+                                            {coverageMessage}
+                                        </div>
+                                    ) : null}
+                                    <SectionBody
+                                        sectionKey={key}
+                                        data={report.data}
+                                    />
+                                </Panel>
+                            </div>
                         );
                     })}
                 </div>

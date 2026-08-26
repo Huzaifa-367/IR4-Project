@@ -2,19 +2,18 @@ import type { HlsConfig } from 'hls.js';
 import type Hls from 'hls.js';
 
 /**
- * Low-latency HLS for the live wall / PTZ — stay near the live edge without
- * buffering so far that pan/tilt feels disconnected from the picture.
+ * Live-wall HLS. Prefer stability over LL-HLS — Tailscale / remote MediaMTX
+ * cannot sustain part-hold-back without blank frames.
  */
 export const liveWallHlsConfig: Partial<HlsConfig> = {
     enableWorker: true,
-    lowLatencyMode: true,
-    backBufferLength: 4,
-    maxBufferLength: 6,
-    maxMaxBufferLength: 10,
-    liveSyncDurationCount: 1,
-    liveMaxLatencyDurationCount: 4,
+    lowLatencyMode: false,
+    backBufferLength: 30,
+    maxBufferLength: 30,
+    maxMaxBufferLength: 60,
+    liveSyncDurationCount: 3,
+    liveMaxLatencyDurationCount: 10,
     liveDurationInfinity: true,
-    highBufferWatchdogPeriod: 1,
 };
 
 export function nudgeHlsToLiveEdge(

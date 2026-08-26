@@ -58,7 +58,7 @@ One bold thing per screen: on the dashboard it's the **live occupancy table + cr
 - **`GET /api/dashboard/summary`** — one call returning everything the widget grid needs, so the dashboard loads in a single round-trip and the poll fallback (DOC-08 §5.4) is one request. Shape:
 ```json
 {
-  "headcount": { "total_on_site": 0, "by_zone": [ { "zone_id", "zone_name", "count" } ] },
+  "headcount": { "total_on_site": 0, "by_zone": [ { "zone_id", "zone_name", "count" } ], "source": "camera|rfid", "as_of": null },
   "alerts": { "open_critical": 0, "open_warning": 0, "latest": [ /* AlertResource, identity-stripped */ ] },
   "gas": { "panels": [ { "device_id", "asset", "status": "ok|warn|crit", "channels": { "lel_pct", "h2s_ppm", "o2_pct", "co_ppm", "co2_ppm" }, "stale": false } ] },
   "weather": { "temperature_c", "humidity_pct", "wind_speed_ms", "updated_at", "stale": false },
@@ -82,7 +82,7 @@ Composed in `pages/dashboard/index.tsx`. Widgets, each a card from §2.3:
 | Widget | Data | Visual | Permission to see |
 |---|---|---|---|
 | **Total Manpower** | headcount.total_on_site | big tabular number + sparkline of the day + delta vs last shift | view-dashboard |
-| **Zone Headcount** | headcount.by_zone | compact bar/pill list per zone | view-tracking |
+| **Zone Headcount** | headcount.by_zone | compact bar/pill list per zone (RFID positions, or camera AI counts via camera→zone bindings) | view-tracking |
 | **Open Alerts** | alerts.open_critical/warning + latest | severity-colored counts + a short live feed | view-dashboard |
 | **Zone occupancy** | positions + zones (§5) | occupancy table + on-site / in-red counts | view-tracking |
 | **Gas Status** | gas.panels | one mini-gauge strip per device, green/amber/red | view-gas |

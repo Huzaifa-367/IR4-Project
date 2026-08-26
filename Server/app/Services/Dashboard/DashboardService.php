@@ -100,6 +100,8 @@ final class DashboardService
                 'by_zone' => ($user->can('view-tracking') && ! $readOnly)
                     ? $headcount['by_zone']
                     : [],
+                'source' => $headcount['source'] ?? 'rfid',
+                'as_of' => $headcount['as_of'] ?? null,
                 'range_start_count' => $flow['shift_start_count'],
                 'delta_vs_range_start' => $delta,
                 'peak' => $flow['peak'],

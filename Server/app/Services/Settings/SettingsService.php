@@ -3,9 +3,12 @@
 namespace App\Services\Settings;
 
 use App\Enums\AuditEvent;
+use App\Events\HeadcountUpdated;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\Audit\AuditService;
+use App\Services\Tracking\HeadcountIngestService;
+use App\Services\Tracking\TrackingService;
 use App\Support\SettingsRegistry;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
@@ -89,6 +92,13 @@ final class SettingsService
         );
 
         Cache::forget($this->cacheKey($key));
+
+        if ($key === 'tracking.headcount_source') {
+            Cache::forget('tracking.headcount');
+            Cache::forget(HeadcountIngestService::LIVE_CACHE_KEY);
+            Cache::forget('broadcast:headcount');
+            broadcast(new HeadcountUpdated(app(TrackingService::class)->headcountSnapshot()));
+        }
 
         if ($old !== $normalized) {
             $auditOld = SettingsRegistry::isSecret($key) ? $this->maskSecret((string) $old) : $old;

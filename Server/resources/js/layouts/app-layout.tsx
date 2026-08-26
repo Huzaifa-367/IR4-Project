@@ -13,10 +13,13 @@ export default function AppLayout({
     const idleWarning = useIdleLogout();
 
     return (
-        <AppLayoutTemplate breadcrumbs={breadcrumbs}>
-            {children}
-            {idleWarning}
+        <>
+            <AppLayoutTemplate breadcrumbs={breadcrumbs}>
+                {children}
+                {idleWarning}
+            </AppLayoutTemplate>
+            {/* Outside AppContent overflow/stacking so Sonner isn't clipped. */}
             <Toaster />
-        </AppLayoutTemplate>
+        </>
     );
 }

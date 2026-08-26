@@ -178,17 +178,6 @@ export const CameraRoiStaleReasonLabels: Record<CameraRoiStaleReason, string> =
         manual: 'Marked stale manually',
     };
 
-export const RoiViolationType = {
-    Intrusion: 'roi_intrusion',
-} as const;
-
-export type RoiViolationType =
-    (typeof RoiViolationType)[keyof typeof RoiViolationType];
-
-export const RoiViolationTypeLabels: Record<RoiViolationType, string> = {
-    roi_intrusion: 'Red Zone intrusion',
-};
-
 export const CameraType = {
     Fixed: 'fixed',
     Ptz: 'ptz',
@@ -411,6 +400,19 @@ export const HardwareStatusLabels: Record<HardwareStatus, string> = {
     retired: 'Retired',
 };
 
+export const HeadcountSource = {
+    Rfid: 'rfid',
+    Camera: 'camera',
+} as const;
+
+export type HeadcountSource =
+    (typeof HeadcountSource)[keyof typeof HeadcountSource];
+
+export const HeadcountSourceLabels: Record<HeadcountSource, string> = {
+    rfid: 'RFID',
+    camera: 'Camera AI',
+};
+
 export const IncidentSeverity = {
     Low: 'low',
     Medium: 'medium',
@@ -479,6 +481,8 @@ export const IncidentTypeLabels: Record<IncidentType, string> = {
 export const IngestStream = {
     TagReadings: 'tag_readings',
     PpeViolations: 'ppe_violations',
+    RoiViolations: 'roi_violations',
+    HeadcountReadings: 'headcount_readings',
     GasReadings: 'gas_readings',
     EnvironmentalReadings: 'environmental_readings',
 } as const;
@@ -687,6 +691,17 @@ export const ReviewStatusLabels: Record<ReviewStatus, string> = {
     unreviewed: 'Unreviewed',
     confirmed: 'Confirmed',
     false_positive: 'False positive',
+};
+
+export const RoiViolationType = {
+    Intrusion: 'roi_intrusion',
+} as const;
+
+export type RoiViolationType =
+    (typeof RoiViolationType)[keyof typeof RoiViolationType];
+
+export const RoiViolationTypeLabels: Record<RoiViolationType, string> = {
+    roi_intrusion: 'Red Zone intrusion',
 };
 
 export const ScheduleType = {

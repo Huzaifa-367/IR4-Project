@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Settings;
 use App\Enums\DeviceType;
 use App\Enums\ZoneType;
 use App\Http\Controllers\Web\BaseController;
+use App\Models\Camera;
 use App\Models\Device;
 use App\Models\Zone;
 use Illuminate\Http\Request;
@@ -53,8 +54,44 @@ final class RepositioningController extends BaseController
                 ];
             });
 
+        $cameras = Camera::query()
+            ->operational()
+            ->with([
+                'asset:id,uuid,name,current_location_label,is_mobile',
+                'currentZoneBinding.zone:id,uuid,name,zone_type',
+            ])
+            ->orderBy('name')
+            ->get()
+            ->map(function (Camera $camera): array {
+                $binding = $camera->currentZoneBinding;
+                $zone = $binding?->zone;
+
+                return [
+                    'id' => $camera->id,
+                    'uuid' => $camera->uuid,
+                    'name' => $camera->name,
+                    'reference' => $camera->reference,
+                    'status' => $camera->status->value,
+                    'asset' => $camera->asset === null ? null : [
+                        'id' => $camera->asset->id,
+                        'uuid' => $camera->asset->uuid,
+                        'name' => $camera->asset->name,
+                        'current_location_label' => $camera->asset->current_location_label,
+                        'is_mobile' => $camera->asset->is_mobile,
+                    ],
+                    'current_zone' => $zone === null ? null : [
+                        'id' => $zone->id,
+                        'uuid' => $zone->uuid,
+                        'name' => $zone->name,
+                        'zone_type' => $zone->zone_type->value,
+                    ],
+                    'bound_from' => $binding?->bound_from?->toIso8601String(),
+                ];
+            });
+
         return Inertia::render('settings/repositioning', [
             'readers' => $readers,
+            'cameras' => $cameras,
             'zones' => Zone::query()
                 ->where('is_active', true)
                 ->orderBy('name')

@@ -120,6 +120,7 @@ Consolidated from DOC-02–17. Each row: key · default · unit/type · edit per
 | `tracking.tag_offsite_after_hours` | `14` | int | update-settings | absence sweep |
 | `tracking.worker_down_window_minutes` | `10` | int | update-settings | fall+stationary correlation |
 | `tracking.headcount_cache_seconds` | `5` | int | update-settings | headcount read cache |
+| `tracking.headcount_source` | `camera` | enum `camera`\|`rfid` | update-settings (confirm) | which path drives live Total Manpower |
 
 ### 4.7 Gas (DOC-11) — safety-critical
 | key | default | type | edit perm | used by |

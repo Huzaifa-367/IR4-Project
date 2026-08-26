@@ -93,7 +93,7 @@
     },
     {
       "name": "Device API (auth.device)",
-      "description": "Surface B — DOC-02 / DOC-08 / DOC-23.\n\nHeader: `X-Device-Token: <plain token>` (shown once when the device is created/rotated in Hardware settings).\n\nDevice-scoped routes use path `{deviceUuid}` + matching token (heartbeat, camera-rois) — same pattern.\nIngest body shape: `{ \"events\": [ … ] }` (max `ingest.max_batch`, default 1000).\nResponse: **202 Accepted** with per-event outcomes — never all-or-nothing.\n\nDemo defaults: `deviceUuid` / `deviceToken` = DEV-CAM-FIXED-01; `cameraRef` = CAM-FIXED-01.",
+      "description": "Surface B — DOC-02 / DOC-08 / DOC-23.\n\nHeader: `X-Device-Token: <plain token>` (shown once when the device is created/rotated in Hardware settings).\n\nDevice-scoped routes use path `{deviceUuid}` + matching token (heartbeat, camera-rois) — same pattern.\nIngest body shape: `{ \"events\": [ … ] }` (max `ingest.max_batch`, default 1000).\nResponse: **202 Accepted** with per-event outcomes — never all-or-nothing.\n\nDemo defaults: `deviceUuid` / `deviceToken` = DEV-CAM-FIXED-01; `cameraRef` = CAM-FIXED-01.\nHeadcount ingest also needs the camera bound under Settings → Repositioning (or run `php scripts/mimic_headcount_edge.php`).",
       "item": [
         {
           "name": "Heartbeat",
@@ -275,6 +275,48 @@
                 },
                 "url": "{{baseUrl}}/api/ingest/tag-readings",
                 "description": "RFID tag reads (DOC-09).\n\nPer event: `event_uid`, `reader_ref`, `tag_uid`, `recorded_at`, optional `rssi` (peakRssi) and `antenna`.\nUnknown EPCs are auto-registered as in_stock. FXR90 does not report tag distance.\n`reader_ref` must resolve to a registered device/reader reference."
+              }
+            },
+            {
+              "name": "POST /api/ingest/headcount-readings",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {",
+                      "  const r = Math.random() * 16 | 0;",
+                      "  return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);",
+                      "});",
+                      "pm.variables.set('eventUid', uuid());",
+                      "pm.variables.set('recordedAt', new Date().toISOString());"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Device-Token",
+                    "value": "{{deviceToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"events\": [\n    {\n      \"event_uid\": \"{{eventUid}}\",\n      \"recorded_at\": \"{{recordedAt}}\",\n      \"count\": {{headcountCount}},\n      \"camera_ref\": \"{{cameraRef}}\"\n    }\n  ]\n}"
+                },
+                "url": "{{baseUrl}}/api/ingest/headcount-readings",
+                "description": "Absolute camera FOV / zone headcount samples (DOC-09).\n\nCaller must be `edge_compute` (`X-Device-Token`).\n\nPer event: `event_uid`, `recorded_at`, `count` (≥0), `camera_ref`.\n`zone_id` is snapped from time-aware `camera_zone_bindings` at `recorded_at` (unbound → null zone; excluded from live totals).\nBoth RFID and camera paths keep writing; `tracking.headcount_source` picks live Total Manpower.\n\nLocal mimic: `php scripts/mimic_headcount_edge.php` (optional `--loop`)."
               }
             },
             {
@@ -793,7 +835,43 @@
               }
             ],
             "url": "{{baseUrl}}/tracking/api/headcount",
-            "description": "On-site headcount totals (DOC-09). Requires `view-tracking`."
+            "description": "On-site headcount totals + by_zone (DOC-09). Requires `view-tracking`. Source is backend-only."
+          }
+        },
+        {
+          "name": "GET /tracking/api/headcount-readings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tracking/api/headcount-readings?limit=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tracking",
+                "api",
+                "headcount-readings"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "25"
+                },
+                {
+                  "key": "zone_id",
+                  "value": "{{zoneId}}",
+                  "disabled": true,
+                  "description": "Optional zone filter"
+                }
+              ]
+            },
+            "description": "Latest camera headcount samples for the Tracking wall (DOC-09). Requires `view-tracking`.\n\nFull history UI: `/tracking/headcount-readings`."
           }
         },
         {

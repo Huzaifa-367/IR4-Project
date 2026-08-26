@@ -15,6 +15,8 @@ type AlertPayload = {
 type HeadcountPayload = {
     total_on_site: number;
     by_zone: Array<{ zone_id: number; count: number; zone_name: string }>;
+    source?: 'rfid' | 'camera';
+    as_of?: string | null;
 };
 
 type PositionDelta = {
@@ -146,6 +148,11 @@ function applyHeadcount(
             ...summary.headcount,
             total_on_site: payload.total_on_site,
             by_zone: payload.by_zone,
+            source: payload.source ?? summary.headcount.source,
+            as_of:
+                payload.as_of !== undefined
+                    ? payload.as_of
+                    : summary.headcount.as_of,
         },
         meta: summary.meta
             ? { ...summary.meta, as_of: new Date().toISOString() }

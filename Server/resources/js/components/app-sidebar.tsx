@@ -157,6 +157,11 @@ export function AppSidebar() {
                       href: tracking.readings.index(),
                       icon: List,
                   } satisfies NavItem,
+                  {
+                      title: 'Headcount records',
+                      href: tracking.headcountReadings.index(),
+                      icon: List,
+                  } satisfies NavItem,
               ]
             : []),
         ...(can('view-entry-exit')

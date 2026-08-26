@@ -22,11 +22,9 @@ type Props = {
     fillFrame?: boolean;
 };
 
-const STARTUP_GRACE_MS = 6_000;
-const STALL_MS = 12_000;
+const STARTUP_GRACE_MS = 8_000;
+const STALL_MS = 25_000;
 const BLANK_SAMPLE_MS = 2_000;
-const BLANK_HOLD_MS = 8_000;
-const LUMA_BLANK_MAX = 8;
 
 /**
  * Play MediaMTX HLS via same-origin /hls/{reference}/index.m3u8 (or absolute
@@ -47,39 +45,6 @@ function resolvePlaylistUrl(playbackUrl: string): string {
     return base.endsWith('/') ? `${base}index.m3u8` : `${base}/index.m3u8`;
 }
 
-function sampleIsBlank(video: HTMLVideoElement): boolean | null {
-    if (video.videoWidth < 8 || video.videoHeight < 8) {
-        return null;
-    }
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 16;
-    canvas.height = 9;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-    if (ctx === null) {
-        return null;
-    }
-
-    try {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        let luma = 0;
-        const samples = pixels.length / 4;
-
-        for (let i = 0; i < pixels.length; i += 4) {
-            luma +=
-                0.2126 * pixels[i] +
-                0.7152 * pixels[i + 1] +
-                0.0722 * pixels[i + 2];
-        }
-
-        return luma / samples < LUMA_BLANK_MAX;
-    } catch {
-        return null;
-    }
-}
-
 export function LiveCameraFeed({
     playbackUrl,
     title,
@@ -95,7 +60,6 @@ export function LiveCameraFeed({
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const hlsRef = useRef<Hls | null>(null);
     const lastFrameAtRef = useRef(0);
-    const blankSinceRef = useRef<number | null>(null);
     const downNotifiedRef = useRef(false);
     const onDownRef = useRef(onDown);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -159,7 +123,6 @@ export function LiveCameraFeed({
 
         downNotifiedRef.current = false;
         lastFrameAtRef.current = Date.now();
-        blankSinceRef.current = null;
         let hls: Hls | null = null;
         let cancelled = false;
 
@@ -242,27 +205,12 @@ export function LiveCameraFeed({
                 return;
             }
 
+            // Stall only — do not hide night/dark frames (luma “blank” false
+            // positives wiped the whole live wall over Tailscale).
             if (now - lastFrameAtRef.current >= STALL_MS) {
                 tearDown();
                 notifyDown();
-
-                return;
             }
-
-            const blank = sampleIsBlank(video);
-
-            if (blank === true) {
-                blankSinceRef.current ??= now;
-
-                if (now - blankSinceRef.current >= BLANK_HOLD_MS) {
-                    tearDown();
-                    notifyDown();
-                }
-
-                return;
-            }
-
-            blankSinceRef.current = null;
         }, BLANK_SAMPLE_MS);
 
         return () => {

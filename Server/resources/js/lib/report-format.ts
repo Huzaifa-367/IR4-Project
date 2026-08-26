@@ -64,7 +64,7 @@ export function formatMinAvgMax(
         return '—';
     }
 
-    return `${formatNumber(min, digits)} / ${formatNumber(avg, digits)} / ${formatNumber(max, digits)}`;
+    return `${formatNumber(min, digits)} · ${formatNumber(avg, digits)} · ${formatNumber(max, digits)}`;
 }
 
 export function formatDateTime(value: string | null | undefined): string {
@@ -169,4 +169,101 @@ export function mergeCounts(
     }
 
     return out;
+}
+
+/** CAM-FIXED-01 → Pole 01 Fixed Camera (falls back to labelize). */
+export function cameraRefLabel(value: string | null | undefined): string {
+    if (!value) {
+        return '—';
+    }
+
+    const match = value.trim().match(/^CAM-(FIXED|PTZ)-(\d{2})$/i);
+
+    if (!match) {
+        return labelize(value);
+    }
+
+    const kind = match[1].toUpperCase() === 'PTZ' ? 'PTZ' : 'Fixed';
+
+    return `Pole ${match[2]} ${kind} Camera`;
+}
+
+/** Pull "83.4" from "… offline 83.4% of the period." */
+export function offlinePctFromMessage(message: string): number | null {
+    const match = message.match(/([\d.]+)\s*%/);
+
+    if (!match) {
+        return null;
+    }
+
+    const pct = Number(match[1]);
+
+    return Number.isFinite(pct) ? pct : null;
+}
+
+/** Device name before "offline …" — used to collapse duplicate outage rows. */
+export function outageDeviceFromMessage(message: string): string | null {
+    const match = message.match(/^(.+?)\s+offline\b/i);
+
+    return match ? match[1].trim() : null;
+}
+
+/** Plain-language outage line for reviewers (keeps numbers). */
+export function humanizeOutageMessage(message: string): string {
+    const device = outageDeviceFromMessage(message);
+    const pct = offlinePctFromMessage(message);
+
+    if (!device || pct === null) {
+        return message;
+    }
+
+    if (pct >= 99.5) {
+        return `${device} sent no usable data all week.`;
+    }
+
+    if (pct >= 50) {
+        return `${device} was offline more than half the week (${formatNumber(pct, 0)}%).`;
+    }
+
+    return `${device} was offline about ${formatNumber(pct, 0)}% of the week.`;
+}
+
+export function pluralize(
+    count: number,
+    singular: string,
+    plural = `${singular}s`,
+): string {
+    return `${count} ${count === 1 ? singular : plural}`;
+}
+
+/** DEV-GAS-01 / Pole 01 Gas Detector → readable; leave friendly names alone. */
+export function deviceRefLabel(value: string | null | undefined): string {
+    if (!value) {
+        return '—';
+    }
+
+    const trimmed = value.trim();
+    const cam = trimmed.match(/^CAM-(FIXED|PTZ)-(\d{2})$/i);
+
+    if (cam) {
+        return cameraRefLabel(trimmed);
+    }
+
+    const gas = trimmed.match(/^(?:DEV-)?GAS[-_]?(\d{2})$/i);
+
+    if (gas) {
+        return `Pole ${gas[1]} Gas Detector`;
+    }
+
+    const rfid = trimmed.match(/^(?:DEV-)?RFID[-_]?(\d{2}|GATE)$/i);
+
+    if (rfid) {
+        const id = rfid[1].toUpperCase();
+
+        return id === 'GATE'
+            ? 'Main Gate RFID Reader'
+            : `Pole ${id} RFID Reader`;
+    }
+
+    return labelize(trimmed);
 }

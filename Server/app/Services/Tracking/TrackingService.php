@@ -10,6 +10,7 @@ use App\Enums\DeviceType;
 use App\Enums\Direction;
 use App\Enums\EntryExitSource;
 use App\Enums\EvacuationStatus;
+use App\Enums\HeadcountSource;
 use App\Enums\MusterStatus;
 use App\Enums\TagStatus;
 use App\Enums\ZoneType;
@@ -52,6 +53,7 @@ final class TrackingService
         private readonly SettingsService $settings,
         private readonly WorkerService $workers,
         private readonly TagService $tags,
+        private readonly HeadcountIngestService $cameraHeadcounts,
     ) {}
 
     /**
@@ -535,13 +537,24 @@ final class TrackingService
     }
 
     /**
-     * @return array{total_on_site: int, by_zone: list<array{zone_id: int, count: int, zone_name: string}>}
+     * @return array{
+     *     total_on_site: int,
+     *     by_zone: list<array{zone_id: int, count: int, zone_name: string}>,
+     *     source: string,
+     *     as_of: string|null
+     * }
      */
     public function headcountSnapshot(): array
     {
         $ttl = max(1, (int) $this->settings->get('tracking.headcount_cache_seconds', 5));
 
         return Cache::remember('tracking.headcount', $ttl, function (): array {
+            $source = $this->cameraHeadcounts->configuredSource();
+
+            if ($source === HeadcountSource::Camera) {
+                return $this->cameraHeadcounts->cameraSnapshot();
+            }
+
             $total = WorkerPosition::query()->where('is_on_site', true)->count();
             $byZone = WorkerPosition::query()
                 ->selectRaw('zone_id, count(*) as count')
@@ -564,6 +577,8 @@ final class TrackingService
             return [
                 'total_on_site' => $total,
                 'by_zone' => $byZone,
+                'source' => HeadcountSource::Rfid->value,
+                'as_of' => null,
             ];
         });
     }
@@ -791,7 +806,7 @@ final class TrackingService
     }
 
     /**
-     * Reconstruct on-site headcount and gate flow across a window (DOC-09 gate logic).
+     * Reconstruct on-site headcount and gate flow across a window (DOC-09 / camera samples).
      *
      * @return array{
      *     shift_start_count: int,
@@ -801,6 +816,23 @@ final class TrackingService
      * }
      */
     public function headcountFlow(\DateTimeInterface $from, \DateTimeInterface $to, int $bucketMinutes = 10): array
+    {
+        if ($this->cameraHeadcounts->configuredSource() === HeadcountSource::Camera) {
+            return $this->cameraHeadcounts->headcountFlow($from, $to, $bucketMinutes);
+        }
+
+        return $this->rfidHeadcountFlow($from, $to, $bucketMinutes);
+    }
+
+    /**
+     * @return array{
+     *     shift_start_count: int,
+     *     peak: int,
+     *     points: list<array{at: string, label: string, on_site: int, entries: int, exits: int}>,
+     *     sparkline: list<int>
+     * }
+     */
+    private function rfidHeadcountFlow(\DateTimeInterface $from, \DateTimeInterface $to, int $bucketMinutes = 10): array
     {
         $from = Carbon::instance($from);
         $to = Carbon::instance($to);
@@ -902,9 +934,12 @@ final class TrackingService
 
         if ($this->headcountDirty) {
             Cache::forget('tracking.headcount');
-            $key = 'broadcast:headcount';
-            if (Cache::add($key, true, $headcountSeconds)) {
-                broadcast(new HeadcountUpdated($this->headcountSnapshot()));
+            // RFID position changes only drive the live Total Manpower when source=rfid.
+            if ($this->cameraHeadcounts->configuredSource() === HeadcountSource::Rfid) {
+                $key = 'broadcast:headcount';
+                if (Cache::add($key, true, $headcountSeconds)) {
+                    broadcast(new HeadcountUpdated($this->headcountSnapshot()));
+                }
             }
             $this->headcountDirty = false;
         }

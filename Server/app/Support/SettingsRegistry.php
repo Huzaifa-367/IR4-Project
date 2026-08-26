@@ -366,6 +366,16 @@ final class SettingsRegistry
                 'min' => 1,
                 'max' => 60,
             ],
+            'tracking.headcount_source' => [
+                'default' => 'camera',
+                'type' => 'enum',
+                'group' => 'tracking',
+                'permission' => 'update-settings',
+                'requires_confirm' => true,
+                'label' => 'Live headcount source',
+                'description' => 'Camera AI absolute count, or RFID gate on-site positions. Both paths keep writing; this chooses Total Manpower.',
+                'options' => ['camera', 'rfid'],
+            ],
 
             'gas.hysteresis_margin_pct' => [
                 'default' => 5.0,

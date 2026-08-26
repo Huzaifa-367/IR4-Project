@@ -22,10 +22,12 @@ export type WeeklyReportData = {
         entries: Array<Record<string, unknown>>;
     };
     iv_weather: { per_day: Array<Record<string, unknown>> };
-    v_manpower: { per_day: Array<Record<string, unknown>> };
+    v_manpower: {
+        source?: 'rfid' | 'camera';
+        per_day: Array<Record<string, unknown>>;
+    };
     vi_units_monitored: { count: number; note: string };
     vii_vehicle_violations: Array<Record<string, unknown>>;
-    viii_environmental: { per_day: Array<Record<string, unknown>> };
     ix_gas: {
         /** One row per day: nested min/avg/max for lel, h2s, o2, co, co2. */
         per_day: Array<Record<string, unknown>>;

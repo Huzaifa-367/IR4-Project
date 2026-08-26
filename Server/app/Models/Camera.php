@@ -118,6 +118,22 @@ final class Camera extends Model
     }
 
     /**
+     * @return HasMany<CameraZoneBinding, $this>
+     */
+    public function zoneBindings(): HasMany
+    {
+        return $this->hasMany(CameraZoneBinding::class);
+    }
+
+    /**
+     * @return HasOne<CameraZoneBinding, $this>
+     */
+    public function currentZoneBinding(): HasOne
+    {
+        return $this->hasOne(CameraZoneBinding::class)->whereNull('bound_until');
+    }
+
+    /**
      * Live View / operator selects — exclude retired and maintenance (DOC-05: don't delete).
      *
      * @param  Builder<static>  $query

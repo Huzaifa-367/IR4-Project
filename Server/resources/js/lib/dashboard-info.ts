@@ -3,14 +3,13 @@ import type { SectionInfoContent } from '@/components/ir4/section-info';
 /** Operator-facing explanations for dashboard panels and KPI cards. */
 export const dashboardInfo = {
     manpower: {
-        summary:
-            'Live count of workers currently marked on site from RFID entry/exit and zone presence.',
+        summary: 'Live count of people currently on site.',
         items: [
             'Total is the current on-site headcount (not filtered by the date range).',
             'Delta compares that live total to headcount at the start of the selected range.',
-            'Sparkline follows gate flow over the selected window.',
+            'Sparkline follows on-site headcount over the selected window.',
         ],
-        source: 'RFID entry/exit logs · worker positions',
+        source: 'TrackingService headcount',
     },
     alerts: {
         summary:
@@ -53,13 +52,13 @@ export const dashboardInfo = {
         source: 'environmental_readings · EnvironmentalDataService::latest',
     },
     occupancy: {
-        summary: 'Live occupancy by zone from RFID reader bindings — no GPS.',
+        summary: 'Live occupancy by zone from current headcount.',
         items: [
-            'A tag is in a zone because the bound reader saw it.',
             'On Site / Zones / In Red are live snapshots, not historical.',
-            'Open Tag readings for the full filtered record list.',
+            'Open Tracking for the full live wall.',
+            'Open Tag readings for the RFID presence record list.',
         ],
-        source: 'zones · reader bindings · worker_positions · headcount',
+        source: 'zones · headcount snapshot',
     },
     alertFeed: {
         summary: 'Streaming list of the latest open and acknowledged alerts.',
@@ -120,16 +119,15 @@ export const dashboardInfo = {
     headcountFlow: {
         summary: 'On-site headcount over time for the selected range.',
         items: [
-            'Built from gate entry and exit events.',
             'Peak is the highest on-site count in the window.',
             'Useful for comparing manpower swings across shifts or days.',
         ],
-        source: 'entry_exit_logs · TrackingService headcountFlow',
+        source: 'TrackingService headcountFlow',
     },
     workersByZone: {
-        summary: 'Live distribution of workers currently present in each zone.',
+        summary: 'Live distribution of people currently counted in each zone.',
         items: [
-            'Uses the current RFID presence snapshot.',
+            'Uses the current headcount snapshot.',
             'Not historical — range filter does not change this chart.',
             'Zones with zero presence are omitted.',
         ],

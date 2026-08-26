@@ -7,6 +7,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import type {
+    HeadcountReading,
     HeadcountSnapshot,
     TrackingCoverage,
     TrackingPosition,
@@ -226,6 +227,55 @@ export function ZoneReadingsTable({ readings }: ReadingsProps) {
                         </TableCell>
                         <TableCell className="text-right font-mono text-text-faint tabular-nums">
                             {row.antenna ?? '—'}
+                        </TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    );
+}
+
+type HeadcountReadingsProps = {
+    readings: HeadcountReading[];
+};
+
+export function ZoneHeadcountReadingsTable({
+    readings,
+}: HeadcountReadingsProps) {
+    if (readings.length === 0) {
+        return (
+            <p className="px-3 py-6 text-sm text-text-faint">
+                No headcount samples for this filter.
+            </p>
+        );
+    }
+
+    return (
+        <Table>
+            <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                    <TableHead>Time</TableHead>
+                    <TableHead>Zone</TableHead>
+                    <TableHead>Camera</TableHead>
+                    <TableHead className="text-right">Count</TableHead>
+                    <TableHead>Kind</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {readings.map((row) => (
+                    <TableRow key={row.id}>
+                        <TableCell className="font-mono text-xs whitespace-nowrap">
+                            {new Date(row.recorded_at).toLocaleString()}
+                        </TableCell>
+                        <TableCell>{row.zone_name ?? 'Unbound'}</TableCell>
+                        <TableCell className="font-mono text-xs text-text-dim">
+                            {row.camera_ref ?? row.camera_name ?? '—'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">
+                            {row.count}
+                        </TableCell>
+                        <TableCell className="text-text-faint">
+                            {row.is_backfill ? 'Backfill' : 'Live'}
                         </TableCell>
                     </TableRow>
                 ))}
