@@ -27,6 +27,7 @@ final class PermitCatalogueSeeder extends Seeder
         $definitions = [
             ['code' => 'iqama', 'name' => 'Iqama / National ID', 'category' => 'identity', 'sort_order' => 10],
             ['code' => 'medical_fitness', 'name' => 'Occupational Medical Fitness', 'category' => 'medical', 'sort_order' => 20],
+            ['code' => 'vaccination', 'name' => 'Vaccination', 'category' => 'medical', 'sort_order' => 25],
             ['code' => 'h2s_awareness', 'name' => 'H₂S Awareness / SCBA', 'category' => 'competence', 'sort_order' => 30],
             ['code' => 'cse_entrant', 'name' => 'Confined Space Entrant', 'category' => 'competence', 'sort_order' => 40],
             ['code' => 'cse_standby', 'name' => 'Confined Space Standby', 'category' => 'competence', 'sort_order' => 50],

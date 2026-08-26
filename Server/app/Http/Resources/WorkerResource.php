@@ -31,6 +31,8 @@ final class WorkerResource extends JsonResource
             'uuid' => $worker->uuid,
             'contractor' => $worker->contractor,
             'role_title' => $worker->role_title,
+            'nationality' => $worker->nationality,
+            'joined_on' => $worker->joined_on?->toDateString(),
             'worker_type' => $worker->worker_type->value,
             'worker_type_label' => $worker->worker_type->label(),
             'is_active' => $worker->is_active,
@@ -43,6 +45,9 @@ final class WorkerResource extends JsonResource
             'photo_url' => $photoUrl,
             'phone' => $canSeeIdentity ? $worker->phone : null,
             'employee_code' => $canSeeIdentity ? $worker->employee_code : null,
+            'date_of_birth' => $canSeeIdentity ? $worker->date_of_birth?->toDateString() : null,
+            'age' => $canSeeIdentity ? $worker->age() : null,
+            'government_id_number' => $canSeeIdentity ? $worker->government_id_number : null,
             'can_see_identity' => $canSeeIdentity,
         ];
     }

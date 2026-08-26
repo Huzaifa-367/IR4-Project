@@ -9,6 +9,7 @@ use App\Models\WorkerImport;
 use App\Services\Tracking\TagService;
 use App\Services\Tracking\TrackingService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -24,6 +25,10 @@ final class WorkerService
      *     contractor: string,
      *     worker_type: string|WorkerType,
      *     role_title?: string|null,
+     *     nationality?: string|null,
+     *     date_of_birth?: string|null,
+     *     joined_on?: string|null,
+     *     government_id_number?: string|null,
      *     badge_number?: string|null,
      *     employee_code?: string|null,
      *     phone?: string|null,
@@ -40,6 +45,10 @@ final class WorkerService
             'contractor' => $data['contractor'],
             'worker_type' => $data['worker_type'],
             'role_title' => $data['role_title'] ?? null,
+            'nationality' => $data['nationality'] ?? null,
+            'date_of_birth' => $data['date_of_birth'] ?? null,
+            'joined_on' => $data['joined_on'] ?? null,
+            'government_id_number' => $data['government_id_number'] ?? null,
             'badge_number' => $data['badge_number'] ?? null,
             'employee_code' => $data['employee_code'] ?? null,
             'phone' => $data['phone'] ?? null,
@@ -56,6 +65,10 @@ final class WorkerService
      *     contractor?: string,
      *     worker_type?: string|WorkerType,
      *     role_title?: string|null,
+     *     nationality?: string|null,
+     *     date_of_birth?: string|null,
+     *     joined_on?: string|null,
+     *     government_id_number?: string|null,
      *     badge_number?: string|null,
      *     employee_code?: string|null,
      *     phone?: string|null,
@@ -65,19 +78,27 @@ final class WorkerService
      */
     public function update(Worker $worker, array $data): Worker
     {
-        $beforeIdentity = [
-            'name' => $worker->name,
-            'badge_number' => $worker->badge_number,
-            'employee_code' => $worker->employee_code,
-            'phone' => $worker->phone,
-        ];
+        $beforeIdentity = $this->identitySnapshot($worker);
 
         if (array_key_exists('photo', $data) && $data['photo'] instanceof UploadedFile) {
             $this->deletePhoto($worker->photo_path);
             $worker->photo_path = $this->storePhoto($data['photo']);
         }
 
-        foreach (['name', 'contractor', 'worker_type', 'role_title', 'badge_number', 'employee_code', 'phone', 'notes'] as $field) {
+        foreach ([
+            'name',
+            'contractor',
+            'worker_type',
+            'role_title',
+            'nationality',
+            'date_of_birth',
+            'joined_on',
+            'government_id_number',
+            'badge_number',
+            'employee_code',
+            'phone',
+            'notes',
+        ] as $field) {
             if (array_key_exists($field, $data)) {
                 $worker->{$field} = $data[$field];
             }
@@ -85,12 +106,7 @@ final class WorkerService
 
         $worker->save();
 
-        $afterIdentity = [
-            'name' => $worker->name,
-            'badge_number' => $worker->badge_number,
-            'employee_code' => $worker->employee_code,
-            'phone' => $worker->phone,
-        ];
+        $afterIdentity = $this->identitySnapshot($worker);
 
         if ($beforeIdentity !== $afterIdentity) {
             $this->audit('config_changed', [
@@ -391,7 +407,20 @@ final class WorkerService
      * @param  array<string, string|null>  $row
      * @param  array<string, int>  $seenBadges
      * @param  array<string, int>  $seenCodes
-     * @return array{name: string, contractor: string, worker_type: string, role_title: ?string, badge_number: ?string, employee_code: ?string, phone: ?string, notes: ?string}
+     * @return array{
+     *     name: string,
+     *     contractor: string,
+     *     worker_type: string,
+     *     role_title: ?string,
+     *     nationality: ?string,
+     *     date_of_birth: ?string,
+     *     joined_on: ?string,
+     *     government_id_number: ?string,
+     *     badge_number: ?string,
+     *     employee_code: ?string,
+     *     phone: ?string,
+     *     notes: ?string
+     * }
      */
     private function validateImportRow(array $row, array $seenBadges, array $seenCodes): array
     {
@@ -415,6 +444,8 @@ final class WorkerService
 
         $badge = $row['badge_number'] ?? null;
         $code = $row['employee_code'] ?? null;
+        $dateOfBirth = $this->parseImportDate($row['date_of_birth'] ?? null, $errors, 'date_of_birth', beforeToday: true);
+        $joinedOn = $this->parseImportDate($row['joined_on'] ?? null, $errors, 'joined_on', beforeToday: false);
 
         if ($badge !== null && isset($seenBadges[strtolower($badge)])) {
             $errors['badge_number'] = ['Duplicate badge_number within file.'];
@@ -422,6 +453,16 @@ final class WorkerService
 
         if ($code !== null && isset($seenCodes[strtolower($code)])) {
             $errors['employee_code'] = ['Duplicate employee_code within file.'];
+        }
+
+        $nationality = $row['nationality'] ?? null;
+        if ($nationality !== null && strlen($nationality) > 100) {
+            $errors['nationality'] = ['nationality max 100.'];
+        }
+
+        $governmentId = $row['government_id_number'] ?? null;
+        if ($governmentId !== null && strlen($governmentId) > 100) {
+            $errors['government_id_number'] = ['government_id_number max 100.'];
         }
 
         if ($errors !== []) {
@@ -433,10 +474,68 @@ final class WorkerService
             'contractor' => (string) $contractor,
             'worker_type' => (string) $workerType,
             'role_title' => $row['role_title'] ?? null,
+            'nationality' => $nationality,
+            'date_of_birth' => $dateOfBirth,
+            'joined_on' => $joinedOn,
+            'government_id_number' => $governmentId,
             'badge_number' => $badge,
             'employee_code' => $code,
             'phone' => $row['phone'] ?? null,
             'notes' => $row['notes'] ?? null,
+        ];
+    }
+
+    /**
+     * @param  array<string, list<string>>  $errors
+     */
+    private function parseImportDate(?string $value, array &$errors, string $field, bool $beforeToday): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        try {
+            $date = Carbon::parse($value)->startOfDay();
+        } catch (\Throwable) {
+            $errors[$field] = ["{$field} must be a valid date (Y-m-d)."];
+
+            return null;
+        }
+
+        if ($beforeToday && $date->greaterThanOrEqualTo(now()->startOfDay())) {
+            $errors[$field] = ["{$field} must be before today."];
+
+            return null;
+        }
+
+        if (! $beforeToday && $date->greaterThan(now()->startOfDay())) {
+            $errors[$field] = ["{$field} must be on or before today."];
+
+            return null;
+        }
+
+        return $date->toDateString();
+    }
+
+    /**
+     * @return array{
+     *     name: string,
+     *     badge_number: string|null,
+     *     employee_code: string|null,
+     *     phone: string|null,
+     *     date_of_birth: string|null,
+     *     government_id_number: string|null
+     * }
+     */
+    private function identitySnapshot(Worker $worker): array
+    {
+        return [
+            'name' => $worker->name,
+            'badge_number' => $worker->badge_number,
+            'employee_code' => $worker->employee_code,
+            'phone' => $worker->phone,
+            'date_of_birth' => $worker->date_of_birth?->toDateString(),
+            'government_id_number' => $worker->government_id_number,
         ];
     }
 

@@ -1,15 +1,21 @@
 import { Head, Link } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
 import type { SettingsColumn } from '@/components/ir4/settings/settings-data-table';
 import { SettingsPageShell } from '@/components/ir4/settings/settings-page-shell';
 import { StatusPill } from '@/components/ir4/status-pill';
+import { WorkerForm } from '@/components/ir4/worker-form';
 import { WorkerIdentityCell } from '@/components/ir4/worker-identity-cell';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { FILTER_SEARCH_DEBOUNCE_MS, visitFilters } from '@/lib/visit-filters';
@@ -44,7 +50,6 @@ export default function WorkersIndex({
     const [form, setForm] = useState<FormState | null>(() =>
         openCreate && canManage ? { mode: 'create' } : null,
     );
-    const [editType, setEditType] = useState('contractor');
 
     const applyFilters = (
         patch: Partial<{
@@ -148,7 +153,6 @@ export default function WorkersIndex({
                             size="sm"
                             variant="ghost"
                             onClick={() => {
-                                setEditType(worker.worker_type);
                                 setForm({ mode: 'edit', worker });
                             }}
                         >
@@ -183,7 +187,6 @@ export default function WorkersIndex({
                             <Button
                                 type="button"
                                 onClick={() => {
-                                    setEditType('contractor');
                                     setForm({ mode: 'create' });
                                 }}
                             >
@@ -204,8 +207,8 @@ export default function WorkersIndex({
                             }}
                             placeholder={
                                 canSeeIdentity
-                                    ? 'Name, badge…'
-                                    : 'Contractor or role'
+                                    ? 'Name, badge, government ID…'
+                                    : 'Contractor, role, or nationality'
                             }
                             className="w-full sm:w-56"
                             aria-label="Search workers"
@@ -253,175 +256,71 @@ export default function WorkersIndex({
                 />
             </SettingsPageShell>
 
-            <CrudFormDialog
+            <Dialog
                 open={form !== null}
                 onOpenChange={(open) => {
                     if (!open) {
                         setForm(null);
                     }
                 }}
-                title={form?.mode === 'edit' ? 'Edit worker' : 'Add worker'}
-                action={
-                    form?.mode === 'edit'
-                        ? tracking.workers.update.url(form.worker.uuid)
-                        : tracking.workers.store.url()
-                }
-                method={form?.mode === 'edit' ? 'put' : 'post'}
-                submitLabel={
-                    form?.mode === 'edit' ? 'Save worker' : 'Create worker'
-                }
-                encType="multipart/form-data"
-                transform={(data) => ({ ...data, worker_type: editType })}
             >
-                {({ errors }) => (
-                    <>
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="worker-name">Name</Label>
-                            <Input
-                                id="worker-name"
-                                name="name"
-                                required
-                                maxLength={150}
-                                defaultValue={
-                                    form?.mode === 'edit'
-                                        ? form.worker.name
-                                        : ''
-                                }
-                            />
-                            {errors.name ? (
-                                <p className="text-sm text-destructive">
-                                    {errors.name}
-                                </p>
-                            ) : null}
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="worker-contractor">
-                                Contractor
-                            </Label>
-                            <Input
-                                id="worker-contractor"
-                                name="contractor"
-                                required
-                                maxLength={150}
-                                defaultValue={
-                                    form?.mode === 'edit'
-                                        ? form.worker.contractor
-                                        : ''
-                                }
-                            />
-                            {errors.contractor ? (
-                                <p className="text-sm text-destructive">
-                                    {errors.contractor}
-                                </p>
-                            ) : null}
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label>Worker type</Label>
-                            <SearchableSelect
-                                value={editType}
-                                onValueChange={setEditType}
-                                options={workerTypes.map((type) => ({
-                                    value: type.value,
-                                    label: type.label,
-                                }))}
-                            />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="worker-role">Role title</Label>
-                            <Input
-                                id="worker-role"
-                                name="role_title"
-                                maxLength={150}
-                                defaultValue={
-                                    form?.mode === 'edit'
-                                        ? (form.worker.role_title ?? '')
-                                        : ''
-                                }
-                            />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="worker-badge">Badge number</Label>
-                            <Input
-                                id="worker-badge"
-                                name="badge_number"
-                                maxLength={100}
-                                defaultValue={
-                                    form?.mode === 'edit'
-                                        ? (form.worker.badge_number ?? '')
-                                        : ''
-                                }
-                            />
-                            {errors.badge_number ? (
-                                <p className="text-sm text-destructive">
-                                    {errors.badge_number}
-                                </p>
-                            ) : null}
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="worker-employee-code">
-                                Employee code
-                            </Label>
-                            <Input
-                                id="worker-employee-code"
-                                name="employee_code"
-                                maxLength={100}
-                                defaultValue={
-                                    form?.mode === 'edit'
-                                        ? (form.worker.employee_code ?? '')
-                                        : ''
-                                }
-                            />
-                            {errors.employee_code ? (
-                                <p className="text-sm text-destructive">
-                                    {errors.employee_code}
-                                </p>
-                            ) : null}
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="worker-phone">Phone</Label>
-                            <Input
-                                id="worker-phone"
-                                name="phone"
-                                maxLength={40}
-                                defaultValue={
-                                    form?.mode === 'edit'
-                                        ? (form.worker.phone ?? '')
-                                        : ''
-                                }
-                            />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="worker-photo">Photo</Label>
-                            <Input
-                                id="worker-photo"
-                                name="photo"
-                                type="file"
-                                accept="image/jpeg,image/png"
-                            />
-                            {errors.photo ? (
-                                <p className="text-sm text-destructive">
-                                    {errors.photo}
-                                </p>
-                            ) : null}
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="worker-notes">Notes</Label>
-                            <textarea
-                                id="worker-notes"
-                                name="notes"
-                                rows={3}
-                                maxLength={5000}
-                                defaultValue={
-                                    form?.mode === 'edit'
-                                        ? (form.worker.notes ?? '')
-                                        : ''
-                                }
-                                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            />
-                        </div>
-                    </>
-                )}
-            </CrudFormDialog>
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {form?.mode === 'edit'
+                                ? 'Edit worker'
+                                : 'Add worker'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {form?.mode === 'edit'
+                                ? 'Update profile details.'
+                                : 'Register a worker. Certifications and vaccination belong on the Documents tab after create.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {form ? (
+                        <WorkerForm
+                            action={
+                                form.mode === 'edit'
+                                    ? tracking.workers.update.url(
+                                          form.worker.uuid,
+                                      )
+                                    : tracking.workers.store.url()
+                            }
+                            method={form.mode === 'edit' ? 'put' : 'post'}
+                            workerTypes={workerTypes}
+                            defaults={
+                                form.mode === 'edit'
+                                    ? {
+                                          name: form.worker.name,
+                                          contractor: form.worker.contractor,
+                                          worker_type: form.worker.worker_type,
+                                          role_title: form.worker.role_title,
+                                          nationality: form.worker.nationality,
+                                          date_of_birth:
+                                              form.worker.date_of_birth,
+                                          joined_on: form.worker.joined_on,
+                                          government_id_number:
+                                              form.worker.government_id_number,
+                                          badge_number:
+                                              form.worker.badge_number,
+                                          employee_code:
+                                              form.worker.employee_code,
+                                          phone: form.worker.phone,
+                                          notes: form.worker.notes,
+                                      }
+                                    : undefined
+                            }
+                            submitLabel={
+                                form.mode === 'edit'
+                                    ? 'Save worker'
+                                    : 'Create worker'
+                            }
+                            className="space-y-4"
+                            onSuccess={() => setForm(null)}
+                        />
+                    ) : null}
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

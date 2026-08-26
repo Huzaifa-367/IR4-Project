@@ -226,6 +226,7 @@ worker_document_types: id, code (unique), name, description,
 // Seeded examples (editable / extensible — not hardcoded gates):
 //   iqama                 — Iqama / national ID evidence (identity)
 //   medical_fitness       — Occupational medical fitness (NCOSH / Labour Law)
+//   vaccination           — Vaccination record / status evidence (medical)
 //   h2s_awareness         — H₂S awareness / SCBA competence
 //   cse_entrant           — Confined-space entrant training
 //   cse_standby           — Confined-space standby / attendant

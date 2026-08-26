@@ -72,7 +72,15 @@ final class AlertResource extends JsonResource
             $payload['worker_label'] = "Worker #{$payload['worker_id']}";
         }
 
-        unset($payload['phone'], $payload['badge_number'], $payload['employee_code'], $payload['photo_url']);
+        unset(
+            $payload['phone'],
+            $payload['badge_number'],
+            $payload['employee_code'],
+            $payload['photo_url'],
+            $payload['date_of_birth'],
+            $payload['age'],
+            $payload['government_id_number'],
+        );
 
         return $payload;
     }

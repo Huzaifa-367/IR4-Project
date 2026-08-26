@@ -105,6 +105,25 @@ function formatDate(value: string | null): string {
     return value ? new Date(value).toLocaleString() : '—';
 }
 
+/** Calendar dates (Y-m-d) without timezone shift. */
+function formatDay(value: string | null): string {
+    if (!value) {
+        return '—';
+    }
+
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+
+    if (match) {
+        const year = Number(match[1]);
+        const month = Number(match[2]) - 1;
+        const day = Number(match[3]);
+
+        return new Date(year, month, day).toLocaleDateString();
+    }
+
+    return new Date(value).toLocaleDateString();
+}
+
 function tagStatusTone(status: string): StatusPillTone {
     if (status === 'assigned') {
         return 'ok';
@@ -333,10 +352,38 @@ export default function WorkersShow({
                                 label="Employee code"
                                 value={worker.employee_code}
                             />
+                            <DetailField
+                                label="Government ID"
+                                value={worker.government_id_number}
+                            />
                             <DetailField label="Phone" value={worker.phone} />
                             <DetailField
-                                label="Role"
+                                label="Job title"
                                 value={worker.role_title}
+                            />
+                            <DetailField
+                                label="Nationality"
+                                value={worker.nationality}
+                            />
+                            <DetailField
+                                label="Birthdate"
+                                value={
+                                    worker.date_of_birth
+                                        ? `${formatDay(worker.date_of_birth)}${
+                                              worker.age !== null
+                                                  ? ` · age ${worker.age}`
+                                                  : ''
+                                          }`
+                                        : null
+                                }
+                            />
+                            <DetailField
+                                label="Joining date"
+                                value={
+                                    worker.joined_on
+                                        ? formatDay(worker.joined_on)
+                                        : null
+                                }
                             />
                             <div className="sm:col-span-2">
                                 <DetailField
@@ -714,6 +761,11 @@ export default function WorkersShow({
                                 contractor: worker.contractor,
                                 worker_type: worker.worker_type,
                                 role_title: worker.role_title,
+                                nationality: worker.nationality,
+                                date_of_birth: worker.date_of_birth,
+                                joined_on: worker.joined_on,
+                                government_id_number:
+                                    worker.government_id_number,
                                 badge_number: worker.badge_number,
                                 employee_code: worker.employee_code,
                                 phone: worker.phone,

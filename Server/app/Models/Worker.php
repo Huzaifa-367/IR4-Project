@@ -24,6 +24,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $badge_number
  * @property string $contractor
  * @property string|null $role_title
+ * @property string|null $nationality
+ * @property Carbon|null $date_of_birth
+ * @property Carbon|null $joined_on
+ * @property string|null $government_id_number
  * @property WorkerType $worker_type
  * @property string|null $phone
  * @property string|null $photo_path
@@ -52,10 +56,24 @@ final class Worker extends Model
     {
         return [
             'worker_type' => WorkerType::class,
+            'date_of_birth' => 'date',
+            'joined_on' => 'date',
             'is_active' => 'boolean',
             'present' => 'boolean',
             'last_seen_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Derived age from date_of_birth — never stored.
+     */
+    public function age(): ?int
+    {
+        if ($this->date_of_birth === null) {
+            return null;
+        }
+
+        return $this->date_of_birth->age;
     }
 
     public function anonymizedLabel(): string

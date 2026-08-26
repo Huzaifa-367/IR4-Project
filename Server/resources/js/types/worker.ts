@@ -4,6 +4,8 @@ export type Worker = {
     name: string;
     contractor: string;
     role_title: string | null;
+    nationality: string | null;
+    joined_on: string | null;
     worker_type: string;
     worker_type_label: string;
     is_active: boolean;
@@ -15,6 +17,9 @@ export type Worker = {
     photo_url: string | null;
     phone: string | null;
     employee_code: string | null;
+    date_of_birth: string | null;
+    age: number | null;
+    government_id_number: string | null;
     can_see_identity: boolean;
 };
 

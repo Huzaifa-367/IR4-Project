@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Models\Worker;
+use App\Models\WorkerDocumentType;
 use App\Models\WorkerImport;
 use App\Services\Worker\WorkerService;
 use Database\Seeders\PermitCatalogueSeeder;
@@ -19,6 +20,10 @@ it('creates and lists workers for create-workers users', function () {
             'contractor' => 'ACME',
             'worker_type' => 'contractor',
             'role_title' => 'Rigger',
+            'nationality' => 'Filipino',
+            'date_of_birth' => '1990-05-15',
+            'joined_on' => '2024-01-10',
+            'government_id_number' => '2345678901',
             'badge_number' => 'BDG-1',
         ]);
 
@@ -35,10 +40,15 @@ it('creates and lists workers for create-workers users', function () {
         ->assertInertia(fn ($page) => $page
             ->component('workforce/workers/index')
             ->has('workers.data', 1)
-            ->where('workers.data.0.name', 'Jane Doe'));
+            ->where('workers.data.0.name', 'Jane Doe')
+            ->where('workers.data.0.nationality', 'Filipino')
+            ->where('workers.data.0.government_id_number', '2345678901')
+            ->where('workers.data.0.date_of_birth', '1990-05-15')
+            ->where('workers.data.0.age', $worker->age()));
 
     expect($worker->present)->toBeFalse()
-        ->and($worker->created_by)->toBe($user->id);
+        ->and($worker->created_by)->toBe($user->id)
+        ->and($worker->joined_on?->toDateString())->toBe('2024-01-10');
 });
 
 it('shows document checklist and permit readiness on worker show during onboarding', function () {
@@ -67,6 +77,10 @@ it('strips identity without view-worker-identity', function () {
         'badge_number' => 'BDG-SECRET',
         'phone' => '+15551212',
         'employee_code' => 'EMP-SECRET',
+        'government_id_number' => 'ID-SECRET',
+        'date_of_birth' => '1988-03-01',
+        'nationality' => 'Saudi',
+        'joined_on' => '2023-06-01',
         'created_by' => $operator->id,
     ]);
 
@@ -81,6 +95,11 @@ it('strips identity without view-worker-identity', function () {
             ->where('worker.badge_number', null)
             ->where('worker.phone', null)
             ->where('worker.employee_code', null)
+            ->where('worker.government_id_number', null)
+            ->where('worker.date_of_birth', null)
+            ->where('worker.age', null)
+            ->where('worker.nationality', 'Saudi')
+            ->where('worker.joined_on', '2023-06-01')
             ->where('worker.contractor', $worker->contractor));
 
     $this->actingAs($operator)
@@ -88,7 +107,10 @@ it('strips identity without view-worker-identity', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->where('worker.name', 'Secret Name')
-            ->where('worker.badge_number', 'BDG-SECRET'));
+            ->where('worker.badge_number', 'BDG-SECRET')
+            ->where('worker.government_id_number', 'ID-SECRET')
+            ->where('worker.date_of_birth', '1988-03-01')
+            ->where('worker.age', $worker->age()));
 });
 
 it('disables name search for users without view-worker-identity', function () {
@@ -171,10 +193,10 @@ it('imports valid csv rows partially when some fail', function () {
     $user = User::factory()->withRole('SCC Operator')->create();
 
     $csv = implode("\n", [
-        'name,contractor,worker_type,role_title,badge_number,employee_code,phone,notes',
-        'Alice,ACME,contractor,Rigger,BDG-A1,,,',
-        'Bad,,visitor,,,,,',
-        'Bob,BuildCo,employee,Welder,BDG-B1,,,',
+        'name,contractor,worker_type,role_title,nationality,date_of_birth,joined_on,government_id_number,badge_number,employee_code,phone,notes',
+        'Alice,ACME,contractor,Rigger,Filipino,1992-01-02,2024-02-01,111222333,BDG-A1,,,',
+        'Bad,,visitor,,,,,,,,,',
+        'Bob,BuildCo,employee,Welder,Indian,1985-07-20,2023-11-15,444555666,BDG-B1,,,',
     ]);
 
     $file = UploadedFile::fake()->createWithContent('roster.csv', $csv);
@@ -189,7 +211,15 @@ it('imports valid csv rows partially when some fail', function () {
     expect(Worker::query()->count())->toBe(2)
         ->and($import->fresh()->status)->toBe('completed')
         ->and($import->fresh()->summary['created'])->toBe(2)
-        ->and($import->fresh()->summary['errors'])->not->toBeEmpty();
+        ->and($import->fresh()->summary['errors'])->not->toBeEmpty()
+        ->and(Worker::query()->where('badge_number', 'BDG-A1')->value('nationality'))->toBe('Filipino')
+        ->and(Worker::query()->where('badge_number', 'BDG-A1')->value('government_id_number'))->toBe('111222333');
+});
+
+it('seeds vaccination as a worker document type', function () {
+    $this->seed(PermitCatalogueSeeder::class);
+
+    expect(WorkerDocumentType::query()->where('code', 'vaccination')->exists())->toBeTrue();
 });
 
 it('updates on re-import matched by badge_number', function () {
@@ -202,7 +232,7 @@ it('updates on re-import matched by badge_number', function () {
         'created_by' => $user->id,
     ]);
 
-    $csv = "name,contractor,worker_type,role_title,badge_number,employee_code,phone,notes\nNew Name,ACME,contractor,Lead,BDG-DUP,,,\n";
+    $csv = "name,contractor,worker_type,role_title,nationality,date_of_birth,joined_on,government_id_number,badge_number,employee_code,phone,notes\nNew Name,ACME,contractor,Lead,Saudi,1991-04-04,2022-01-01,999888777,BDG-DUP,,,\n";
     $path = 'imports/workers/test.csv';
     Storage::disk('private')->put($path, $csv);
 

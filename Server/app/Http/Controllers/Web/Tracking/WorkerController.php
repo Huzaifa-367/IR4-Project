@@ -59,8 +59,8 @@ final class WorkerController extends BaseController
         }
 
         $searchable = $canSeeIdentity
-            ? ['name', 'contractor', 'role_title', 'badge_number', 'employee_code']
-            : ['contractor', 'role_title'];
+            ? ['name', 'contractor', 'role_title', 'nationality', 'badge_number', 'employee_code', 'government_id_number']
+            : ['contractor', 'role_title', 'nationality'];
 
         $this->applyListQuery(
             $query,
@@ -370,7 +370,7 @@ final class WorkerController extends BaseController
     {
         $this->authorize('import', Worker::class);
 
-        $csv = "name,contractor,worker_type,role_title,badge_number,employee_code,phone,notes\n";
+        $csv = "name,contractor,worker_type,role_title,nationality,date_of_birth,joined_on,government_id_number,badge_number,employee_code,phone,notes\n";
         $csv .= "Jane Doe,ACME Contracting,contractor,Rigger,BDG-1001,EMP-1001,,\n";
 
         return response($csv, 200, [

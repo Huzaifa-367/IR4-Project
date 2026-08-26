@@ -42,6 +42,10 @@ Schema::create('workers', function (Blueprint $table) {
     $table->string('badge_number')->nullable()->unique();    // physical badge id
     $table->string('contractor');                            // employing company / contractor name
     $table->string('role_title')->nullable();                // job title on site (e.g. "Rigger")
+    $table->string('nationality')->nullable();               // non-identity — filterable like contractor
+    $table->date('date_of_birth')->nullable();               // identity; age is derived, never stored
+    $table->date('joined_on')->nullable();                   // employment / site joining date
+    $table->string('government_id_number')->nullable();      // identity quick-lookup (Iqama etc.); file evidence stays on worker_documents
     $table->string('worker_type');                           // enum WorkerType (§3.3)
     $table->string('phone')->nullable();
     $table->string('photo_path')->nullable();                // private disk; identity — permissioned
@@ -118,8 +122,10 @@ Authoritative presence lives in `worker_positions.is_on_site` (DOC-09). This doc
 DOC-03 introduced the permission; DOC-04 defines exactly how the Worker payload is stripped, because Worker is the identity source.
 
 ### 5.1 What is identity vs non-identity
-- **Identity (stripped without `view-worker-identity`):** `name`, `photo_path`, `phone`, `badge_number`, `employee_code`.
-- **Non-identity (always visible with `view-tracking`):** `id`, `contractor`, `role_title`, `worker_type`, `present`, `last_seen_at`, zone/position (DOC-09).
+- **Identity (stripped without `view-worker-identity`):** `name`, `photo_path`, `phone`, `badge_number`, `employee_code`, `date_of_birth` (and derived `age`), `government_id_number`.
+- **Non-identity (always visible with `view-tracking`):** `id`, `contractor`, `role_title`, `nationality`, `joined_on`, `worker_type`, `present`, `last_seen_at`, zone/position (DOC-09).
+
+**Skill / certification / vaccination** are **not** columns on `workers`. Job title is `role_title`; competence, medical fitness, vaccination, and government-ID *file evidence* live in the dynamic `worker_documents` registry (DOC-22 §4.6).
 
 Rationale: contractor + role + presence supports safety operations (how many riggers from ACME are in Zone 3) without exposing individuals.
 
@@ -133,6 +139,8 @@ public function toArray($request): array
         'id'          => $this->id,
         'contractor'  => $this->contractor,
         'role_title'  => $this->role_title,
+        'nationality' => $this->nationality,
+        'joined_on'   => $this->joined_on,
         'worker_type' => $this->worker_type,
         'present'     => $this->present,
         'last_seen_at'=> $this->last_seen_at,
@@ -143,6 +151,10 @@ public function toArray($request): array
                             ? SnapshotStorage::signedUrl($this->photo_path) : null,
         'phone'        => $canSeeIdentity ? $this->phone : null,
         'employee_code'=> $canSeeIdentity ? $this->employee_code : null,
+        'date_of_birth'=> $canSeeIdentity ? $this->date_of_birth : null,
+        'age'          => $canSeeIdentity && $this->date_of_birth
+                            ? $this->date_of_birth->age : null,   // derived; never a column
+        'government_id_number' => $canSeeIdentity ? $this->government_id_number : null,
     ];
 }
 ```
@@ -204,12 +216,16 @@ Worker management is **operator UI = Inertia** (surface A, DOC-01 §3). All writ
 - `contractor` required|string|max:150
 - `worker_type` required, `Rule::enum(WorkerType::class)`
 - `role_title` nullable|string|max:150
+- `nationality` nullable|string|max:100
+- `date_of_birth` nullable|date|before:today
+- `joined_on` nullable|date|before_or_equal:today
+- `government_id_number` nullable|string|max:100
 - `badge_number` nullable|string|max:100|unique (ignore self on update)
 - `employee_code` nullable|string|max:100|unique (ignore self)
 - `phone` nullable|string|max:40
 - `photo` nullable|image|mimes:jpg,jpeg,png|max:10240 (stored private)
 - `notes` nullable|string|max:5000
-- Requests whitelist **only** these human fields — never `present`/`last_seen_at` (derived; DOC-01 §8 rule).
+- Requests whitelist **only** these human fields — never `present`/`last_seen_at`/`age` (derived; DOC-01 §8 rule).
 
 ### 7.1 List filters
 `contractor`, `worker_type`, `is_active` (default true), `present` (on-site toggle), `has_tag` (assigned/none), plus standard `search` (name — only for identity-permitted users; otherwise contractor/role only), `sort`, `direction`, `page`, `per_page`.
@@ -221,7 +237,7 @@ Worker management is **operator UI = Inertia** (surface A, DOC-01 §3). All writ
 Real life: at mobilization the safety team receives worker rosters as spreadsheets (often per contractor). Manual entry of ~100 workers is error-prone, so `manage-workers` gets a CSV import.
 
 - **Endpoint:** POST `/tracking/workers/import` (multipart CSV) → queued `ImportWorkersJob` on the `default` queue → row-level result report (created, skipped-duplicate, errored-with-reason) surfaced back on the import page.
-- **CSV columns:** `name` (req), `contractor` (req), `worker_type` (req: employee|contractor|visitor), `role_title`, `badge_number`, `employee_code`, `phone`, `notes`. Header row required; template downloadable.
+- **CSV columns:** `name` (req), `contractor` (req), `worker_type` (req: employee|contractor|visitor), `role_title`, `nationality`, `date_of_birth`, `joined_on`, `government_id_number`, `badge_number`, `employee_code`, `phone`, `notes`. Header row required; template downloadable.
 - **Validation:** each row validated as if through `StoreWorkerRequest`; unique `badge_number`/`employee_code` enforced within the file and against existing rows. Invalid rows are reported, valid rows still import (partial success — never all-or-nothing).
 - **Idempotency:** re-importing the same roster matches on `badge_number` or `employee_code` (if present) and **updates** rather than duplicating; rows with no stable key and a matching name+contractor are flagged for the operator to confirm rather than silently duplicated `[CONFIRM AT DESIGN]`.
 - **No tag assignment in import** — import creates the registry; tags are assigned separately (DOC-09), matching real workflow (badges/tags issued at the gate).
@@ -286,7 +302,7 @@ Every one of these FKs targets `workers.id`, never `users.id`. This table is the
 | # | Decision | Default | Confirm in |
 |---|---|---|---|
 | 1 | `contractor` as string vs its own reference table | string (v1) | this doc / DOC-15 if per-contractor rollups needed |
-| 2 | Which fields count as "identity" (include phone/badge?) | name, photo, phone, badge, employee_code | this doc / DOC-03 |
+| 2 | Which fields count as "identity" (include phone/badge?) | name, photo, phone, badge, employee_code, date_of_birth, government_id_number | this doc / DOC-03 |
 | 3 | Import dedupe when no stable key | flag name+contractor matches for confirmation | this doc |
 | 4 | Deactivate vs soft-delete as the standard offboard | deactivate (soft-delete reserved for corrections/removal) | this doc |
 

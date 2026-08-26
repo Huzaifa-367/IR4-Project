@@ -12,6 +12,10 @@ type WorkerFormValues = {
     contractor?: string;
     worker_type?: string;
     role_title?: string | null;
+    nationality?: string | null;
+    date_of_birth?: string | null;
+    joined_on?: string | null;
+    government_id_number?: string | null;
     badge_number?: string | null;
     employee_code?: string | null;
     phone?: string | null;
@@ -102,7 +106,7 @@ export function WorkerForm({
                         ) : null}
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="role_title">Role title</Label>
+                        <Label htmlFor="role_title">Job title</Label>
                         <Input
                             id="role_title"
                             name="role_title"
@@ -112,6 +116,66 @@ export function WorkerForm({
                         {errors.role_title ? (
                             <p className="text-sm text-destructive">
                                 {errors.role_title}
+                            </p>
+                        ) : null}
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="nationality">Nationality</Label>
+                        <Input
+                            id="nationality"
+                            name="nationality"
+                            maxLength={100}
+                            defaultValue={defaults.nationality ?? ''}
+                        />
+                        {errors.nationality ? (
+                            <p className="text-sm text-destructive">
+                                {errors.nationality}
+                            </p>
+                        ) : null}
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
+                        <div className="grid gap-2">
+                            <Label htmlFor="date_of_birth">Birthdate</Label>
+                            <Input
+                                id="date_of_birth"
+                                name="date_of_birth"
+                                type="date"
+                                defaultValue={defaults.date_of_birth ?? ''}
+                            />
+                            {errors.date_of_birth ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.date_of_birth}
+                                </p>
+                            ) : null}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="joined_on">Joining date</Label>
+                            <Input
+                                id="joined_on"
+                                name="joined_on"
+                                type="date"
+                                defaultValue={defaults.joined_on ?? ''}
+                            />
+                            {errors.joined_on ? (
+                                <p className="text-sm text-destructive">
+                                    {errors.joined_on}
+                                </p>
+                            ) : null}
+                        </div>
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="government_id_number">
+                            Government ID number
+                        </Label>
+                        <Input
+                            id="government_id_number"
+                            name="government_id_number"
+                            maxLength={100}
+                            defaultValue={defaults.government_id_number ?? ''}
+                        />
+                        {errors.government_id_number ? (
+                            <p className="text-sm text-destructive">
+                                {errors.government_id_number}
                             </p>
                         ) : null}
                     </div>
@@ -187,6 +251,11 @@ export function WorkerForm({
                             </p>
                         ) : null}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                        Certifications, skills, and vaccination status are
+                        managed on the Documents tab — not as fixed profile
+                        fields.
+                    </p>
                     <Button type="submit" disabled={processing}>
                         {submitLabel}
                     </Button>

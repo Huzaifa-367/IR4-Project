@@ -30,6 +30,10 @@ final class UpdateWorkerRequest extends FormRequest
             'contractor' => ['sometimes', 'required', 'string', 'max:150'],
             'worker_type' => ['sometimes', 'required', Rule::enum(WorkerType::class)],
             'role_title' => ['nullable', 'string', 'max:150'],
+            'nationality' => ['nullable', 'string', 'max:100'],
+            'date_of_birth' => ['nullable', 'date', 'before:today'],
+            'joined_on' => ['nullable', 'date', 'before_or_equal:today'],
+            'government_id_number' => ['nullable', 'string', 'max:100'],
             'badge_number' => [
                 'nullable',
                 'string',
