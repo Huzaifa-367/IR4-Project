@@ -22,6 +22,9 @@ class DatabaseSeeder extends Seeder
             $this->call(DemoSeeder::class);
         }
 
+        // Existing installs (incl. production): bind unbound cameras to sibling RFID zones.
+        $this->call(CameraZoneBindingSeeder::class);
+
         $this->call(DeviceCredentialsSeeder::class);
     }
 }

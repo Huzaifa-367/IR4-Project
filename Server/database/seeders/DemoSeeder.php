@@ -13,6 +13,7 @@ use App\Enums\WorkerType;
 use App\Enums\ZoneType;
 use App\Models\Asset;
 use App\Models\Camera;
+use App\Models\CameraZoneBinding;
 use App\Models\Device;
 use App\Models\Equipment;
 use App\Models\ReaderZoneBinding;
@@ -225,7 +226,7 @@ final class DemoSeeder extends Seeder
 
             // Stream registry — real Hikvision RTSP (SCC-SETUP §13). .11 bullet, .10 PTZ.
             // 1:1 device↔camera (DOC-23): processed_by_device_id = this camera's AI device.
-            Camera::query()->create([
+            $fixedCam = Camera::query()->create([
                 'asset_id' => $asset->id,
                 'name' => "{$label} Fixed Camera",
                 'reference' => $fixedCamRef,
@@ -236,7 +237,7 @@ final class DemoSeeder extends Seeder
                 'status' => HardwareStatus::Offline,
                 'meta' => ['role' => 'ppe'],
             ]);
-            Camera::query()->create([
+            $ptzCam = Camera::query()->create([
                 'asset_id' => $asset->id,
                 'name' => "{$label} PTZ Camera",
                 'reference' => $ptzCamRef,
@@ -247,6 +248,18 @@ final class DemoSeeder extends Seeder
                 'status' => HardwareStatus::Offline,
                 'meta' => ['role' => 'overview'],
             ]);
+
+            // Same pole zone as RFID — required for live camera headcount by_zone (DOC-09).
+            foreach ([$fixedCam, $ptzCam] as $camera) {
+                CameraZoneBinding::query()->create([
+                    'camera_id' => $camera->id,
+                    'zone_id' => $zone->id,
+                    'bound_from' => now(),
+                    'bound_until' => null,
+                    'bound_by' => $this->admin->id,
+                    'note' => "{$label} camera headcount binding",
+                ]);
+            }
         }
     }
 
