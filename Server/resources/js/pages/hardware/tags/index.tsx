@@ -1,6 +1,7 @@
-import { Head } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { Plus, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { ConfirmActionDialog } from '@/components/ir4/settings/confirm-action-dialog';
 import { CrudFormDialog } from '@/components/ir4/settings/crud-form-dialog';
 import { SettingsDataTable } from '@/components/ir4/settings/settings-data-table';
@@ -60,6 +61,8 @@ export default function TagsIndex({
     const [assignTarget, setAssignTarget] = useState<TagRow | null>(null);
     const [assignWorker, setAssignWorker] = useState('');
     const [unassignTarget, setUnassignTarget] = useState<TagRow | null>(null);
+    const [importing, setImporting] = useState(false);
+    const csvInputRef = useRef<HTMLInputElement>(null);
 
     const queryParams = {
         status: status === 'all' ? undefined : status,
@@ -82,6 +85,33 @@ export default function TagsIndex({
         (value: string) => applyFilters({ search: value }),
         FILTER_SEARCH_DEBOUNCE_MS,
     );
+
+    const uploadCsv = (file: File | null): void => {
+        if (!file) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        setImporting(true);
+        router.post(tracking.tags.import.url(), formData, {
+            forceFormData: true,
+            onError: (errors) => {
+                const message =
+                    typeof errors.file === 'string'
+                        ? errors.file
+                        : 'CSV import failed.';
+                toast.error(message);
+            },
+            onFinish: () => {
+                setImporting(false);
+
+                if (csvInputRef.current) {
+                    csvInputRef.current.value = '';
+                }
+            },
+        });
+    };
 
     const columns: SettingsColumn<TagRow>[] = [
         {
@@ -143,10 +173,35 @@ export default function TagsIndex({
                 description={`${spareCount} in stock`}
                 actions={
                     canManage ? (
-                        <Button type="button" onClick={() => setAddOpen(true)}>
-                            <Plus data-icon="inline-start" />
-                            Add tag
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <input
+                                ref={csvInputRef}
+                                type="file"
+                                accept=".csv,text/csv"
+                                className="sr-only"
+                                aria-hidden
+                                tabIndex={-1}
+                                onChange={(event) =>
+                                    uploadCsv(event.target.files?.[0] ?? null)
+                                }
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={importing}
+                                onClick={() => csvInputRef.current?.click()}
+                            >
+                                <Upload data-icon="inline-start" />
+                                {importing ? 'Importing…' : 'Import CSV'}
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={() => setAddOpen(true)}
+                            >
+                                <Plus data-icon="inline-start" />
+                                Add tag
+                            </Button>
+                        </div>
                     ) : undefined
                 }
                 filters={

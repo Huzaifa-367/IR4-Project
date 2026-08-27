@@ -18,6 +18,7 @@ use App\Models\Zone;
 use App\Services\Tracking\ReaderBindingService;
 use App\Services\Tracking\TagService;
 use App\Services\Tracking\TrackingService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -311,4 +312,45 @@ it('manual entry exit correction creates a new row', function () {
 
     expect(EntryExitLog::query()->where('source', 'manual_correction')->count())->toBe(1)
         ->and($worker->fresh()->present)->toBeTrue();
+});
+
+it('imports epc column from csv and skips existing tags', function () {
+    $admin = User::factory()->withRole('Super Admin')->create();
+    RfidTag::factory()->create(['tag_uid' => 'AA0004EF55555555AA21C020']);
+
+    $csv = implode("\n", [
+        'card_number,epc,scanned_at',
+        '2211872,AA0004EF55555555AA21C020,2026-08-27T06:13:03.476Z',
+        '2211943,AA0004EF55555555AA21C067,2026-08-27T06:13:36.266Z',
+        '2211857,aa0004ef55555555aa21c011,2026-08-27T06:13:55.017Z',
+        '2211856,,2026-08-27T06:13:57.388Z',
+        '2211855,AA0004EF55555555AA21C00F,2026-08-27T06:14:02.051Z',
+    ])."\n";
+
+    $file = UploadedFile::fake()->createWithContent('scanned-cards.csv', $csv);
+
+    $this->actingAs($admin)
+        ->post(route('tracking.tags.import'), ['file' => $file])
+        ->assertRedirect(route('tracking.tags.index'))
+        ->assertSessionHas('inertia.flash_data.toast.message');
+
+    expect(RfidTag::query()->where('tag_uid', 'AA0004EF55555555AA21C067')->exists())->toBeTrue()
+        ->and(RfidTag::query()->where('tag_uid', 'AA0004EF55555555AA21C011')->exists())->toBeTrue()
+        ->and(RfidTag::query()->where('tag_uid', 'AA0004EF55555555AA21C00F')->exists())->toBeTrue()
+        ->and(RfidTag::query()->where('tag_uid', 'AA0004EF55555555AA21C020')->count())->toBe(1)
+        ->and(RfidTag::query()->where('notes', 'imported from CSV')->count())->toBe(3);
+});
+
+it('rejects csv without epc column', function () {
+    $admin = User::factory()->withRole('Super Admin')->create();
+    $file = UploadedFile::fake()->createWithContent(
+        'bad.csv',
+        "card_number,scanned_at\n1,2026-08-27T06:13:03.476Z\n",
+    );
+
+    $this->actingAs($admin)
+        ->from(route('tracking.tags.index'))
+        ->post(route('tracking.tags.import'), ['file' => $file])
+        ->assertRedirect(route('tracking.tags.index'))
+        ->assertSessionHasErrors('file');
 });

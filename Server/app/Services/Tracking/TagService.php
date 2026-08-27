@@ -10,6 +10,8 @@ use App\Models\Worker;
 use App\Models\WorkerPosition;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class TagService
@@ -21,6 +23,109 @@ final class TagService
             'status' => TagStatus::InStock,
             'notes' => $notes,
         ]);
+    }
+
+    /**
+     * Bulk-register spare tags from a CSV that has an `epc` column.
+     * Existing UIDs (case-insensitive) are skipped; duplicates in-file are ignored.
+     *
+     * @return array{created: int, skipped: int, invalid: int, total_rows: int}
+     */
+    public function importFromCsv(string $absolutePath): array
+    {
+        $handle = fopen($absolutePath, 'rb');
+        if ($handle === false) {
+            throw ValidationException::withMessages([
+                'file' => 'Could not read CSV file.',
+            ]);
+        }
+
+        try {
+            $header = fgetcsv($handle);
+            if ($header === false || $header === [null] || $header === []) {
+                throw ValidationException::withMessages([
+                    'file' => 'CSV is empty.',
+                ]);
+            }
+
+            $header = array_map(
+                static fn (mixed $col): string => strtolower(trim((string) preg_replace('/^\xEF\xBB\xBF/', '', (string) $col))),
+                $header,
+            );
+            $epcIndex = array_search('epc', $header, true);
+            if ($epcIndex === false) {
+                throw ValidationException::withMessages([
+                    'file' => 'CSV must include an epc column.',
+                ]);
+            }
+
+            /** @var list<string> $candidates */
+            $candidates = [];
+            $invalid = 0;
+            $totalRows = 0;
+
+            while (($row = fgetcsv($handle)) !== false) {
+                if ($row === [null] || $row === []) {
+                    continue;
+                }
+                $totalRows++;
+                $raw = isset($row[$epcIndex]) ? trim((string) $row[$epcIndex]) : '';
+                if ($raw === '') {
+                    $invalid++;
+
+                    continue;
+                }
+                if (strlen($raw) > 150) {
+                    $invalid++;
+
+                    continue;
+                }
+                $candidates[] = strtoupper($raw);
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        $unique = array_values(array_unique($candidates));
+        $existing = RfidTag::withTrashed()
+            ->whereIn('tag_uid', $unique)
+            ->pluck('tag_uid')
+            ->map(static fn (string $uid): string => strtoupper($uid))
+            ->all();
+        $existingSet = array_fill_keys($existing, true);
+
+        $toCreate = [];
+        foreach ($unique as $uid) {
+            if (isset($existingSet[$uid])) {
+                continue;
+            }
+            $toCreate[] = $uid;
+        }
+
+        $created = 0;
+        foreach (array_chunk($toCreate, 200) as $chunk) {
+            $now = now();
+            $rows = array_map(
+                static fn (string $uid): array => [
+                    'uuid' => (string) Str::uuid(),
+                    'tag_uid' => $uid,
+                    'status' => TagStatus::InStock->value,
+                    'notes' => 'imported from CSV',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ],
+                $chunk,
+            );
+            RfidTag::query()->insert($rows);
+            $created += count($rows);
+        }
+
+        return [
+            'created' => $created,
+            'skipped' => count($unique) - $created,
+            'invalid' => $invalid,
+            'total_rows' => $totalRows,
+        ];
     }
 
     /**

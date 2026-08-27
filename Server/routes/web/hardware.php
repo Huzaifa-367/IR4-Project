@@ -1,9 +1,9 @@
 <?php
 
+use App\Http\Controllers\Web\CameraRoi\CameraRoiController;
 use App\Http\Controllers\Web\Settings\AssetController;
 use App\Http\Controllers\Web\Settings\CameraController;
 use App\Http\Controllers\Web\Settings\DeviceController;
-use App\Http\Controllers\Web\CameraRoi\CameraRoiController;
 use App\Http\Controllers\Web\Tracking\TagController;
 use Illuminate\Support\Facades\Route;
 
@@ -14,6 +14,9 @@ Route::prefix('hardware/tags')->name('tracking.tags.')->group(function (): void 
     Route::post('/', [TagController::class, 'store'])
         ->middleware('permission:create-tags')
         ->name('store');
+    Route::post('import', [TagController::class, 'import'])
+        ->middleware('permission:create-tags')
+        ->name('import');
     Route::post('{tag}/assign', [TagController::class, 'assign'])
         ->middleware('permission:update-tags')
         ->name('assign');

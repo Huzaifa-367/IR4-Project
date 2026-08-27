@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Tracking;
 
 use App\Enums\TagStatus;
 use App\Http\Controllers\Web\BaseController;
+use App\Http\Requests\Tracking\ImportTagsRequest;
 use App\Models\RfidTag;
 use App\Models\Worker;
 use App\Services\Tracking\TagService;
@@ -79,6 +80,26 @@ final class TagController extends BaseController
         ]);
 
         $tags->create($data['tag_uid'], $data['notes'] ?? null);
+
+        return redirect()->route('tracking.tags.index');
+    }
+
+    public function import(ImportTagsRequest $request, TagService $tags): RedirectResponse
+    {
+        $file = $request->file('file');
+        abort_unless($file !== null, 422);
+
+        $summary = $tags->importFromCsv($file->getRealPath() ?: $file->getPathname());
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => sprintf(
+                'Imported %d tag(s); skipped %d existing; %d invalid row(s).',
+                $summary['created'],
+                $summary['skipped'],
+                $summary['invalid'],
+            ),
+        ]);
 
         return redirect()->route('tracking.tags.index');
     }
