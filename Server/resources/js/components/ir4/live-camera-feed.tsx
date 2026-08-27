@@ -254,10 +254,12 @@ export function LiveCameraFeed({
                     selectedIndex={null}
                     editable={false}
                     stale={roiOverlay.status === CameraRoiSetStatus.Stale}
-                    className="z-[2]"
+                    // Live wall: paint-only overlay — never steal clicks from
+                    // fullscreen / PTZ (pointer-events-none + below chrome).
+                    className="pointer-events-none z-[1]"
                 />
             )}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-end bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] flex justify-end bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                 <Button
                     type="button"
                     size="icon"
