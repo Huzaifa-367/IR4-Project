@@ -47,9 +47,6 @@ export type HeadcountReading = {
     recorded_at: string;
     zone_id: number | null;
     zone_name: string | null;
-    camera_id: number | null;
-    camera_ref: string | null;
-    camera_name: string | null;
     count: number;
     is_backfill: boolean;
 };

@@ -17,18 +17,12 @@ type Props = {
     readings: { data: HeadcountReading[]; meta: PaginatedMeta };
     filters: {
         zone_id: string;
-        camera_id: string;
         from: string;
         to: string;
         backfill: string;
         search: string;
     };
     zones: Array<{ id: number; name: string }>;
-    cameras: Array<{
-        id: number;
-        name: string | null;
-        reference: string | null;
-    }>;
 };
 
 const ALL = 'all';
@@ -37,10 +31,8 @@ export default function HeadcountReadingsIndex({
     readings,
     filters,
     zones,
-    cameras,
 }: Props) {
     const [zoneId, setZoneId] = useState(filters.zone_id || ALL);
-    const [cameraId, setCameraId] = useState(filters.camera_id || ALL);
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
     const [backfill, setBackfill] = useState(filters.backfill || ALL);
@@ -49,7 +41,6 @@ export default function HeadcountReadingsIndex({
     function applyFilters(
         patch: Partial<{
             zone_id: string;
-            camera_id: string;
             from: string;
             to: string;
             backfill: string;
@@ -57,7 +48,6 @@ export default function HeadcountReadingsIndex({
         }> = {},
     ): void {
         const nextZone = patch.zone_id ?? zoneId;
-        const nextCamera = patch.camera_id ?? cameraId;
         const nextFrom = patch.from ?? from;
         const nextTo = patch.to ?? to;
         const nextBackfill = patch.backfill ?? backfill;
@@ -65,7 +55,6 @@ export default function HeadcountReadingsIndex({
 
         visitFilters(tracking.headcountReadings.index.url(), {
             zone_id: nextZone === ALL ? undefined : nextZone,
-            camera_id: nextCamera === ALL ? undefined : nextCamera,
             from: nextFrom || undefined,
             to: nextTo || undefined,
             backfill: nextBackfill === ALL ? undefined : nextBackfill,
@@ -79,7 +68,6 @@ export default function HeadcountReadingsIndex({
 
     const queryParams = {
         zone_id: zoneId === ALL ? undefined : zoneId,
-        camera_id: cameraId === ALL ? undefined : cameraId,
         from: from || undefined,
         to: to || undefined,
         backfill: backfill === ALL ? undefined : backfill,
@@ -110,15 +98,6 @@ export default function HeadcountReadingsIndex({
             cell: (row) => row.zone_name ?? 'Unbound',
         },
         {
-            key: 'camera',
-            header: 'Camera',
-            cell: (row) => (
-                <span className="font-mono text-xs">
-                    {row.camera_ref ?? row.camera_name ?? '—'}
-                </span>
-            ),
-        },
-        {
             key: 'count',
             header: 'Count',
             className: 'text-right font-mono tabular-nums',
@@ -142,7 +121,7 @@ export default function HeadcountReadingsIndex({
             <SettingsPageShell
                 eyebrow="Tracking"
                 title="Headcount records"
-                description="Every on-site count sample — filter by time, zone, or camera"
+                description="Every on-site count sample — filter by time or zone"
                 actions={
                     <div className="flex items-center gap-2">
                         <Button asChild variant="outline" size="sm">
@@ -160,14 +139,14 @@ export default function HeadcountReadingsIndex({
                         <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
                             <Input
                                 type="search"
-                                placeholder="Camera or zone"
+                                placeholder="Zone"
                                 value={search}
                                 onChange={(event) => {
                                     const value = event.target.value;
                                     setSearch(value);
                                     applySearch(value);
                                 }}
-                                aria-label="Search camera or zone"
+                                aria-label="Search zone"
                                 className="min-w-0"
                             />
                             <SearchableSelect
@@ -184,25 +163,6 @@ export default function HeadcountReadingsIndex({
                                     ...zones.map((zone) => ({
                                         value: String(zone.id),
                                         label: zone.name,
-                                    })),
-                                ]}
-                            />
-                            <SearchableSelect
-                                value={cameraId}
-                                onValueChange={(value) => {
-                                    setCameraId(value);
-                                    applyFilters({ camera_id: value });
-                                }}
-                                placeholder="Camera"
-                                className="min-w-0"
-                                options={[
-                                    { value: ALL, label: 'All cameras' },
-                                    ...cameras.map((camera) => ({
-                                        value: String(camera.id),
-                                        label:
-                                            camera.reference ??
-                                            camera.name ??
-                                            `#${camera.id}`,
                                     })),
                                 ]}
                             />

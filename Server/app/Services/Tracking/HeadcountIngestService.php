@@ -165,9 +165,6 @@ final class HeadcountIngestService
      *     recorded_at: string,
      *     zone_id: int|null,
      *     zone_name: string|null,
-     *     camera_id: int|null,
-     *     camera_ref: string|null,
-     *     camera_name: string|null,
      *     count: int,
      *     is_backfill: bool
      * }>
@@ -177,7 +174,7 @@ final class HeadcountIngestService
         $limit = min(200, max(1, $limit));
 
         $query = CameraHeadcountReading::query()
-            ->with(['camera:id,name,reference', 'zone:id,name'])
+            ->with(['zone:id,name'])
             ->orderByDesc('recorded_at')
             ->orderByDesc('id')
             ->limit($limit);
@@ -186,14 +183,12 @@ final class HeadcountIngestService
             $query->where('zone_id', $zoneId);
         }
 
+        // Operator-facing: zone + count only — camera sourcing stays backend-only.
         return $query->get()->map(fn (CameraHeadcountReading $reading): array => [
             'id' => $reading->id,
             'recorded_at' => $reading->recorded_at->toIso8601String(),
             'zone_id' => $reading->zone_id,
             'zone_name' => $reading->zone?->name,
-            'camera_id' => $reading->camera_id,
-            'camera_ref' => $reading->camera?->reference,
-            'camera_name' => $reading->camera?->name,
             'count' => (int) $reading->count,
             'is_backfill' => $reading->is_backfill,
         ])->values()->all();

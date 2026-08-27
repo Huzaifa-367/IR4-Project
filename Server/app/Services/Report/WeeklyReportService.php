@@ -223,9 +223,28 @@ final class WeeklyReportService
             'supersedes_report_id' => $report->supersedes_report_id,
             'supersedes_report_number' => $report->supersedes?->report_number,
             'superseded_by_report_numbers' => $report->supersededBy->pluck('report_number')->values()->all(),
-            'data' => $report->data,
+            'data' => $this->operatorFacingData($report->data),
             'created_at' => optional($report->created_at)?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Strip headcount source (camera|rfid) from operator-facing report payloads.
+     *
+     * @param  array<string, mixed>|null  $data
+     * @return array<string, mixed>|null
+     */
+    private function operatorFacingData(?array $data): ?array
+    {
+        if ($data === null) {
+            return null;
+        }
+
+        if (isset($data['v_manpower']) && is_array($data['v_manpower'])) {
+            unset($data['v_manpower']['source']);
+        }
+
+        return $data;
     }
 
     /**

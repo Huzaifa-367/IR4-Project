@@ -256,7 +256,6 @@ export function ZoneHeadcountReadingsTable({
                 <TableRow className="hover:bg-transparent">
                     <TableHead>Time</TableHead>
                     <TableHead>Zone</TableHead>
-                    <TableHead>Camera</TableHead>
                     <TableHead className="text-right">Count</TableHead>
                     <TableHead>Kind</TableHead>
                 </TableRow>
@@ -268,9 +267,6 @@ export function ZoneHeadcountReadingsTable({
                             {new Date(row.recorded_at).toLocaleString()}
                         </TableCell>
                         <TableCell>{row.zone_name ?? 'Unbound'}</TableCell>
-                        <TableCell className="font-mono text-xs text-text-dim">
-                            {row.camera_ref ?? row.camera_name ?? '—'}
-                        </TableCell>
                         <TableCell className="text-right font-mono tabular-nums">
                             {row.count}
                         </TableCell>

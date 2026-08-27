@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Web\Tracking;
 
 use App\Http\Controllers\Web\BaseController;
-use App\Models\Camera;
 use App\Models\CameraHeadcountReading;
 use App\Models\Zone;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +19,6 @@ final class HeadcountReadingsController extends BaseController
         abort_unless($user !== null && $user->can('view-tracking'), 403);
 
         $query = CameraHeadcountReading::query()->with([
-            'camera:id,name,reference',
             'zone:id,name',
         ]);
 
@@ -29,10 +27,6 @@ final class HeadcountReadingsController extends BaseController
             $query->whereNull('zone_id');
         } elseif ($zoneFilter !== '' && ctype_digit($zoneFilter)) {
             $query->where('zone_id', (int) $zoneFilter);
-        }
-
-        if ($request->filled('camera_id')) {
-            $query->where('camera_id', $request->integer('camera_id'));
         }
 
         $from = $this->parseBound($request->string('from')->toString(), false);
@@ -55,13 +49,8 @@ final class HeadcountReadingsController extends BaseController
         $search = $request->string('search')->trim()->toString();
         if ($search !== '') {
             $like = '%'.$search.'%';
-            $query->where(function (Builder $builder) use ($like): void {
-                $builder->whereHas('camera', function (Builder $camera) use ($like): void {
-                    $camera->where('reference', 'like', $like)
-                        ->orWhere('name', 'like', $like);
-                })->orWhereHas('zone', function (Builder $zone) use ($like): void {
-                    $zone->where('name', 'like', $like);
-                });
+            $query->whereHas('zone', function (Builder $zone) use ($like): void {
+                $zone->where('name', 'like', $like);
             });
         }
 
@@ -83,9 +72,6 @@ final class HeadcountReadingsController extends BaseController
                     'recorded_at' => $reading->recorded_at->toIso8601String(),
                     'zone_id' => $reading->zone_id,
                     'zone_name' => $reading->zone?->name,
-                    'camera_id' => $reading->camera_id,
-                    'camera_ref' => $reading->camera?->reference,
-                    'camera_name' => $reading->camera?->name,
                     'count' => (int) $reading->count,
                     'is_backfill' => $reading->is_backfill,
                 ])->values()->all(),
@@ -97,7 +83,6 @@ final class HeadcountReadingsController extends BaseController
             ],
             'filters' => [
                 'zone_id' => $zoneFilter,
-                'camera_id' => $request->string('camera_id')->toString(),
                 'from' => $request->filled('from') ? $request->string('from')->toString() : '',
                 'to' => $request->filled('to') ? $request->string('to')->toString() : '',
                 'backfill' => $backfill,
@@ -110,15 +95,6 @@ final class HeadcountReadingsController extends BaseController
                 ->map(fn (Zone $zone): array => [
                     'id' => $zone->id,
                     'name' => $zone->name,
-                ])
-                ->all(),
-            'cameras' => Camera::query()
-                ->orderBy('name')
-                ->get(['id', 'name', 'reference'])
-                ->map(fn (Camera $camera): array => [
-                    'id' => $camera->id,
-                    'name' => $camera->name,
-                    'reference' => $camera->reference,
                 ])
                 ->all(),
         ]);

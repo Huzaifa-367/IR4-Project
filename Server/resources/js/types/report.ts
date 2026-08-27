@@ -23,7 +23,6 @@ export type WeeklyReportData = {
     };
     iv_weather: { per_day: Array<Record<string, unknown>> };
     v_manpower: {
-        source?: 'rfid' | 'camera';
         per_day: Array<Record<string, unknown>>;
     };
     vi_units_monitored: { count: number; note: string };

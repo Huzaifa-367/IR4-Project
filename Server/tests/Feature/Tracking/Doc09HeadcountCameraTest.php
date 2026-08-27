@@ -340,15 +340,20 @@ it('lists headcount reading records and live API samples', function () {
     $this->actingAs($admin)
         ->getJson(route('tracking.api.headcount-readings'))
         ->assertOk()
-        ->assertJsonCount(2, 'data');
+        ->assertJsonCount(2, 'data')
+        ->assertJsonPath('data.0.zone_id', $zoneB->id)
+        ->assertJsonPath('data.0.zone_name', 'UI Bay B');
 
     $this->actingAs($admin)
         ->getJson(route('tracking.api.headcount-readings', ['zone_id' => $zoneA->id]))
         ->assertOk()
         ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.zone_id', $zoneA->id)
         ->assertJsonPath('data.0.zone_name', 'UI Bay A')
-        ->assertJsonPath('data.0.camera_ref', 'CAM-HC-UI-A')
-        ->assertJsonPath('data.0.count', 3);
+        ->assertJsonPath('data.0.count', 3)
+        ->assertJsonMissingPath('data.0.camera_ref')
+        ->assertJsonMissingPath('data.0.camera_name')
+        ->assertJsonMissingPath('data.0.camera_id');
 
     $this->actingAs($admin)
         ->get(route('tracking.headcount-readings.index'))
@@ -356,16 +361,28 @@ it('lists headcount reading records and live API samples', function () {
         ->assertInertia(fn ($page) => $page
             ->component('tracking/headcount-readings/index')
             ->has('readings.data', 2)
-            ->where('readings.data.0.count', 8));
+            ->where('readings.data.0.count', 8)
+            ->where('readings.data.0.zone_name', 'UI Bay B')
+            ->missing('cameras')
+            ->missing('readings.data.0.camera_ref'));
 
     $this->actingAs($admin)
         ->get(route('tracking.headcount-readings.index', [
             'zone_id' => $zoneA->id,
-            'camera_id' => $camA->id,
         ]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('tracking/headcount-readings/index')
             ->has('readings.data', 1)
-            ->where('readings.data.0.camera_ref', 'CAM-HC-UI-A'));
+            ->where('readings.data.0.zone_id', $zoneA->id)
+            ->where('readings.data.0.zone_name', 'UI Bay A')
+            ->missing('readings.data.0.camera_ref'));
+
+    $this->actingAs($admin)
+        ->get(route('tracking.headcount-readings.index', ['search' => 'UI Bay A']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('tracking/headcount-readings/index')
+            ->has('readings.data', 1)
+            ->where('readings.data.0.zone_name', 'UI Bay A'));
 });
