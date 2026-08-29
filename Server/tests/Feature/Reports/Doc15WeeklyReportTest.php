@@ -68,7 +68,7 @@ it('generates all 9 frozen data keys and excludes false-positive PPE', function 
         ->and(array_keys($report->data))->toEqualCanonicalizing(WeeklyReportService::dataKeys())
         ->and(WeeklyReportService::dataKeys())->not->toContain('x_co2')
         ->and($report->data)->not->toHaveKey('x_co2')
-        ->and($report->data['i_daily_safety_observations']['false_positives_excluded'])->toBe(1)
+        ->and($report->data['i_daily_safety_observations'])->not->toHaveKey('false_positives_excluded')
         ->and($report->data['ii_hse_incidents'])->toHaveCount(1)
         ->and($report->data['iii_lsr_violations']['entries'])->toHaveCount(1)
         ->and($report->data['vii_vehicle_violations'])->toHaveCount(1)
@@ -87,7 +87,7 @@ it('generates all 9 frozen data keys and excludes false-positive PPE', function 
         'detected_at' => $start->copy()->addDays(1),
         'review_status' => ReviewStatus::Confirmed,
     ]);
-    expect($report->fresh()->data['i_daily_safety_observations']['false_positives_excluded'])->toBe(1);
+    expect($report->fresh()->data['i_daily_safety_observations'])->not->toHaveKey('false_positives_excluded');
 });
 
 it('generates manually in-request and redirects to the report', function () {

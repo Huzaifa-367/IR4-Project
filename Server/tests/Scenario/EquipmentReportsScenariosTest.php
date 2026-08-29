@@ -122,7 +122,7 @@ it('scenario 10: weekly report generate publish lock and supersede', function ()
     $report = app(WeeklyReportService::class)->generate($start, $end, $manager);
     expect($report->status)->toBe(ReportStatus::Generated)
         ->and(array_keys($report->data))->toEqualCanonicalizing(WeeklyReportService::dataKeys())
-        ->and($report->data['i_daily_safety_observations']['false_positives_excluded'])->toBe(1);
+        ->and($report->data['i_daily_safety_observations'])->not->toHaveKey('false_positives_excluded');
 
     $published = app(WeeklyReportService::class)->publish($report, $manager);
     $frozen = $published->data;

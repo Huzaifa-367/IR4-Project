@@ -44,7 +44,7 @@ const sectionOrder: SectionDef[] = [
         key: 'i_daily_safety_observations',
         title: 'i. Daily Safety Observations',
         short: 'Safety observations',
-        blurb: 'Confirmed PPE detections by day and camera. False positives are excluded from totals.',
+        blurb: 'Confirmed PPE detections by day and camera.',
     },
     {
         key: 'ii_hse_incidents',
@@ -84,9 +84,10 @@ const sectionOrder: SectionDef[] = [
     },
     {
         key: 'ix_gas',
-        title: 'ix. Gas Monitoring (LEL / H₂S / O₂ / CO / CO₂)',
+        // DOC-15 item viii (environmental) not shipped — gas labeled viii for contiguous order.
+        title: 'viii. Gas Monitoring (LEL / H₂S / O₂ / CO / CO₂)',
         short: 'Gas',
-        blurb: 'Daily gas channel ranges and alarm events. Cells show min / avg / max.',
+        blurb: 'Daily gas channel ranges and alarm events (alarm level only). Cells show min / avg / max.',
     },
 ];
 
@@ -114,6 +115,18 @@ function str(value: unknown): string {
     }
 
     return String(value);
+}
+
+function isGasWarning(raw: unknown): boolean {
+    const level = str(asRecord(raw).level).toLowerCase();
+
+    return level.includes('warn');
+}
+
+function alarmLevelEvents(
+    events: Array<Record<string, unknown>> | undefined,
+): Array<Record<string, unknown>> {
+    return (events ?? []).filter((row) => !isGasWarning(row));
 }
 
 function num(value: unknown): number | null {
@@ -185,11 +198,9 @@ function buildExecutiveLines(data: WeeklyReportData): string[] {
     const lines: string[] = [];
     const ppeDays = data.i_daily_safety_observations?.per_day ?? [];
     const ppeTotal = sumBy(ppeDays, (row) => row.total);
-    const fpExcluded =
-        data.i_daily_safety_observations?.false_positives_excluded ?? 0;
     const incidents = data.ii_hse_incidents ?? [];
     const lsr = data.iii_lsr_violations?.entries ?? [];
-    const alarms = data.ix_gas?.alarm_events ?? [];
+    const alarms = alarmLevelEvents(data.ix_gas?.alarm_events);
     const vehicles = data.vii_vehicle_violations ?? [];
     const gapItems = coverageGapItems(data.completeness?.notes ?? []);
     const manpowerDays = data.v_manpower?.per_day ?? [];
@@ -203,13 +214,7 @@ function buildExecutiveLines(data: WeeklyReportData): string[] {
     });
 
     if (ppeTotal > 0) {
-        lines.push(
-            `${pluralize(ppeTotal, 'confirmed PPE observation')}${
-                fpExcluded > 0
-                    ? ` after excluding ${formatNumber(fpExcluded, 0)} false positives`
-                    : ''
-            }.`,
-        );
+        lines.push(`${pluralize(ppeTotal, 'confirmed PPE observation')}.`);
     } else {
         lines.push('No confirmed PPE observations this week.');
     }
@@ -315,8 +320,6 @@ function buildSummary(data: WeeklyReportData) {
     const ppeDays = data.i_daily_safety_observations?.per_day ?? [];
     const ppeTotal = sumBy(ppeDays, (row) => row.total);
     const ppeTypes = mergeCounts(ppeDays.map((row) => row.by_type));
-    const fpExcluded =
-        data.i_daily_safety_observations?.false_positives_excluded ?? 0;
 
     const incidents = data.ii_hse_incidents ?? [];
     const incidentSeverities = mergeCounts(
@@ -371,7 +374,7 @@ function buildSummary(data: WeeklyReportData) {
     );
 
     const gasDays = data.ix_gas?.per_day ?? [];
-    const gasAlarms = data.ix_gas?.alarm_events ?? [];
+    const gasAlarms = alarmLevelEvents(data.ix_gas?.alarm_events);
     const gasAvg = (channel: string): number | null =>
         avgOf(gasDays.map((day) => num(asRecord(asRecord(day)[channel]).avg)));
     const gasDetailParts = [
@@ -388,12 +391,8 @@ function buildSummary(data: WeeklyReportData) {
             label: 'i. Safety observations',
             value: String(ppeTotal),
             detail:
-                [
-                    byTypeSummary(ppeTypes, 2),
-                    fpExcluded > 0 ? `${fpExcluded} FP excluded` : null,
-                ]
-                    .filter(Boolean)
-                    .join(' · ') || 'No confirmed events',
+                [byTypeSummary(ppeTypes, 2)].filter(Boolean).join(' · ') ||
+                'No confirmed events',
             tone: ppeTotal > 0 ? ('warn' as const) : ('ok' as const),
         },
         {
@@ -452,7 +451,7 @@ function buildSummary(data: WeeklyReportData) {
         },
         {
             key: 'ix_gas',
-            label: 'ix. Gas monitoring',
+            label: 'viii. Gas monitoring',
             value: String(gasAlarms.length),
             detail:
                 gasAlarms.length > 0
@@ -485,10 +484,6 @@ function SectionBody({
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     <DetailField label="Confirmed observations" value={total} />
                     <DetailField
-                        label="False positives excluded"
-                        value={section?.false_positives_excluded ?? 0}
-                    />
-                    <DetailField
                         label="Cameras reporting"
                         value={cameras.length}
                     />
@@ -517,7 +512,7 @@ function SectionBody({
                         types: byTypeSummary(row.by_type),
                     }))}
                     emptyLabel="No confirmed PPE observations this week."
-                    emptyHint="Detections marked as false positives are excluded from this total."
+                    emptyHint="No PPE detections were confirmed for this period."
                 />
                 {cameras.length > 0 && (
                     <>
@@ -797,7 +792,7 @@ function SectionBody({
 
     if (sectionKey === 'ix_gas') {
         const gasDays = data.ix_gas?.per_day ?? [];
-        const alarmRaw = data.ix_gas?.alarm_events ?? [];
+        const alarmRaw = alarmLevelEvents(data.ix_gas?.alarm_events);
         const gasAvg = (channel: string): number | null =>
             avgOf(
                 gasDays.map((day) => num(asRecord(asRecord(day)[channel]).avg)),
@@ -828,10 +823,6 @@ function SectionBody({
                 duringOutage: Boolean(row.during_outage),
             };
         });
-        const warningCount = alarms.filter((a) =>
-            a.level.toLowerCase().includes('warn'),
-        ).length;
-        const alarmCount = alarms.length - warningCount;
         const duringOutage = alarms.filter((a) => a.duringOutage).length;
         const byGas = mergeCounts(
             alarms.map((a) => (a.gas !== '—' ? { [a.gas]: 1 } : {})),
@@ -841,10 +832,6 @@ function SectionBody({
             <div className="space-y-4">
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     <DetailField label="Alarm events" value={alarms.length} />
-                    <DetailField
-                        label="Warning / alarm split"
-                        value={`${warningCount} warn · ${alarmCount} alarm`}
-                    />
                     <DetailField
                         label="During declared outage"
                         value={duringOutage}

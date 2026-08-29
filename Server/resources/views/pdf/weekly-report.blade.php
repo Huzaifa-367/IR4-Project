@@ -365,7 +365,6 @@
             <table class="stat-strip">
                 <tr>
                     <td><span class="num">{{ $ppe['total'] }}</span><span class="lbl">Confirmed</span></td>
-                    <td><span class="num">{{ $ppe['false_positives_excluded'] }}</span><span class="lbl">False positives excluded</span></td>
                     <td><span class="num">{{ $ppe['cameras_reporting'] }}</span><span class="lbl">Cameras reporting</span></td>
                 </tr>
             </table>
@@ -571,7 +570,6 @@
             <table class="stat-strip">
                 <tr>
                     <td><span class="num">{{ $gas['alarm_count'] }}</span><span class="lbl">Alarm events</span></td>
-                    <td><span class="num">{{ $gas['warn_count'] }} · {{ $gas['alarm_level_count'] }}</span><span class="lbl">Warn · alarm</span></td>
                     <td><span class="num">{{ $gas['during_outage'] }}</span><span class="lbl">During outage</span></td>
                 </tr>
             </table>

@@ -41,7 +41,7 @@ final class WeeklyReportPresenter
                 'key' => 'i_daily_safety_observations',
                 'title' => 'i. Daily Safety Observations',
                 'short' => 'Safety observations',
-                'blurb' => 'Confirmed PPE detections by day and camera. False positives are excluded from totals.',
+                'blurb' => 'Confirmed PPE detections by day and camera.',
             ],
             [
                 'key' => 'ii_hse_incidents',
@@ -81,9 +81,10 @@ final class WeeklyReportPresenter
             ],
             [
                 'key' => 'ix_gas',
-                'title' => 'ix. Gas Monitoring (LEL / H₂S / O₂ / CO / CO₂)',
+                // DOC-15 item viii (environmental) not shipped yet — show gas as viii so roman order stays contiguous.
+                'title' => 'viii. Gas Monitoring (LEL / H₂S / O₂ / CO / CO₂)',
                 'short' => 'Gas',
-                'blurb' => 'Daily gas channel ranges and alarm events. Cells show min / avg / max.',
+                'blurb' => 'Daily gas channel ranges and alarm events (alarm level only). Cells show min / avg / max.',
             ],
         ];
     }
@@ -96,10 +97,12 @@ final class WeeklyReportPresenter
         $lines = [];
         $ppeDays = $this->data['i_daily_safety_observations']['per_day'] ?? [];
         $ppeTotal = (int) collect($ppeDays)->sum('total');
-        $fpExcluded = (int) ($this->data['i_daily_safety_observations']['false_positives_excluded'] ?? 0);
         $incidents = $this->data['ii_hse_incidents'] ?? [];
         $lsr = $this->data['iii_lsr_violations']['entries'] ?? [];
-        $alarms = $this->data['ix_gas']['alarm_events'] ?? [];
+        $alarms = collect($this->data['ix_gas']['alarm_events'] ?? [])
+            ->reject(fn ($raw): bool => str_contains(strtolower((string) ($raw['level'] ?? '')), 'warn'))
+            ->values()
+            ->all();
         $vehicles = $this->data['vii_vehicle_violations'] ?? [];
         $gapKeys = $this->gapItemKeys();
         $manpowerDays = $this->data['v_manpower']['per_day'] ?? [];
@@ -108,9 +111,7 @@ final class WeeklyReportPresenter
             ->contains(fn ($day): bool => is_numeric($day['temp']['avg'] ?? null));
 
         if ($ppeTotal > 0) {
-            $lines[] = $this->pluralize($ppeTotal, 'confirmed PPE observation')
-                .($fpExcluded > 0 ? ' after excluding '.$this->fmt($fpExcluded, 0).' false positives' : '')
-                .'.';
+            $lines[] = $this->pluralize($ppeTotal, 'confirmed PPE observation').'.';
         } else {
             $lines[] = 'No confirmed PPE observations this week.';
         }
@@ -153,7 +154,6 @@ final class WeeklyReportPresenter
         $ppeDays = $this->data['i_daily_safety_observations']['per_day'] ?? [];
         $ppeTotal = (int) collect($ppeDays)->sum('total');
         $ppeTypes = $this->mergeCounts(array_map(fn ($d) => $d['by_type'] ?? [], $ppeDays));
-        $fpExcluded = (int) ($this->data['i_daily_safety_observations']['false_positives_excluded'] ?? 0);
 
         $incidents = $this->data['ii_hse_incidents'] ?? [];
         $incidentSeverities = [];
@@ -190,7 +190,10 @@ final class WeeklyReportPresenter
             }
         }
 
-        $gasAlarms = $this->data['ix_gas']['alarm_events'] ?? [];
+        $gasAlarms = collect($this->data['ix_gas']['alarm_events'] ?? [])
+            ->reject(fn ($raw): bool => str_contains(strtolower((string) ($raw['level'] ?? '')), 'warn'))
+            ->values()
+            ->all();
         $gasDetail = [
             'LEL '.$this->fmt($this->gasChannelAvg('lel')).'%',
             'H₂S '.$this->fmt($this->gasChannelAvg('h2s')),
@@ -204,7 +207,6 @@ final class WeeklyReportPresenter
                 'value' => (string) $ppeTotal,
                 'detail' => trim(implode(' · ', array_filter([
                     $this->byTypeLine($ppeTypes, 2) !== '—' ? $this->byTypeLine($ppeTypes, 2) : null,
-                    $fpExcluded > 0 ? $fpExcluded.' FP excluded' : null,
                 ]))) ?: 'No confirmed events',
                 'tone' => $ppeTotal > 0 ? 'warn' : 'ok',
             ],
@@ -256,7 +258,7 @@ final class WeeklyReportPresenter
             ],
             [
                 'key' => 'ix_gas',
-                'label' => 'ix. Gas monitoring',
+                'label' => 'viii. Gas monitoring',
                 'value' => (string) count($gasAlarms),
                 'detail' => (count($gasAlarms) > 0
                     ? $this->pluralize(count($gasAlarms), 'alarm').' · '
@@ -320,7 +322,6 @@ final class WeeklyReportPresenter
     /**
      * @return array{
      *   total: int,
-     *   false_positives_excluded: int,
      *   cameras_reporting: int,
      *   type_pills: list<array{label: string, count: int}>,
      *   per_day: list<array{date: string, total: int|string, types: string}>,
@@ -364,13 +365,12 @@ final class WeeklyReportPresenter
 
         return [
             'total' => $total,
-            'false_positives_excluded' => (int) ($section['false_positives_excluded'] ?? 0),
             'cameras_reporting' => count($cameras),
             'type_pills' => $typePills,
             'per_day' => $perDay,
             'by_camera' => $byCamera,
             'empty_label' => $perDay === [] ? 'No confirmed PPE observations this week.' : null,
-            'empty_hint' => $perDay === [] ? 'Detections marked as false positives are excluded from this total.' : null,
+            'empty_hint' => $perDay === [] ? 'No PPE detections were confirmed for this period.' : null,
         ];
     }
 
@@ -573,8 +573,6 @@ final class WeeklyReportPresenter
     /**
      * @return array{
      *   alarm_count: int,
-     *   warn_count: int,
-     *   alarm_level_count: int,
      *   during_outage: int,
      *   week_avgs: array{lel: string, h2s: string, o2: string, co: string, co2: string},
      *   by_gas: list<array{gas: string, count: int}>,
@@ -604,12 +602,11 @@ final class WeeklyReportPresenter
 
         $alarms = [];
         $byGas = [];
-        $warnCount = 0;
         $duringOutage = 0;
         foreach ($alarmRaw as $raw) {
-            $level = $this->labelize($raw['level'] ?? null);
-            if (str_contains(strtolower($level), 'warn')) {
-                $warnCount++;
+            $levelRaw = strtolower((string) ($raw['level'] ?? ''));
+            if ($levelRaw === '' || str_contains($levelRaw, 'warn')) {
+                continue;
             }
             if (! empty($raw['during_outage'])) {
                 $duringOutage++;
@@ -622,7 +619,7 @@ final class WeeklyReportPresenter
                 'when' => $this->formatDateTime($raw['triggered_at'] ?? null),
                 'device' => $this->deviceRefLabel($raw['device'] ?? null),
                 'gas' => $gas,
-                'level' => $level,
+                'level' => $this->labelize($raw['level'] ?? null),
                 'peak' => $this->fmt($raw['peak'] ?? null),
                 'duration' => isset($raw['duration_s']) ? $raw['duration_s'].'s' : '—',
                 'ack' => $this->str($raw['acknowledged_by'] ?? null),
@@ -638,8 +635,6 @@ final class WeeklyReportPresenter
 
         return [
             'alarm_count' => $alarmCount,
-            'warn_count' => $warnCount,
-            'alarm_level_count' => $alarmCount - $warnCount,
             'during_outage' => $duringOutage,
             'week_avgs' => [
                 'lel' => $this->fmt($this->gasChannelAvg('lel')).'%',

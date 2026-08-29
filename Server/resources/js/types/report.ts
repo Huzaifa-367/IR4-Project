@@ -14,7 +14,6 @@ export type WeeklyReportData = {
             total: number;
         }>;
         by_camera: Array<{ camera: string; total: number }>;
-        false_positives_excluded: number;
     };
     ii_hse_incidents: Array<Record<string, unknown>>;
     iii_lsr_violations: {

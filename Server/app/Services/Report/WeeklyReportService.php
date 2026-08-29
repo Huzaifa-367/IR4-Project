@@ -6,6 +6,7 @@ use App\Enums\AlertType;
 use App\Enums\AssetStatus;
 use App\Enums\DeviceType;
 use App\Enums\Direction;
+use App\Enums\GasAlarmLevel;
 use App\Enums\HeadcountSource;
 use App\Enums\ReportStatus;
 use App\Enums\ReviewStatus;
@@ -229,7 +230,7 @@ final class WeeklyReportService
     }
 
     /**
-     * Strip headcount source (camera|rfid) from operator-facing report payloads.
+     * Strip fields that must not appear on operator-facing report payloads.
      *
      * @param  array<string, mixed>|null  $data
      * @return array<string, mixed>|null
@@ -302,7 +303,7 @@ final class WeeklyReportService
     }
 
     /**
-     * @return array{per_day: list<array<string, mixed>>, by_camera: list<array<string, mixed>>, false_positives_excluded: int}
+     * @return array{per_day: list<array<string, mixed>>, by_camera: list<array<string, mixed>>}
      */
     private function itemDailySafety(Carbon $start, Carbon $end): array
     {
@@ -336,7 +337,6 @@ final class WeeklyReportService
                 ])
                 ->values()
                 ->all(),
-            'false_positives_excluded' => (int) $summary['excluded_false_positives'],
         ];
     }
 
@@ -645,8 +645,10 @@ final class WeeklyReportService
             $perDay[] = $day;
         }
 
+        // Weekly report shows Alarm-level events only — Warning stays in live gas UI.
         $alarms = GasAlarm::query()
             ->with(['device', 'acknowledger'])
+            ->where('level', GasAlarmLevel::Alarm)
             ->whereBetween('triggered_at', [$start, $end])
             ->orderBy('triggered_at')
             ->get()
@@ -858,13 +860,22 @@ final class WeeklyReportService
 
     private function nextReportNumber(Carbon $periodStart): string
     {
-        $base = 'WR-'.$periodStart->format('Y').'-W'.$periodStart->format('W');
-        $existing = WeeklyReport::query()
-            ->withTrashed()
-            ->where('report_number', 'like', $base.'%')
-            ->count();
+        // ISO week number is defined by the Thursday of the reporting week (ISO-8601),
+        // so Ww stays correct for whatever report.week_start is configured.
+        $weekStart = $this->weekStartConstant();
+        $thursday = $periodStart->copy()->startOfDay()->startOfWeek($weekStart)->addDays(3);
+        $base = 'WR-'.$thursday->format('o').'-W'.$thursday->format('W');
 
-        return $existing === 0 ? $base : $base.'-'.($existing + 1);
+        if (! WeeklyReport::query()->withTrashed()->where('report_number', $base)->exists()) {
+            return $base;
+        }
+
+        $suffix = 1;
+        while (WeeklyReport::query()->withTrashed()->where('report_number', $base.'-'.$suffix)->exists()) {
+            $suffix++;
+        }
+
+        return $base.'-'.$suffix;
     }
 
     private function notifyPublishHolders(WeeklyReport $report): void
