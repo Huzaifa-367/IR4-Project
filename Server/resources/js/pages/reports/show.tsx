@@ -84,10 +84,10 @@ const sectionOrder: SectionDef[] = [
     },
     {
         key: 'ix_gas',
-        // DOC-15 item viii (environmental) not shipped — gas labeled viii for contiguous order.
+        // Display viii: DOC item viii (environmental) is not shipped yet — keep freeze key ix_gas.
         title: 'viii. Gas Monitoring (LEL / H₂S / O₂ / CO / CO₂)',
         short: 'Gas',
-        blurb: 'Daily gas channel ranges and alarm events (alarm level only). Cells show min / avg / max.',
+        blurb: 'Daily gas channel ranges and alarm events. Cells show min / avg / max.',
     },
 ];
 
@@ -115,18 +115,6 @@ function str(value: unknown): string {
     }
 
     return String(value);
-}
-
-function isGasWarning(raw: unknown): boolean {
-    const level = str(asRecord(raw).level).toLowerCase();
-
-    return level.includes('warn');
-}
-
-function alarmLevelEvents(
-    events: Array<Record<string, unknown>> | undefined,
-): Array<Record<string, unknown>> {
-    return (events ?? []).filter((row) => !isGasWarning(row));
 }
 
 function num(value: unknown): number | null {
@@ -200,7 +188,7 @@ function buildExecutiveLines(data: WeeklyReportData): string[] {
     const ppeTotal = sumBy(ppeDays, (row) => row.total);
     const incidents = data.ii_hse_incidents ?? [];
     const lsr = data.iii_lsr_violations?.entries ?? [];
-    const alarms = alarmLevelEvents(data.ix_gas?.alarm_events);
+    const alarms = data.ix_gas?.alarm_events ?? [];
     const vehicles = data.vii_vehicle_violations ?? [];
     const gapItems = coverageGapItems(data.completeness?.notes ?? []);
     const manpowerDays = data.v_manpower?.per_day ?? [];
@@ -374,7 +362,7 @@ function buildSummary(data: WeeklyReportData) {
     );
 
     const gasDays = data.ix_gas?.per_day ?? [];
-    const gasAlarms = alarmLevelEvents(data.ix_gas?.alarm_events);
+    const gasAlarms = data.ix_gas?.alarm_events ?? [];
     const gasAvg = (channel: string): number | null =>
         avgOf(gasDays.map((day) => num(asRecord(asRecord(day)[channel]).avg)));
     const gasDetailParts = [
@@ -792,7 +780,7 @@ function SectionBody({
 
     if (sectionKey === 'ix_gas') {
         const gasDays = data.ix_gas?.per_day ?? [];
-        const alarmRaw = alarmLevelEvents(data.ix_gas?.alarm_events);
+        const alarmRaw = data.ix_gas?.alarm_events ?? [];
         const gasAvg = (channel: string): number | null =>
             avgOf(
                 gasDays.map((day) => num(asRecord(asRecord(day)[channel]).avg)),

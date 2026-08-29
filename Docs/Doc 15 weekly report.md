@@ -32,13 +32,13 @@ Each item, its source module, and its automation classification (the badge shown
 | ii | HSE Accidents & Incidents | incidents in period, classified (DOC-14) | **Auto-detect + Manual** (sensor-suggested, human-authored) |
 | iii | LSR Violations & Actions Taken | LSR entries in period, incl. action taken (DOC-14) | **Automated + Manual** (mix of alert-suggested + permit-manual) |
 | iv | Weather Conditions | environmental weekly stats (DOC-12) | **Automated** |
-| v | Site Manpower | `tracking.headcount_source` at generation: RFID entry/exit peak/avg **or** camera absolute-count samples (DOC-09); `source` frozen in `data` | **Automated** |
+| v | Site Manpower | `tracking.headcount_source` at generation: RFID entry/exit peak/avg **or** camera absolute-count samples (DOC-09); path chosen at assemble time, not frozen as a client-facing field | **Automated** |
 | vi | Total Vehicles/Units Monitored | count of active field-unit assets (DOC-05) | **Automated (partial)** — see §4.6 |
 | vii | Vehicle Violations & Actions Taken | manual `vehicle_violations` (§5) | **Manual** |
-| viii | Environmental Data | environmental weekly stats incl. air-quality (DOC-12) | **Automated** |
-| ix | Gas Monitoring (LEL / H₂S / O₂ / CO / CO₂) | all five gas channels weekly stats + alarm events (DOC-11) | **Automated** |
+| viii | Environmental Data | environmental weekly stats incl. air-quality (DOC-12) | **Automated** — **not shipped yet** (reserved freeze key `viii_environmental`) |
+| ix | Gas Monitoring (LEL / H₂S / O₂ / CO / CO₂) | all five gas channels weekly stats + **alarm-level** events only (DOC-11; warnings stay in live gas UI) | **Automated** — freeze key `ix_gas`; **presented as viii** in UI/PDF until environmental ships |
 
-The badge wording mirrors the proposal's §6.5 table (as in the LSR image: "Manual Workflow (Included)", "Actions Taken → All entries"). Items ii and iii explicitly show the **action-taken** content per entry (DOC-14's mandatory field). CO₂ is **not** a separate report item — it is channel five of item ix.
+The badge wording mirrors the proposal's §6.5 table (as in the LSR image: "Manual Workflow (Included)", "Actions Taken → All entries"). Items ii and iii explicitly show the **action-taken** content per entry (DOC-14's mandatory field). CO₂ is **not** a separate report item — it is channel five of item ix. Until item viii ships, the deliverable uses consecutive roman numerals i–viii with gas as the eighth section.
 
 ---
 
@@ -91,8 +91,7 @@ Schema::create('vehicle_violations', function (Blueprint $table) {
   "period": { "start": "…", "end": "…" },
   "i_daily_safety_observations": {
     "per_day": [ { "date": "…", "by_type": { "missing_helmet": 3, "…": 0 }, "total": 5 } ],
-    "by_camera": [ { "camera": "Pole 2 – north", "total": 4 } ],
-    "false_positives_excluded": 7
+    "by_camera": [ { "camera": "Pole 2 – north", "total": 4 } ]
   },
   "ii_hse_incidents": [
     { "incident_number":"INC-2026-014", "occurred_at":"…", "type":"near_miss", "severity":"medium",
@@ -105,7 +104,7 @@ Schema::create('vehicle_violations', function (Blueprint $table) {
                    "zone":"Work Front A", "action_taken":"work stopped, fire watch assigned", "status":"closed" } ]
   },
   "iv_weather": { "per_day": [ { "date":"…", "temp":{"min","avg","max"}, "humidity":{…}, "wind":{…} } ] },
-  "v_manpower": { "source": "rfid|camera", "per_day": [ { "date":"…", "peak":78, "average":54.2, "entries":81, "exits":80 } ] },
+  "v_manpower": { "per_day": [ { "date":"…", "peak":78, "average":54.2, "entries":81, "exits":80 } ] },
   "vi_units_monitored": { "count": 5, "note": "active field units with monitoring devices" },
   "vii_vehicle_violations": [ { "observed_at":"…", "vehicle_description":"…", "violation_type":"speeding",
                                "description":"…", "action_taken":"…", "logged_by":"…" } ],
@@ -220,7 +219,7 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 ## 11. Tests (this doc's slice of DOC-21)
 
 - **Generation:** `generate` produces all 9 `data` item keys (+ period/completeness); frozen `data` doesn't change when underlying records change afterward; manual HTTP generate is synchronous; scheduled auto-generate uses the `reports` queue.
-- **Auto-inclusion:** every incident/LSR/vehicle-violation in the period appears in items ii/iii/vii (DOC-14 retention guarantee); false-positive PPE excluded from item i with the excluded count.
+- **Auto-inclusion:** every incident/LSR/vehicle-violation in the period appears in items ii/iii/vii (DOC-14 retention guarantee); false-positive PPE is omitted from item i (no excluded-count field in the frozen snapshot).
 - **Completeness:** an item whose devices were offline >20% of the period gets a completeness note; ≤20% does not.
 - **Item vi honesty:** reports a count + the scope-extension note; no fabricated telematics.
 - **Publish-lock:** publishing requires `status=generated`, locks the report, audits `report_published`; a published report's `data`/artifacts are immutable.

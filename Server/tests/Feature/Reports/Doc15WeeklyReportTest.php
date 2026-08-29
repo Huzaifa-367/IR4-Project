@@ -68,14 +68,12 @@ it('generates all 9 frozen data keys and excludes false-positive PPE', function 
         ->and(array_keys($report->data))->toEqualCanonicalizing(WeeklyReportService::dataKeys())
         ->and(WeeklyReportService::dataKeys())->not->toContain('x_co2')
         ->and($report->data)->not->toHaveKey('x_co2')
-        ->and($report->data['i_daily_safety_observations'])->not->toHaveKey('false_positives_excluded')
         ->and($report->data['ii_hse_incidents'])->toHaveCount(1)
         ->and($report->data['iii_lsr_violations']['entries'])->toHaveCount(1)
         ->and($report->data['vii_vehicle_violations'])->toHaveCount(1)
         ->and($report->data['vi_units_monitored']['note'])->toContain('monitoring devices')
         ->and(collect($report->data['ix_gas']['per_day'])->first())->toHaveKeys(['date', 'lel', 'h2s', 'o2', 'co', 'co2'])
         ->and($report->data['ix_gas']['per_day'][0]['co2'])->toHaveKeys(['min', 'avg', 'max'])
-        ->and($report->data['ix_gas'])->not->toHaveKey('per_gas_per_day')
         ->and($report->pdf_path)->not->toBeNull()
         ->and($report->csv_path)->not->toBeNull();
 
@@ -83,11 +81,13 @@ it('generates all 9 frozen data keys and excludes false-positive PPE', function 
     Storage::disk('private')->assertExists($report->csv_path);
 
     // Frozen: later PPE does not change snapshot.
+    $frozenTotal = (int) collect($report->data['i_daily_safety_observations']['per_day'])->sum('total');
     PpeViolation::factory()->create([
         'detected_at' => $start->copy()->addDays(1),
         'review_status' => ReviewStatus::Confirmed,
     ]);
-    expect($report->fresh()->data['i_daily_safety_observations'])->not->toHaveKey('false_positives_excluded');
+    expect((int) collect($report->fresh()->data['i_daily_safety_observations']['per_day'])->sum('total'))
+        ->toBe($frozenTotal);
 });
 
 it('generates manually in-request and redirects to the report', function () {

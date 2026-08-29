@@ -224,28 +224,9 @@ final class WeeklyReportService
             'supersedes_report_id' => $report->supersedes_report_id,
             'supersedes_report_number' => $report->supersedes?->report_number,
             'superseded_by_report_numbers' => $report->supersededBy->pluck('report_number')->values()->all(),
-            'data' => $this->operatorFacingData($report->data),
+            'data' => $report->data,
             'created_at' => optional($report->created_at)?->toIso8601String(),
         ];
-    }
-
-    /**
-     * Strip fields that must not appear on operator-facing report payloads.
-     *
-     * @param  array<string, mixed>|null  $data
-     * @return array<string, mixed>|null
-     */
-    private function operatorFacingData(?array $data): ?array
-    {
-        if ($data === null) {
-            return null;
-        }
-
-        if (isset($data['v_manpower']) && is_array($data['v_manpower'])) {
-            unset($data['v_manpower']['source']);
-        }
-
-        return $data;
     }
 
     /**
@@ -479,7 +460,7 @@ final class WeeklyReportService
     }
 
     /**
-     * @return array{source: string, per_day: list<array<string, mixed>>}
+     * @return array{per_day: list<array<string, mixed>>}
      */
     private function itemManpower(Carbon $start, Carbon $end): array
     {
@@ -487,13 +468,11 @@ final class WeeklyReportService
 
         if ($source === HeadcountSource::Camera) {
             return [
-                'source' => HeadcountSource::Camera->value,
                 'per_day' => $this->cameraHeadcounts->manpowerPerDay($start, $end),
             ];
         }
 
         return [
-            'source' => HeadcountSource::Rfid->value,
             'per_day' => $this->itemManpowerFromRfid($start, $end),
         ];
     }

@@ -81,10 +81,10 @@ final class WeeklyReportPresenter
             ],
             [
                 'key' => 'ix_gas',
-                // DOC-15 item viii (environmental) not shipped yet — show gas as viii so roman order stays contiguous.
+                // Display viii: DOC item viii (environmental) is not shipped yet — keep freeze key ix_gas.
                 'title' => 'viii. Gas Monitoring (LEL / H₂S / O₂ / CO / CO₂)',
                 'short' => 'Gas',
-                'blurb' => 'Daily gas channel ranges and alarm events (alarm level only). Cells show min / avg / max.',
+                'blurb' => 'Daily gas channel ranges and alarm events. Cells show min / avg / max.',
             ],
         ];
     }
@@ -99,10 +99,7 @@ final class WeeklyReportPresenter
         $ppeTotal = (int) collect($ppeDays)->sum('total');
         $incidents = $this->data['ii_hse_incidents'] ?? [];
         $lsr = $this->data['iii_lsr_violations']['entries'] ?? [];
-        $alarms = collect($this->data['ix_gas']['alarm_events'] ?? [])
-            ->reject(fn ($raw): bool => str_contains(strtolower((string) ($raw['level'] ?? '')), 'warn'))
-            ->values()
-            ->all();
+        $alarms = $this->data['ix_gas']['alarm_events'] ?? [];
         $vehicles = $this->data['vii_vehicle_violations'] ?? [];
         $gapKeys = $this->gapItemKeys();
         $manpowerDays = $this->data['v_manpower']['per_day'] ?? [];
@@ -190,10 +187,7 @@ final class WeeklyReportPresenter
             }
         }
 
-        $gasAlarms = collect($this->data['ix_gas']['alarm_events'] ?? [])
-            ->reject(fn ($raw): bool => str_contains(strtolower((string) ($raw['level'] ?? '')), 'warn'))
-            ->values()
-            ->all();
+        $gasAlarms = $this->data['ix_gas']['alarm_events'] ?? [];
         $gasDetail = [
             'LEL '.$this->fmt($this->gasChannelAvg('lel')).'%',
             'H₂S '.$this->fmt($this->gasChannelAvg('h2s')),
@@ -283,7 +277,7 @@ final class WeeklyReportPresenter
     }
 
     /**
-     * One coverage banner per section (collapses legacy per-device floods).
+     * One coverage banner per section.
      */
     public function coverageMessage(string $itemKey): ?string
     {
@@ -604,10 +598,6 @@ final class WeeklyReportPresenter
         $byGas = [];
         $duringOutage = 0;
         foreach ($alarmRaw as $raw) {
-            $levelRaw = strtolower((string) ($raw['level'] ?? ''));
-            if ($levelRaw === '' || str_contains($levelRaw, 'warn')) {
-                continue;
-            }
             if (! empty($raw['during_outage'])) {
                 $duringOutage++;
             }
@@ -700,7 +690,7 @@ final class WeeklyReportPresenter
         ], $weather['empty_label']);
 
         $manpower = $this->manpowerSection();
-        $manpowerHeaders = $manpower['columns'] ?? ['date', 'peak', 'average', 'entries', 'exits'];
+        $manpowerHeaders = $manpower['columns'] ?? ['date', 'peak', 'average'];
         $files['v_manpower.csv'] = $this->assocToCsv([
             $manpowerHeaders,
             ...array_map(fn (array $r): array => array_values($r), $manpower['rows']),
