@@ -9,13 +9,16 @@ On-premise safety command-centre.
 | `Mobile/` | Android Flutter app |
 | `EdgeCompute/` | Orin J4012 gas + RFID agents |
 | `Docs/` | Design specs (DOC-01 … DOC-22) |
-| **`SCC-SETUP.md`** | **Fresh SCC install runbook** |
+| **`SCC-SETUP.md`** | Shared / SCC2-oriented fresh SCC install runbook |
+| **`SCC1-SETUP.md`** | **SCC1** office LAN, MediaMTX, poles 5–8 |
 
 ## Handbooks
 
 | Topic | Document |
 |-------|----------|
-| Fresh SCC install | [`SCC-SETUP.md`](SCC-SETUP.md) |
+| SCC1 (poles 5–8) | [`SCC1-SETUP.md`](SCC1-SETUP.md) |
+| Fresh SCC install (shared / SCC2) | [`SCC-SETUP.md`](SCC-SETUP.md) |
+| Site / LiteBeam IPs | [`site-network.md`](site-network.md) |
 | Full ops / acceptance | [`Docs/Doc 20 deployment runbook.md`](Docs/Doc%2020%20deployment%20runbook.md) |
 | Retention / backup | [`Docs/Doc 19 retention backup.md`](Docs/Doc%2019%20retention%20backup.md) |
 | Local / Hostinger | [`Server/README.md`](Server/README.md) |

@@ -72,7 +72,8 @@ final class InstallCommand extends Command
         // Options win; otherwise prompt (password hidden).
         $name = $this->option('name') ?: $this->ask('Super Admin name', 'Super Admin');
         $email = $this->option('email') ?: $this->ask('Super Admin email', 'admin@gmail.com');
-        $password = $this->option('password') ?: $this->secret('Super Admin password');
+        // Default commission password when not passed (DOC-02 still forces change on first login).
+        $password = $this->option('password') ?: $this->secret('Super Admin password') ?: '12345677';
         if (! is_string($password) || $password === '') {
             $this->error('A Super Admin password is required.');
 

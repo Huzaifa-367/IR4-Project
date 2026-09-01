@@ -1,6 +1,6 @@
 # SCC remote access runbook (laptop → Tailscale → Lerd HTTPS)
 
-How to reach an already-installed IR4 SCC from a Mac/Linux laptop when you are **not** on the site LAN. This is **not** a fresh install — that is [SCC-SETUP.md](SCC-SETUP.md). Field IPs: [site-network.md](site-network.md).
+How to reach an already-installed IR4 SCC from a Mac/Linux laptop when you are **not** on the site LAN. This is **not** a fresh install — that is [SCC-SETUP.md](SCC-SETUP.md). SCC1 office/LiteBeam: [SCC1-SETUP.md](SCC1-SETUP.md). Field IPs: [site-network.md](site-network.md).
 
 Worked example below is **SCC1** (poles 5–8). The same sequence was used on **SCC2** (poles 1–4) on 14 Aug 2026 after a reboot left `/data2` unmounted.
 
@@ -18,10 +18,12 @@ Both SCCs use the hostname `ir4-project.test`. A laptop `/etc/hosts` can point t
 | Linux user | `scc1` | `scc2` |
 | Tailscale IPv4 | `100.96.105.106` | `100.118.103.39` |
 | MagicDNS | `scc1-poweredge-r360` | `scc2-poweredge-r360` |
+| Office LAN (on-site hosts) | `192.168.4.41` | often `192.168.2.101` / `.42` |
 | Poles | 5–8 | 1–4 |
 | App root | `/data2/laravel/IR4-Project` | same |
 | Operator URL | `https://ir4-project.test` | same |
 | Lerd LAN HTTP (agents / fallback) | `:9100` on the SCC LAN / VLAN `.40` | same |
+| Dedicated setup | [SCC1-SETUP.md](SCC1-SETUP.md) | [SCC-SETUP.md](SCC-SETUP.md) |
 
 SSH as the **Linux** user (`scc1` / `scc2`), not your Mac username.
 

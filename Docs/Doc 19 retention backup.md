@@ -65,7 +65,7 @@ An order-of-magnitude estimate so the Dell R360's storage is provisioned correct
 
 ### 5.1 Spatie `backup:run` — daily (DOC-01 §A8)
 - `spatie/laravel-backup` v10 dumps the fixed `mysql` connection and the deployed Laravel tree to an **AES-256 encrypted** ZIP on the `backups` filesystem rooted at `/data/ir4-backups`. `/data` is a separate physical volume from live data (DOC-20). The archive password is `BACKUP_ARCHIVE_PASSWORD` in `.env`, never a runtime DB setting.
-- Scheduler order follows Spatie's install guide: `backup:clean` at 01:00, then `backup:run` at 01:30 (avoid the 02:00–03:00 DST window). `backup:monitor` runs at 03:00.
+- Scheduler order follows Spatie's install guide (clean before run, then monitor). On-site SCCs **power off overnight after work hours**, so the window is daytime in `APP_TIMEZONE`: `backup:clean` 14:00 → `backup:run` 14:30 → `backup:monitor` 15:00 (not the classic overnight 01:00–03:00 slot).
 - **Rotation:** `backup:clean` retains one daily archive for 30 days. Weekly/monthly/yearly tiers are disabled by default.
 - **Notifications (on-prem):** Spatie mail/Slack/Discord channels are empty. Spatie events are routed through `BackupStatusService` → unified `AlertService` as deduplicated `system` warnings; success/recovery resolves matching alerts.
 - Raw-data pruning requires a successful backup marker from the current day. A failed, missing, or incomplete backup blocks pruning and raises a deduplicated warning.
@@ -87,11 +87,11 @@ Daily Spatie backups on the separate volume are the recoverable copy of the inst
 
 | Job | Cadence | Action |
 |---|---|---|
-| Spatie `backup:clean` | daily 01:00 | retain one daily archive for 30 days |
-| Spatie `backup:run` | daily 01:30 | encrypted MySQL + application archive to separate volume |
-| Spatie `backup:monitor` | daily 03:00 | detect missing/unhealthy backups |
-| `PruneRawSensorData` | daily 03:15 | prune raw sensor tables past retention (allow-list only; requires same-day backup) |
-| export-file sweep | daily 03:30 | remove ad-hoc exports past `retention.exports_days` (not report PDFs) |
+| Spatie `backup:clean` | daily 14:00 | retain one daily archive for 30 days |
+| Spatie `backup:run` | daily 14:30 | encrypted MySQL + application archive to separate volume |
+| Spatie `backup:monitor` | daily 15:00 | detect missing/unhealthy backups |
+| `PruneRawSensorData` | daily 15:15 | prune raw sensor tables past retention (allow-list only; requires same-day backup) |
+| export-file sweep | daily 15:30 | remove ad-hoc exports past `retention.exports_days` (not report PDFs) |
 
 All registered in the scheduler (DOC-01 §A8), monitored; failures raise `system` alerts.
 

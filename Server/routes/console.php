@@ -42,34 +42,34 @@ Schedule::call(function (TrackingService $tracking): void {
 
 Schedule::job(new FlagOverdueEquipment)->daily()->name('ir4:flag-overdue-equipment');
 
-// Spatie docs: clean before run; avoid 02:00–03:00 DST window.
+// Spatie order: clean → run → monitor → prune. Site SCCs power off overnight
+// after work hours, so keep this window in daytime (APP_TIMEZONE / general.timezone).
 // Requires a persistent scheduler worker: `lerd schedule:start` (see scripts/01-setup.sh).
-// Times use APP_TIMEZONE / general.timezone.
 Schedule::command('backup:clean')
-    ->dailyAt('01:00')
+    ->dailyAt('14:00')
     ->name('ir4:backup-clean')
     ->withoutOverlapping(60)
     ->runInBackground();
 
 Schedule::command('backup:run')
-    ->dailyAt('01:30')
+    ->dailyAt('14:30')
     ->name('ir4:backup-run')
     ->withoutOverlapping(180)
     ->runInBackground();
 
 Schedule::command('backup:monitor')
-    ->dailyAt('03:00')
+    ->dailyAt('15:00')
     ->name('ir4:backup-monitor')
     ->withoutOverlapping(30)
     ->runInBackground();
 
 Schedule::job(new PruneRawSensorData)
-    ->dailyAt('03:15')
+    ->dailyAt('15:15')
     ->name('ir4:prune-raw-sensor-data')
     ->withoutOverlapping(120);
 
 Schedule::job(new PruneExportFiles)
-    ->dailyAt('03:30')
+    ->dailyAt('15:30')
     ->name('ir4:prune-export-files')
     ->withoutOverlapping(60);
 

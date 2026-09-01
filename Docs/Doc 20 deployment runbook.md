@@ -162,7 +162,7 @@ If `backup:run` succeeds but host `ls` fails, PHP wrote into a container-private
 
 ### 8.2 Daily schedule & ops
 
-- Schedule (Spatie order; times use `APP_TIMEZONE` / `general.timezone`, not raw Linux wall clock alone): `backup:clean` 01:00 → `backup:run` 01:30 → `backup:monitor` 03:00 → prune 03:15. Archives are AES-256 ZIPs under `/data/ir4-backups/{APP_NAME}`; 30 daily retention. Failures raise in-app `system` alerts via `AlertService` (no mail). Pruning refuses without the current day's success marker.
+- Schedule (Spatie order; times use `APP_TIMEZONE` / `general.timezone`, not raw Linux wall clock alone): `backup:clean` 14:00 → `backup:run` 14:30 → `backup:monitor` 15:00 → prune 15:15. Daytime window — site SCCs shut down overnight after work hours. Archives are AES-256 ZIPs under `/data/ir4-backups/{APP_NAME}`; 30 daily retention. Failures raise in-app `system` alerts via `AlertService` (no mail). Pruning refuses without the current day's success marker.
 - `scripts/01-setup.sh` also starts the schedule worker and fails if `/data` or `mysqldump` is missing.
 - Operational commands: `php artisan backup:run`, `backup:list`, `backup:clean`, `backup:monitor`.
 - After deploy/`optimize`, if artisan fails on `CleanupStrategy`, delete `bootstrap/cache/config.php` then `php artisan optimize:clear`.

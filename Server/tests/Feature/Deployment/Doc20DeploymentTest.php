@@ -44,9 +44,9 @@ it('registers DOC-19/20 scheduled jobs including backup-before-prune', function 
     expect($cleanAt)->not->toBeNull()
         ->and($backupAt)->not->toBeNull()
         ->and($pruneAt)->not->toBeNull()
-        ->and($cleanAt->expression)->toBe('0 1 * * *')
-        ->and($backupAt->expression)->toBe('30 1 * * *')
-        ->and($pruneAt->expression)->toBe('15 3 * * *');
+        ->and($cleanAt->expression)->toBe('0 14 * * *')
+        ->and($backupAt->expression)->toBe('30 14 * * *')
+        ->and($pruneAt->expression)->toBe('15 15 * * *');
 });
 
 it('resolves Spatie backup cleanup command after config cache', function () {

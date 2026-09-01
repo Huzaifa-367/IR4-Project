@@ -17,7 +17,8 @@ Design rules: `Docs/` DOC-01…22 · Full ops depth: [DOC-20](Docs/Doc%2020%20de
 
 **Pole split and field IPs:** [site-network.md](site-network.md) — SCC2 = poles **1–4**, SCC1 = poles **5–8**. Remote access is **SSH over Tailscale only** (no AnyDesk / KVM).
 
-Laptop → Tailscale → `https://ir4-project.test` (mount `/data2`, re-link Lerd, hosts file): [SCC-REMOTE-ACCESS.md](SCC-REMOTE-ACCESS.md).
+- **SCC1 (this site / poles 5–8):** dedicated runbook → [SCC1-SETUP.md](SCC1-SETUP.md)  
+- Laptop → Tailscale → `https://ir4-project.test`: [SCC-REMOTE-ACCESS.md](SCC-REMOTE-ACCESS.md)
 
 ```text
 ssh scc2@100.118.103.39    # SCC2
@@ -39,10 +40,10 @@ Reverb WebSockets use **the same origin as that browser URL** (Lerd proxies `/ap
 
 | SCC | Fill-in IP | Commissioning URL (mode A) | Production URL (mode B) |
 | --- | --- | --- | --- |
-| **SCC1** | `192.168.3.149` | `http://192.168.3.149:9100` | `https://ir4-project.test` |
+| **SCC1** | `192.168.4.41` | `http://192.168.4.41:9100` | `https://ir4-project.test` |
 | **SCC2** | `192.168.2.101` | `http://192.168.2.101:9100` | `https://ir4-project.test` |
 
-Workstation setup for mode B is **§10** below. Remote / Tailscale laptop: [SCC-REMOTE-ACCESS.md](SCC-REMOTE-ACCESS.md).
+SCC1 office NIC / MediaMTX / LiteBeam Port 2: **[SCC1-SETUP.md](SCC1-SETUP.md)**. Workstation setup for mode B is **§10** below. Remote / Tailscale laptop: [SCC-REMOTE-ACCESS.md](SCC-REMOTE-ACCESS.md).
 
 ---
 
@@ -220,7 +221,7 @@ CACHE_STORE=database
 
 ### 4d. Cameras + backups
 
-**Always set MediaMTX to this SCC’s LAN IP** — do not copy `MEDIAMTX_`* / `CAMERA_BROWSER_*` from another box (e.g. SCC1 `192.168.3.149` will break live wall on SCC2).
+**Always set MediaMTX to this SCC’s LAN IP** — do not copy `MEDIAMTX_`* / `CAMERA_BROWSER_*` from another box (e.g. SCC1 `192.168.4.41` will break live wall on SCC2).
 
 Permanent contract (auto-applied by `scripts/ensure-mediamtx-env.sh` and by `03-ensure-mediamtx.sh`):
 
@@ -284,8 +285,8 @@ Create Super Admin + initial site registry (poles, devices, cameras):
 # Non-interactive (commissioning):
 lerd artisan ir4:install \
   --name="Super Admin" \
-  --email="admin@ir4.local" \
-  --password="password"
+  --email="admin@gmail.com" \
+  --password="12345677"
 
 # Or interactive prompts:
 lerd artisan ir4:install
@@ -302,7 +303,7 @@ lerd artisan ir4:install
 ### Reset a locked-out admin
 
 ```bash
-lerd artisan ir4:user:reset admin@ir4.local
+lerd artisan ir4:user:reset admin@gmail.com
 # Use the temporary password printed once; change it on first login.
 ```
 
@@ -326,7 +327,7 @@ echo 'OK';
 ## 6. Log in (verify before continuing)
 
 1. Open `http://192.168.8.40:9100/login` (same scheme/host/port as `APP_URL`).
-2. Email: `admin@ir4.local` (or the email you passed to `ir4:install`).
+2. Email: `admin@gmail.com` (or the email you passed to `ir4:install`).
 3. Password: `Password123!` (or your chosen password).
 4. First login forces a **password change** — that is expected.
 
@@ -482,7 +483,7 @@ Both SCCs share the **same hostname**. The PC can point at **only one** SCC at a
 
 | Which SCC? | Hosts IP | CA file to install |
 | --- | --- | --- |
-| SCC1 | `192.168.3.149` | `lerd-rootCA-scc1.pem` |
+| SCC1 | `192.168.4.41` | `lerd-rootCA-scc1.pem` |
 | SCC2 | `192.168.2.101` | `lerd-rootCA-scc2.pem` |
 
 SCC2 often has both `192.168.2.42` (static) and `192.168.2.101` (DHCP secondary) on `eno8303`. **Either IP works for hosts** if `ping` reaches it — keep using `.101` if that was already working. Confirm with `ip -4 addr show eno8303`.  
@@ -538,7 +539,7 @@ scp scc2@100.118.103.39:~/Desktop/lerd-rootCA-scc2.pem ~/Downloads/
 ### Step B — On the Windows workstation
 
 Do this on the **operator PC**, PowerShell **as Administrator**.  
-Examples below are for **SCC2**. For SCC1, use `192.168.3.149` and `lerd-rootCA-scc1.pem` instead.
+Examples below are for **SCC2**. For SCC1, use `192.168.4.41` and `lerd-rootCA-scc1.pem` instead — see [SCC1-SETUP.md](SCC1-SETUP.md).
 
 #### B1 — Hosts (name → IP)
 
@@ -612,7 +613,7 @@ https://ir4-project.test/login
 | `https://ir4-project.test` | `http://192.168.2.101:9100` or any Lerd `…:9100` link |
 | Hosts IP = `.101` (or `.42` if `.101` is down) | Pole / Tailscale / `lerd0` IPs |
 
-Login: `admin@ir4.local` (or the email from `ir4:install`).
+Login: `admin@gmail.com` / `12345677` (or the email from `ir4:install`; change password on first login).
 
 ---
 
@@ -963,6 +964,7 @@ MediaMTX encodes `@` in the password as `%40` when it pulls the stream. Leave th
 
 | Doc                                               | Use when                  |
 | ------------------------------------------------- | ------------------------- |
+| [SCC1-SETUP.md](SCC1-SETUP.md)                    | SCC1 office LAN / poles 5–8 |
 | [DOC-20](Docs/Doc%2020%20deployment%20runbook.md) | Full ops / acceptance     |
 | [DOC-19](Docs/Doc%2019%20retention%20backup.md)   | Retention + backup policy |
 | [Server/README.md](Server/README.md)              | Hostinger / local dev     |

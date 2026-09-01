@@ -4,12 +4,20 @@ Authoritative IP plan for field hardware. Remote access to SCCs is **SSH over Ta
 
 ## SCC ownership
 
-| SCC | Host | Linux user | Tailscale | Poles |
-|---|---|---|---|---|
-| **SCC2** | `scc2-PowerEdge-R360` | `scc2` | `100.118.103.39` (`scc2-poweredge-r360`) | **1–4** |
-| **SCC1** | `scc1-PowerEdge-R360` | `scc1` | `100.96.105.106` (`scc1-poweredge-r360`) | **5–8** |
+| SCC | Host | Linux user | Tailscale | Poles | Office LAN (Port 1) |
+|---|---|---|---|---|---|
+| **SCC2** | `scc2-PowerEdge-R360` | `scc2` | `100.118.103.39` (`scc2-poweredge-r360`) | **1–4** | site-specific (often `192.168.2.x`) |
+| **SCC1** | `scc1-PowerEdge-R360` | `scc1` | `100.96.105.106` (`scc1-poweredge-r360`) | **5–8** | **`192.168.4.41/24`**, gw **`192.168.4.1`** |
 
-Poles ingest to **their** SCC (`IR4_BASE_URL`). Do not point poles 1–4 at SCC1 or poles 5–8 at SCC2.
+Poles ingest to **their** SCC (`IR4_BASE_URL`). Do not point poles 1–4 at SCC1 or poles 5–8 at SCC2. SCC1 and SCC2 are **different sites** — do not copy office IPs between them. SCC1 bring-up: [SCC1-SETUP.md](SCC1-SETUP.md).
+
+### SCC1 managed switch (keep this IP)
+
+| Device | IP | Notes |
+|--------|-----|--------|
+| **Managed switch (SCC1)** | **`172.16.1.190`** | Fixed management address — **do not reassign**. Reachable on the Port 2 / beam fabric once that NIC is up. |
+
+Pole TSW202 units stay at the per-pole `.1` addresses in the table below (separate from this SCC managed switch).
 
 ### SSH (from a laptop on the same tailnet)
 

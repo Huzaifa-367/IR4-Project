@@ -91,7 +91,7 @@ final class DemoSeeder extends Seeder
             ?? User::factory()->withRole('Super Admin')->create([
                 'name' => 'Super Admin',
                 'email' => 'admin@gmail.com',
-                'password' => Hash::make('password'),
+                'password' => Hash::make('12345677'),
                 'must_change_password' => true,
             ]);
 
@@ -101,7 +101,7 @@ final class DemoSeeder extends Seeder
                 ?? User::factory()->withRole('Safety Manager')->create([
                     'name' => 'Safety Manager',
                     'email' => 'safety@gmail.com',
-                    'password' => Hash::make('password'),
+                    'password' => Hash::make('12345677'),
                     'must_change_password' => true,
                 ]);
 
@@ -109,7 +109,7 @@ final class DemoSeeder extends Seeder
                 ?? User::factory()->withRole('SCC Operator')->create([
                     'name' => 'SCC Operator',
                     'email' => 'operator@gmail.com',
-                    'password' => Hash::make('password'),
+                    'password' => Hash::make('12345677'),
                     'must_change_password' => true,
                 ]);
         } else {
