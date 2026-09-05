@@ -21,6 +21,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import serial
+
 from ir4_edge.common.buffer import OutageBuffer
 from ir4_edge.common.client import Ir4Client
 from ir4_edge.common.config import (
@@ -31,13 +33,24 @@ from ir4_edge.common.config import (
 )
 from ir4_edge.common.heartbeat import HeartbeatLoop
 from ir4_edge.common.logging_setup import setup_logging
-from ir4_edge.common.timeutil import new_event_uid, now_iso
+from ir4_edge.common.timeutil import new_event_uid, now_iso, wait_for_sane_clock
 from ir4_edge.gas import yt98h
 
 log = logging.getLogger("ir4_edge.gas")
 
 # After this many empty polls, report ``modbus_silence`` on the heartbeat.
 _DEGRADED_AFTER_EMPTY_POLLS = 6
+# USB-RS485 dongles occasionally drop (Errno 5); reopen rather than crash-loop.
+_SERIAL_REOPEN_SLEEP_S = 2.0
+
+
+def _is_serial_io_error(exc: BaseException) -> bool:
+    if isinstance(exc, serial.SerialException):
+        return True
+    if isinstance(exc, OSError) and getattr(exc, "errno", None) in (5, 6):
+        return True
+    text = str(exc).lower()
+    return "input/output error" in text or "errno 5" in text
 
 
 def build_gas_event(
@@ -87,6 +100,8 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     raw_map = config.get("field_map") or yt98h.DEFAULT_FIELD_MAP
     field_map = {int(k): str(v) for k, v in dict(raw_map).items()}
 
+    wait_for_sane_clock(logger=log)
+
     resolved_port = yt98h.autodetect_port(port or None)
     log.info("Opening serial %s %s 8%s%s", resolved_port, baud, parity, stopbits)
     ser = yt98h.open_port(resolved_port, baud, parity, stopbits)
@@ -117,6 +132,18 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
             "poll_interval_seconds": poll_interval,
         }
 
+    def reopen_serial() -> serial.Serial:
+        nonlocal ser, resolved_port
+        try:
+            ser.close()
+        except Exception:
+            pass
+        time.sleep(_SERIAL_REOPEN_SLEEP_S)
+        resolved_port = yt98h.autodetect_port(port or None)
+        log.warning("Reopening serial after I/O error: %s", resolved_port)
+        ser = yt98h.open_port(resolved_port, baud, parity, stopbits)
+        return ser
+
     heartbeat = HeartbeatLoop(
         client,
         interval_seconds=heartbeat_interval,
@@ -127,7 +154,18 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
     consecutive_failures = 0
     try:
         while not stop["flag"]:
-            poll = yt98h.poll_channels(ser, addresses, baud)
+            try:
+                poll = yt98h.poll_channels(ser, addresses, baud)
+            except Exception as exc:
+                if stop["flag"] or not _is_serial_io_error(exc):
+                    raise
+                log.warning("Serial I/O error during poll: %s", exc)
+                try:
+                    reopen_serial()
+                except Exception as reopen_exc:
+                    log.warning("Serial reopen failed: %s", reopen_exc)
+                    time.sleep(poll_interval)
+                continue
 
             if not poll.has_data:
                 consecutive_failures += 1
@@ -175,7 +213,10 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
             pass
         buffer.close()
         client.close()
-        ser.close()
+        try:
+            ser.close()
+        except Exception:
+            pass
     return 0
 
 

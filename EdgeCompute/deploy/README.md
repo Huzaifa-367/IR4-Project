@@ -12,12 +12,16 @@ Success is recorded only after **doctor verification** passes on the pole.
 
 Software on each pole: `/opt/ir4-edge/` (`EdgeCompute` + `venv` + `var` + `wheels`).
 
-| Pole | `--pole` | Jetson SSH | SCC URL |
-|---|---|---|---|
-| 1 | `1` | `pole1@172.16.3.2` | `http://172.16.3.40:9100` |
-| 2 | `2` | `pole2@172.16.2.2` | `http://172.16.2.40:9100` |
-| 3 | `3` | `pole3@172.16.1.50` | `http://172.16.1.40:9100` |
-| 4 | `4` | `pole4@172.16.4.2` | `http://172.16.4.40:9100` |
+| Pole | `--pole` | Jetson SSH | SCC URL | Push from |
+|---|---|---|---|---|
+| 1 | `1` | `pole1@172.16.3.2` | `http://172.16.3.40:9100` | SCC2 |
+| 2 | `2` | `pole2@172.16.2.2` | `http://172.16.2.40:9100` | SCC2 |
+| 3 | `3` | `pole3@172.16.1.50` | `http://172.16.1.40:9100` | SCC2 |
+| 4 | `4` | `pole4@172.16.4.2` | `http://172.16.4.40:9100` | SCC2 |
+| 5 | `5` | `pole5@172.16.5.2` | `http://172.16.5.40:9100` | SCC1 |
+| 6 | `6` | `pole6@172.16.6.2` | `http://172.16.6.40:9100` | SCC1 |
+| 7 | `7` | `pole7@172.16.7.2` | `http://172.16.7.40:9100` | SCC1 |
+| 8 | `8` | `pole8@172.16.8.2` | `http://172.16.8.40:9100` | SCC1 |
 
 After any method: `ir4-edge doctor` and `ir4-edge deploy-status`.
 

@@ -25,6 +25,7 @@ from ir4_edge.common.config import (
 )
 from ir4_edge.common.heartbeat import HeartbeatLoop
 from ir4_edge.common.logging_setup import setup_logging
+from ir4_edge.common.timeutil import wait_for_sane_clock
 from ir4_edge.rfid.mapper import events_from_payload
 
 log = logging.getLogger("ir4_edge.rfid")
@@ -122,6 +123,8 @@ def run_agent(config_path: Path, dry_run: bool = False) -> int:
         "rfid_buffer.sqlite",
     )
     log_raw = bool(agent_cfg.get("log_raw", False))
+
+    wait_for_sane_clock(logger=log)
 
     mqtt_cfg = dict(config.get("mqtt") or {})
     broker = str(mqtt_cfg.get("broker", "localhost"))

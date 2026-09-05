@@ -21,6 +21,8 @@ ir4-edge restart
 
 Agents start on every reboot. To run **gas only** or **RFID only**: set `services.gas` / `services.rfid` in `configs/edge.yaml`, then `sudo ir4-edge apply`. The other unit is disabled and left alone.
 
+**Boot order (permanent):** units wait for `time-sync.target` + `deploy/scripts/wait_for_ir4.sh` (SCC `.40` TCP) before start. Deploy pins `systemd-timesyncd` to the `IR4_BASE_URL` host (SCC chrony), sets `APP_TIMEZONE` / `Asia/Riyadh`, and enables `systemd-time-wait-sync` so Orin RTC resets do not stamp `recorded_at` as 1970.
+
 ## 2. Gas (YT-98H)
 
 - 24 V, Output Mode = RS485, warm-up 2–5 min.

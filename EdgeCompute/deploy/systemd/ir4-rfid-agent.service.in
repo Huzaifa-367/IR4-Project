@@ -1,8 +1,8 @@
 [Unit]
 Description=IR4 FXR90 MQTT RFID ingest agent
 Documentation=file://@EDGE_ROOT@/docs/runbook.md
-After=network-online.target mosquitto.service
-Wants=network-online.target
+After=network-online.target time-sync.target mosquitto.service
+Wants=network-online.target time-sync.target
 Requires=mosquitto.service
 StartLimitIntervalSec=0
 
@@ -14,6 +14,7 @@ WorkingDirectory=@EDGE_ROOT@
 Environment=IR4_EDGE_CONFIG_DIR=@EDGE_ROOT@/configs
 Environment=IR4_EDGE_VAR_DIR=@INSTALL_ROOT@/var
 EnvironmentFile=-@EDGE_ROOT@/configs/secrets.env
+ExecStartPre=+@EDGE_ROOT@/deploy/scripts/wait_for_ir4.sh
 ExecStart=@INSTALL_ROOT@/venv/bin/ir4-rfid-agent
 Restart=on-failure
 RestartSec=10

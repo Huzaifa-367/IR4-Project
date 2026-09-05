@@ -1,0 +1,59 @@
+---
+description: Authoritative field IP / SCC / pole addressing from site-network.md
+alwaysApply: true
+---
+
+# Site network schema
+
+**Source of truth:** `site-network.md`. Do not invent pole/camera IPs. If unsure, read that file.
+
+## SCC split
+
+| SCC | Tailscale | Poles | Office (Port 1) |
+|---|---|---|---|
+| **SCC2** | `100.118.103.39` (`scc2`) | **1–4** | site-specific (often `192.168.2.x`) |
+| **SCC1** | `100.96.105.106` (`scc1`) | **5–8** | `192.168.4.41/24`, gw `192.168.4.1` |
+
+- Poles ingest only to **their** SCC VLAN `.40:9100`. Never cross-wire SCC1 ↔ SCC2.
+- SCC1 managed switch (Port 2 fabric): **`172.16.1.190`** — do not reassign. SCC host alias on that fabric: `172.16.1.191`.
+- Pole TSW202 = per-pole `.1` (not the SCC managed switch).
+
+## Address pattern
+
+`172.16.<subnet>.<host>`
+
+| Pole | 3rd octet | Notes |
+|---|---|---|
+| 1 | **3** | swapped with pole 3 |
+| 2 | 2 | |
+| 3 | **1** | swapped; Jetson/LiteBeam suffixes differ |
+| 4–8 | = pole # | 5–8 = SCC1 |
+
+### Standard last octets (poles 1–2, 4–8)
+
+| Device | Octet |
+|---|---|
+| TSW202 switch | `.1` |
+| Jetson J4012 | `.2` |
+| Camera 1 PTZ | `.10` |
+| Camera 2 bullet | `.11` |
+| RFID FXR90 | `.12` |
+| LiteBeam station | `.20` |
+| LiteBeam AP (SCC) | `.21` |
+| SCC on this VLAN | `.40` |
+
+**There is no camera at `.3`.** Cameras are `.10` / `.11` only.
+
+### Pole 3 exceptions (subnet `172.16.1.x`)
+
+- Jetson `.50`, LiteBeam station `.91`, LiteBeam AP `.81`
+- Switch / cameras / RFID / SCC `.40` still use standard last octets
+
+## Quick examples
+
+- Pole 6 bullet cam → `172.16.6.11`
+- Pole 6 PTZ → `172.16.6.10`
+- Pole 6 Jetson → `172.16.6.2` → `IR4_BASE_URL=http://172.16.6.40:9100`
+- Pole 3 Jetson → `172.16.1.50` → `http://172.16.1.40:9100`
+
+SSH Jetson via SCC when Tailscale offline: `ssh -J scc1@100.96.105.106 user@172.16.6.2` (SCC1 poles) or `ssh -J scc2@…` (SCC2 poles).

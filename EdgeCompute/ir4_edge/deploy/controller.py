@@ -101,7 +101,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     apply_cmd = sub.add_parser("apply", help="Install or update on this pole (auto-detect)")
-    apply_cmd.add_argument("--pole", type=int, required=True, choices=(1, 2, 3, 4))
+    apply_cmd.add_argument("--pole", type=int, required=True, choices=(1, 2, 3, 4, 5, 6, 7, 8))
     apply_cmd.add_argument("--transport", choices=("direct", "scc"), default="scc")
     apply_cmd.add_argument("--payload", default="", help="SCC offline payload directory")
     apply_cmd.add_argument("--from", dest="from_path", default="")
@@ -111,7 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     apply_cmd.set_defaults(func=_pole_apply, apply=True, install=False)
 
     install_cmd = sub.add_parser("install", help="Fresh install on pole (direct transport)")
-    install_cmd.add_argument("--pole", type=int, required=True, choices=(1, 2, 3, 4))
+    install_cmd.add_argument("--pole", type=int, required=True, choices=(1, 2, 3, 4, 5, 6, 7, 8))
     install_cmd.add_argument("--transport", choices=("direct", "scc"), default="direct")
     install_cmd.add_argument("--payload", default="")
     install_cmd.add_argument("--from", dest="from_path", default="")
@@ -121,7 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
     install_cmd.set_defaults(func=_pole_apply, apply=False, install=True)
 
     update_cmd = sub.add_parser("update", help="Update pole (direct transport)")
-    update_cmd.add_argument("--pole", type=int, required=True, choices=(1, 2, 3, 4))
+    update_cmd.add_argument("--pole", type=int, required=True, choices=(1, 2, 3, 4, 5, 6, 7, 8))
     update_cmd.add_argument("--transport", choices=("direct", "scc"), default="direct")
     update_cmd.add_argument("--payload", default="")
     update_cmd.add_argument("--from", dest="from_path", default="")

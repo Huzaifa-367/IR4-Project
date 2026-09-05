@@ -20,7 +20,17 @@ _POLE_BASE_URL = {
     2: "http://172.16.2.40:9100",
     3: "http://172.16.1.40:9100",
     4: "http://172.16.4.40:9100",
+    5: "http://172.16.5.40:9100",
+    6: "http://172.16.6.40:9100",
+    7: "http://172.16.7.40:9100",
+    8: "http://172.16.8.40:9100",
 }
+
+# Camp SCC1 reuses SCC2 device rows: pole 5→01, 6→02, 7→03, 8→04.
+def _credential_pole(pole: int) -> int:
+    if pole < 1 or pole > 8:
+        raise ValueError("pole must be 1–8")
+    return pole if pole <= 4 else pole - 4
 
 _ENV_ORDER = (
     "IR4_BASE_URL",
@@ -98,9 +108,8 @@ def apply_credentials_to_values(
     existing: MutableMapping[str, str],
     creds: Optional[Mapping[str, Dict[str, str]]] = None,
 ) -> Dict[str, str]:
-    if pole < 1 or pole > 4:
-        raise ValueError("pole must be 1–4")
-    pad = "{:02d}".format(pole)
+    cred_pole = _credential_pole(pole)
+    pad = "{:02d}".format(cred_pole)
     table = creds or load_credentials()
     gas = table.get("DEV-GAS-{}".format(pad))
     rfid = table.get("DEV-RFID-{}".format(pad))
@@ -127,13 +136,15 @@ def pole_secrets_path(pole: int) -> Path:
 
 def apply_pole_secrets(pole: int, dest: Optional[Path] = None) -> Path:
     """Write credentials.md gas/RFID rows into secrets.env (and keep MQTT from the pole file)."""
-    pad = "{:02d}".format(pole)
+    cred_pad = "{:02d}".format(_credential_pole(pole))
     pole_file = pole_secrets_path(pole)
     target = dest or (config_dir() / "secrets.env")
     existing = read_env(pole_file)
     existing.update(read_env(target))
     values = apply_credentials_to_values(pole, existing)
-    header = "# Pole {} — copied from credentials.md (DEV-GAS-{} + DEV-RFID-{})".format(pad, pad, pad)
+    header = "# Pole {:02d} — credentials from DEV-GAS-{} + DEV-RFID-{} (camp map 5→1…8→4)".format(
+        pole, cred_pad, cred_pad
+    )
     write_env(target, values, header)
     return target
 

@@ -1,8 +1,8 @@
 [Unit]
 Description=IR4 YT-98H gas ingest agent
 Documentation=file://@EDGE_ROOT@/docs/runbook.md
-After=network-online.target
-Wants=network-online.target
+After=network-online.target time-sync.target
+Wants=network-online.target time-sync.target
 StartLimitIntervalSec=0
 
 [Service]
@@ -14,6 +14,8 @@ WorkingDirectory=@EDGE_ROOT@
 Environment=IR4_EDGE_CONFIG_DIR=@EDGE_ROOT@/configs
 Environment=IR4_EDGE_VAR_DIR=@INSTALL_ROOT@/var
 EnvironmentFile=-@EDGE_ROOT@/configs/secrets.env
+# Wait for SCC VLAN + NTP so recorded_at is not 1970 after Jetson reboot.
+ExecStartPre=+@EDGE_ROOT@/deploy/scripts/wait_for_ir4.sh
 ExecStart=@INSTALL_ROOT@/venv/bin/ir4-gas-agent
 Restart=on-failure
 RestartSec=10

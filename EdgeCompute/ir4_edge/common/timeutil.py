@@ -2,18 +2,25 @@
 
 Jetson L4T ships Python 3.8 (no zoneinfo). Riyadh has no DST, so a fixed
 offset is enough and needs no extra packages.
+
+After a cold boot Orins often wake at Unix epoch until SCC NTP catches up.
+``wait_for_sane_clock`` blocks agent startup so ``recorded_at`` is never 1970.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import re
+import time
 from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Optional
 from uuid import uuid4
 
 _TIMEZONE_ENV = "APP_TIMEZONE"
 _DEFAULT_TIMEZONE = "Asia/Riyadh"
+# Orin RTC often resets to 1970; anything before this year is treated as unsynced.
+_MIN_SANE_YEAR = 2024
 _FIXED_OFFSETS = {
     "Asia/Riyadh": timezone(timedelta(hours=3)),
     "UTC": timezone.utc,
@@ -42,6 +49,42 @@ def new_event_uid() -> str:
 def now_iso() -> str:
     """Wall clock in APP_TIMEZONE with offset (gas polls have no device timestamp)."""
     return datetime.now(configured_timezone()).replace(microsecond=0).isoformat()
+
+
+def clock_is_sane(now: Optional[datetime] = None) -> bool:
+    """True when wall clock looks NTP-synced (not Orin 1970 RTC reset)."""
+    stamp = now if now is not None else datetime.now(timezone.utc)
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return stamp.astimezone(timezone.utc).year >= _MIN_SANE_YEAR
+
+
+def wait_for_sane_clock(
+    timeout_seconds: float = 180.0,
+    poll_seconds: float = 2.0,
+    logger: Optional[logging.Logger] = None,
+) -> bool:
+    """Block until the clock is sane, or ``timeout_seconds`` elapses.
+
+    Returns True if sane. False means still epoch-like — caller may start
+    anyway (buffer/retry) but should log loudly.
+    """
+    log = logger or logging.getLogger("ir4_edge.time")
+    deadline = time.monotonic() + max(float(timeout_seconds), 0.0)
+    if clock_is_sane():
+        return True
+    log.warning(
+        "Wall clock looks unsynced (%s) — waiting up to %.0fs for NTP",
+        now_iso(),
+        timeout_seconds,
+    )
+    while time.monotonic() < deadline:
+        time.sleep(max(float(poll_seconds), 0.2))
+        if clock_is_sane():
+            log.info("Clock sane after NTP wait: %s", now_iso())
+            return True
+    log.error("Clock still unsynced after wait (%s) — continuing", now_iso())
+    return False
 
 
 def to_iso(value: str) -> Optional[str]:
