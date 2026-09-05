@@ -94,14 +94,16 @@ function syncTabInUrl(tab: string): void {
 
 function geolocationErrorMessage(error: GeolocationPositionError): string {
     if (error.code === error.PERMISSION_DENIED) {
-        return 'Location permission denied.';
+        return 'Location permission denied for this site.';
     }
 
     if (error.code === error.TIMEOUT) {
-        return 'Location request timed out.';
+        return 'Location request timed out. Enter latitude/longitude manually, or retry.';
     }
 
-    return 'Unable to determine location.';
+    // POSITION_UNAVAILABLE — common on SCC desktops: no GPS, and network
+    // location needs outbound DNS/HTTPS (often blocked on-prem).
+    return 'No position available (SCC has no GPS; network location needs internet DNS). Enter latitude/longitude manually.';
 }
 
 function TabPanelHeader({ label }: { label: string }): ReactNode {
@@ -215,8 +217,9 @@ function GroupFooter({
                     {locating ? 'Detecting…' : 'Refresh location'}
                 </Button>
                 <p className="text-xs text-text-dim">
-                    Fills latitude/longitude from this browser (use at the SCC),
-                    then Save this tab.
+                    Fills latitude/longitude from this browser over HTTPS, then
+                    Save. On-prem SCCs often have no GPS — type coords manually
+                    if detect fails.
                 </p>
             </div>
             {locationError ? (
@@ -330,6 +333,14 @@ export default function GeneralSettingsPage({
             return;
         }
 
+        if (typeof window !== 'undefined' && !window.isSecureContext) {
+            setLocationError(
+                'Geolocation needs HTTPS (open https://ir4-project.test, not a bare IP).',
+            );
+
+            return;
+        }
+
         if (!navigator.geolocation) {
             setLocationError('Geolocation is not available in this browser.');
 
@@ -338,22 +349,39 @@ export default function GeneralSettingsPage({
 
         setLocating(true);
         setLocationError(null);
+
+        const applyPosition = (position: GeolocationPosition): void => {
+            setValues((current) => ({
+                ...current,
+                'general.site_latitude': position.coords.latitude.toFixed(6),
+                'general.site_longitude': position.coords.longitude.toFixed(6),
+            }));
+            setLocating(false);
+        };
+
+        // Prefer network/Wi‑Fi location first — SCC boxes have no GPS;
+        // enableHighAccuracy often times out waiting for a fix that never comes.
         navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setValues((current) => ({
-                    ...current,
-                    'general.site_latitude':
-                        position.coords.latitude.toFixed(6),
-                    'general.site_longitude':
-                        position.coords.longitude.toFixed(6),
-                }));
-                setLocating(false);
+            applyPosition,
+            () => {
+                navigator.geolocation.getCurrentPosition(
+                    applyPosition,
+                    (error) => {
+                        setLocationError(geolocationErrorMessage(error));
+                        setLocating(false);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 20000,
+                        maximumAge: 0,
+                    },
+                );
             },
-            (error) => {
-                setLocationError(geolocationErrorMessage(error));
-                setLocating(false);
+            {
+                enableHighAccuracy: false,
+                timeout: 20000,
+                maximumAge: 60_000,
             },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
         );
     };
 
