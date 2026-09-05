@@ -238,12 +238,13 @@ class DeployPipeline:
         os.environ["IR4_EDGE_CONFIG_DIR"] = str(live / "configs")
         os.environ["IR4_EDGE_VAR_DIR"] = str(ctx.install_root / "var")
         try:
-            if first_install:
-                secrets_template = live / "configs" / "secrets.pole-{:02d}.env".format(ctx.pole)
-                live_secrets = live / "configs" / "secrets.env"
-                if secrets_template.is_file() and not live_secrets.is_file():
-                    shutil.copy2(secrets_template, live_secrets)
-                apply_pole_secrets(ctx.pole, live_secrets)
+            secrets_template = live / "configs" / "secrets.pole-{:02d}.env".format(ctx.pole)
+            live_secrets = live / "configs" / "secrets.env"
+            # Refresh on every deploy so pole renumbering (SCC1 05–08) updates
+            # live secrets without wiping the Jetson install.
+            if secrets_template.is_file():
+                shutil.copy2(secrets_template, live_secrets)
+            apply_pole_secrets(ctx.pole, live_secrets)
             run_host(live, "enable-services", env=env)
         finally:
             if prev_config is None:
