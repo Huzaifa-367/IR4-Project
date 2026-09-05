@@ -922,8 +922,7 @@ Common causes:
 
 Paste these as `stream_url` on each camera in Hardware → Cameras. Path is Hikvision main stream (`/Streaming/Channels/101`). `.10` = PTZ, `.11` = bullet.
 
-- **SCC2 (poles 1–4):** `admin` / `Unity@320@`
-- **SCC1 (poles 5–8):** `admin` / `UNity@320@`
+- **SCC2 (poles 1–4) and SCC1 (poles 5–8):** `admin` / `Unity@320@`
 
 VLAN map: [site-network.md](site-network.md). Play from a host on that pole’s VLAN (SCC2 for poles **1–4**, SCC1 for poles **5–8**).
 
@@ -948,14 +947,14 @@ ffplay -rtsp_transport tcp "rtsp://admin:Unity@320@@172.16.2.10:554/Streaming/Ch
 
 | Pole | Camera | IP | RTSP |
 | --- | --- | --- | --- |
-| 5 | PTZ | `172.16.5.10` | `rtsp://admin:UNity@320@@172.16.5.10:554/Streaming/Channels/101` |
-| 5 | Bullet | `172.16.5.11` | `rtsp://admin:UNity@320@@172.16.5.11:554/Streaming/Channels/101` |
-| 6 | PTZ | `172.16.6.10` | `rtsp://admin:UNity@320@@172.16.6.10:554/Streaming/Channels/101` |
-| 6 | Bullet | `172.16.6.11` | `rtsp://admin:UNity@320@@172.16.6.11:554/Streaming/Channels/101` |
-| 7 | PTZ | `172.16.7.10` | `rtsp://admin:UNity@320@@172.16.7.10:554/Streaming/Channels/101` |
-| 7 | Bullet | `172.16.7.11` | `rtsp://admin:UNity@320@@172.16.7.11:554/Streaming/Channels/101` |
-| 8 | PTZ | `172.16.8.10` | `rtsp://admin:UNity@320@@172.16.8.10:554/Streaming/Channels/101` |
-| 8 | Bullet | `172.16.8.11` | `rtsp://admin:UNity@320@@172.16.8.11:554/Streaming/Channels/101` |
+| 5 | PTZ | `172.16.5.10` | `rtsp://admin:Unity@320@@172.16.5.10:554/Streaming/Channels/101` |
+| 5 | Bullet | `172.16.5.11` | `rtsp://admin:Unity@320@@172.16.5.11:554/Streaming/Channels/101` |
+| 6 | PTZ | `172.16.6.10` | `rtsp://admin:Unity@320@@172.16.6.10:554/Streaming/Channels/101` |
+| 6 | Bullet | `172.16.6.11` | `rtsp://admin:Unity@320@@172.16.6.11:554/Streaming/Channels/101` |
+| 7 | PTZ | `172.16.7.10` | `rtsp://admin:Unity@320@@172.16.7.10:554/Streaming/Channels/101` |
+| 7 | Bullet | `172.16.7.11` | `rtsp://admin:Unity@320@@172.16.7.11:554/Streaming/Channels/101` |
+| 8 | PTZ | `172.16.8.10` | `rtsp://admin:Unity@320@@172.16.8.10:554/Streaming/Channels/101` |
+| 8 | Bullet | `172.16.8.11` | `rtsp://admin:Unity@320@@172.16.8.11:554/Streaming/Channels/101` |
 
 MediaMTX encodes `@` in the password as `%40` when it pulls the stream. Leave the **unencoded** URL in the UI as above.
 

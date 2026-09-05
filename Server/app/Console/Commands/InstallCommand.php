@@ -32,12 +32,21 @@ final class InstallCommand extends Command
     protected $signature = 'ir4:install
                             {--name= : Super Admin name}
                             {--email= : Super Admin email}
-                            {--password= : Super Admin password (shown/stored; must_change_password=true)}';
+                            {--password= : Super Admin password (shown/stored; must_change_password=true)}
+                            {--poles= : Comma list for DemoSeeder (default 1,2,3,4; SCC1 use 5,6,7,8)}';
 
     protected $description = 'Seed permissions/roles/settings and create the first Super Admin user';
 
     public function handle(): int
     {
+        $poles = $this->option('poles');
+        if (is_string($poles) && trim($poles) !== '') {
+            putenv('IR4_SEED_POLES='.trim($poles));
+            $_ENV['IR4_SEED_POLES'] = trim($poles);
+            $_SERVER['IR4_SEED_POLES'] = trim($poles);
+            $this->info('Seeding poles: '.trim($poles));
+        }
+
         // Baseline config + RBAC + gas alarm thresholds (safe to re-run).
         $this->callSilent('db:seed', ['--class' => SettingsSeeder::class, '--force' => true]);
         $this->callSilent('db:seed', ['--class' => RolePermissionSeeder::class, '--force' => true]);

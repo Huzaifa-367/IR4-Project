@@ -61,7 +61,7 @@ Lab / bring-up (direct WebSocket + local SQLite, no IR4):
 4. Operating mode: **SIMPLE** (lab script also `PUT /cloud/mode {"type":"SIMPLE"}`).
 5. **IoT Connector → MQTT** endpoint = Orin LAN IP, port **1883**.  
    Topic = `mqtt.topic` in `configs/rfid.yaml` for **this** pole  
-   (`zebra/fxr90-01/tags` … `zebra/fxr90-04/tags` — must match `reader_ref` pole number).  
+   (`zebra/fxr90-01/tags` … `zebra/fxr90-08/tags` — must match `reader_ref` pole number).  
    Anonymous broker (`edge.yaml` `mosquitto.anonymous: true`): no MQTT user. With auth: `fxr90` + `IR4_MQTT_FXR90_PASSWORD`.
 6. Start inventory / cloud start; wave a UHF tag at antenna 1.
 

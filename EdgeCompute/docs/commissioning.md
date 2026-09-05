@@ -20,7 +20,7 @@ Do this on the IR4 Server **before** enabling agents on the Orin.
 
 | Who / phase | URL | Why |
 |---|---|---|
-| **Orin agents (SCC2, poles 1–4)** | `http://172.16.<pole-subnet>.40:9100` | Pole VLAN — see [site-network.md](../../site-network.md) |
+| **Orin agents (SCC2 poles 1–4 / SCC1 poles 5–8)** | `http://172.16.<pole-subnet>.40:9100` | Pole VLAN — see [site-network.md](../../site-network.md) |
 | **SSH to SCC2 (no display / AnyDesk)** | `ssh scc2@100.118.103.39` | Tailscale |
 | **Operator browsers (SCC2)** | `http://<SCC2-LAN>:9100` or `https://ir4-project.test` | Operator / MediaMTX LAN |
 | **Laptop over Tailscale (either SCC)** | `https://ir4-project.test` after hosts → that SCC | [SCC-REMOTE-ACCESS.md](../../SCC-REMOTE-ACCESS.md) |
@@ -33,7 +33,7 @@ Confirm from the Orin: `curl -sS -o /dev/null -w '%{http_code}\n' http://172.16.
 |---|---|
 | [`../configs/edge.yaml`](../configs/edge.yaml) | Boot enable / install root / Mosquitto listener |
 | [`../credentials.md`](../credentials.md) | Default UUID + tokens — `ir4-edge secrets --pole NN` copies these into `secrets.env` |
-| [`../configs/secrets.pole-01.env`](../configs/secrets.pole-01.env) … `secrets.pole-04.env` | Per-pole MQTT + copied tokens |
+| [`../configs/secrets.pole-01.env`](../configs/secrets.pole-01.env) … `secrets.pole-08.env` | Per-pole MQTT + copied tokens |
 | [`../configs/secrets.example.env`](../configs/secrets.example.env) | Empty template |
 | `../configs/secrets.env` | Live secrets (gitignored) |
 | [`../configs/gas.yaml`](../configs/gas.yaml) | Serial / Modbus / **per-pole** `device_ref` |

@@ -120,6 +120,8 @@ MEDIAMTX_API_URL=http://192.168.4.41:9997
 MEDIAMTX_HOST_IP=192.168.4.41
 MEDIAMTX_SOURCE_ON_DEMAND=false
 MEDIAMTX_RTSP_TRANSPORT=tcp
+# Seed poles 5–8 (DEV-/CAM-*-05…08). Required for SCC1 fresh install.
+IR4_SEED_POLES=5,6,7,8
 ```
 
 Commissioning (LAN HTTP) before TLS:
@@ -127,6 +129,32 @@ Commissioning (LAN HTTP) before TLS:
 ```env
 APP_URL=http://192.168.4.41:9100
 SESSION_SECURE_COOKIE=false
+IR4_SEED_POLES=5,6,7,8
+```
+
+Fresh registry (wipes DB — after confirming):
+
+SCC1 gets **only poles 5–8** (`AST-POLE-05…08`, `DEV-*-05…08`, `CAM-*-05…08`). No poles 1–4, no Main Gate asset.
+
+```bash
+# in .env: IR4_SEED_POLES=5,6,7,8
+lerd artisan migrate:fresh --force
+lerd artisan ir4:install --poles=5,6,7,8 --email=admin@gmail.com --password=12345677
+lerd artisan ir4:sync-camera-streams
+```
+
+Then sync EdgeCompute and push poles with native 05–08 tokens:
+
+```bash
+# from SCC1 ~/EdgeCompute
+./deploy/scc_push.sh --poles 5,6,7,8
+# each Jetson: ir4-edge secrets --pole N   # N=5…8
+```
+
+Or without editing `.env`:
+
+```bash
+lerd artisan ir4:install --poles=5,6,7,8 --email=admin@gmail.com --password=12345677
 ```
 
 After edits:

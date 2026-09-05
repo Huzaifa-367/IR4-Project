@@ -32,18 +32,16 @@ use Illuminate\Support\Str;
  * Initial site registry (baseline hardware for first install).
  * Device UUID + tokens come from database/data/device_credentials.php.
  *
- * Poles 1–4: RFID, gas, fixed + PTZ stream cameras, and two edge_compute
- * camera-AI devices each. Also: main gate, starter workers assigned to
- * physical EPCs (database/data/rfid_tags.php), leftover tags in stock,
- * and equipment. More can be added via the operator UI after install.
- * Idempotent: skips when AST-POLE-01 already exists.
+ * Pole set via `IR4_SEED_POLES` (comma list). Defaults to SCC2 `1,2,3,4`.
+ * SCC1: set `IR4_SEED_POLES=5,6,7,8` (or `ir4:install --poles=5,6,7,8`).
+ * Each pole: RFID, gas, fixed + PTZ cameras, two edge_compute AI devices.
+ * Also: main gate, starter workers / tags, equipment.
+ * Idempotent: skips when `AST-POLE-{first}` already exists.
  */
 final class DemoSeeder extends Seeder
 {
-    private const POLE_COUNT = 4;
-
     /**
-     * SCC2 pole VLAN third octets (site-network.md). Password is Unity@320@.
+     * Pole number → VLAN 3rd octet (site-network.md). RTSP password Unity@320@.
      *
      * @var array<int, int>
      */
@@ -52,6 +50,10 @@ final class DemoSeeder extends Seeder
         2 => 2,
         3 => 1,
         4 => 4,
+        5 => 5,
+        6 => 6,
+        7 => 7,
+        8 => 8,
     ];
 
     private User $admin;
@@ -61,28 +63,68 @@ final class DemoSeeder extends Seeder
     /** @var Collection<int|string, Zone> */
     private Collection $zones;
 
+    /** @var list<int> */
+    private array $poles = [];
+
     /** @var list<array{ref: string, uuid: string, token: string, type: string}> */
     private array $issuedCredentials = [];
 
     public function run(): void
     {
-        if (Asset::query()->where('identifier', 'AST-POLE-01')->exists()) {
-            $this->command?->warn('Site registry already present (AST-POLE-01). Skipping.');
+        $this->poles = $this->resolvePoles();
+        $first = $this->poles[0];
+        $firstId = sprintf('AST-POLE-%02d', $first);
+
+        if (Asset::query()->where('identifier', $firstId)->exists()) {
+            $this->command?->warn("Site registry already present ({$firstId}). Skipping.");
 
             return;
         }
 
-        $this->command?->info('Seeding initial site registry (poles, devices, cameras, workers, equipment)…');
+        $list = implode(',', $this->poles);
+        $this->command?->info("Seeding site registry for poles [{$list}]…");
 
         $this->seedUsers();
         $this->seedZones();
         $this->seedPolesAndDevices();
-        $this->seedGate();
+        // Main Gate is SCC2 site pattern — skip on SCC1-only (poles 5–8).
+        if ($this->includesScc2Poles()) {
+            $this->seedGate();
+        }
         $this->seedWorkers();
         $this->seedEquipment();
         $this->printEdgeCredentials();
 
         $this->command?->info('Initial site registry ready.');
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function resolvePoles(): array
+    {
+        $raw = trim((string) env('IR4_SEED_POLES', '1,2,3,4'));
+        $poles = [];
+        foreach (preg_split('/\s*,\s*/', $raw) ?: [] as $part) {
+            if ($part === '') {
+                continue;
+            }
+            $n = (int) $part;
+            if ($n < 1 || $n > 8 || ! isset(self::POLE_SUBNETS[$n])) {
+                throw new \InvalidArgumentException("IR4_SEED_POLES invalid pole: {$part} (allowed 1–8)");
+            }
+            $poles[] = $n;
+        }
+        if ($poles === []) {
+            throw new \InvalidArgumentException('IR4_SEED_POLES must list at least one pole');
+        }
+
+        return array_values(array_unique($poles));
+    }
+
+    private function includesScc2Poles(): bool
+    {
+        return array_intersect($this->poles, [1, 2, 3, 4]) !== [];
     }
 
     private function seedUsers(): void
@@ -120,13 +162,27 @@ final class DemoSeeder extends Seeder
     private function seedZones(): void
     {
         $defs = [
-            ['key' => 'gate', 'name' => 'Main Gate', 'type' => ZoneType::Gate, 'color' => '#38BDF8'],
             ['key' => 'muster', 'name' => 'Muster Point A', 'type' => ZoneType::MusterPoint, 'color' => '#34D399'],
-            ['key' => 1, 'name' => 'Pole 01 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
-            ['key' => 2, 'name' => 'Pole 02 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
-            ['key' => 3, 'name' => 'Pole 03 Laydown', 'type' => ZoneType::Laydown, 'color' => '#F5A524'],
-            ['key' => 4, 'name' => 'Pole 04 Height Work', 'type' => ZoneType::HeightWork, 'color' => '#F97316'],
         ];
+        if ($this->includesScc2Poles()) {
+            array_unshift($defs, ['key' => 'gate', 'name' => 'Main Gate', 'type' => ZoneType::Gate, 'color' => '#38BDF8']);
+        }
+
+        $zoneMeta = [
+            1 => ['name' => 'Pole 01 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
+            2 => ['name' => 'Pole 02 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
+            3 => ['name' => 'Pole 03 Laydown', 'type' => ZoneType::Laydown, 'color' => '#F5A524'],
+            4 => ['name' => 'Pole 04 Height Work', 'type' => ZoneType::HeightWork, 'color' => '#F97316'],
+            5 => ['name' => 'Pole 05 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
+            6 => ['name' => 'Pole 06 Work', 'type' => ZoneType::Work, 'color' => '#64748B'],
+            7 => ['name' => 'Pole 07 Laydown', 'type' => ZoneType::Laydown, 'color' => '#F5A524'],
+            8 => ['name' => 'Pole 08 Height Work', 'type' => ZoneType::HeightWork, 'color' => '#F97316'],
+        ];
+
+        foreach ($this->poles as $n) {
+            $meta = $zoneMeta[$n];
+            $defs[] = ['key' => $n, 'name' => $meta['name'], 'type' => $meta['type'], 'color' => $meta['color']];
+        }
 
         $this->zones = collect();
         foreach ($defs as $def) {
@@ -145,7 +201,7 @@ final class DemoSeeder extends Seeder
 
     private function seedPolesAndDevices(): void
     {
-        for ($n = 1; $n <= self::POLE_COUNT; $n++) {
+        foreach ($this->poles as $n) {
             $pad = sprintf('%02d', $n);
             $zone = $this->zones->get($n);
             $label = "Pole {$pad}";

@@ -90,7 +90,7 @@ sudo sed -i 's|^  port: .*|  port: "/dev/yt98h-rs485"|' configs/gas.yaml
 
 ```bash
 cd /opt/ir4-edge/EdgeCompute
-cp configs/secrets.pole-01.env configs/secrets.env   # pole 2/3/4 → pole-NN
+cp configs/secrets.pole-01.env configs/secrets.env   # pole N → secrets.pole-NN.env (1–8)
 # after install: ir4-edge secrets --pole 1
 grep -E '^(IR4_BASE_URL|APP_TIMEZONE|IR4_GAS_|IR4_RFID_)' configs/secrets.env | sed 's/=.*/=***/'
 
@@ -232,7 +232,7 @@ Secrets stay in **one** file (`secrets.env`) with namespaced keys (`IR4_GAS_`*, 
 | `configs/rfid.yaml`                                   | MQTT topic / `reader_ref`      |
 | `credentials.md`                                      | Default UUID + tokens          |
 | `configs/secrets.env`                                 | Live secrets (gitignored)      |
-| `configs/secrets.pole-01.env` … `secrets.pole-04.env` | Per-pole MQTT + copied tokens  |
+| `configs/secrets.pole-01.env` … `secrets.pole-08.env` | Per-pole MQTT + copied tokens (1–4 SCC2, 5–8 SCC1) |
 | `configs/secrets.example.env`                         | Empty template                 |
 
 
