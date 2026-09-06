@@ -26,7 +26,6 @@ use App\Models\VehicleViolation;
 use App\Models\WeeklyReport;
 use App\Notifications\WeeklyReportReadyNotification;
 use App\Services\Hse\LsrService;
-use App\Services\Ppe\PpeViolationService;
 use App\Services\Settings\SettingsService;
 use App\Services\Storage\SignedStorageUrlService;
 use App\Services\Tracking\HeadcountIngestService;
@@ -45,7 +44,6 @@ final class WeeklyReportService
     public function __construct(
         private readonly SettingsService $settings,
         private readonly SignedStorageUrlService $signedUrls,
-        private readonly PpeViolationService $ppe,
         private readonly LsrService $lsr,
         private readonly WeatherSettings $weather,
         private readonly HeadcountIngestService $cameraHeadcounts,
@@ -288,11 +286,12 @@ final class WeeklyReportService
      */
     private function itemDailySafety(Carbon $start, Carbon $end): array
     {
-        $summary = $this->ppe->summary($start, $end);
+        // DOC-15 item i: only verified (confirmed) PPE — unreviewed and false positives stay out.
         $included = PpeViolation::query()
+            ->with('camera:id,reference')
             ->whereBetween('detected_at', [$start, $end])
-            ->where('review_status', '!=', ReviewStatus::FalsePositive->value)
-            ->get(['detected_at', 'violation_type']);
+            ->where('review_status', ReviewStatus::Confirmed)
+            ->get(['id', 'camera_id', 'detected_at', 'violation_type']);
 
         $perDay = [];
         foreach ($this->eachDate($start, $end) as $date) {
@@ -309,15 +308,23 @@ final class WeeklyReportService
             ];
         }
 
+        $byCamera = $included
+            ->groupBy('camera_id')
+            ->map(function ($rows, $cameraId): array {
+                $ref = (string) ($rows->first()?->camera?->reference ?? '');
+
+                return [
+                    'camera' => $ref !== '' ? $ref : ('Camera #'.$cameraId),
+                    'total' => $rows->count(),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values()
+            ->all();
+
         return [
             'per_day' => $perDay,
-            'by_camera' => collect($summary['by_camera'])
-                ->map(fn (array $row): array => [
-                    'camera' => $row['camera_ref'] !== '' ? $row['camera_ref'] : ('Camera #'.$row['camera_id']),
-                    'total' => $row['count'],
-                ])
-                ->values()
-                ->all(),
+            'by_camera' => $byCamera,
         ];
     }
 

@@ -243,6 +243,31 @@ Pole agents use VLAN SCC IP, **not** the office IP:
 
 Full LiteBeam / camera table: [site-network.md](site-network.md). Camera RTSP passwords for poles 5–8: [SCC-SETUP.md §13](SCC-SETUP.md).
 
+### ZT411 label printer (office LAN)
+
+IR4 prints raw ZPL from **SCC1** (not the workstation) to `EQUIPMENT_PRINTER_HOST:9100`.
+
+| Item | Value |
+|------|--------|
+| Target static IP | `192.168.4.210` |
+| Port | `9100` |
+| SCC1 `.env` | `EQUIPMENT_PRINTER_HOST=192.168.4.210` |
+
+Factory default `192.168.254.254` is **not** on the office LAN — SCC1 cannot reach it until the panel IP is changed.
+
+On the ZT411 touchscreen:
+
+1. Clear **SUPPLIES** / **PAUSE** (load 3.15″×1.85″ labels + ribbon, then Pause to resume).
+2. **Menu → Connection → Wired → IPv4** → **Static**:
+   - IP `192.168.4.210`
+   - Netmask `255.255.255.0`
+   - Gateway `192.168.4.1`
+3. Save / reboot print server if prompted.
+4. Confirm **Active IP (Wired)** shows `192.168.4.210` and NETWORK stays green.
+5. From SCC1: `ping 192.168.4.210` and `nc -vz 192.168.4.210 9100`, then Equipment → Print label.
+
+Printer ethernet must share the **same office switch** as SCC1 Port 1 (`192.168.4.0/24`), not an isolated workstation-only segment.
+
 ---
 
 ## 6. Fresh / reinstall path (same scripts as SCC2)

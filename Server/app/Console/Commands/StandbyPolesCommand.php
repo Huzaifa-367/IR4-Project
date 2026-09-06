@@ -14,7 +14,9 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Walkthrough stand-in for poles 1–4: same IR4_BASE_URL + /api/ingest/* + heartbeats as EdgeCompute.
+ * Walkthrough stand-in for site poles: same IR4_BASE_URL + /api/ingest/* + heartbeats as EdgeCompute.
+ *
+ * Pole set from IR4_SEED_POLES (SCC1: 5,6,7,8) else defaults to 1–4 (SCC2).
  *
  * t = heartbeats only · g = gas · m = mimic gas · r = rfid · h = helmet · v = vest · w = heights · f = fall · k = mask
  */
@@ -24,12 +26,9 @@ final class StandbyPolesCommand extends Command
 
     private const ALARM_HOLD_SECONDS = 45;
 
-    /** @var list<int> */
-    private const POLES = [1, 2, 3, 4];
-
     protected $signature = 'ir4:s
                             {action? : t|g|m|r|h|v|w|f|k (tick, gas, mimic, rfid, helmet, vest, heights, fall, mask)}
-                            {pole? : pole 1-4, or all for g; for m = source pole}
+                            {pole? : pole number, or all for g; for m = source pole}
                             {tag? : RFID 1-based site-tag index or full EPC (default 1)}
                             {--alarm : With g: post above warn thresholds}
                             {--to= : With m: comma-separated target poles (default: all except source)}
@@ -39,7 +38,34 @@ final class StandbyPolesCommand extends Command
     /** @var list<string> */
     protected $aliases = ['ir4:standby'];
 
-    protected $description = 'Stand in for poles 1–4 via the same device ingest APIs as EdgeCompute';
+    protected $description = 'Stand in for site poles via the same device ingest APIs as EdgeCompute';
+
+    /**
+     * @return list<int>
+     */
+    private function sitePoles(): array
+    {
+        $raw = trim((string) env('IR4_SEED_POLES', '1,2,3,4'));
+        $poles = [];
+        foreach (explode(',', $raw) as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+            $n = (int) $part;
+            if ($n < 1 || $n > 8) {
+                throw new RuntimeException("IR4_SEED_POLES invalid pole: {$part} (allowed 1–8)");
+            }
+            $poles[] = $n;
+        }
+
+        return $poles === [] ? [1, 2, 3, 4] : array_values(array_unique($poles));
+    }
+
+    private function polesLabel(): string
+    {
+        return implode(',', $this->sitePoles());
+    }
 
     public function handle(): int
     {
@@ -76,20 +102,22 @@ final class StandbyPolesCommand extends Command
 
     private function printUsage(): void
     {
-        $this->line('Standby = fake poles 1–4 calling the same device APIs as EdgeCompute.');
+        $poles = $this->polesLabel();
+        $this->line("Standby = fake poles [{$poles}] calling the same device APIs as EdgeCompute.");
         $this->line('Base URL: --url → IR4_STANDBY_URL → IR4_BASE_URL → APP_URL');
+        $this->line('Pole set: IR4_SEED_POLES (default 1,2,3,4).');
         $this->newLine();
         $this->table(
             ['Command', 'Device', 'What it does'],
             [
-                ['ir4:s t --loop', 'tick', 'Heartbeats only for poles 1–4 every 30s'],
-                ['ir4:s g all --loop', 'gas', 'Normal gas readings for poles 1–4 every 30s'],
+                ['ir4:s t --loop', 'tick', "Heartbeats only for poles [{$poles}] every 30s"],
+                ['ir4:s g all --loop', 'gas', "Normal gas readings for poles [{$poles}] every 30s"],
                 ['ir4:s g {pole} --loop', 'gas', 'Normal gas readings for one pole every 30s'],
-                ['ir4:s g all --alarm --loop', 'gas', 'Alarm gas for all poles every 30s'],
+                ['ir4:s g all --alarm --loop', 'gas', 'Alarm gas for all site poles every 30s'],
                 ['ir4:s g {pole} --alarm --loop', 'gas', 'Alarm gas for one pole every 30s'],
                 ['ir4:s g {pole|all}', 'gas', 'One-shot ambient (add --alarm to spike)'],
-                ['ir4:s m {source}', 'mimic', 'Copy latest DB gas from source pole → other poles'],
-                ['ir4:s m {source} --to=1,4', 'mimic', 'Copy source gas to listed poles only'],
+                ['ir4:s m {source}', 'mimic', 'Copy latest DB gas from source pole → other site poles'],
+                ['ir4:s m {source} --to=6,8', 'mimic', 'Copy source gas to listed poles only'],
                 ['ir4:s m {source} --loop', 'mimic', 'Re-read source + copy every 30s'],
                 ['ir4:s r {pole} [tag]', 'rfid', 'POST /api/ingest/tag-readings (default first site EPC)'],
                 ['ir4:s h {pole}', 'helmet', 'POST /api/ingest/ppe-violations missing_helmet'],
@@ -137,11 +165,12 @@ final class StandbyPolesCommand extends Command
 
     private function runHeartbeats(StandbyPoleIngest $client): int
     {
-        $once = function () use ($client): void {
-            foreach (self::POLES as $pole) {
+        $poles = $this->sitePoles();
+        $once = function () use ($client, $poles): void {
+            foreach ($poles as $pole) {
                 $this->heartbeatPole($client, $pole);
             }
-            $this->line('heartbeat poles 1–4 (no gas)');
+            $this->line('heartbeat poles ['.implode(',', $poles).'] (no gas)');
         };
 
         $once();
@@ -188,7 +217,7 @@ final class StandbyPolesCommand extends Command
             return self::SUCCESS;
         }
 
-        $scope = $singlePole ? 'pole-0'.$poles[0] : 'poles 1–4';
+        $scope = $singlePole ? 'pole-0'.$poles[0] : 'poles ['.$this->polesLabel().']';
         $label = $alarm ? 'alarm' : 'ambient';
         $this->warn("gas {$label} loop ".self::LOOP_SECONDS."s on {$scope}. Ctrl-C to stop.");
         while (true) {
@@ -205,10 +234,10 @@ final class StandbyPolesCommand extends Command
         $raw = strtolower(trim((string) $this->argument('pole')));
         if ($raw === '' || $raw === 'all' || $raw === '*') {
             if ($raw === '') {
-                throw new RuntimeException('Usage: ir4:s g {1-4|all} [--alarm] [--loop]');
+                throw new RuntimeException('Usage: ir4:s g {pole|all} [--alarm] [--loop]');
             }
 
-            return self::POLES;
+            return $this->sitePoles();
         }
 
         return [$this->pole($raw)];
@@ -218,7 +247,7 @@ final class StandbyPolesCommand extends Command
     {
         $raw = strtolower(trim((string) $this->argument('pole')));
         if ($raw === '' || $raw === 'all' || $raw === '*') {
-            throw new RuntimeException('Usage: ir4:s m {1-4} [--to=1,3,4] [--loop]');
+            throw new RuntimeException('Usage: ir4:s m {source} [--to=…] [--loop]');
         }
 
         $sourcePole = $this->pole($raw);
@@ -258,7 +287,7 @@ final class StandbyPolesCommand extends Command
         $raw = trim((string) $this->option('to'));
         if ($raw === '') {
             return array_values(array_filter(
-                self::POLES,
+                $this->sitePoles(),
                 static fn (int $pole): bool => $pole !== $sourcePole,
             ));
         }
@@ -344,7 +373,7 @@ final class StandbyPolesCommand extends Command
     {
         $rawPole = strtolower(trim((string) $this->argument('pole')));
         if ($rawPole === '' || $rawPole === 'g' || $rawPole === 'gate' || $rawPole === 'all') {
-            $this->error('Usage: ir4:s r {1-4} [index|EPC]  (poles only; no gate)');
+            $this->error('Usage: ir4:s r {pole} [index|EPC]  (poles only; no gate)');
 
             return self::FAILURE;
         }
@@ -475,8 +504,8 @@ final class StandbyPolesCommand extends Command
     private function pole(string $raw): int
     {
         $pole = (int) preg_replace('/\D+/', '', $raw);
-        if ($pole < 1 || $pole > 4) {
-            throw new RuntimeException('Pole must be 1–4 (or all for g).');
+        if ($pole < 1 || $pole > 8) {
+            throw new RuntimeException('Pole must be 1–8 (or all for g).');
         }
 
         return $pole;

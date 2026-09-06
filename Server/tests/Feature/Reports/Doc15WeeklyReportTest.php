@@ -25,7 +25,7 @@ beforeEach(function () {
     Storage::fake('private');
 });
 
-it('generates all 9 frozen data keys and excludes false-positive PPE', function () {
+it('generates all 9 frozen data keys and includes only confirmed PPE', function () {
     $manager = User::factory()->withRole('Safety Manager')->create();
     $start = now()->startOfWeek(Carbon::SUNDAY)->subWeek();
     $end = $start->copy()->endOfWeek(Carbon::SATURDAY);
@@ -37,6 +37,10 @@ it('generates all 9 frozen data keys and excludes false-positive PPE', function 
     PpeViolation::factory()->create([
         'detected_at' => $start->copy()->addDays(2),
         'review_status' => ReviewStatus::FalsePositive,
+    ]);
+    PpeViolation::factory()->create([
+        'detected_at' => $start->copy()->addDays(2),
+        'review_status' => ReviewStatus::Unreviewed,
     ]);
 
     HseIncident::factory()->classified()->create([
@@ -74,6 +78,7 @@ it('generates all 9 frozen data keys and excludes false-positive PPE', function 
         ->and($report->data['vi_units_monitored']['note'])->toContain('monitoring devices')
         ->and(collect($report->data['ix_gas']['per_day'])->first())->toHaveKeys(['date', 'lel', 'h2s', 'o2', 'co', 'co2'])
         ->and($report->data['ix_gas']['per_day'][0]['co2'])->toHaveKeys(['min', 'avg', 'max'])
+        ->and((int) collect($report->data['i_daily_safety_observations']['per_day'])->sum('total'))->toBe(1)
         ->and($report->pdf_path)->not->toBeNull()
         ->and($report->csv_path)->not->toBeNull();
 

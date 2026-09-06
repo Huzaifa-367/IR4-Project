@@ -28,7 +28,7 @@ Each item, its source module, and its automation classification (the badge shown
 
 | # | Item | Source | Automation badge |
 |---|---|---|---|
-| i | Daily Safety Observations | PPE violations, excl. false positives (DOC-10) | **Automated** |
+| i | Daily Safety Observations | Confirmed PPE violations only (DOC-10); unreviewed + false positives omitted | **Automated** |
 | ii | HSE Accidents & Incidents | incidents in period, classified (DOC-14) | **Auto-detect + Manual** (sensor-suggested, human-authored) |
 | iii | LSR Violations & Actions Taken | LSR entries in period, incl. action taken (DOC-14) | **Automated + Manual** (mix of alert-suggested + permit-manual) |
 | iv | Weather Conditions | environmental weekly stats (DOC-12) | **Automated** |
@@ -219,7 +219,7 @@ Item vi is a **count of active field-unit assets with monitoring devices** (DOC-
 ## 11. Tests (this doc's slice of DOC-21)
 
 - **Generation:** `generate` produces all 9 `data` item keys (+ period/completeness); frozen `data` doesn't change when underlying records change afterward; manual HTTP generate is synchronous; scheduled auto-generate uses the `reports` queue.
-- **Auto-inclusion:** every incident/LSR/vehicle-violation in the period appears in items ii/iii/vii (DOC-14 retention guarantee); false-positive PPE is omitted from item i (no excluded-count field in the frozen snapshot).
+- **Auto-inclusion:** every incident/LSR/vehicle-violation in the period appears in items ii/iii/vii (DOC-14 retention guarantee); item i includes only **confirmed** PPE (unreviewed and false positives omitted; no excluded-count field in the frozen snapshot).
 - **Completeness:** an item whose devices were offline >20% of the period gets a completeness note; ≤20% does not.
 - **Item vi honesty:** reports a count + the scope-extension note; no fabricated telematics.
 - **Publish-lock:** publishing requires `status=generated`, locks the report, audits `report_published`; a published report's `data`/artifacts are immutable.
