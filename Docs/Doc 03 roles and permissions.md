@@ -40,6 +40,10 @@ Permissions are lower-kebab strings, grouped by domain. This is the **complete, 
 
 **Live view & cameras**
 - `view-live-cameras`
+- `control-ptz-cameras`
+- `view-camera-rois`
+- `manage-camera-rois`
+- `view-recordings` (DOC-24 — archive browse + play)
 
 **Alerts (DOC-07)**
 - `acknowledge-alerts`
@@ -182,6 +186,7 @@ This is the **default permission set the installer seeds** for each starter role
 |---|:--:|:--:|:--:|:--:|:--:|
 | view-dashboard | all | ✅ | ✅ | ✅ | cfg |
 | view-live-cameras | all | ✅ | ✅ |  | cfg |
+| view-recordings | all | ✅ | ✅ | ✅ | cfg |
 | view-ppe | all | ✅ | ✅ |  | cfg |
 | update-ppe-violations | all | ✅ | ✅ |  |  |
 | export-ppe-violations | all | ✅ |  |  |  |

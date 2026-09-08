@@ -467,7 +467,56 @@ Detail: [DOC-19](Docs/Doc%2019%20retention%20backup.md) · [DOC-20 §8](Docs/Doc
 
 ---
 
+## 9.5 Recordings archive (DOC-24)
 
+Hour-long camera files live **outside** the Laravel tree (default `/data2/video`, layout `poleN/camN/YYYY-MM-DD/…`). Operators browse and play them at `/recordings` (permission `view-recordings`).
+
+### `.env`
+
+```env
+RECORDINGS_ROOT=/data2/video
+RECORDINGS_X_ACCEL=true
+RECORDINGS_X_ACCEL_PREFIX=/internal-recordings/
+```
+
+### Mount into PHP
+
+The Lerd PHP container must see the **same** path as nginx (read-only). If listing works but play fails with 404/503, the container cannot `realpath` the root — fix the volume bind, then restart Lerd.
+
+### nginx internal location
+
+Laravel authorizes `GET /recordings/stream/…` then returns `X-Accel-Redirect`. The site vhost already includes `custom.d/<site>.conf*` — do **not** edit the managed `conf.d/ir4-project.test.conf` by hand.
+
+```bash
+export PATH="$HOME/.local/share/lerd/bin:$HOME/.local/bin:$PATH"
+cd /data2/laravel/IR4-Project
+# mounts: ensure ~/.config/lerd/config.yaml has  - /data2/video
+# full remount (lerd restart alone is not enough for new volumes):
+lerd stop && lerd start
+bash scripts/ensure-recordings-nginx.sh
+```
+
+That writes `~/.local/share/lerd/nginx/custom.d/ir4-project.test.conf` and reloads nginx. Re-run the script after `lerd secure` if playback breaks again.
+
+For local laptop without this snippet, set `RECORDINGS_X_ACCEL=false` (PHP `BinaryFileResponse` fallback).
+
+### Permission seed
+
+```bash
+cd /data2/laravel/IR4-Project
+lerd artisan db:seed --class=RolePermissionSeeder --force
+```
+
+Super Admin is re-synced to the full catalogue. Grant `view-recordings` to existing SCC Operator / Safety Manager / Project Manager roles in **Roles** UI if they were created before this permission existed.
+
+### Workstation smoke
+
+1. Open `https://ir4-project.test/recordings` (or this SCC’s APP_URL).
+2. Drill `pole1 → cam1 → date → hour file`.
+3. Confirm the inline player seeks (Range).
+4. Ops-only fleet summary remains host script `rec-check-scc.sh` (not wrapped by the app).
+
+---
 
 ## 10. HTTPS dashboard on a workstation (mode B)
 

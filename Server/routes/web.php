@@ -35,6 +35,7 @@ Route::middleware([
     AuditDataAccess::class,
 ])->group(function (): void {
     require __DIR__.'/web/dashboard.php';
+    require __DIR__.'/web/recordings.php';
     require __DIR__.'/web/alerts.php';
     require __DIR__.'/web/gas.php';
     require __DIR__.'/web/ppe.php';

@@ -26,6 +26,7 @@ final class PermissionCatalogue
                 'control-ptz-cameras',
                 'view-camera-rois',
                 'manage-camera-rois',
+                'view-recordings',
             ],
             'Alerts' => [
                 'acknowledge-alerts',

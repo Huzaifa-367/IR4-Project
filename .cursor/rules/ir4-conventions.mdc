@@ -5,7 +5,7 @@ alwaysApply: true
 
 # IR4 Platform — Engineering Conventions
 
-> Authoritative source: `Docs/Doc 01` through `Doc 23`. This file distills the written docs into working rules. If code and the Docs folder disagree, the Docs folder wins — fix this file, don't silently override it.
+> Authoritative source: `Docs/Doc 01` through `Doc 24`. This file distills the written docs into working rules. If code and the Docs folder disagree, the Docs folder wins — fix this file, don't silently override it.
 >
 > Repeatable procedures live as skills in `.claude/skills/` (mirrored under `.cursor/skills/` for Cursor). Use those instead of re-deriving steps.
 
@@ -36,6 +36,7 @@ alwaysApply: true
 | 21 | Testing strategy: endpoint matrix, invariant guards, scenario catalogue, CI gates (Pint/PHPStan/TS/enum-sync/on-prem grep) |
 | 22 | Permit to Work: GI 2.100-aligned flow; dynamic types/tests/checklists; worker document packs; RFID/gas cross-detection |
 | 23 | Camera ROI polygons; device 1:1 pull; ROI violation ingest + review (≠ DOC-06 zones) |
+| 24 | Recordings archive: browse `RECORDINGS_ROOT`, X-Accel stream, inline player (no rename map) |
 
 `[CONFIRM AT DESIGN]` items in docs: **implement the documented default** until the client confirms otherwise. Do not invent a third option.
 

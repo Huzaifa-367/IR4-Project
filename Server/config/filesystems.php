@@ -67,6 +67,16 @@ return [
             'report' => false,
         ],
 
+        // Camera archive on SCC separate drive (DOC-24). Read-only in app code.
+        'recordings' => [
+            'driver' => 'local',
+            'root' => env('RECORDINGS_ROOT', '/data2/video'),
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

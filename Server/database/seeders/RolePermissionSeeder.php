@@ -131,6 +131,7 @@ final class RolePermissionSeeder extends Seeder
             'control-ptz-cameras',
             'view-camera-rois',
             'manage-camera-rois',
+            'view-recordings',
             'view-ppe',
             'update-ppe-violations',
             'view-roi-violations',
@@ -185,6 +186,8 @@ final class RolePermissionSeeder extends Seeder
     {
         return [
             'view-dashboard',
+            'view-live-cameras',
+            'view-recordings',
             'view-tracking',
             'view-equipment',
             'view-reports',

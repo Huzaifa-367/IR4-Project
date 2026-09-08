@@ -11,6 +11,7 @@ import {
     FileBarChart,
     FileCheck,
     FileWarning,
+    Film,
     HardHat,
     IdCard,
     LayoutGrid,
@@ -102,6 +103,15 @@ export function AppSidebar() {
                       title: 'Live View',
                       href: live.index(),
                       icon: Video,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('view-recordings')
+            ? [
+                  {
+                      title: 'Recordings',
+                      href: '/recordings',
+                      icon: Film,
                   } satisfies NavItem,
               ]
             : []),
