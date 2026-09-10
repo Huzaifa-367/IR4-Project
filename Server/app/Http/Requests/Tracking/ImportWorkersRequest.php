@@ -22,8 +22,19 @@ final class ImportWorkersRequest extends FormRequest
                 'required',
                 'file',
                 'mimes:csv,txt,xlsx',
-                'max:15000',
+                // 15 MB (Laravel file max is kilobytes).
+                'max:15360',
             ],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'file.max' => 'The worker import file may not be larger than 15 MB.',
         ];
     }
 }
