@@ -118,6 +118,57 @@ it('stores fall events as ppe rows and raises fall_detection', function () {
     Event::assertDispatched(PpeViolationDetected::class);
 });
 
+it('silently ignores disabled ppe types without creating side effects', function () {
+    config()->set('ir4.ppe_ingest.enabled', false);
+
+    $plain = 'ppe-disabled';
+    Device::factory()->withPlainToken($plain)->create();
+    $types = [
+        'missing_helmet',
+        'missing_vest',
+        'missing_harness',
+        'missing_mask',
+        'fall',
+    ];
+
+    $this->postJson(route('api.ingest.ppe-violations'), [
+        'events' => array_map(
+            fn (string $type): array => ppeEvent('unknown-camera', $type),
+            $types,
+        ),
+    ], ppeIngestHeaders($plain))
+        ->assertAccepted()
+        ->assertJsonPath('accepted', 0)
+        ->assertJsonPath('ignored', 5);
+
+    expect(PpeViolation::query()->count())->toBe(0)
+        ->and(Alert::query()->count())->toBe(0);
+});
+
+it('can disable one ppe type while retaining the others', function () {
+    config()->set('ir4.ppe_ingest.types.fall', false);
+
+    $plain = 'ppe-fall-disabled';
+    Device::factory()->withPlainToken($plain)->create();
+    $camera = Camera::factory()->create(['reference' => 'cam-selective']);
+
+    $this->postJson(route('api.ingest.ppe-violations'), [
+        'events' => [
+            ppeEvent($camera->reference, 'fall'),
+            ppeEvent($camera->reference, 'missing_helmet'),
+        ],
+    ], ppeIngestHeaders($plain))
+        ->assertAccepted()
+        ->assertJsonPath('accepted', 1)
+        ->assertJsonPath('ignored', 1);
+
+    expect(PpeViolation::query()->pluck('violation_type')->map(
+        fn (ViolationType $type): string => $type->value,
+    )->all())->toBe(['missing_helmet'])
+        ->and(Alert::query()->where('alert_type', AlertType::FallDetection)->count())->toBe(0)
+        ->and(Alert::query()->where('alert_type', AlertType::PpeViolation)->count())->toBe(1);
+});
+
 it('stores working-at-heights as missing_harness and raises height_without_harness', function () {
     $plain = 'ppe-heights';
     Device::factory()->withPlainToken($plain)->create();

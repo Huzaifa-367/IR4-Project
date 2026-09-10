@@ -21,7 +21,7 @@ class WorkerImportFactory extends Factory
         return [
             'created_by' => User::factory(),
             'original_filename' => 'workers.csv',
-            'stored_path' => 'imports/workers/example.csv',
+            'stored_path' => '',
             'status' => 'pending',
             'summary' => null,
         ];

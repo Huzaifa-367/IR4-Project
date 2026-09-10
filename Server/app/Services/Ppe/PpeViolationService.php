@@ -40,12 +40,13 @@ final class PpeViolationService
 
     /**
      * @param  list<array<string, mixed>>  $events
-     * @return array{accepted: int, duplicates: int, rejected: list<array{index: int, code: string}>}
+     * @return array{accepted: int, duplicates: int, ignored: int, rejected: list<array{index: int, code: string}>}
      */
     public function ingestEvents(Device $caller, array $events): array
     {
         $accepted = 0;
         $duplicates = 0;
+        $ignored = 0;
         /** @var list<array{index: int, code: string}> $rejected */
         $rejected = [];
         $sawClockSkew = false;
@@ -61,6 +62,8 @@ final class PpeViolationService
                 $result = $this->processOneEvent($caller, $event);
                 if ($result === 'duplicate') {
                     $duplicates++;
+                } elseif ($result === 'ignored') {
+                    $ignored++;
                 } else {
                     $accepted++;
                     if ($result === 'skew') {
@@ -86,6 +89,7 @@ final class PpeViolationService
         return [
             'accepted' => $accepted,
             'duplicates' => $duplicates,
+            'ignored' => $ignored,
             'rejected' => $rejected,
         ];
     }
@@ -382,10 +386,15 @@ final class PpeViolationService
 
     /**
      * @param  array<string, mixed>  $event
-     * @return 'accepted'|'duplicate'|'skew'
+     * @return 'accepted'|'duplicate'|'ignored'|'skew'
      */
     private function processOneEvent(Device $caller, array $event): string
     {
+        $eventType = (string) ($event['event_type'] ?? '');
+        if (! $this->isPpeTypeEnabled($eventType)) {
+            return 'ignored';
+        }
+
         $cameraRef = (string) ($event['camera_ref'] ?? '');
         $camera = $this->refs->resolveCamera($cameraRef);
         if ($camera === null) {
@@ -393,7 +402,6 @@ final class PpeViolationService
         }
 
         $eventUid = (string) ($event['event_uid'] ?? '');
-        $eventType = (string) ($event['event_type'] ?? '');
         $normalized = $this->timestamps->normalize(Carbon::parse((string) $event['detected_at']));
         $detectedAt = $normalized['recorded_at'];
 
@@ -472,6 +480,12 @@ final class PpeViolationService
         }
 
         return $normalized['clock_skew'] ? 'skew' : 'accepted';
+    }
+
+    private function isPpeTypeEnabled(string $eventType): bool
+    {
+        return (bool) config('ir4.ppe_ingest.enabled', true)
+            && (bool) config("ir4.ppe_ingest.types.{$eventType}", true);
     }
 
     private function alertTypeFor(ViolationType $type): AlertType

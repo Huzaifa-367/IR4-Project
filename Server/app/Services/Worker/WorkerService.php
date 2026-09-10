@@ -13,7 +13,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -194,37 +193,54 @@ final class WorkerService
         ])->save();
     }
 
-    public function beginImport(UploadedFile $file, int $userId): WorkerImport
+    /**
+     * Import from an HTTP upload without persisting the spreadsheet.
+     * Row errors are returned for a one-shot flash — not stored on the import row.
+     *
+     * @return array{created: int, updated: int, skipped: int, errors: list<array{row: int, message: string}>, flagged: list<array{row: int, message: string}>, filename: string, import_id: int}
+     */
+    public function importUploadedFile(UploadedFile $file, int $userId): array
     {
-        $storedPath = $file->storeAs(
-            'imports/workers/'.now()->format('Y/m/d'),
-            Str::uuid()->toString().'.csv',
-            'private',
-        );
+        $path = $file->getRealPath();
+        if ($path === false || $path === '' || ! is_readable($path)) {
+            throw new HttpException(422, 'Could not read the uploaded import file.');
+        }
 
-        return WorkerImport::query()->create([
+        $import = WorkerImport::query()->create([
             'created_by' => $userId,
             'original_filename' => $file->getClientOriginalName(),
-            'stored_path' => $storedPath,
+            // Never retain the spreadsheet on disk (DOC-04 import is data-only).
+            'stored_path' => '',
             'status' => 'pending',
         ]);
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        $summary = $this->processImport($import, $path, $extension !== '' ? $extension : null);
+
+        return [
+            ...$summary,
+            'filename' => $file->getClientOriginalName(),
+            'import_id' => $import->id,
+        ];
     }
 
     /**
      * @return array{created: int, updated: int, skipped: int, errors: list<array{row: int, message: string}>, flagged: list<array{row: int, message: string}>}
      */
-    public function processImport(WorkerImport $import): array
+    public function processImport(WorkerImport $import, ?string $absolutePath = null, ?string $extensionHint = null): array
     {
-        $path = Storage::disk('private')->path($import->stored_path);
-        $handle = fopen($path, 'rb');
+        $path = $absolutePath;
+        $storedRelative = trim((string) $import->stored_path);
+        if ($path === null || $path === '') {
+            if ($storedRelative === '') {
+                throw new HttpException(500, 'Import file path is missing.');
+            }
+            $path = Storage::disk('private')->path($storedRelative);
+        }
 
-        if ($handle === false) {
-            $import->forceFill([
-                'status' => 'failed',
-                'summary' => ['errors' => [['row' => 0, 'message' => 'Could not open import file.']]],
-            ])->save();
-
-            throw new HttpException(500, 'Could not open import file.');
+        $extension = strtolower((string) ($extensionHint ?: pathinfo($path, PATHINFO_EXTENSION)));
+        if ($extension === '' && $import->original_filename !== '') {
+            $extension = strtolower((string) pathinfo($import->original_filename, PATHINFO_EXTENSION));
         }
 
         $header = null;
@@ -238,11 +254,11 @@ final class WorkerService
         $seenCodes = [];
 
         try {
-            while (($cells = fgetcsv($handle)) !== false) {
+            foreach ($this->importRows($path, $extension) as $cells) {
                 $rowNumber++;
 
                 if ($header === null) {
-                    $header = array_map(static fn ($h): string => Str::of((string) $h)->trim()->lower()->toString(), $cells);
+                    $header = array_map(fn ($h): string => $this->normalizeImportHeader((string) $h), $cells);
 
                     continue;
                 }
@@ -294,16 +310,38 @@ final class WorkerService
                 $this->create($validated);
                 $created++;
             }
-        } finally {
-            fclose($handle);
+        } catch (\Throwable $e) {
+            $import->forceFill([
+                'status' => 'failed',
+                'summary' => [
+                    'created' => $created,
+                    'updated' => $updated,
+                    'skipped' => $skipped,
+                    'error_count' => 1,
+                    'flagged_count' => count($flagged),
+                ],
+                'stored_path' => '',
+            ])->save();
+            $this->forgetStoredImportFile($storedRelative);
+
+            throw $e;
         }
 
         $summary = compact('created', 'updated', 'skipped', 'errors', 'flagged');
 
+        // Persist counts only — row errors/flags are ephemeral (session flash), not permanent logs.
         $import->forceFill([
             'status' => 'completed',
-            'summary' => $summary,
+            'summary' => [
+                'created' => $created,
+                'updated' => $updated,
+                'skipped' => $skipped,
+                'error_count' => count($errors),
+                'flagged_count' => count($flagged),
+            ],
+            'stored_path' => '',
         ])->save();
+        $this->forgetStoredImportFile($storedRelative);
 
         $this->audit('config_changed', [
             'target' => 'worker_import',
@@ -316,6 +354,15 @@ final class WorkerService
         ]);
 
         return $summary;
+    }
+
+    private function forgetStoredImportFile(string $storedRelative): void
+    {
+        if ($storedRelative === '') {
+            return;
+        }
+
+        Storage::disk('private')->delete($storedRelative);
     }
 
     private function assertCanLeaveWorkforce(Worker $worker): void
@@ -386,6 +433,139 @@ final class WorkerService
     }
 
     /**
+     * @return \Generator<int, list<string|null>>
+     */
+    private function importRows(string $path, ?string $extensionHint = null): \Generator
+    {
+        $extension = strtolower((string) ($extensionHint ?: pathinfo($path, PATHINFO_EXTENSION)));
+        if ($extension === 'xlsx') {
+            yield from $this->readXlsxRows($path);
+
+            return;
+        }
+
+        $handle = fopen($path, 'rb');
+        if ($handle === false) {
+            throw new HttpException(500, 'Could not open import file.');
+        }
+
+        try {
+            while (($cells = fgetcsv($handle)) !== false) {
+                yield array_map(static fn ($cell): ?string => $cell === null ? null : (string) $cell, $cells);
+            }
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * @return \Generator<int, list<string|null>>
+     */
+    private function readXlsxRows(string $path): \Generator
+    {
+        $zip = new \ZipArchive;
+        if ($zip->open($path) !== true) {
+            throw new HttpException(422, 'Could not open Excel import file.');
+        }
+
+        $sharedStrings = $this->readXlsxSharedStrings($zip);
+        $reader = new \XMLReader;
+        $sheetPath = 'zip://'.$path.'#xl/worksheets/sheet1.xml';
+        if (! $reader->open($sheetPath)) {
+            $zip->close();
+            throw new HttpException(422, 'Could not read the first Excel worksheet.');
+        }
+
+        try {
+            while ($reader->read()) {
+                if ($reader->nodeType !== \XMLReader::ELEMENT || $reader->localName !== 'row') {
+                    continue;
+                }
+
+                $row = simplexml_load_string($reader->readOuterXml());
+                if ($row === false) {
+                    continue;
+                }
+
+                $cells = [];
+                foreach ($row->c as $cell) {
+                    $reference = (string) $cell['r'];
+                    $index = $this->xlsxColumnIndex($reference);
+                    $value = (string) ($cell->v ?? '');
+                    $type = (string) ($cell['t'] ?? '');
+
+                    if ($type === 's' && $value !== '') {
+                        $value = $sharedStrings[(int) $value] ?? '';
+                    } elseif ($type === 'inlineStr') {
+                        $value = (string) ($cell->is->t ?? '');
+                    }
+
+                    $cells[$index] = $value === '' ? null : $value;
+                }
+
+                if ($cells !== [] && array_filter($cells, static fn ($value): bool => $value !== null && trim((string) $value) !== '')) {
+                    ksort($cells);
+                    $lastIndex = (int) array_key_last($cells);
+                    $orderedCells = [];
+                    for ($index = 0; $index <= $lastIndex; $index++) {
+                        $orderedCells[] = $cells[$index] ?? null;
+                    }
+                    yield $orderedCells;
+                }
+            }
+        } finally {
+            $reader->close();
+            $zip->close();
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function readXlsxSharedStrings(\ZipArchive $zip): array
+    {
+        $contents = $zip->getFromName('xl/sharedStrings.xml');
+        if ($contents === false) {
+            return [];
+        }
+
+        $xml = simplexml_load_string($contents);
+        if ($xml === false) {
+            return [];
+        }
+
+        $namespace = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+        $strings = [];
+        foreach ($xml->children($namespace)->si as $item) {
+            $strings[] = implode('', array_map(
+                static fn ($text): string => (string) $text,
+                iterator_to_array($item->children($namespace)->t),
+            ));
+        }
+
+        return $strings;
+    }
+
+    private function xlsxColumnIndex(string $reference): int
+    {
+        preg_match('/^([A-Z]+)/', strtoupper($reference), $matches);
+        $letters = $matches[1] ?? 'A';
+        $index = 0;
+
+        foreach (str_split($letters) as $letter) {
+            $index = ($index * 26) + ord($letter) - ord('A') + 1;
+        }
+
+        return $index - 1;
+    }
+
+    private function normalizeImportHeader(string $header): string
+    {
+        return trim((string) preg_replace('/[^a-z0-9]+/i', '_', strtolower($header)), '_');
+    }
+
+    /**
+     * @param  list<string>  $header
      * @param  list<string|null>  $cells
      * @return array<string, string|null>
      */
@@ -400,7 +580,53 @@ final class WorkerService
             }
         }
 
-        return $row;
+        if (! array_key_exists('fullnameen', $row)) {
+            return $row;
+        }
+
+        return [
+            'name' => $row['fullnameen'],
+            'contractor' => $row['project_cost_center_id'],
+            'worker_type' => 'employee',
+            'role_title' => $row['job_title'] ?? null,
+            'nationality' => $row['nationality'] ?? null,
+            'date_of_birth' => $this->normalizeXlsxDate($row['dateofbirth'] ?? null),
+            'joined_on' => $this->normalizeXlsxDate($row['hiringdate'] ?? null),
+            'government_id_number' => $row['iqama_id'] ?? null,
+            'badge_number' => null,
+            'employee_code' => $row['employee'] ?? null,
+            'phone' => $row['mobile'] ?? null,
+            'notes' => $this->mapAramcoNotes($row),
+        ];
+    }
+
+    private function normalizeXlsxDate(?string $value): ?string
+    {
+        if ($value === null || ! is_numeric($value)) {
+            return $value;
+        }
+
+        return Carbon::create(1899, 12, 30)->addDays((int) $value)->toDateString();
+    }
+
+    /**
+     * @param  array<string, string|null>  $row
+     */
+    private function mapAramcoNotes(array $row): ?string
+    {
+        $status = $row['empstatusid'] ?? null;
+        $expiry = $row['iqama_expire_in_muqeem'] ?? null;
+        $notes = [];
+
+        if ($status !== null) {
+            $notes[] = 'Aramco status: '.$status;
+        }
+
+        if ($expiry !== null && $expiry !== '0') {
+            $notes[] = 'Iqama expiry source value: '.$expiry;
+        }
+
+        return $notes === [] ? null : implode('; ', $notes);
     }
 
     /**

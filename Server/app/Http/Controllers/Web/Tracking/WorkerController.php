@@ -8,7 +8,6 @@ use App\Http\Requests\Tracking\ImportWorkersRequest;
 use App\Http\Requests\Tracking\StoreWorkerRequest;
 use App\Http\Requests\Tracking\UpdateWorkerRequest;
 use App\Http\Resources\WorkerResource;
-use App\Jobs\ImportWorkersJob;
 use App\Models\EntryExitLog;
 use App\Models\HseIncident;
 use App\Models\IncidentPersonnel;
@@ -18,7 +17,6 @@ use App\Models\RfidTag;
 use App\Models\Worker;
 use App\Models\WorkerDocument;
 use App\Models\WorkerDocumentType;
-use App\Models\WorkerImport;
 use App\Services\Permit\WorkerDocumentReadinessService;
 use App\Services\Storage\SignedStorageUrlService;
 use App\Services\Worker\WorkerService;
@@ -337,19 +335,11 @@ final class WorkerController extends BaseController
     {
         $this->authorize('import', Worker::class);
 
-        $latest = WorkerImport::query()
-            ->where('created_by', $request->user()?->id)
-            ->latest('id')
-            ->first();
+        /** @var array<string, mixed>|null $importResult */
+        $importResult = $request->session()->pull('worker_import_result');
 
         return Inertia::render('workforce/workers/import', [
-            'latestImport' => $latest === null ? null : [
-                'id' => $latest->id,
-                'original_filename' => $latest->original_filename,
-                'status' => $latest->status,
-                'summary' => $latest->summary,
-                'created_at' => $latest->created_at?->toIso8601String(),
-            ],
+            'importResult' => is_array($importResult) ? $importResult : null,
         ]);
     }
 
@@ -357,25 +347,41 @@ final class WorkerController extends BaseController
     {
         /** @var UploadedFile $file */
         $file = $request->file('file');
-        $import = $workers->beginImport($file, (int) $request->user()->id);
-
-        ImportWorkersJob::dispatch($import->id);
+        $summary = $workers->importUploadedFile($file, (int) $request->user()->id);
+        $created = (int) $summary['created'];
+        $updated = (int) $summary['updated'];
+        $skipped = (int) $summary['skipped'];
+        $errors = array_values(array_slice($summary['errors'], 0, 100));
+        $flagged = array_values(array_slice($summary['flagged'], 0, 100));
 
         return redirect()
             ->route('tracking.workers.import')
-            ->with('flash', ['success' => 'Import queued.']);
+            ->with('worker_import_result', [
+                'filename' => $summary['filename'],
+                'created' => $created,
+                'updated' => $updated,
+                'skipped' => $skipped,
+                'errors' => $errors,
+                'flagged' => $flagged,
+                'errors_truncated' => count($summary['errors']) > count($errors),
+                'flagged_truncated' => count($summary['flagged']) > count($flagged),
+            ])
+            ->with('flash', [
+                'success' => "Import finished: {$created} created, {$updated} updated, {$skipped} skipped.",
+            ]);
     }
 
     public function template(): StreamedResponse|Response
     {
         $this->authorize('import', Worker::class);
 
-        $csv = "name,contractor,worker_type,role_title,nationality,date_of_birth,joined_on,government_id_number,badge_number,employee_code,phone,notes\n";
-        $csv .= "Jane Doe,ACME Contracting,contractor,Rigger,BDG-1001,EMP-1001,,\n";
+        // Matches Aramco “Project Manpower List” columns (DOC-04 / WorkerService Aramco map).
+        $csv = "Employee,FullNameEn,DateOfBirth,Nationality,Job Title,Iqama / ID,Iqama Expire in Muqeem,HiringDate,Project / Cost Center ID,Mobile,EmpStatusID\n";
+        $csv .= "23488,MOHAMMED MUNEER ABDULLAH ALSUBAIE,1994-07-18,Saudi Arabia,Security,1082681469,0,2026-09-01,Aramco-Early works for SUGCP,0554873710,On Duty\n";
 
         return response($csv, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="workers-import-template.csv"',
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="aramco-manpower-import-template.csv"',
         ]);
     }
 }

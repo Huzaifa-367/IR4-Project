@@ -8,6 +8,7 @@ use App\Services\Storage\SignedStorageUrlService;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Console\ServeCommand;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -64,10 +65,29 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->configureLocalPhpUploadSettings();
         $this->configureDefaults();
         $this->configureBackupEvents();
         $this->configureRateLimiting();
         $this->configureRuntimeTimezone();
+    }
+
+    protected function configureLocalPhpUploadSettings(): void
+    {
+        if (! $this->app->environment('local') || ! isset($_ENV['PHPRC'])) {
+            return;
+        }
+
+        $iniPath = (string) $_ENV['PHPRC'];
+        if (! str_starts_with($iniPath, '/')) {
+            $iniPath = base_path($iniPath);
+            $_ENV['PHPRC'] = $iniPath;
+            putenv('PHPRC='.$iniPath);
+        }
+
+        if (! in_array('PHPRC', ServeCommand::$passthroughVariables, true)) {
+            ServeCommand::$passthroughVariables[] = 'PHPRC';
+        }
     }
 
     /**

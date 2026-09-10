@@ -234,11 +234,12 @@ Worker management is **operator UI = Inertia** (surface A, DOC-01 §3). All writ
 
 ## 8. Bulk import (commissioning & ongoing intake)
 
-Real life: at mobilization the safety team receives worker rosters as spreadsheets (often per contractor). Manual entry of ~100 workers is error-prone, so `manage-workers` gets a CSV import.
+Real life: at mobilization the safety team receives worker rosters as spreadsheets (often Aramco Project Manpower List exports per contractor). Manual entry of ~100 workers is error-prone, so `manage-workers` gets a CSV/XLSX import.
 
-- **Endpoint:** POST `/tracking/workers/import` (multipart CSV) → queued `ImportWorkersJob` on the `default` queue → row-level result report (created, skipped-duplicate, errored-with-reason) surfaced back on the import page.
-- **CSV columns:** `name` (req), `contractor` (req), `worker_type` (req: employee|contractor|visitor), `role_title`, `nationality`, `date_of_birth`, `joined_on`, `government_id_number`, `badge_number`, `employee_code`, `phone`, `notes`. Header row required; template downloadable.
-- **Validation:** each row validated as if through `StoreWorkerRequest`; unique `badge_number`/`employee_code` enforced within the file and against existing rows. Invalid rows are reported, valid rows still import (partial success — never all-or-nothing).
+- **Endpoint:** POST `/tracking/workers/import` (multipart CSV/XLSX) → synchronous import (upload is not retained on disk) → one-shot result flash (created/updated/skipped + row errors).
+- **Primary columns (Aramco manpower list / downloadable template):** `Employee`, `FullNameEn`, `DateOfBirth`, `Nationality`, `Job Title`, `Iqama / ID`, `Iqama Expire in Muqeem`, `HiringDate`, `Project / Cost Center ID`, `Mobile`, `EmpStatusID`. Header row required. Mapped to workers as: name←FullNameEn, contractor←Project/Cost Center ID, worker_type=`employee`, role_title←Job Title, government_id_number←Iqama/ID, employee_code←Employee, phone←Mobile; Excel serial dates accepted for DOB/HiringDate.
+- **Legacy columns (still accepted):** `name` (req), `contractor` (req), `worker_type` (req: employee|contractor|visitor), `role_title`, `nationality`, `date_of_birth`, `joined_on`, `government_id_number`, `badge_number`, `employee_code`, `phone`, `notes`.
+- **Validation:** each row validated as if through `StoreWorkerRequest`; unique `badge_number`/`employee_code` enforced within the file and against existing rows. Invalid rows are reported, valid rows still import (partial success — never all-or-nothing). Row-level error text is flash-only (not stored as permanent logs).
 - **Idempotency:** re-importing the same roster matches on `badge_number` or `employee_code` (if present) and **updates** rather than duplicating; rows with no stable key and a matching name+contractor are flagged for the operator to confirm rather than silently duplicated `[CONFIRM AT DESIGN]`.
 - **No tag assignment in import** — import creates the registry; tags are assigned separately (DOC-09), matching real workflow (badges/tags issued at the gate).
 - Every import writes an audit summary row (count created/updated, file name, user).

@@ -7,7 +7,6 @@ use App\Models\WorkerImport;
 use App\Services\Worker\WorkerService;
 use Database\Seeders\PermitCatalogueSeeder;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -188,7 +187,6 @@ it('forbids workers list without view-tracking', function () {
 
 it('imports valid csv rows partially when some fail', function () {
     Storage::fake('private');
-    Queue::fake();
 
     $user = User::factory()->withRole('SCC Operator')->create();
 
@@ -206,14 +204,121 @@ it('imports valid csv rows partially when some fail', function () {
         ->assertRedirect(route('tracking.workers.import'));
 
     $import = WorkerImport::query()->latest('id')->firstOrFail();
-    app(WorkerService::class)->processImport($import);
 
     expect(Worker::query()->count())->toBe(2)
-        ->and($import->fresh()->status)->toBe('completed')
-        ->and($import->fresh()->summary['created'])->toBe(2)
-        ->and($import->fresh()->summary['errors'])->not->toBeEmpty()
+        ->and($import->status)->toBe('completed')
+        ->and($import->stored_path)->toBe('')
+        ->and($import->summary['created'])->toBe(2)
+        ->and($import->summary['error_count'])->toBeGreaterThan(0)
+        ->and($import->summary)->not->toHaveKey('errors')
+        ->and(session('worker_import_result.errors'))->not->toBeEmpty()
+        ->and(Storage::disk('private')->allFiles())->toBe([])
         ->and(Worker::query()->where('badge_number', 'BDG-A1')->value('nationality'))->toBe('Filipino')
         ->and(Worker::query()->where('badge_number', 'BDG-A1')->value('government_id_number'))->toBe('111222333');
+});
+
+it('imports the Aramco manpower Excel columns', function () {
+    Storage::fake('private');
+    $user = User::factory()->withRole('SCC Operator')->create();
+    $xlsxPath = tempnam(sys_get_temp_dir(), 'workers-');
+    $zip = new ZipArchive;
+    $zip->open($xlsxPath);
+    $cell = static fn (string $reference, string $value): string => '<c r="'.$reference.'" t="inlineStr"><is><t>'.htmlspecialchars($value, ENT_XML1).'</t></is></c>';
+    $headers = ['Employee', 'FullNameEn', 'DateOfBirth', 'Nationality', 'Job Title', 'Iqama / ID', 'Iqama Expire in Muqeem', 'HiringDate', 'Project / Cost Center ID', 'Mobile', 'EmpStatusID'];
+    $values = ['23488', 'MOHAMMED MUNEER ABDULLAH ALSUBAIE', '34533', 'Saudi Arabia', 'Security', '1082681469', '0', '46266', 'Aramco-Early works for SUGCP', '0554873710', 'On Duty'];
+    $rows = [];
+    foreach ([$headers, $values] as $rowNumber => $row) {
+        $cells = [];
+        foreach ($row as $column => $value) {
+            $cells[] = $cell(chr(65 + $column).($rowNumber + 1), $value);
+        }
+        $rows[] = '<row r="'.($rowNumber + 1).'">'.implode('', $cells).'</row>';
+    }
+    $zip->addFromString('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+    $zip->addFromString('xl/workbook.xml', '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheets><sheet name="Employees Full File" sheetId="1" r:id="rId1"/></sheets></workbook>');
+    $zip->addFromString('xl/worksheets/sheet1.xml', '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'.implode('', $rows).'</sheetData></worksheet>');
+    $zip->close();
+    $path = 'imports/workers/aramco.xlsx';
+    Storage::disk('private')->put($path, file_get_contents($xlsxPath));
+    unlink($xlsxPath);
+    $import = WorkerImport::query()->create([
+        'created_by' => $user->id,
+        'original_filename' => 'aramco.xlsx',
+        'stored_path' => $path,
+        'status' => 'pending',
+    ]);
+
+    $summary = app(WorkerService::class)->processImport($import);
+    $worker = Worker::query()->where('employee_code', '23488')->firstOrFail();
+
+    expect($summary['created'])->toBe(1)
+        ->and($import->fresh()->stored_path)->toBe('')
+        ->and(Storage::disk('private')->exists($path))->toBeFalse()
+        ->and($worker->name)->toBe('MOHAMMED MUNEER ABDULLAH ALSUBAIE')
+        ->and($worker->contractor)->toBe('Aramco-Early works for SUGCP')
+        ->and($worker->worker_type)->toBe(\App\Enums\WorkerType::Employee)
+        ->and($worker->date_of_birth?->toDateString())->toBe('1994-07-18')
+        ->and($worker->joined_on?->toDateString())->toBe('2026-09-01')
+        ->and($worker->government_id_number)->toBe('1082681469')
+        ->and($worker->phone)->toBe('0554873710');
+});
+
+it('downloads an Aramco-shaped import template', function () {
+    $user = User::factory()->withRole('SCC Operator')->create();
+
+    $response = $this->actingAs($user)->get(route('tracking.workers.import.template'));
+
+    $response->assertOk();
+    $csv = (string) $response->getContent();
+    expect($csv)
+        ->toContain('Employee,FullNameEn,DateOfBirth,Nationality,Job Title,Iqama / ID')
+        ->toContain('Project / Cost Center ID,Mobile,EmpStatusID')
+        ->and($response->headers->get('content-disposition'))
+        ->toContain('aramco-manpower-import-template.csv');
+});
+
+it('imports Aramco xlsx when the PHP temp upload path has no extension', function () {
+    Storage::fake('private');
+    $user = User::factory()->withRole('SCC Operator')->create();
+    $xlsxPath = tempnam(sys_get_temp_dir(), 'workers-');
+    $zip = new ZipArchive;
+    $zip->open($xlsxPath);
+    $cell = static fn (string $reference, string $value): string => '<c r="'.$reference.'" t="inlineStr"><is><t>'.htmlspecialchars($value, ENT_XML1).'</t></is></c>';
+    $headers = ['Employee', 'FullNameEn', 'DateOfBirth', 'Nationality', 'Job Title', 'Iqama / ID', 'Iqama Expire in Muqeem', 'HiringDate', 'Project / Cost Center ID', 'Mobile', 'EmpStatusID'];
+    $values = ['23488', 'MOHAMMED MUNEER ABDULLAH ALSUBAIE', '34533', 'Saudi Arabia', 'Security', '1082681469', '0', '46266', 'Aramco-Early works for SUGCP', '0554873710', 'On Duty'];
+    $rows = [];
+    foreach ([$headers, $values] as $rowNumber => $row) {
+        $cells = [];
+        foreach ($row as $column => $value) {
+            $cells[] = $cell(chr(65 + $column).($rowNumber + 1), $value);
+        }
+        $rows[] = '<row r="'.($rowNumber + 1).'">'.implode('', $cells).'</row>';
+    }
+    $zip->addFromString('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+    $zip->addFromString('xl/workbook.xml', '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheets><sheet name="Employees Full File" sheetId="1" r:id="rId1"/></sheets></workbook>');
+    $zip->addFromString('xl/worksheets/sheet1.xml', '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'.implode('', $rows).'</sheetData></worksheet>');
+    $zip->close();
+
+    // Mimic PHP upload temp file: no .xlsx suffix on disk, only on the client name.
+    $tmpUpload = tempnam(sys_get_temp_dir(), 'php');
+    file_put_contents($tmpUpload, file_get_contents($xlsxPath));
+    unlink($xlsxPath);
+    expect(pathinfo($tmpUpload, PATHINFO_EXTENSION))->toBe('');
+
+    $file = new UploadedFile(
+        $tmpUpload,
+        'Aramco Project Manpower List.xlsx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        null,
+        true,
+    );
+
+    $summary = app(WorkerService::class)->importUploadedFile($file, $user->id);
+
+    expect($summary['created'])->toBe(1)
+        ->and($summary['errors'])->toBe([])
+        ->and(Worker::query()->where('employee_code', '23488')->value('name'))
+        ->toBe('MOHAMMED MUNEER ABDULLAH ALSUBAIE');
 });
 
 it('seeds vaccination as a worker document type', function () {
@@ -248,6 +353,8 @@ it('updates on re-import matched by badge_number', function () {
 
     expect($summary['updated'])->toBe(1)
         ->and($summary['created'])->toBe(0)
+        ->and($import->fresh()->stored_path)->toBe('')
+        ->and(Storage::disk('private')->exists($path))->toBeFalse()
         ->and(Worker::query()->where('badge_number', 'BDG-DUP')->value('name'))->toBe('New Name')
         ->and(Worker::query()->count())->toBe(1);
 });
