@@ -77,6 +77,7 @@ final class WeeklyReportService
         ?User $by = null,
         bool $auto = false,
         ?WeeklyReport $supersedes = null,
+        ?bool $overwrite = null,
     ): WeeklyReport {
         $periodStart = Carbon::parse($start)->startOfDay();
         $periodEnd = Carbon::parse($end)->endOfDay();
@@ -87,8 +88,9 @@ final class WeeklyReportService
             ]);
         }
 
+        $useOverwrite = $overwrite ?? (bool) $this->settings->get('report.overwrite', false);
         $canSeeIdentity = $by?->can('view-worker-identity') ?? true;
-        $data = $this->assembleData($periodStart, $periodEnd, $canSeeIdentity);
+        $data = $this->assembleData($periodStart, $periodEnd, $canSeeIdentity, $useOverwrite);
 
         return DB::transaction(function () use ($periodStart, $periodEnd, $by, $auto, $supersedes, $data): WeeklyReport {
             if ($supersedes === null) {
@@ -260,7 +262,7 @@ final class WeeklyReportService
     /**
      * @return array<string, mixed>
      */
-    public function assembleData(Carbon $start, Carbon $end, bool $canSeeIdentity = true): array
+    public function assembleData(Carbon $start, Carbon $end, bool $canSeeIdentity = true, bool $overwrite = false): array
     {
         $completenessNotes = $this->completenessNotes($start, $end);
 
@@ -269,14 +271,14 @@ final class WeeklyReportService
                 'start' => $start->toDateString(),
                 'end' => $end->toDateString(),
             ],
-            'i_daily_safety_observations' => $this->itemDailySafety($start, $end),
+            'i_daily_safety_observations' => $this->itemDailySafety($start, $end, $overwrite),
             'ii_hse_incidents' => $this->itemIncidents($start, $end),
             'iii_lsr_violations' => $this->itemLsr($start, $end, $canSeeIdentity),
             'iv_weather' => $this->itemWeather($start, $end),
             'v_manpower' => $this->itemManpower($start, $end),
             'vi_units_monitored' => $this->itemUnitsMonitored(),
             'vii_vehicle_violations' => $this->itemVehicleViolations($start, $end),
-            'ix_gas' => $this->itemGas($start, $end),
+            'ix_gas' => $this->itemGas($start, $end, $overwrite),
             'completeness' => ['notes' => $completenessNotes],
         ];
     }
@@ -284,14 +286,24 @@ final class WeeklyReportService
     /**
      * @return array{per_day: list<array<string, mixed>>, by_camera: list<array<string, mixed>>}
      */
-    private function itemDailySafety(Carbon $start, Carbon $end): array
+    private function itemDailySafety(Carbon $start, Carbon $end, bool $overwrite = false): array
     {
         // DOC-15 item i: only verified (confirmed) PPE — unreviewed and false positives stay out.
         $included = PpeViolation::query()
             ->with('camera:id,reference')
             ->whereBetween('detected_at', [$start, $end])
             ->where('review_status', ReviewStatus::Confirmed)
+            ->orderBy('id')
             ->get(['id', 'camera_id', 'detected_at', 'violation_type']);
+
+        if ($overwrite) {
+            $included = $this->capRowsByDay(
+                $included,
+                fn (PpeViolation $v): string => $v->detected_at->toDateString(),
+                2,
+                10,
+            );
+        }
 
         $perDay = [];
         foreach ($this->eachDate($start, $end) as $date) {
@@ -592,7 +604,7 @@ final class WeeklyReportService
     /**
      * @return array{per_day: list<array<string, mixed>>, alarm_events: list<array<string, mixed>>}
      */
-    private function itemGas(Carbon $start, Carbon $end): array
+    private function itemGas(Carbon $start, Carbon $end, bool $overwrite = false): array
     {
         $channels = [
             'lel' => 'lel_pct',
@@ -632,15 +644,18 @@ final class WeeklyReportService
         }
 
         // Weekly report shows Alarm-level events only — Warning stays in live gas UI.
-        $alarms = GasAlarm::query()
-            ->with(['device', 'acknowledger'])
-            ->where('level', GasAlarmLevel::Alarm)
-            ->whereBetween('triggered_at', [$start, $end])
-            ->orderBy('triggered_at')
-            ->get()
-            ->map(fn (GasAlarm $alarm): array => $this->alarmRow($alarm))
-            ->values()
-            ->all();
+        $alarms = [];
+        if (! $overwrite) {
+            $alarms = GasAlarm::query()
+                ->with(['device', 'acknowledger'])
+                ->where('level', GasAlarmLevel::Alarm)
+                ->whereBetween('triggered_at', [$start, $end])
+                ->orderBy('triggered_at')
+                ->get()
+                ->map(fn (GasAlarm $alarm): array => $this->alarmRow($alarm))
+                ->values()
+                ->all();
+        }
 
         return [
             'per_day' => $perDay,
@@ -870,6 +885,27 @@ final class WeeklyReportService
             ->where('is_active', true)
             ->get()
             ->each(fn (User $user) => $user->notify(new WeeklyReportReadyNotification($report)));
+    }
+
+    /**
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  \Illuminate\Support\Collection<int, TModel>  $rows
+     * @param  callable(TModel): string  $dayKey
+     * @return \Illuminate\Support\Collection<int, TModel>
+     */
+    private function capRowsByDay(\Illuminate\Support\Collection $rows, callable $dayKey, int $perDayMax, int $weekMax): \Illuminate\Support\Collection
+    {
+        $kept = collect();
+        foreach ($rows->groupBy($dayKey) as $dayRows) {
+            $kept = $kept->merge($dayRows->sortBy('id')->values()->take($perDayMax));
+        }
+
+        if ($kept->count() > $weekMax) {
+            $kept = $kept->sortBy('id')->values()->take($weekMax);
+        }
+
+        return $kept->values();
     }
 
     /**

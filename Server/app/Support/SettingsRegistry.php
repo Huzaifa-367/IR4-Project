@@ -525,6 +525,14 @@ final class SettingsRegistry
                 'min' => 1,
                 'max' => 100,
             ],
+            'report.overwrite' => [
+                'default' => true,
+                'type' => 'bool',
+                'group' => 'reports',
+                'permission' => 'update-settings',
+                'requires_confirm' => true,
+                'label' => 'Overwrite',
+            ],
 
             'retention.tag_readings_days' => [
                 'default' => 90,
