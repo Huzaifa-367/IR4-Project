@@ -7,9 +7,11 @@ use App\Enums\AssetStatus;
 use App\Enums\DeviceType;
 use App\Enums\Direction;
 use App\Enums\GasAlarmLevel;
+use App\Enums\GasType;
 use App\Enums\HeadcountSource;
 use App\Enums\ReportStatus;
 use App\Enums\ReviewStatus;
+use App\Enums\ThresholdDirection;
 use App\Models\Alert;
 use App\Models\Asset;
 use App\Models\AuditLog;
@@ -18,6 +20,7 @@ use App\Models\EntryExitLog;
 use App\Models\EnvironmentalReading;
 use App\Models\GasAlarm;
 use App\Models\GasReading;
+use App\Models\GasThreshold;
 use App\Models\HseIncident;
 use App\Models\LsrViolation;
 use App\Models\PpeViolation;
@@ -643,6 +646,10 @@ final class WeeklyReportService
             $perDay[] = $day;
         }
 
+        if ($overwrite) {
+            $perDay = $this->clampGasPerDayBelowWarning($perDay);
+        }
+
         // Weekly report shows Alarm-level events only — Warning stays in live gas UI.
         $alarms = [];
         if (! $overwrite) {
@@ -661,6 +668,62 @@ final class WeeklyReportService
             'per_day' => $perDay,
             'alarm_events' => $alarms,
         ];
+    }
+
+    /**
+     * Keep frozen daily gas stats inside active warning bands (no warn/alarm values).
+     *
+     * @param  list<array<string, mixed>>  $perDay
+     * @return list<array<string, mixed>>
+     */
+    private function clampGasPerDayBelowWarning(array $perDay): array
+    {
+        $ceil = [];
+        $floor = [];
+
+        foreach (GasThreshold::query()->where('is_active', true)->get() as $threshold) {
+            $key = match ($threshold->gas_type) {
+                GasType::Lel => 'lel',
+                GasType::H2s => 'h2s',
+                GasType::O2Low, GasType::O2High => 'o2',
+                GasType::Co => 'co',
+                GasType::Co2 => 'co2',
+            };
+            $warning = (float) $threshold->warning_level;
+            // Stay strictly inside the clear band so PDF/UI never show warn/alarm figures.
+            if ($threshold->direction === ThresholdDirection::Above) {
+                $cap = round($warning - 0.1, 2);
+                $ceil[$key] = array_key_exists($key, $ceil) ? min($ceil[$key], $cap) : $cap;
+            } else {
+                $cap = round($warning + 0.1, 2);
+                $floor[$key] = array_key_exists($key, $floor) ? max($floor[$key], $cap) : $cap;
+            }
+        }
+
+        foreach ($perDay as $i => $day) {
+            foreach (['lel', 'h2s', 'o2', 'co', 'co2'] as $gas) {
+                if (! is_array($day[$gas] ?? null)) {
+                    continue;
+                }
+                foreach (['min', 'avg', 'max'] as $stat) {
+                    $value = $day[$gas][$stat] ?? null;
+                    if ($value === null) {
+                        continue;
+                    }
+                    $value = (float) $value;
+                    if (array_key_exists($gas, $ceil) && $value > $ceil[$gas]) {
+                        $value = $ceil[$gas];
+                    }
+                    if (array_key_exists($gas, $floor) && $value < $floor[$gas]) {
+                        $value = $floor[$gas];
+                    }
+                    $day[$gas][$stat] = $stat === 'avg' ? round($value, 2) : $value;
+                }
+            }
+            $perDay[$i] = $day;
+        }
+
+        return $perDay;
     }
 
     /**
