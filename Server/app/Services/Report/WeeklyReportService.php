@@ -728,10 +728,21 @@ final class WeeklyReportService
                     continue;
                 }
                 sort($values);
+                $min = $values[0];
+                $avg = round(array_sum($values) / count($values), 2);
+                // P95 of clear samples; fall back to P99 when the distribution is
+                // zero-heavy so max is not stuck at 0 while avg is positive.
+                $max = $this->percentile($values, 0.95);
+                if ($max < $avg) {
+                    $max = $this->percentile($values, 0.99);
+                }
+                if ($max < $avg) {
+                    $max = $avg;
+                }
                 $day[$gas] = [
-                    'min' => $values[0],
-                    'avg' => round(array_sum($values) / count($values), 2),
-                    'max' => $this->percentile($values, 0.95),
+                    'min' => $min,
+                    'avg' => $avg,
+                    'max' => $max,
                 ];
             }
             $perDay[] = $day;
