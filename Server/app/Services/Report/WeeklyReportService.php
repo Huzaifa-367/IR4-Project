@@ -617,42 +617,18 @@ final class WeeklyReportService
             'co2' => 'co2_ppm',
         ];
 
-        $perDay = $overwrite
-            ? $this->itemGasPerDayClearBand($start, $end, $channels)
-            : $this->itemGasPerDayAll($start, $end, $channels);
+        // Overwrite: real min/avg/max, but skip samples that cross alarm levels.
+        $sources = $overwrite
+            ? $this->gasSourcesExcludingAlarmCrossings($channels)
+            : $channels;
 
-        // Weekly report shows Alarm-level events only — Warning stays in live gas UI.
-        $alarms = [];
-        if (! $overwrite) {
-            $alarms = GasAlarm::query()
-                ->with(['device', 'acknowledger'])
-                ->where('level', GasAlarmLevel::Alarm)
-                ->whereBetween('triggered_at', [$start, $end])
-                ->orderBy('triggered_at')
-                ->get()
-                ->map(fn (GasAlarm $alarm): array => $this->alarmRow($alarm))
-                ->values()
-                ->all();
-        }
-
-        return [
-            'per_day' => $perDay,
-            'alarm_events' => $alarms,
-        ];
-    }
-
-    /**
-     * @param  array<string, string>  $channels
-     * @return list<array<string, mixed>>
-     */
-    private function itemGasPerDayAll(Carbon $start, Carbon $end, array $channels): array
-    {
         $dayExpr = SqlTimeBucket::day('recorded_at');
         $selects = ["{$dayExpr} as day"];
         foreach ($channels as $gas => $column) {
-            $selects[] = "MIN({$column}) as {$gas}_min";
-            $selects[] = "AVG({$column}) as {$gas}_avg";
-            $selects[] = "MAX({$column}) as {$gas}_max";
+            $source = $sources[$gas] ?? $column;
+            $selects[] = "MIN({$source}) as {$gas}_min";
+            $selects[] = "AVG({$source}) as {$gas}_avg";
+            $selects[] = "MAX({$source}) as {$gas}_max";
         }
 
         $byDay = GasReading::query()
@@ -677,84 +653,31 @@ final class WeeklyReportService
             $perDay[] = $day;
         }
 
-        return $perDay;
-    }
-
-    /**
-     * Overwrite path: only clear-band samples. Max uses the 95th percentile so
-     * near-threshold spikes do not pin every day to the same ceiling.
-     *
-     * @param  array<string, string>  $channels
-     * @return list<array<string, mixed>>
-     */
-    private function itemGasPerDayClearBand(Carbon $start, Carbon $end, array $channels): array
-    {
-        [$above, $below] = $this->gasWarningBounds();
-        /** @var array<string, array<string, list<float>>> $samples */
-        $samples = [];
-
-        GasReading::query()
-            ->whereBetween('recorded_at', [$start, $end])
-            ->orderBy('id')
-            ->select(['id', 'recorded_at', ...array_values($channels)])
-            ->chunkById(2000, function ($rows) use (&$samples, $channels, $above, $below): void {
-                foreach ($rows as $row) {
-                    $date = $row->recorded_at->toDateString();
-                    foreach ($channels as $gas => $column) {
-                        $value = $row->{$column};
-                        if ($value === null) {
-                            continue;
-                        }
-                        $value = (float) $value;
-                        if (array_key_exists($gas, $above) && $value >= $above[$gas]) {
-                            continue;
-                        }
-                        if (array_key_exists($gas, $below) && $value <= $below[$gas]) {
-                            continue;
-                        }
-                        $samples[$date][$gas][] = $value;
-                    }
-                }
-            });
-
-        $perDay = [];
-        foreach ($this->eachDate($start, $end) as $date) {
-            $day = ['date' => $date];
-            foreach (array_keys($channels) as $gas) {
-                $values = $samples[$date][$gas] ?? [];
-                if ($values === []) {
-                    $day[$gas] = ['min' => null, 'avg' => null, 'max' => null];
-
-                    continue;
-                }
-                sort($values);
-                $min = $values[0];
-                $avg = round(array_sum($values) / count($values), 2);
-                // P95 of clear samples; fall back to P99 when the distribution is
-                // zero-heavy so max is not stuck at 0 while avg is positive.
-                $max = $this->percentile($values, 0.95);
-                if ($max < $avg) {
-                    $max = $this->percentile($values, 0.99);
-                }
-                if ($max < $avg) {
-                    $max = $avg;
-                }
-                $day[$gas] = [
-                    'min' => $min,
-                    'avg' => $avg,
-                    'max' => $max,
-                ];
-            }
-            $perDay[] = $day;
+        // Weekly report shows Alarm-level events only — Warning stays in live gas UI.
+        $alarms = [];
+        if (! $overwrite) {
+            $alarms = GasAlarm::query()
+                ->with(['device', 'acknowledger'])
+                ->where('level', GasAlarmLevel::Alarm)
+                ->whereBetween('triggered_at', [$start, $end])
+                ->orderBy('triggered_at')
+                ->get()
+                ->map(fn (GasAlarm $alarm): array => $this->alarmRow($alarm))
+                ->values()
+                ->all();
         }
 
-        return $perDay;
+        return [
+            'per_day' => $perDay,
+            'alarm_events' => $alarms,
+        ];
     }
 
     /**
-     * @return array{0: array<string, float>, 1: array<string, float>}
+     * @param  array<string, string>  $channels
+     * @return array<string, string> column or CASE expression per channel
      */
-    private function gasWarningBounds(): array
+    private function gasSourcesExcludingAlarmCrossings(array $channels): array
     {
         $above = [];
         $below = [];
@@ -767,34 +690,29 @@ final class WeeklyReportService
                 GasType::Co => 'co',
                 GasType::Co2 => 'co2',
             };
-            $warning = (float) $threshold->warning_level;
+            $alarm = (float) $threshold->alarm_level;
             if ($threshold->direction === ThresholdDirection::Above) {
-                $above[$key] = array_key_exists($key, $above)
-                    ? min($above[$key], $warning)
-                    : $warning;
+                $above[$key] = array_key_exists($key, $above) ? min($above[$key], $alarm) : $alarm;
             } else {
-                $below[$key] = array_key_exists($key, $below)
-                    ? max($below[$key], $warning)
-                    : $warning;
+                $below[$key] = array_key_exists($key, $below) ? max($below[$key], $alarm) : $alarm;
             }
         }
 
-        return [$above, $below];
-    }
-
-    /**
-     * @param  list<float>  $sortedAscending
-     */
-    private function percentile(array $sortedAscending, float $p): float
-    {
-        $n = count($sortedAscending);
-        if ($n === 1) {
-            return $sortedAscending[0];
+        $sources = [];
+        foreach ($channels as $gas => $column) {
+            $parts = ["{$column} IS NOT NULL"];
+            if (array_key_exists($gas, $above)) {
+                $parts[] = "{$column} < ".$above[$gas];
+            }
+            if (array_key_exists($gas, $below)) {
+                $parts[] = "{$column} > ".$below[$gas];
+            }
+            $sources[$gas] = count($parts) === 1
+                ? $column
+                : 'CASE WHEN '.implode(' AND ', $parts)." THEN {$column} END";
         }
 
-        $index = (int) floor(($n - 1) * $p);
-
-        return $sortedAscending[$index];
+        return $sources;
     }
 
     /**
