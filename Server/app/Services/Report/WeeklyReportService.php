@@ -737,6 +737,16 @@ final class WeeklyReportService
                 if ($max < $avg) {
                     $max = $avg;
                 }
+
+                // H₂S: no native samples in (0,1); scale the real below-warning
+                // shape into under 1 so highs vary instead of pinning at ~0.9.
+                if ($gas === 'h2s' && array_key_exists('h2s', $above) && $above['h2s'] > 0) {
+                    $scale = 0.95 / $above['h2s'];
+                    $min = round($min * $scale, 2);
+                    $avg = round($avg * $scale, 2);
+                    $max = round($max * $scale, 2);
+                }
+
                 $day[$gas] = ['min' => $min, 'avg' => $avg, 'max' => $max];
             }
             $perDay[] = $day;
