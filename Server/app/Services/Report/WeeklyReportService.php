@@ -616,12 +616,17 @@ final class WeeklyReportService
             'co' => 'co_ppm',
             'co2' => 'co2_ppm',
         ];
+        $clearExprs = $overwrite
+            ? $this->gasClearReadingExpressions($channels)
+            : null;
+
         $dayExpr = SqlTimeBucket::day('recorded_at');
         $selects = ["{$dayExpr} as day"];
         foreach ($channels as $gas => $column) {
-            $selects[] = "MIN({$column}) as {$gas}_min";
-            $selects[] = "AVG({$column}) as {$gas}_avg";
-            $selects[] = "MAX({$column}) as {$gas}_max";
+            $source = $clearExprs[$gas] ?? $column;
+            $selects[] = "MIN({$source}) as {$gas}_min";
+            $selects[] = "AVG({$source}) as {$gas}_avg";
+            $selects[] = "MAX({$source}) as {$gas}_max";
         }
 
         $byDay = GasReading::query()
@@ -646,10 +651,6 @@ final class WeeklyReportService
             $perDay[] = $day;
         }
 
-        if ($overwrite) {
-            $perDay = $this->clampGasPerDayBelowWarning($perDay);
-        }
-
         // Weekly report shows Alarm-level events only — Warning stays in live gas UI.
         $alarms = [];
         if (! $overwrite) {
@@ -671,15 +672,16 @@ final class WeeklyReportService
     }
 
     /**
-     * Keep frozen daily gas stats inside active warning bands (no warn/alarm values).
+     * SQL expressions that keep only readings inside the clear (non-warn) band.
+     * Aggregates then use real min/avg/max of those samples — no fixed caps.
      *
-     * @param  list<array<string, mixed>>  $perDay
-     * @return list<array<string, mixed>>
+     * @param  array<string, string>  $channels
+     * @return array<string, string>
      */
-    private function clampGasPerDayBelowWarning(array $perDay): array
+    private function gasClearReadingExpressions(array $channels): array
     {
-        $ceil = [];
-        $floor = [];
+        $above = [];
+        $below = [];
 
         foreach (GasThreshold::query()->where('is_active', true)->get() as $threshold) {
             $key = match ($threshold->gas_type) {
@@ -690,40 +692,32 @@ final class WeeklyReportService
                 GasType::Co2 => 'co2',
             };
             $warning = (float) $threshold->warning_level;
-            // Stay strictly inside the clear band so PDF/UI never show warn/alarm figures.
             if ($threshold->direction === ThresholdDirection::Above) {
-                $cap = round($warning - 0.1, 2);
-                $ceil[$key] = array_key_exists($key, $ceil) ? min($ceil[$key], $cap) : $cap;
+                $above[$key] = array_key_exists($key, $above)
+                    ? min($above[$key], $warning)
+                    : $warning;
             } else {
-                $cap = round($warning + 0.1, 2);
-                $floor[$key] = array_key_exists($key, $floor) ? max($floor[$key], $cap) : $cap;
+                $below[$key] = array_key_exists($key, $below)
+                    ? max($below[$key], $warning)
+                    : $warning;
             }
         }
 
-        foreach ($perDay as $i => $day) {
-            foreach (['lel', 'h2s', 'o2', 'co', 'co2'] as $gas) {
-                if (! is_array($day[$gas] ?? null)) {
-                    continue;
-                }
-                foreach (['min', 'avg', 'max'] as $stat) {
-                    $value = $day[$gas][$stat] ?? null;
-                    if ($value === null) {
-                        continue;
-                    }
-                    $value = (float) $value;
-                    if (array_key_exists($gas, $ceil) && $value > $ceil[$gas]) {
-                        $value = $ceil[$gas];
-                    }
-                    if (array_key_exists($gas, $floor) && $value < $floor[$gas]) {
-                        $value = $floor[$gas];
-                    }
-                    $day[$gas][$stat] = $stat === 'avg' ? round($value, 2) : $value;
-                }
+        $exprs = [];
+        foreach ($channels as $gas => $column) {
+            $parts = ["{$column} IS NOT NULL"];
+            if (array_key_exists($gas, $above)) {
+                $parts[] = "{$column} < ".$above[$gas];
             }
-            $perDay[$i] = $day;
+            if (array_key_exists($gas, $below)) {
+                $parts[] = "{$column} > ".$below[$gas];
+            }
+            $exprs[$gas] = count($parts) === 1
+                ? $column
+                : 'CASE WHEN '.implode(' AND ', $parts)." THEN {$column} END";
         }
 
-        return $perDay;
+        return $exprs;
     }
 
     /**
