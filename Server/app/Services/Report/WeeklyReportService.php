@@ -617,9 +617,9 @@ final class WeeklyReportService
             'co2' => 'co2_ppm',
         ];
 
-        // Overwrite: real min/avg/max, but skip samples that cross alarm levels.
+        // Overwrite: real min/avg/max, but skip samples that cross warning levels.
         $sources = $overwrite
-            ? $this->gasSourcesExcludingAlarmCrossings($channels)
+            ? $this->gasSourcesExcludingWarningCrossings($channels)
             : $channels;
 
         $dayExpr = SqlTimeBucket::day('recorded_at');
@@ -677,7 +677,7 @@ final class WeeklyReportService
      * @param  array<string, string>  $channels
      * @return array<string, string> column or CASE expression per channel
      */
-    private function gasSourcesExcludingAlarmCrossings(array $channels): array
+    private function gasSourcesExcludingWarningCrossings(array $channels): array
     {
         $above = [];
         $below = [];
@@ -690,11 +690,11 @@ final class WeeklyReportService
                 GasType::Co => 'co',
                 GasType::Co2 => 'co2',
             };
-            $alarm = (float) $threshold->alarm_level;
+            $warning = (float) $threshold->warning_level;
             if ($threshold->direction === ThresholdDirection::Above) {
-                $above[$key] = array_key_exists($key, $above) ? min($above[$key], $alarm) : $alarm;
+                $above[$key] = array_key_exists($key, $above) ? min($above[$key], $warning) : $warning;
             } else {
-                $below[$key] = array_key_exists($key, $below) ? max($below[$key], $alarm) : $alarm;
+                $below[$key] = array_key_exists($key, $below) ? max($below[$key], $warning) : $warning;
             }
         }
 
